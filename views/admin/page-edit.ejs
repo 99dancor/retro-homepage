@@ -1,0 +1,25 @@
+<%- include('../partials/head') %>
+<p><a href="/admin/pages">« Alle Seiten</a></p>
+<form method="post" action="/admin/pages/save">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="id" value="<%= page.id || '' %>">
+  <div class="row">
+    <label style="flex:2">Titel:<input type="text" name="title" class="w100" value="<%= page.title || '' %>" required></label>
+    <label>Adresse (Slug):<input type="text" name="slug" class="w100" value="<%= page.slug || '' %>" placeholder="automatisch"></label>
+  </div>
+  <label>Inhalt:</label>
+  <%- include('../partials/md-editor', { name: 'body_md', value: page.body_md }) %>
+  <fieldset class="groupbox"><legend>Menü & Sichtbarkeit</legend>
+    <label class="inline"><input type="checkbox" name="in_nav" value="1" <%= page.in_nav ? 'checked' : '' %>> Im Menü anzeigen</label>
+    <label class="inline">Position:<input type="number" name="position" value="<%= page.position || 0 %>" style="width:70px"></label>
+    <%- include('../partials/visibility', { item: page, acl }) %>
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button><% if (page.id) { %><a class="btn" href="/p/<%= page.slug %>" target="_blank">Ansehen</a><% } %></div>
+</form>
+<% if (page.id) { %>
+<form method="post" action="/admin/pages/<%= page.id %>/delete" data-confirm="Seite löschen?" class="actions">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑 Seite löschen</button>
+</form>
+<% } %>
+<script src="/static/admin.js"></script>
+<%- include('../partials/foot') %>

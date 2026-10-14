@@ -1,0 +1,15 @@
+<%- include('../partials/head') %>
+<p>Nachrichten aus dem Kontaktformular. E-Mail-Benachrichtigungen richtest du unter <a href="/admin/settings">Einstellungen</a> ein.</p>
+<table class="list">
+  <tr><th></th><th>Von</th><th>Betreff</th><th>Datum</th></tr>
+  <% for (const m of messages) { %>
+  <tr style="<%= m.is_read ? '' : 'font-weight:bold' %>">
+    <td><%= m.is_read ? '📭' : '📬' %></td>
+    <td><%= m.name || m.username || 'Anonym' %><% if (m.email) { %><br><small><%= m.email %></small><% } %></td>
+    <td><a href="/admin/messages/<%= m.id %>"><%= m.subject || '(ohne Betreff)' %></a><br><small><%= m.body.slice(0, 90) %><%= m.body.length > 90 ? '…' : '' %></small></td>
+    <td><%= fmtDate(m.created_at, true) %></td>
+  </tr>
+  <% } %>
+  <% if (!messages.length) { %><tr><td colspan="4">Posteingang ist leer.</td></tr><% } %>
+</table>
+<%- include('../partials/foot') %>

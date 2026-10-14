@@ -1,0 +1,26 @@
+<%- include('../partials/head') %>
+<fieldset class="groupbox"><legend>🖼️ Bilder hochladen</legend>
+<form method="post" action="/admin/media" enctype="multipart/form-data">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="file" name="images" accept="image/*" multiple required>
+  <button>Hochladen</button>
+  <small>PNG, JPG, GIF, WebP, AVIF, BMP, ICO – max. 25 MB pro Bild. Animierte GIFs gehen natürlich auch. 😉</small>
+</form>
+</fieldset>
+<p>Klicke auf eine Adresse, um sie zu kopieren, und füge sie in Beiträgen als <code>![Beschreibung](/media/…)</code> ein – oder nutze direkt den Bild-Button im Editor.</p>
+<div class="thumbs">
+<% for (const m of media) { %>
+  <figure>
+    <a href="/media/<%= m.stored_name %>" target="_blank"><img src="/media/<%= m.stored_name %>" alt="<%= m.original_name %>" loading="lazy"></a>
+    <figcaption><%= m.original_name %><br><small><%= fmtSize(m.size) %></small><br>
+      <input type="text" readonly value="/media/<%= m.stored_name %>" class="w100" data-copy>
+      <form method="post" action="/admin/media/<%= m.id %>/delete" data-confirm="Bild löschen? Beiträge, die es benutzen, zeigen es dann nicht mehr an.">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Löschen</button>
+      </form>
+    </figcaption>
+  </figure>
+<% } %>
+</div>
+<% if (!media.length) { %><p class="muted">Noch keine Bilder.</p><% } %>
+<script src="/static/admin.js"></script>
+<%- include('../partials/foot') %>

@@ -1,0 +1,13 @@
+<%- include('partials/head') %>
+<h1>🎮 Spiele & Apps</h1>
+<% if (!apps.length) { %><p class="muted">Hier entstehen bald Spiele und kleine Web-Apps. <span class="blink">Under Construction!</span></p><% } %>
+<div class="thumbs">
+<% for (const a of apps) { %>
+  <figure>
+    <a href="/apps/<%= a.slug %>" style="font-size:40px;display:block;text-align:center;text-decoration:none">🕹️</a>
+    <b><a href="/apps/<%= a.slug %>"><%= a.title %></a></b>
+    <% if (a.description) { %><br><%= a.description %><% } %>
+  </figure>
+<% } %>
+</div>
+<%- include('partials/foot') %>

@@ -1,0 +1,126 @@
+<%- include('../partials/head') %>
+<%
+  // Diagramm-Geometrie (serverseitig gerendertes SVG, eine y-Achse, zwei Serien gleicher Einheit)
+  const W = 800, H = 250, ml = 44, mr = 86, mt = 16, mb = 30;
+  const pw = W - ml - mr, ph = H - mt - mb;
+  const s = stats.series;
+  const rawMax = Math.max(1, ...s.map(d => d.views));
+  const mag = Math.pow(10, Math.floor(Math.log10(rawMax)));
+  const step = [1, 2, 2.5, 5, 10].map(f => f * mag / 2).find(st => rawMax / st <= 5) || mag;
+  const yMax = Math.ceil(rawMax / step) * step;
+  const ticks = []; for (let v = 0; v <= yMax + 1e-9; v += step) ticks.push(v);
+  const x = i => ml + (s.length === 1 ? pw / 2 : i * pw / (s.length - 1));
+  const y = v => mt + ph - v / yMax * ph;
+  const fmt = n => n >= 1000 ? (Math.round(n / 100) / 10).toString().replace('.', ',') + 'K' : String(n);
+  const pts = key => s.map((d, i) => `${x(i).toFixed(1)},${y(d[key]).toFixed(1)}`).join(' ');
+  const area = `M${x(0)},${y(0)} L` + pts('views').split(' ').join(' L') + ` L${x(s.length - 1)},${y(0)} Z`;
+  const every = Math.max(1, Math.ceil(s.length / 7));
+  const dLabel = d => d.slice(8, 10) + '.' + d.slice(5, 7) + '.';
+  const last = s[s.length - 1];
+  let lv = y(last.views), lu = y(last.visitors);
+  const labelsCollide = Math.abs(lv - lu) < 14;
+  const maxPage = Math.max(1, ...stats.topPages.map(p => p.views));
+  const maxRef = Math.max(1, ...stats.referrers.map(p => p.views));
+%>
+<div class="actions" style="margin-top:0">
+  <b>Zeitraum:</b>
+  <% for (const d of [7, 30, 90, 365]) { %>
+    <a class="btn small" href="/admin?days=<%= d %>" <%= d === days ? 'aria-current=true' : '' %>><%= d === days ? '✔ ' : '' %><%= d === 365 ? '1 Jahr' : d + ' Tage' %></a>
+  <% } %>
+</div>
+
+<div class="kpis">
+  <div class="kpi">Seitenaufrufe<b><%= (stats.totals.views - (stats.totals.downloads || 0)).toLocaleString('de-DE') %></b></div>
+  <div class="kpi">Besucher (pro Tag gezählt)<b><%= (stats.totals.visitors || 0).toLocaleString('de-DE') %></b></div>
+  <div class="kpi">Downloads<b><%= (stats.totals.downloads || 0).toLocaleString('de-DE') %></b></div>
+  <div class="kpi">Ungelesene Nachrichten<b><a href="/admin/messages"><%= counts.unread %></a></b></div>
+  <div class="kpi">Freundebuch wartet<b><a href="/admin/guestbook"><%= counts.pending %></a></b></div>
+</div>
+
+<fieldset class="groupbox"><legend>📈 Seitenaufrufe und Besucher pro Tag</legend>
+  <div class="chart-legend">
+    <span><i class="key k1"></i> Seitenaufrufe</span>
+    <span><i class="key k2"></i> Besucher</span>
+  </div>
+  <div class="chart-wrap">
+  <svg class="chart" id="traffic" viewBox="0 0 <%= W %> <%= H %>" role="img" tabindex="0"
+       aria-label="Liniendiagramm: Seitenaufrufe und Besucher pro Tag der letzten <%= days %> Tage. Pfeiltasten wählen einen Tag."
+       data-series="<%= JSON.stringify(s) %>" data-ml="<%= ml %>" data-pw="<%= pw %>" data-mt="<%= mt %>" data-ph="<%= ph %>" data-ymax="<%= yMax %>">
+    <% for (const t of ticks) { %>
+      <line x1="<%= ml %>" x2="<%= ml + pw %>" y1="<%= y(t) %>" y2="<%= y(t) %>" class="grid<%= t === 0 ? ' base' : '' %>"/>
+      <text x="<%= ml - 6 %>" y="<%= y(t) + 3 %>" text-anchor="end" class="tick"><%= fmt(t) %></text>
+    <% } %>
+    <% s.forEach((d, i) => { if (i % every === 0 || i === s.length - 1) { %>
+      <text x="<%= x(i) %>" y="<%= H - 10 %>" text-anchor="middle" class="tick"><%= dLabel(d.day) %></text>
+    <% } }) %>
+    <path d="<%= area %>" class="area1"/>
+    <polyline points="<%= pts('views') %>" class="line1"/>
+    <polyline points="<%= pts('visitors') %>" class="line2"/>
+    <circle cx="<%= x(s.length - 1) %>" cy="<%= lv %>" r="4" class="dot1"/>
+    <circle cx="<%= x(s.length - 1) %>" cy="<%= lu %>" r="4" class="dot2"/>
+    <% if (!labelsCollide) { %>
+      <text x="<%= x(s.length - 1) + 9 %>" y="<%= lv + 4 %>" class="endlabel"><%= fmt(last.views) %> Aufrufe</text>
+      <text x="<%= x(s.length - 1) + 9 %>" y="<%= lu + 4 %>" class="endlabel"><%= fmt(last.visitors) %> Besucher</text>
+    <% } %>
+    <line class="crosshair" id="traffic-x" x1="0" x2="0" y1="<%= mt %>" y2="<%= mt + ph %>" visibility="hidden"/>
+    <rect x="<%= ml %>" y="<%= mt %>" width="<%= pw %>" height="<%= ph %>" fill="transparent" id="traffic-hit"/>
+  </svg>
+  <div class="tooltip" id="traffic-tip" hidden></div>
+  </div>
+  <details><summary>Als Tabelle anzeigen</summary>
+    <table class="list">
+      <tr><th>Tag</th><th class="num">Seitenaufrufe</th><th class="num">Besucher</th></tr>
+      <% for (const d of [...s].reverse()) { %><tr><td><%= dLabel(d.day) %><%= d.day.slice(0, 4) %></td><td class="num"><%= d.views %></td><td class="num"><%= d.visitors %></td></tr><% } %>
+    </table>
+  </details>
+</fieldset>
+
+<div class="row">
+  <fieldset class="groupbox"><legend>🔝 Beliebteste Seiten</legend>
+    <% if (!stats.topPages.length) { %><p class="muted">Noch keine Daten.</p><% } else { %>
+    <table class="list">
+      <tr><th>Seite</th><th class="num">Aufrufe</th><th class="num">Besucher</th></tr>
+      <% for (const p of stats.topPages) { %>
+      <tr><td><a href="<%= p.path %>"><%= p.path %></a><div class="hbar" style="width:<%= (p.views / maxPage * 100).toFixed(1) %>%"></div></td><td class="num"><%= p.views %></td><td class="num"><%= p.visitors %></td></tr>
+      <% } %>
+    </table>
+    <% } %>
+  </fieldset>
+  <fieldset class="groupbox"><legend>🌍 Woher kommen Besucher?</legend>
+    <% if (!stats.referrers.length) { %><p class="muted">Noch keine externen Verweise.</p><% } else { %>
+    <table class="list">
+      <tr><th>Website</th><th class="num">Aufrufe</th></tr>
+      <% for (const r of stats.referrers) { %>
+      <tr><td><%= r.host %><div class="hbar" style="width:<%= (r.views / maxRef * 100).toFixed(1) %>%"></div></td><td class="num"><%= r.views %></td></tr>
+      <% } %>
+    </table>
+    <% } %>
+  </fieldset>
+</div>
+<div class="row">
+  <fieldset class="groupbox"><legend>⬇ Meiste Downloads</legend>
+    <% if (!stats.downloads.length) { %><p class="muted">Noch keine Downloads.</p><% } else { %>
+    <table class="list"><tr><th>Datei</th><th class="num">Downloads</th></tr>
+      <% for (const d of stats.downloads) { %><tr><td><%= d.title %></td><td class="num"><%= d.n %></td></tr><% } %>
+    </table><% } %>
+  </fieldset>
+  <fieldset class="groupbox"><legend>💻 Geräte</legend>
+    <% if (!stats.devices.length) { %><p class="muted">Noch keine Daten.</p><% } else { %>
+    <table class="list"><tr><th>Gerät</th><th class="num">Aufrufe</th></tr>
+      <% for (const d of stats.devices) { %><tr><td><%= d.device %></td><td class="num"><%= d.views %></td></tr><% } %>
+    </table><% } %>
+  </fieldset>
+  <fieldset class="groupbox"><legend>👥 Aktivste Mitglieder</legend>
+    <% if (!stats.members.length) { %><p class="muted">Noch keine Daten.</p><% } else { %>
+    <table class="list"><tr><th>Nutzer</th><th class="num">Aufrufe</th><th>Zuletzt</th></tr>
+      <% for (const m of stats.members) { %><tr><td><%= m.username %></td><td class="num"><%= m.views %></td><td><%= fmtDate(m.last, true) %></td></tr><% } %>
+    </table><% } %>
+  </fieldset>
+</div>
+
+<fieldset class="groupbox"><legend>📦 Inhalte</legend>
+  <%= totals.posts %> Beiträge · <%= totals.files.n %> Dateien (<%= fmtSize(totals.files.size) %>, <%= totals.files.dl %> Downloads insgesamt) · <%= totals.users %> Nutzer · <%= totals.guestbook %> Freundebuch-Einträge
+</fieldset>
+<p><small>Datenschutz: Es werden keine IP-Adressen und keine Cookies zum Zählen gespeichert. Besucher werden über einen täglich wechselnden, anonymen Hash gezählt; Bots werden herausgefiltert.</small></p>
+<script src="/static/admin.js"></script>
+<%- include('../partials/foot') %>

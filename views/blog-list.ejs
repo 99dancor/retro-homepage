@@ -1,0 +1,16 @@
+<%- include('partials/head') %>
+<h1>📝 Blog<%= tag ? ' – #' + tag : '' %></h1>
+<% if (tag) { %><p><a href="/blog">« Alle Beiträge</a></p><% } %>
+<% if (!posts.length) { %><p class="muted">Hier gibt es noch nichts zu lesen.</p><% } %>
+<% for (const p of posts) { %>
+  <div class="post panel">
+    <h2 style="margin-top:0"><a href="/blog/<%= p.slug %>"><%= p.title %></a></h2>
+    <div class="meta"><%= fmtDate(p.created_at) %>
+      <% if (p.visibility !== 'public') { %><span class="badge gray"><%= VISIBILITY[p.visibility] %></span><% } %>
+      <% for (const t of (p.tags || '').split(',').filter(Boolean)) { %><a class="tag" href="/blog?tag=<%= encodeURIComponent(t) %>">#<%= t %></a><% } %>
+    </div>
+    <% if (p.summary) { %><p><%= p.summary %></p><% } %>
+    <a href="/blog/<%= p.slug %>">Weiterlesen »</a>
+  </div>
+<% } %>
+<%- include('partials/foot') %>

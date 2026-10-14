@@ -1,0 +1,15 @@
+<%- include('partials/head') %>
+<h1>🔑 Mein Konto</h1>
+<p>Angemeldet als <b><%= user.username %></b><%= user.isAdmin ? ' (Admin)' : '' %>.</p>
+<% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+<% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+<fieldset class="groupbox"><legend>Passwort ändern</legend>
+<form method="post" action="/account">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label>Aktuelles Passwort:<input type="password" name="current" autocomplete="current-password" required></label>
+  <label>Neues Passwort:<input type="password" name="password" autocomplete="new-password" required></label>
+  <label>Neues Passwort wiederholen:<input type="password" name="password2" autocomplete="new-password" required></label>
+  <div class="actions"><button>Ändern</button></div>
+</form>
+</fieldset>
+<%- include('partials/foot') %>

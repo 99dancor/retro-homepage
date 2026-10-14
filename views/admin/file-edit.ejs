@@ -1,0 +1,18 @@
+<%- include('../partials/head') %>
+<p><a href="/admin/files">« Alle Dateien</a></p>
+<p>💾 <b><%= file.original_name %></b> · <%= fmtSize(file.size) %> · <%= file.downloads %> Downloads · hochgeladen am <%= fmtDate(file.created_at, true) %></p>
+<form method="post" action="/admin/files/<%= file.id %>">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <div class="row">
+    <label>Titel:<input type="text" name="title" class="w100" value="<%= file.title %>"></label>
+    <label>Kategorie:<input type="text" name="category" class="w100" value="<%= file.category %>"></label>
+    <label>Spiel:<input type="text" name="game" class="w100" value="<%= file.game || '' %>"></label>
+  </div>
+  <label>Beschreibung:<textarea name="description" style="min-height:60px"><%= file.description || '' %></textarea></label>
+  <%- include('../partials/visibility', { item: file, acl }) %>
+  <div class="actions"><button>💾 Speichern</button><a class="btn" href="/files/dl/<%= file.id %>">⬇ Download</a></div>
+</form>
+<form method="post" action="/admin/files/<%= file.id %>/delete" data-confirm="Datei endgültig löschen?" class="actions">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑 Datei löschen</button>
+</form>
+<%- include('../partials/foot') %>

@@ -1,0 +1,28 @@
+<%- include('partials/head') %>
+<h1>📖 Freundebuch</h1>
+<p>Schön, dass du da bist! Hinterlass doch einen Gruß. <small>(<%= total %> Einträge)</small></p>
+<% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+<fieldset class="groupbox"><legend>✍️ Neuer Eintrag</legend>
+<form method="post" action="/guestbook">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
+  <% if (user) { %>
+    <p>Du schreibst als <b><%= user.username %></b>.</p>
+  <% } else { %>
+    <label>Name / Nickname (leer = anonym):<input type="text" name="name" maxlength="50"></label>
+  <% } %>
+  <label class="inline"><input type="checkbox" name="anonymous" value="1"> Anonym eintragen</label>
+  <label>Nachricht:<textarea name="message" maxlength="2000" required></textarea></label>
+  <div class="actions"><button>Eintragen</button></div>
+</form>
+</fieldset>
+<% for (const e of entries) { %>
+  <div class="gb-entry">
+    <div class="head"><span><%= e.username ? '👤 ' + e.username : (e.name || '👻 Anonym') %></span><span><%= fmtDate(e.created_at, true) %></span></div>
+    <div class="panel text"><%= e.message %></div>
+  </div>
+<% } %>
+<% if (pages > 1) { %>
+  <p class="actions"><% for (let i = 1; i <= pages; i++) { %><a class="btn small" href="/guestbook?page=<%= i %>"><%= i === page ? '[' + i + ']' : i %></a><% } %></p>
+<% } %>
+<%- include('partials/foot') %>

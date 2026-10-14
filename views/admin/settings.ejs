@@ -1,0 +1,49 @@
+<%- include('../partials/head') %>
+<% if (mailMsg) { %><div class="msg">✉️ <%= mailMsg %></div><% } %>
+<form method="post" action="/admin/settings">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox"><legend>🏠 Allgemein</legend>
+    <div class="row">
+      <label>Name der Website:<input type="text" name="site_title" class="w100" value="<%= s.site_title %>"></label>
+      <label>Untertitel (Statusleiste):<input type="text" name="site_tagline" class="w100" value="<%= s.site_tagline %>"></label>
+    </div>
+    <label>Text auf der Startseite:</label>
+    <%- include('../partials/md-editor', { name: 'home_md', value: s.home_md }) %>
+  </fieldset>
+  <fieldset class="groupbox"><legend>📋 Menü</legend>
+    <% for (const [k, v] of Object.entries(navItems)) { %>
+      <label class="inline"><input type="checkbox" name="nav" value="<%= k %>" <%= s.nav_hidden.split(',').includes(k) ? '' : 'checked' %>> <%= v %></label>
+    <% } %>
+    <br><small>Eigene Seiten fügst du unter <a href="/admin/pages">Seiten</a> hinzu.</small>
+  </fieldset>
+  <fieldset class="groupbox"><legend>🔐 Besucher & Mitmachen</legend>
+    <label class="inline"><input type="checkbox" name="registration_open" value="1" <%= s.registration_open === '1' ? 'checked' : '' %>> Jeder darf sich registrieren</label><br>
+    <label class="inline"><input type="checkbox" name="guestbook_enabled" value="1" <%= s.guestbook_enabled === '1' ? 'checked' : '' %>> Freundebuch aktiv</label>
+    <label class="inline"><input type="checkbox" name="guestbook_moderation" value="1" <%= s.guestbook_moderation === '1' ? 'checked' : '' %>> Freundebuch-Einträge erst nach Freischaltung anzeigen</label><br>
+    <label class="inline"><input type="checkbox" name="contact_enabled" value="1" <%= s.contact_enabled === '1' ? 'checked' : '' %>> Kontaktformular aktiv</label>
+    <label>Statistik-Daten aufbewahren (Tage):<input type="number" name="analytics_retention_days" value="<%= s.analytics_retention_days %>" min="7"></label>
+  </fieldset>
+  <fieldset class="groupbox"><legend>✉️ E-Mail-Benachrichtigung</legend>
+    <p><small>Bei neuen Nachrichten, Freundebuch-Einträgen und Registrierungen bekommst du eine E-Mail. Du brauchst dafür einen SMTP-Zugang – z. B. von deinem Mail-Anbieter (GMX, web.de, Gmail mit App-Passwort, Mailbox.org …).</small></p>
+    <div class="row">
+      <label>Benachrichtigung an:<input type="email" name="notify_email" class="w100" value="<%= s.notify_email %>" placeholder="du@example.de"></label>
+      <label>Absender-Adresse:<input type="text" name="smtp_from" class="w100" value="<%= s.smtp_from %>" placeholder="Website &lt;website@example.de&gt;"></label>
+    </div>
+    <div class="row">
+      <label>SMTP-Server:<input type="text" name="smtp_host" class="w100" value="<%= s.smtp_host %>" placeholder="smtp.gmail.com"></label>
+      <label>Port:<input type="number" name="smtp_port" value="<%= s.smtp_port %>"></label>
+      <label class="inline" style="margin-top:22px"><input type="checkbox" name="smtp_secure" value="1" <%= s.smtp_secure === '1' ? 'checked' : '' %>> SSL/TLS direkt (Port 465)</label>
+    </div>
+    <div class="row">
+      <label>Benutzername:<input type="text" name="smtp_user" class="w100" value="<%= s.smtp_user %>" autocomplete="off"></label>
+      <label>Passwort:<input type="password" name="smtp_pass" class="w100" placeholder="<%= s.smtp_pass_set ? '•••••• (gespeichert)' : '' %>" autocomplete="new-password"></label>
+    </div>
+    <% if (s.smtp_pass_set) { %><label class="inline"><input type="checkbox" name="smtp_pass_clear" value="1"> Gespeichertes Passwort löschen</label><% } %>
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button></div>
+</form>
+<form method="post" action="/admin/settings/testmail" class="actions">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button>✉️ Test-E-Mail senden</button> <small>(erst speichern, dann testen)</small>
+</form>
+<script src="/static/admin.js"></script>
+<%- include('../partials/foot') %>

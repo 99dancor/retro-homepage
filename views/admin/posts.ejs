@@ -1,0 +1,16 @@
+<%- include('../partials/head') %>
+<div class="actions" style="margin-top:0"><a class="btn" href="/admin/posts/new">➕ Neuer Beitrag</a></div>
+<table class="list" style="margin-top:8px">
+  <tr><th>Titel</th><th>Status</th><th>Sichtbarkeit</th><th>Datum</th><th></th></tr>
+  <% for (const p of posts) { %>
+  <tr>
+    <td><a href="/admin/posts/<%= p.id %>"><b><%= p.title %></b></a><br><small>/blog/<%= p.slug %></small></td>
+    <td><%= p.published ? 'Veröffentlicht' : 'Entwurf' %></td>
+    <td><%= VISIBILITY[p.visibility] %></td>
+    <td><%= fmtDate(p.created_at) %></td>
+    <td><a href="/blog/<%= p.slug %>" target="_blank">Ansehen</a></td>
+  </tr>
+  <% } %>
+  <% if (!posts.length) { %><tr><td colspan="5">Noch keine Beiträge – leg los mit „Neuer Beitrag“.</td></tr><% } %>
+</table>
+<%- include('../partials/foot') %>

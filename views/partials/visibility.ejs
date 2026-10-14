@@ -1,0 +1,9 @@
+<label>Sichtbarkeit:
+  <select name="visibility">
+    <% for (const [k, v] of Object.entries(VISIBILITY)) { %><option value="<%= k %>" <%= (item.visibility || 'public') === k ? 'selected' : '' %>><%= v %></option><% } %>
+  </select>
+</label>
+<div class="group-pick">
+  <% if (!allGroups.length) { %><small>Noch keine Gruppen angelegt – unter <a href="/admin/users">Nutzer</a> erstellen.</small><% } %>
+  <% for (const g of allGroups) { %><label class="inline"><input type="checkbox" name="groups" value="<%= g.id %>" <%= acl.includes(g.id) ? 'checked' : '' %>> <%= g.name %></label><% } %>
+</div>

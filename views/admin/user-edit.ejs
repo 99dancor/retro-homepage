@@ -1,0 +1,29 @@
+<%- include('../partials/head') %>
+<p><a href="/admin/users">« Alle Nutzer</a></p>
+<% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+<% const self = u.id === user.id; %>
+<form method="post" action="/admin/users/<%= u.id %>">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <p>Registriert am <%= fmtDate(u.created_at) %> · letzter Login: <%= u.last_login ? fmtDate(u.last_login, true) : 'nie' %></p>
+  <fieldset class="groupbox"><legend>Rechte</legend>
+    <label>Rolle:
+      <select name="role" <%= self ? 'disabled' : '' %>><option value="user" <%= u.role === 'user' ? 'selected' : '' %>>Nutzer</option><option value="admin" <%= u.role === 'admin' ? 'selected' : '' %>>Admin (darf alles)</option></select>
+    </label>
+    <label class="inline"><input type="checkbox" name="can_upload" value="1" <%= u.can_upload ? 'checked' : '' %>> Darf selbst Dateien hochladen</label>
+    <label class="inline"><input type="checkbox" name="disabled" value="1" <%= u.disabled ? 'checked' : '' %> <%= self ? 'disabled' : '' %>> Konto gesperrt</label>
+  </fieldset>
+  <fieldset class="groupbox"><legend>Gruppen</legend>
+    <% if (!allGroups.length) { %><small>Noch keine Gruppen angelegt.</small><% } %>
+    <% for (const g of allGroups) { %><label class="inline"><input type="checkbox" name="groups" value="<%= g.id %>" <%= userGroups.includes(g.id) ? 'checked' : '' %>> <%= g.name %></label><% } %>
+  </fieldset>
+  <fieldset class="groupbox"><legend>Neues Passwort setzen (optional)</legend>
+    <input type="text" name="password" minlength="8" autocomplete="off" placeholder="leer lassen = unverändert">
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button></div>
+</form>
+<% if (!self) { %>
+<form method="post" action="/admin/users/<%= u.id %>/delete" data-confirm="Nutzer <%= u.username %> wirklich löschen?" class="actions">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑 Nutzer löschen</button>
+</form>
+<% } %>
+<%- include('../partials/foot') %>

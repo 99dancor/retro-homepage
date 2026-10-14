@@ -1,0 +1,10 @@
+<%- include('../partials/head') %>
+<div class="actions" style="margin-top:0"><a class="btn" href="/admin/mods/new">➕ Neue Modliste</a></div>
+<table class="list" style="margin-top:8px">
+  <tr><th>Spiel</th><th>Titel</th><th class="num">Mods</th><th>Sichtbarkeit</th><th>Stand</th></tr>
+  <% for (const l of lists) { %>
+  <tr><td><%= l.game %></td><td><a href="/admin/mods/<%= l.id %>"><b><%= l.title %></b></a></td><td class="num"><%= l.n %></td><td><%= VISIBILITY[l.visibility] %></td><td><%= fmtDate(l.updated_at) %></td></tr>
+  <% } %>
+  <% if (!lists.length) { %><tr><td colspan="5">Noch keine Modlisten.</td></tr><% } %>
+</table>
+<%- include('../partials/foot') %>

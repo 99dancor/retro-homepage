@@ -1,0 +1,11 @@
+<%- include('../partials/head') %>
+<p>Eigene Seiten erscheinen unter <code>/p/name</code> und – wenn gewünscht – im Menü. Ideal für „Über mich“, Server-Infos, Regeln usw.</p>
+<div class="actions" style="margin-top:0"><a class="btn" href="/admin/pages/new">➕ Neue Seite</a></div>
+<table class="list" style="margin-top:8px">
+  <tr><th>Titel</th><th>Adresse</th><th>Im Menü</th><th>Sichtbarkeit</th></tr>
+  <% for (const p of pages) { %>
+  <tr><td><a href="/admin/pages/<%= p.id %>"><b><%= p.title %></b></a></td><td><a href="/p/<%= p.slug %>" target="_blank">/p/<%= p.slug %></a></td><td><%= p.in_nav ? '✔ (Pos. ' + p.position + ')' : '' %></td><td><%= VISIBILITY[p.visibility] %></td></tr>
+  <% } %>
+  <% if (!pages.length) { %><tr><td colspan="4">Noch keine eigenen Seiten.</td></tr><% } %>
+</table>
+<%- include('../partials/foot') %>

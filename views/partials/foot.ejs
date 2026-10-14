@@ -1,0 +1,67 @@
+<% const isAdmin = path.startsWith('/admin') && typeof counts !== 'undefined'; %>
+<% if (!isAdmin) { %>
+  </main>
+  <aside class="sidebar">
+    <div class="window">
+      <div class="titlebar"><span class="ttl">👤 <%= user ? user.username : 'Anmelden' %></span></div>
+      <div class="body">
+        <% if (user) { %>
+          <% if (user.isAdmin) { %><p><a class="btn w100" href="/admin">⚙️ Admin-Bereich</a></p><% } %>
+          <% if (user.canUpload) { %><p><a href="/files/upload">📤 Datei hochladen</a></p><% } %>
+          <p><a href="/account">🔑 Mein Konto</a></p>
+          <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small">Abmelden</button></form>
+        <% } else { %>
+          <form method="post" action="/login">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <input type="hidden" name="next" value="<%= path %>">
+            <label>Benutzer:<input type="text" name="username" class="w100" autocomplete="username"></label>
+            <label>Passwort:<input type="password" name="password" class="w100" autocomplete="current-password"></label>
+            <div class="actions"><button>OK</button></div>
+          </form>
+          <% if (registrationOpen) { %><p><a href="/register">Neu hier? Registrieren</a></p><% } %>
+        <% } %>
+      </div>
+    </div>
+    <% if (showCounter) { %>
+    <div class="window">
+      <div class="titlebar"><span class="ttl">🔢 Besucher</span></div>
+      <div class="body" style="text-align:center">
+        <div class="counter"><% for (const d of String(hitCounter).padStart(7, '0')) { %><span><%= d %></span><% } %></div>
+        <p><small>Besucher seit Eröffnung</small></p>
+      </div>
+    </div>
+    <% } %>
+    <div class="badges">
+      <span class="b88 a">BEST VIEWED<br>800 × 600</span>
+      <span class="b88 b">MADE WITH<br>NOTEPAD</span>
+      <span class="b88 c">&gt;_ SELF<br>HOSTED</span>
+      <span class="b88 d">NO<br>COOKIE BANNER</span>
+    </div>
+  </aside>
+  </div>
+<% } %>
+  </div>
+  <div class="statusbar"><span><%= site.tagline %></span><span style="flex:0 0 auto">🌐 Internet</span></div>
+</div>
+
+<div class="startmenu" id="startmenu" data-title="<%= site.title %>">
+  <a href="/">🏠 Startseite</a>
+  <a href="/blog">📝 Blog</a>
+  <a href="/files">📁 Downloads</a>
+  <a href="/mods">🧩 Modlisten</a>
+  <a href="/links">🔗 Links</a>
+  <a href="/apps">🎮 Spiele & Apps</a>
+  <% if (guestbookEnabled) { %><a href="/guestbook">📖 Freundebuch</a><% } %>
+  <% if (contactEnabled) { %><a href="/contact">✉️ Kontakt</a><% } %>
+  <hr>
+  <% if (user && user.isAdmin) { %><a href="/admin">⚙️ Systemsteuerung</a><% } %>
+  <% if (!user) { %><a href="/login">🔑 Anmelden…</a><% } %>
+</div>
+<div class="taskbar">
+  <button class="start" id="startbtn" aria-expanded="false" aria-controls="startmenu">🪟 Start</button>
+  <span class="task">💾 <%= title || site.title %></span>
+  <span class="tray" id="clock"></span>
+</div>
+<script src="/static/retro.js"></script>
+</body>
+</html>

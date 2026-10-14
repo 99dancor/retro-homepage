@@ -1,0 +1,33 @@
+<%- include('../partials/head') %>
+<fieldset class="groupbox"><legend><%= edit.id ? '✏️ Link bearbeiten' : '➕ Neuer Link' %></legend>
+<form method="post" action="/admin/links/save">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="id" value="<%= edit.id || '' %>">
+  <div class="row">
+    <label>Adresse (URL):<input type="url" name="url" class="w100" value="<%= edit.url || '' %>" required placeholder="https://"></label>
+    <label>Titel:<input type="text" name="title" class="w100" value="<%= edit.title || '' %>"></label>
+  </div>
+  <div class="row">
+    <label>Kategorie:<input type="text" name="category" class="w100" list="lcats" value="<%= edit.category || '' %>"></label>
+    <label>Reihenfolge:<input type="number" name="position" value="<%= edit.position || 0 %>"></label>
+  </div>
+  <datalist id="lcats"><% for (const c of categories) { %><option value="<%= c %>"><% } %></datalist>
+  <label>Beschreibung:<input type="text" name="description" class="w100" value="<%= edit.description || '' %>"></label>
+  <%- include('../partials/visibility', { item: edit, acl }) %>
+  <div class="actions"><button>💾 Speichern</button><% if (edit.id) { %><a class="btn" href="/admin/links">Abbrechen</a><% } %></div>
+</form>
+</fieldset>
+<table class="list">
+  <tr><th>Kategorie</th><th>Link</th><th>Sichtbarkeit</th><th></th></tr>
+  <% for (const l of links) { %>
+  <tr>
+    <td><%= l.category %></td>
+    <td><a href="<%= l.url %>" target="_blank" rel="noopener"><%= l.title %></a><br><small><%= l.description || '' %></small></td>
+    <td><%= VISIBILITY[l.visibility] %></td>
+    <td><a href="/admin/links?edit=<%= l.id %>">Bearbeiten</a>
+      <form method="post" action="/admin/links/<%= l.id %>/delete" class="inline" data-confirm="Link löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Löschen</button></form></td>
+  </tr>
+  <% } %>
+  <% if (!links.length) { %><tr><td colspan="4">Noch keine Links.</td></tr><% } %>
+</table>
+<%- include('../partials/foot') %>

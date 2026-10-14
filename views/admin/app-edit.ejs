@@ -1,0 +1,28 @@
+<%- include('../partials/head') %>
+<p><a href="/admin/apps">« Alle Apps</a></p>
+<% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+<form method="post" action="/admin/apps/save" enctype="multipart/form-data">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="id" value="<%= a.id || '' %>">
+  <div class="row">
+    <label style="flex:2">Titel:<input type="text" name="title" class="w100" value="<%= a.title || '' %>" required></label>
+    <% if (!a.id) { %><label>Adresse (Slug, optional):<input type="text" name="slug" class="w100" placeholder="automatisch"></label><% } else { %><label>Adresse:<br><a href="/apps/<%= a.slug %>" target="_blank">/apps/<%= a.slug %></a></label><% } %>
+  </div>
+  <label>Beschreibung:<textarea name="description" style="min-height:60px"><%= a.description || '' %></textarea></label>
+  <fieldset class="groupbox"><legend>Variante A: HTML5-Build hochladen</legend>
+    <label>ZIP-Datei<%= a.id && !a.external_url ? ' (ersetzt die aktuelle Version)' : '' %>:<input type="file" name="zip" accept=".zip,application/zip"></label>
+    <label>Startdatei im ZIP:<input type="text" name="entry" value="<%= a.entry || '' %>" placeholder="index.html (wird automatisch erkannt)"></label>
+  </fieldset>
+  <fieldset class="groupbox"><legend>Variante B: Externer Dienst (eigener Container)</legend>
+    <label>Adresse:<input type="url" name="external_url" class="w100" value="<%= a.external_url || '' %>" placeholder="https://quiz.deine-domain.de"></label>
+    <small>Wird auf der Seite in einem Fenster eingebettet. Gut für Dinge mit eigenem Server, z. B. Mehrspieler-Quiz.</small>
+  </fieldset>
+  <%- include('../partials/visibility', { item: a, acl }) %>
+  <div class="actions"><button>💾 Speichern</button><% if (a.id) { %><a class="btn" href="/apps/<%= a.slug %>" target="_blank">▶ Starten</a><% } %></div>
+</form>
+<% if (a.id) { %>
+<form method="post" action="/admin/apps/<%= a.id %>/delete" data-confirm="App inklusive aller Dateien löschen?" class="actions">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑 App löschen</button>
+</form>
+<% } %>
+<%- include('../partials/foot') %>

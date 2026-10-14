@@ -1,0 +1,33 @@
+<%- include('../partials/head') %>
+<fieldset class="groupbox"><legend>📤 Dateien hochladen</legend>
+<form method="post" action="/admin/files/upload" enctype="multipart/form-data">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label>Datei(en) – max. <%= maxMb %> MB pro Datei:<input type="file" name="files" multiple required></label>
+  <div class="row">
+    <label>Titel (nur bei einer Datei, optional):<input type="text" name="title" class="w100"></label>
+    <label>Kategorie:<input type="text" name="category" class="w100" list="cats" placeholder="z. B. Spielstände"></label>
+    <label>Spiel (optional):<input type="text" name="game" class="w100"></label>
+  </div>
+  <datalist id="cats"><% for (const c of categories) { %><option value="<%= c %>"><% } %><option value="Spielstände"><option value="Mods"><option value="Tools"><option value="Dokumente"></datalist>
+  <label>Beschreibung:<textarea name="description" style="min-height:50px"></textarea></label>
+  <%- include('../partials/visibility', { item: { visibility: 'public' }, acl: [] }) %>
+  <div class="actions"><button>Hochladen</button><span class="muted" data-progress></span></div>
+</form>
+</fieldset>
+<table class="list">
+  <tr><th>Titel</th><th>Kategorie / Spiel</th><th>Sichtbarkeit</th><th class="num">Größe</th><th class="num">⬇</th><th>Von</th><th></th></tr>
+  <% for (const f of files) { %>
+  <tr>
+    <td><a href="/admin/files/<%= f.id %>"><b><%= f.title %></b></a><br><small><%= f.original_name %></small></td>
+    <td><%= f.category %><%= f.game ? ' / ' + f.game : '' %></td>
+    <td><%= VISIBILITY[f.visibility] %></td>
+    <td class="num"><%= fmtSize(f.size) %></td>
+    <td class="num"><%= f.downloads %></td>
+    <td><%= f.username || '–' %></td>
+    <td><a href="/files/dl/<%= f.id %>">Download</a></td>
+  </tr>
+  <% } %>
+  <% if (!files.length) { %><tr><td colspan="7">Noch keine Dateien.</td></tr><% } %>
+</table>
+<script src="/static/admin.js"></script>
+<%- include('../partials/foot') %>

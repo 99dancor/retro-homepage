@@ -1,0 +1,16 @@
+<%- include('../partials/head') %>
+<p><a href="/admin/messages">« Posteingang</a></p>
+<div class="panel">
+  <p><b>Von:</b> <%= m.name || 'Anonym' %><%= m.username ? ' (angemeldet als ' + m.username + ')' : '' %><br>
+  <b>E-Mail:</b> <%= m.email || '–' %><br>
+  <b>Datum:</b> <%= fmtDate(m.created_at, true) %><br>
+  <b>Betreff:</b> <%= m.subject || '(ohne Betreff)' %></p>
+  <hr>
+  <div style="white-space:pre-wrap"><%= m.body %></div>
+</div>
+<div class="actions">
+  <% if (m.email) { %><a class="btn" href="mailto:<%= encodeURIComponent(m.email).replace('%40', '@') %>?subject=<%= encodeURIComponent('Re: ' + (m.subject || '')) %>">↩ Antworten</a><% } %>
+  <form method="post" action="/admin/messages/<%= m.id %>/unread" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Als ungelesen markieren</button></form>
+  <form method="post" action="/admin/messages/<%= m.id %>/delete" class="inline" data-confirm="Nachricht löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑 Löschen</button></form>
+</div>
+<%- include('../partials/foot') %>

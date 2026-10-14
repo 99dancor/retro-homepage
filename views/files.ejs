@@ -1,0 +1,31 @@
+<%- include('partials/head') %>
+<h1>📁 Downloads</h1>
+<form method="get" action="/files" class="actions">
+  <input type="search" name="q" value="<%= q %>" placeholder="Suchen…">
+  <select name="cat"><option value="">Alle Kategorien</option>
+    <% for (const c of cats) { %><option value="<%= c.category %>" <%= c.category === cat ? 'selected' : '' %>><%= c.category %> (<%= c.n %>)</option><% } %>
+  </select>
+  <button>Suchen</button>
+  <% if (user && user.canUpload) { %><a class="btn" href="/files/upload">📤 Hochladen</a><% } %>
+</form>
+<% const keys = Object.keys(grouped); if (!keys.length) { %><p class="muted">Keine Dateien gefunden.</p><% } %>
+<% for (const c of keys) { %>
+  <fieldset class="groupbox"><legend>📂 <%= c %></legend>
+  <table class="list">
+    <tr><th>Name</th><th>Spiel</th><th class="num">Größe</th><th>Datum</th><th class="num">⬇</th></tr>
+    <% for (const f of grouped[c]) { %>
+    <tr>
+      <td><a href="/files/dl/<%= f.id %>"><b><%= f.title %></b></a>
+        <% if (f.visibility !== 'public') { %><span class="badge gray"><%= VISIBILITY[f.visibility] %></span><% } %>
+        <% if (f.description) { %><br><small><%= f.description %></small><% } %>
+        <% if (f.title !== f.original_name) { %><br><small>💾 <%= f.original_name %></small><% } %></td>
+      <td><%= f.game || '–' %></td>
+      <td class="num"><%= fmtSize(f.size) %></td>
+      <td><%= fmtDate(f.created_at) %></td>
+      <td class="num"><%= f.downloads %></td>
+    </tr>
+    <% } %>
+  </table>
+  </fieldset>
+<% } %>
+<%- include('partials/foot') %>

@@ -1,0 +1,4 @@
+<%- include('partials/head') %>
+<div class="content"><%- bodyHtml %></div>
+<% if (user && user.isAdmin) { %><p><a class="btn" href="/admin/pages/<%= page.id %>">✏️ Bearbeiten</a></p><% } %>
+<%- include('partials/foot') %>

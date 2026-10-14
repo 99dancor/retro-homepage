@@ -1,0 +1,32 @@
+<%- include('../partials/head') %>
+<form method="post" action="/admin/posts/save">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="id" value="<%= post.id || '' %>">
+  <div class="row">
+    <label style="flex:3">Titel:<input type="text" name="title" class="w100" value="<%= post.title || '' %>" required></label>
+    <label>Adresse (Slug, optional):<input type="text" name="slug" class="w100" value="<%= post.slug || '' %>" placeholder="automatisch"></label>
+  </div>
+  <label>Kurzbeschreibung (für Übersicht):<input type="text" name="summary" class="w100" value="<%= post.summary || '' %>"></label>
+  <label>Text:</label>
+  <%- include('../partials/md-editor', { name: 'body_md', value: post.body_md }) %>
+  <div class="row">
+    <label>Tags (mit Komma getrennt):<input type="text" name="tags" class="w100" value="<%= post.tags || '' %>" placeholder="gaming, technik"></label>
+    <label>Datum:<input type="datetime-local" name="created_at" value="<%= post.created_at ? new Date(post.created_at * 1000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '' %>"></label>
+  </div>
+  <fieldset class="groupbox"><legend>Veröffentlichung</legend>
+    <label class="inline"><input type="checkbox" name="published" value="1" <%= post.published ? 'checked' : '' %>> Veröffentlicht (sonst Entwurf)</label>
+    <%- include('../partials/visibility', { item: post, acl }) %>
+  </fieldset>
+  <div class="actions">
+    <button>💾 Speichern</button>
+    <% if (post.id) { %><a class="btn" href="/blog/<%= post.slug %>" target="_blank">Ansehen</a><% } %>
+    <a class="btn" href="/admin/posts">Zurück</a>
+  </div>
+</form>
+<% if (post.id) { %>
+<form method="post" action="/admin/posts/<%= post.id %>/delete" data-confirm="Beitrag wirklich löschen?" class="actions">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑 Beitrag löschen</button>
+</form>
+<% } %>
+<script src="/static/admin.js"></script>
+<%- include('../partials/foot') %>

@@ -1,0 +1,46 @@
+<%- include('../partials/head') %>
+<% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+<div class="row">
+<fieldset class="groupbox" style="flex:2"><legend>👥 Nutzer</legend>
+  <table class="list">
+    <tr><th>Name</th><th>Rolle</th><th>Gruppen</th><th>Upload</th><th>Letzter Login</th></tr>
+    <% for (const u of users) { %>
+    <tr style="<%= u.disabled ? 'opacity:.5' : '' %>">
+      <td><a href="/admin/users/<%= u.id %>"><b><%= u.username %></b></a><%= u.disabled ? ' (gesperrt)' : '' %></td>
+      <td><%= u.role === 'admin' ? 'Admin' : 'Nutzer' %></td>
+      <td><%= u.group_names || '–' %></td>
+      <td><%= u.role === 'admin' || u.can_upload ? '✔' : '' %></td>
+      <td><%= u.last_login ? fmtDate(u.last_login, true) : 'nie' %></td>
+    </tr>
+    <% } %>
+  </table>
+  <form method="post" action="/admin/users/create" class="groupbox">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <b>➕ Nutzer anlegen</b>
+    <div class="row">
+      <label>Benutzername:<input type="text" name="username" class="w100" required></label>
+      <label>Passwort:<input type="text" name="password" class="w100" required minlength="8" autocomplete="off"></label>
+      <label>Rolle:<select name="role"><option value="user">Nutzer</option><option value="admin">Admin</option></select></label>
+    </div>
+    <div class="actions"><button>Anlegen</button></div>
+  </form>
+</fieldset>
+<fieldset class="groupbox"><legend>🏷️ Gruppen</legend>
+  <p><small>Gruppen steuern, wer Inhalte mit der Sichtbarkeit „Nur bestimmte Gruppen“ sehen darf – z. B. „Freunde“ oder „Minecraft-Server“.</small></p>
+  <table class="list">
+    <tr><th>Gruppe</th><th class="num">Mitglieder</th><th></th></tr>
+    <% for (const g of groups) { %>
+    <tr><td><b><%= g.name %></b><br><small><%= g.description || '' %></small></td><td class="num"><%= g.n %></td>
+      <td><form method="post" action="/admin/groups/<%= g.id %>/delete" class="inline" data-confirm="Gruppe löschen? Inhalte, die nur für diese Gruppe sichtbar waren, sieht dann nur noch der Admin."><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Löschen</button></form></td></tr>
+    <% } %>
+    <% if (!groups.length) { %><tr><td colspan="3">Noch keine Gruppen.</td></tr><% } %>
+  </table>
+  <form method="post" action="/admin/groups/create">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Name:<input type="text" name="name" class="w100" required></label>
+    <label>Beschreibung:<input type="text" name="description" class="w100"></label>
+    <div class="actions"><button>➕ Gruppe anlegen</button></div>
+  </form>
+</fieldset>
+</div>
+<%- include('../partials/foot') %>

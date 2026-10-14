@@ -1,0 +1,11 @@
+<%- include('../partials/head') %>
+<p>Hier kannst du browserbasierte Spiele und Apps hosten: einfach den fertigen HTML5-Build als ZIP hochladen (z. B. aus Godot, Unity WebGL, Phaser, GameMaker oder selbst geschriebenem HTML/JS). Für Dinge mit eigenem Server – etwa ein Mehrspieler-Quiz – trägst du stattdessen die Adresse ein, unter der der Dienst läuft.</p>
+<div class="actions" style="margin-top:0"><a class="btn" href="/admin/apps/new">➕ Neue App</a></div>
+<table class="list" style="margin-top:8px">
+  <tr><th>Titel</th><th>Art</th><th>Sichtbarkeit</th><th class="num">Aufrufe</th></tr>
+  <% for (const a of apps) { %>
+  <tr><td><a href="/admin/apps/<%= a.id %>"><b><%= a.title %></b></a></td><td><%= a.external_url ? 'Externer Dienst' : 'Hochgeladen (' + a.entry + ')' %></td><td><%= VISIBILITY[a.visibility] %></td><td class="num"><%= a.plays %></td></tr>
+  <% } %>
+  <% if (!apps.length) { %><tr><td colspan="4">Noch keine Apps.</td></tr><% } %>
+</table>
+<%- include('../partials/foot') %>

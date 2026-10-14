@@ -1,0 +1,15 @@
+<%- include('partials/head') %>
+<h1>✉️ Kontakt</h1>
+<% if (sent) { %><div class="msg">✔ Danke! Deine Nachricht ist angekommen.</div><% } %>
+<form method="post" action="/contact">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
+  <div class="row">
+    <label>Name:<input type="text" name="name" class="w100" value="<%= user ? user.username : '' %>" maxlength="100"></label>
+    <label>E-Mail (für eine Antwort, optional):<input type="email" name="email" class="w100" maxlength="200"></label>
+  </div>
+  <label>Betreff:<input type="text" name="subject" class="w100" maxlength="200"></label>
+  <label>Nachricht:<textarea name="body" required maxlength="10000"></textarea></label>
+  <div class="actions"><button>Absenden</button></div>
+</form>
+<%- include('partials/foot') %>

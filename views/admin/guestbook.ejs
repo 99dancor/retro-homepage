@@ -1,0 +1,19 @@
+<%- include('../partials/head') %>
+<p>Einträge freischalten, verstecken oder löschen. Ob neue Einträge erst freigeschaltet werden müssen, stellst du unter <a href="/admin/settings">Einstellungen</a> ein.</p>
+<table class="list">
+  <tr><th>Von</th><th>Nachricht</th><th>Datum</th><th>Status</th><th></th></tr>
+  <% for (const e of entries) { %>
+  <tr>
+    <td><%= e.username ? '👤 ' + e.username : (e.name || 'Anonym') %></td>
+    <td style="white-space:pre-wrap"><%= e.message %></td>
+    <td><%= fmtDate(e.created_at, true) %></td>
+    <td><%= e.approved ? 'Sichtbar' : '⏳ Wartet' %></td>
+    <td style="white-space:nowrap">
+      <form method="post" action="/admin/guestbook/<%= e.id %>/<%= e.approved ? 'hide' : 'approve' %>" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small"><%= e.approved ? 'Verstecken' : 'Freischalten' %></button></form>
+      <form method="post" action="/admin/guestbook/<%= e.id %>/delete" class="inline" data-confirm="Eintrag löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Löschen</button></form>
+    </td>
+  </tr>
+  <% } %>
+  <% if (!entries.length) { %><tr><td colspan="5">Noch keine Einträge.</td></tr><% } %>
+</table>
+<%- include('../partials/foot') %>

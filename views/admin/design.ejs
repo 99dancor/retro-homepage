@@ -1,0 +1,55 @@
+<%- include('../partials/head') %>
+<fieldset class="groupbox"><legend>🎨 Vorlagen</legend>
+  <form method="post" action="/admin/design" enctype="multipart/form-data" class="actions" style="margin-top:0">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <% for (const [name, p] of Object.entries(presets)) { %>
+      <button name="preset" value="<%= name %>" class="swatch"><i style="background:<%= p.theme_bg_color %>"></i><i style="background:linear-gradient(90deg,<%= p.theme_title_from %>,<%= p.theme_title_to %>)"></i> <%= name %></button>
+    <% } %>
+  </form>
+  <small>Eine Vorlage setzt nur die Farben – Hintergrundbild, Schrift und eigenes CSS bleiben erhalten.</small>
+</fieldset>
+<form method="post" action="/admin/design" enctype="multipart/form-data">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox"><legend>🖥️ Hintergrund</legend>
+    <div class="row">
+      <label>Hintergrundfarbe:<br><input type="color" name="theme_bg_color" value="<%= s.theme_bg_color %>"></label>
+      <label>Bild hochladen:<input type="file" name="bg_upload" accept="image/*"></label>
+      <label>Darstellung:
+        <select name="theme_bg_mode">
+          <option value="tile" <%= s.theme_bg_mode === 'tile' ? 'selected' : '' %>>Kacheln (klassisch)</option>
+          <option value="cover" <%= s.theme_bg_mode === 'cover' ? 'selected' : '' %>>Bildschirm füllen</option>
+          <option value="center" <%= s.theme_bg_mode === 'center' ? 'selected' : '' %>>Zentriert</option>
+        </select></label>
+    </div>
+    <label>Oder ein Bild aus der Bibliothek wählen:</label>
+    <div class="thumbs">
+      <label class="inline" style="display:block"><figure><input type="radio" name="theme_bg_image" value="" <%= !s.theme_bg_image ? 'checked' : '' %>> Kein Bild</figure></label>
+      <% for (const m of media) { %>
+        <label style="margin:0"><figure><img src="/media/<%= m.stored_name %>" alt="" loading="lazy"><br><input type="radio" name="theme_bg_image" value="/media/<%= m.stored_name %>" <%= s.theme_bg_image === '/media/' + m.stored_name ? 'checked' : '' %>> <%= m.original_name %></figure></label>
+      <% } %>
+    </div>
+  </fieldset>
+  <fieldset class="groupbox"><legend>🪟 Fenster & Schrift</legend>
+    <div class="row">
+      <label>Fensterfarbe:<br><input type="color" name="theme_window_color" value="<%= s.theme_window_color %>"></label>
+      <label>Titelleiste links:<br><input type="color" name="theme_title_from" value="<%= s.theme_title_from %>"></label>
+      <label>Titelleiste rechts:<br><input type="color" name="theme_title_to" value="<%= s.theme_title_to %>"></label>
+      <label>Textfarbe:<br><input type="color" name="theme_text_color" value="<%= s.theme_text_color %>"></label>
+      <label>Linkfarbe:<br><input type="color" name="theme_link_color" value="<%= s.theme_link_color %>"></label>
+    </div>
+    <label>Schriftart:
+      <select name="theme_font">
+        <% for (const [k, v] of Object.entries({ tahoma: 'Tahoma (Windows 2000)', ms_sans: 'MS Sans Serif (Windows 98)', verdana: 'Verdana', times: 'Times New Roman', comic: 'Comic Sans MS 🤡', courier: 'Courier New' })) { %>
+          <option value="<%= k %>" <%= s.theme_font === k ? 'selected' : '' %>><%= v %></option>
+        <% } %>
+      </select></label>
+  </fieldset>
+  <fieldset class="groupbox"><legend>✨ Extras</legend>
+    <label>Lauftext (leer = aus):<input type="text" name="theme_marquee" class="w100" value="<%= s.theme_marquee %>"></label>
+    <label class="inline"><input type="checkbox" name="theme_show_counter" value="1" <%= s.theme_show_counter === '1' ? 'checked' : '' %>> Besucherzähler anzeigen</label>
+    <label>Eigenes CSS (für Profis – wird nach allem anderen geladen):</label>
+    <textarea name="theme_custom_css" class="code" style="min-height:140px" placeholder="/* z. B. */&#10;.titlebar { font-family: 'Comic Sans MS'; }&#10;body { cursor: crosshair; }"><%= s.theme_custom_css %></textarea>
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button><a class="btn" href="/" target="_blank">Website ansehen</a></div>
+</form>
+<%- include('../partials/foot') %>

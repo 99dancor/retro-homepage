@@ -1,0 +1,31 @@
+<%- include('partials/head') %>
+<div class="content"><%- homeHtml %></div>
+<div class="construction"></div>
+
+<h2>📝 Neueste Beiträge</h2>
+<% if (!posts.length) { %><p class="muted">Noch keine Beiträge.</p><% } %>
+<% for (const p of posts) { %>
+  <div class="post">
+    <a href="/blog/<%= p.slug %>"><b><%= p.title %></b></a> <span class="meta">– <%= fmtDate(p.created_at) %></span>
+    <% if (p.summary) { %><div><%= p.summary %></div><% } %>
+  </div>
+<% } %>
+
+<% if (files.length && !navHidden.includes('files')) { %>
+<h2>📁 Neue Downloads</h2>
+<table class="list">
+  <tr><th>Datei</th><th>Kategorie</th><th class="num">Größe</th></tr>
+  <% for (const f of files) { %>
+  <tr><td><a href="/files/dl/<%= f.id %>"><%= f.title %></a></td><td><%= f.category %><%= f.game ? ' / ' + f.game : '' %></td><td class="num"><%= fmtSize(f.size) %></td></tr>
+  <% } %>
+</table>
+<% } %>
+
+<% if (guestbookEnabled && guestbook.length) { %>
+<h2>📖 Zuletzt im Freundebuch</h2>
+<% for (const g of guestbook) { %>
+  <div class="panel" style="margin-bottom:6px"><b><%= g.name || 'Anonym' %>:</b> <%= g.message.length > 160 ? g.message.slice(0, 160) + '…' : g.message %></div>
+<% } %>
+<p><a href="/guestbook">» Ins Freundebuch eintragen</a></p>
+<% } %>
+<%- include('partials/foot') %>

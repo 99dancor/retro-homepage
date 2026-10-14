@@ -1,0 +1,18 @@
+<%- include('partials/head') %>
+<h1>📤 Datei hochladen</h1>
+<% if (msg) { %><div class="msg">✔ <%= msg %> <a href="/files">Zu den Downloads</a></div><% } %>
+<form method="post" action="/files/upload" enctype="multipart/form-data">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label>Datei(en) (max. <%= maxMb %> MB):<input type="file" name="files" multiple required></label>
+  <div class="row">
+    <label>Titel (optional):<input type="text" name="title" class="w100"></label>
+    <label>Kategorie:<input type="text" name="category" class="w100" placeholder="z. B. Spielstände"></label>
+    <label>Spiel (optional):<input type="text" name="game" class="w100"></label>
+  </div>
+  <label>Beschreibung:<textarea name="description" style="min-height:60px"></textarea></label>
+  <label>Wer darf die Datei sehen?
+    <select name="visibility"><option value="members">Alle angemeldeten Nutzer</option><option value="public">Alle (öffentlich)</option><option value="private">Nur ich und der Admin</option></select>
+  </label>
+  <div class="actions"><button>Hochladen</button></div>
+</form>
+<%- include('partials/foot') %>

@@ -1,0 +1,14 @@
+<%- include('partials/head') %>
+<h1>🔗 Linksammlung</h1>
+<% const cats = Object.keys(grouped); if (!cats.length) { %><p class="muted">Noch keine Links.</p><% } %>
+<% for (const c of cats) { %>
+  <fieldset class="groupbox"><legend>📂 <%= c %></legend>
+    <ul>
+    <% for (const l of grouped[c]) { %>
+      <li><a href="<%= l.url %>" target="_blank" rel="noopener noreferrer"><b><%= l.title %></b></a>
+        <% if (l.description) { %> – <%= l.description %><% } %></li>
+    <% } %>
+    </ul>
+  </fieldset>
+<% } %>
+<%- include('partials/foot') %>

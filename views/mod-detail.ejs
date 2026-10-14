@@ -1,0 +1,20 @@
+<%- include('partials/head') %>
+<p><a href="/mods">« Alle Modlisten</a></p>
+<h1>🧩 <%= list.title %></h1>
+<p><b>Spiel:</b> <%= list.game %> · <small>Stand: <%= fmtDate(list.updated_at) %> · <%= items.length %> Mods</small></p>
+<% if (list.description_md) { %><div class="content panel"><%- descHtml %></div><% } %>
+<h2>Mods</h2>
+<table class="list">
+  <tr><th>#</th><th>Mod</th><th>Version</th><th>Hinweis</th></tr>
+  <% items.forEach((m, i) => { %>
+  <tr>
+    <td class="num"><%= i + 1 %></td>
+    <td><% if (m.url) { %><a href="<%= m.url %>" target="_blank" rel="noopener noreferrer"><%= m.name %></a><% } else { %><%= m.name %><% } %>
+      <% if (!m.required) { %> <span class="badge gray">optional</span><% } %></td>
+    <td><%= m.version || '' %></td>
+    <td><%= m.notes || '' %></td>
+  </tr>
+  <% }) %>
+</table>
+<% if (user && user.isAdmin) { %><p><a class="btn" href="/admin/mods/<%= list.id %>">✏️ Bearbeiten</a></p><% } %>
+<%- include('partials/foot') %>

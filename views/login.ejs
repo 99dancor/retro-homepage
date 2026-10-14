@@ -1,0 +1,15 @@
+<%- include('partials/head') %>
+<div class="window small">
+  <div class="titlebar"><span class="ttl">🔑 Anmelden</span></div>
+  <div class="body">
+    <% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+    <form method="post" action="/login">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="next" value="<%= next %>">
+      <label>Benutzername:<input type="text" name="username" class="w100" autocomplete="username" autofocus required></label>
+      <label>Passwort:<input type="password" name="password" class="w100" autocomplete="current-password" required></label>
+      <div class="actions"><button>OK</button><a class="btn" href="/">Abbrechen</a></div>
+    </form>
+  </div>
+</div>
+<%- include('partials/foot') %>

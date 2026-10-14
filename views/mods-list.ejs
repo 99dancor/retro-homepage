@@ -1,0 +1,14 @@
+<%- include('partials/head') %>
+<h1>🧩 Modlisten</h1>
+<% const games = Object.keys(grouped); if (!games.length) { %><p class="muted">Noch keine Modlisten.</p><% } %>
+<% for (const g of games) { %>
+  <fieldset class="groupbox"><legend>🎮 <%= g %></legend>
+    <ul>
+    <% for (const l of grouped[g]) { %>
+      <li><a href="/mods/<%= l.slug %>"><b><%= l.title %></b></a> <small>(<%= l.n %> Mods, Stand <%= fmtDate(l.updated_at) %>)</small>
+        <% if (l.visibility !== 'public') { %><span class="badge gray"><%= VISIBILITY[l.visibility] %></span><% } %></li>
+    <% } %>
+    </ul>
+  </fieldset>
+<% } %>
+<%- include('partials/foot') %>

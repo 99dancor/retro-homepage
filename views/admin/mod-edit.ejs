@@ -1,0 +1,27 @@
+<%- include('../partials/head') %>
+<p><a href="/admin/mods">« Alle Modlisten</a></p>
+<form method="post" action="/admin/mods/save">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="id" value="<%= list.id || '' %>">
+  <div class="row">
+    <label>Spiel:<input type="text" name="game" class="w100" value="<%= list.game || '' %>" required placeholder="z. B. Skyrim SE"></label>
+    <label>Titel der Liste:<input type="text" name="title" class="w100" value="<%= list.title || '' %>" required placeholder="z. B. Mein Grafik-Setup"></label>
+    <label>Adresse (Slug, optional):<input type="text" name="slug" class="w100" value="<%= list.slug || '' %>" placeholder="automatisch"></label>
+  </div>
+  <label>Beschreibung / Installationshinweise (Markdown):</label>
+  <%- include('../partials/md-editor', { name: 'description_md', value: list.description_md }) %>
+  <label>Mods – eine pro Zeile im Format <code>Name | Link | Version | Notiz</code>. Ein <code>*</code> am Anfang markiert die Mod als optional.</label>
+  <textarea name="items" class="code" placeholder="SkyUI | https://www.nexusmods.com/skyrimspecialedition/mods/12604 | 5.2 | Pflicht für MCM&#10;* Immersive Armors | https://… | 8.1 | optional"><%= itemsText %></textarea>
+  <%- include('../partials/visibility', { item: list, acl }) %>
+  <div class="actions">
+    <button>💾 Speichern</button>
+    <% if (list.id) { %><a class="btn" href="/mods/<%= list.slug %>" target="_blank">Ansehen</a><% } %>
+  </div>
+</form>
+<% if (list.id) { %>
+<form method="post" action="/admin/mods/<%= list.id %>/delete" data-confirm="Modliste löschen?" class="actions">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑 Liste löschen</button>
+</form>
+<% } %>
+<script src="/static/admin.js"></script>
+<%- include('../partials/foot') %>

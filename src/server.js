@@ -1,4 +1,5 @@
 'use strict';
+const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const express = require('express');
@@ -28,12 +29,27 @@ app.use((req, res, next) => {
   });
   next();
 });
-app.use('/static', express.static(path.join(__dirname, '..', 'public'), { maxAge: '7d' }));
+// Statische Dateien tragen eine Versionsnummer aus ihrem Inhalt (?v=…). Nach einem Update
+// laden Browser so sofort die neue Fassung statt einer alten aus dem Zwischenspeicher.
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const assetVersions = {};
+function asset(name) {
+  if (!(name in assetVersions)) {
+    try { assetVersions[name] = crypto.createHash('sha1').update(fs.readFileSync(path.join(PUBLIC_DIR, name))).digest('hex').slice(0, 10); }
+    catch { assetVersions[name] = ''; }
+  }
+  return '/static/' + name + (assetVersions[name] ? '?v=' + assetVersions[name] : '');
+}
+app.use('/static', express.static(PUBLIC_DIR, {
+  maxAge: '7d',
+  setHeaders: (res, file) => { if ('v' in res.req.query) res.set('Cache-Control', 'public, max-age=31536000, immutable'); },
+}));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: false, limit: '2mb' }));
 app.use(auth.loadUser);
 app.use((req, res, next) => {
   Object.assign(res.locals, util, {
+    asset,
     site: { title: getSetting('site_title'), tagline: getSetting('site_tagline') },
     path: req.path,
     guestbookEnabled: getSetting('guestbook_enabled') === '1',

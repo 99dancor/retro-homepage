@@ -1,5 +1,9 @@
 # Changelog
 
+## 15.10.2026 – Fenster-Reparatur
+
+- Nach dem letzten Update zeigten manche Browser noch das alte Design und die Fenster ließen sich nicht bewegen. Design- und Skriptdateien tragen jetzt eine Versionsnummer, sodass jeder Browser nach einem Update sofort die neue Fassung lädt.
+
 ## 15.10.2026 – Echte Fenster
 
 - **Fenster auf dem Desktop:** Jede Seite öffnet sich als eigenes Fenster, das man an der Titelleiste verschieben, an der Ecke unten rechts größer ziehen, minimieren, maximieren und schließen kann. So lassen sich z. B. Forum und Blog gleichzeitig offen halten.

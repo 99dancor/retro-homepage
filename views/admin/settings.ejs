@@ -47,5 +47,5 @@
 <form method="post" action="/admin/settings/testmail" class="actions">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button>✉️ Test-E-Mail senden</button> <small>(erst speichern, dann testen)</small>
 </form>
-<script src="/static/admin.js"></script>
+<script src="<%= asset('admin.js') %>"></script>
 <%- include('../partials/foot') %>

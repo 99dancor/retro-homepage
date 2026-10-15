@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><%= title ? title + ' – ' : '' %><%= site.title %></title>
-<link rel="stylesheet" href="/static/retro.css">
+<link rel="stylesheet" href="<%= asset('retro.css') %>">
 <link rel="stylesheet" href="/theme.css">
-<link rel="icon" href="/static/favicon.svg">
+<link rel="icon" href="<%= asset('favicon.svg') %>">
 </head>
 <body class="desktop" data-user="<%= user ? user.id : '' %>" data-title="<%= site.title %>">
 <div id="desk">
@@ -40,6 +40,6 @@
   </div>
 </div>
 <%- include('partials/startmenu') %>
-<script src="/static/retro.js"></script>
+<script src="<%= asset('retro.js') %>"></script>
 </body>
 </html>

@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const multer = require('multer');
+const zlib = require('node:zlib');
 const AdmZip = require('adm-zip');
 const { db, now, UPLOAD_DIR, MEDIA_DIR, APPS_DIR, DATA_DIR } = require('./db');
 
@@ -66,6 +67,7 @@ function extractApp(zipPath, slug) {
     }
     fs.rmSync(target, { recursive: true, force: true });
     fs.renameSync(staging, target);
+    compressApp(target);
   } catch (err) {
     fs.rmSync(staging, { recursive: true, force: true });
     throw err;
@@ -73,6 +75,36 @@ function extractApp(zipPath, slug) {
     fs.rmSync(zipPath, { force: true });
   }
   return target;
+}
+
+// Große Spieldateien (z. B. Godot: 38 MB .wasm) werden einmal im Hintergrund als .br und .gz abgelegt
+// und dann komprimiert ausgeliefert (siehe /apps/:slug/play). Das spart rund drei Viertel der Ladezeit.
+const COMPRESSIBLE = /\.(wasm|pck|data|js|mjs|json|html|css|svg|txt)$/i;
+const MIN_COMPRESS_BYTES = 4096;
+const compressing = new Set();
+
+function compressFile(file) {
+  if (compressing.has(file) || !COMPRESSIBLE.test(file)) return;
+  if (fs.existsSync(file + '.br') || fs.existsSync(file + '.gz')) return;
+  let buf;
+  try { buf = fs.readFileSync(file); } catch { return; }
+  if (buf.length < MIN_COMPRESS_BYTES) return;
+  compressing.add(file);
+  const write = (suffix, done) => (err, out) => {
+    if (err) return done();
+    const tmp = file + suffix + '.tmp-' + crypto.randomBytes(4).toString('hex');
+    fs.writeFile(tmp, out, e => (e ? done() : fs.rename(tmp, file + suffix, () => { removeQuietly(tmp); done(); })));
+  };
+  let left = 2;
+  const done = () => { if (--left === 0) compressing.delete(file); };
+  zlib.brotliCompress(buf, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 9, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: buf.length } }, write('.br', done));
+  zlib.gzip(buf, { level: 9 }, write('.gz', done));
+}
+
+function compressApp(dir) {
+  let files = [];
+  try { files = fs.readdirSync(dir, { recursive: true }); } catch { return; }
+  for (const f of files) compressFile(path.join(dir, f));
 }
 
 function findEntry(dir) {
@@ -83,4 +115,4 @@ function findEntry(dir) {
 
 function removeQuietly(p) { try { fs.rmSync(p, { recursive: true, force: true }); } catch { /* egal */ } }
 
-module.exports = { fileUpload, mediaUpload, zipUpload, saveMedia, extractApp, findEntry, removeQuietly, MAX_MB };
+module.exports = { fileUpload, mediaUpload, zipUpload, saveMedia, extractApp, findEntry, removeQuietly, MAX_MB, COMPRESSIBLE, compressFile };

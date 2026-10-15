@@ -1,5 +1,13 @@
 # Changelog
 
+## 15.10.2026 – Dein eigener Desktop
+
+- **Eigenschaften von Anzeige:** Der 🖥️-Knopf neben der Uhr öffnet jetzt ein richtiges Einstellungsfenster mit drei Reitern, wie bei Windows 98:
+  - **Hintergrund:** eigene Farbe, Muster (Karo, Streifen, Punkte, Raster, Wellen) oder ein eigenes Bild von deinem Gerät, nebeneinander, bildschirmfüllend oder zentriert.
+  - **Darstellung:** alle Vorlagen aus dem Admin-Design, dazu Dunkel und Hoher Kontrast, jede Farbe einzeln, Schriftart und Schriftgröße.
+  - **Effekte:** Lauftext laufen lassen, anhalten oder ausblenden, Besucherzähler und Buttons ein- oder ausblenden, eigenes CSS für Profis.
+- Änderungen siehst du sofort. **OK** oder **Übernehmen** speichert, **Abbrechen** stellt alles zurück. Alles bleibt in deinem Browser, auch das eigene Bild wird nicht hochgeladen.
+
 ## 15.10.2026 – Datenschutz und Darstellung
 
 - **Datenschutz:** Neu im Startmenü. Dort steht kurz und verständlich, was die Seite über dich speichert, wofür und wie lange. Zu jedem Punkt lässt sich der passende Programmcode aufklappen, dazu Bilder, was der Admin zu sehen bekommt.

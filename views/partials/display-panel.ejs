@@ -1,0 +1,78 @@
+<%# Eigenschaften von Anzeige: öffnet sich über den 🖥️-Knopf neben der Uhr, Logik in public/display.js %>
+<div class="window display-panel" id="displaypanel" role="dialog" aria-labelledby="displaytitle" hidden>
+  <div class="titlebar"><span class="ttl" id="displaytitle">🖥️ Eigenschaften von Anzeige</span><button type="button" class="tb-btn" data-act="cancel" title="Schließen">×</button></div>
+  <form class="body">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="hintergrund" aria-selected="true">Hintergrund</button><button type="button" role="tab" data-tab="darstellung" aria-selected="false">Darstellung</button><button type="button" role="tab" data-tab="effekte" aria-selected="false">Effekte</button>
+    </div>
+    <div class="tab-page" data-page="hintergrund" role="tabpanel">
+      <div class="row">
+        <fieldset class="groupbox"><legend>Hintergrundbild</legend>
+          <div class="bg-list">
+            <label class="inline"><input type="radio" name="bg" value="seite"> Wie die Seite</label>
+            <label class="inline"><input type="radio" name="bg" value="kein"> (Kein)</label>
+            <label class="inline"><input type="radio" name="bg" value="karo"> Karo</label>
+            <label class="inline"><input type="radio" name="bg" value="streifen"> Streifen</label>
+            <label class="inline"><input type="radio" name="bg" value="punkte"> Punkte</label>
+            <label class="inline"><input type="radio" name="bg" value="raster"> Raster</label>
+            <label class="inline"><input type="radio" name="bg" value="wellen"> Wellen</label>
+            <label class="inline"><input type="radio" name="bg" value="bild"> Eigenes Bild</label>
+          </div>
+          <div class="actions"><label class="btn small file-btn">Durchsuchen…<input type="file" name="bild" accept="image/*"></label><small data-bild-info></small></div>
+        </fieldset>
+        <div>
+          <label>Anordnung:
+            <select name="bgMode"><option value="tile">Nebeneinander</option><option value="cover">Bildschirm füllen</option><option value="center">Zentriert</option></select></label>
+          <label>Farbe:<br><input type="color" name="desktop"></label>
+        </div>
+      </div>
+    </div>
+    <div class="tab-page" data-page="darstellung" role="tabpanel" hidden>
+      <fieldset class="groupbox"><legend>Schema</legend>
+        <div class="swatches">
+          <button type="button" class="small" data-scheme="seite">Wie die Seite</button>
+          <button type="button" class="small" data-scheme="nacht">Dunkel</button>
+          <button type="button" class="small" data-scheme="kontrast">Hoher Kontrast</button>
+          <% for (const [name, c] of Object.entries(themes.PRESETS)) { %>
+            <button type="button" class="small swatch" data-preset="<%= name %>"><i style="background:<%= c.theme_bg_color %>"></i><i style="background:linear-gradient(90deg,<%= c.theme_title_from %>,<%= c.theme_title_to %>)"></i> <%= name %></button>
+          <% } %>
+        </div>
+      </fieldset>
+      <fieldset class="groupbox"><legend>Farben</legend>
+        <div class="colors">
+          <label><input type="color" name="win"> Fenster</label>
+          <label><input type="color" name="titleFrom"> Titelleiste links</label>
+          <label><input type="color" name="titleTo"> Titelleiste rechts</label>
+          <label><input type="color" name="text"> Text</label>
+          <label><input type="color" name="link"> Links</label>
+        </div>
+      </fieldset>
+      <div class="row">
+        <label>Schriftart:
+          <select name="font"><option value="">Wie die Seite</option>
+            <% for (const [k, [label]] of Object.entries(themes.FONTS)) { %><option value="<%= k %>"><%= label %></option><% } %>
+          </select></label>
+        <label>Schriftgröße:
+          <select name="size"><option value="normal">Normal</option><option value="gross">Groß</option><option value="sehr-gross">Sehr groß</option></select></label>
+      </div>
+    </div>
+    <div class="tab-page" data-page="effekte" role="tabpanel" hidden>
+      <fieldset class="groupbox"><legend>Lauftext</legend>
+        <label class="inline"><input type="radio" name="marquee" value="an"> Laufen lassen</label>
+        <label class="inline"><input type="radio" name="marquee" value="still"> Anhalten</label>
+        <label class="inline"><input type="radio" name="marquee" value="aus"> Ausblenden</label>
+        <br><small>Anhalten stoppt auch blinkende Schrift.</small>
+      </fieldset>
+      <label class="inline"><input type="checkbox" name="widgets" value="1"> Besucherzähler und Buttons auf dem Desktop zeigen</label>
+      <label>Eigenes CSS (für Profis):</label>
+      <textarea name="css" class="code" spellcheck="false" placeholder="/* z. B. */&#10;.titlebar { font-family: 'Comic Sans MS'; }&#10;body { cursor: crosshair; }"></textarea>
+    </div>
+    <p><small>Alles bleibt in diesem Browser, auch ein eigenes Bild. Nichts davon geht an den Server. <a href="/datenschutz">Mehr zu deinen Daten</a></small></p>
+    <p class="msg err" data-error hidden></p>
+    <div class="actions">
+      <button type="button" class="small" data-act="reset">Alles zurücksetzen</button>
+      <span class="spacer"></span>
+      <button class="small">OK</button><button type="button" class="small" data-act="cancel">Abbrechen</button><button type="button" class="small" data-act="apply">Übernehmen</button>
+    </div>
+  </form>
+</div>

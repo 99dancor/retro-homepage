@@ -440,7 +440,13 @@ async function main() {
     await step('Darstellung: Knopf neben der Uhr, Skript in jeder Seite', async () => {
       const home = (await guest.req('/', { top: true })).text_;
       assert.match(home, /<div class="tray">\s*<button[^>]*id="displaybtn"[\s\S]*id="clock"/);
-      assert.match(home, /id="displaypanel"[\s\S]*name="size" value="gross"[\s\S]*name="scheme" value="nacht"[\s\S]*name="still"/);
+      const panel = home.slice(home.indexOf('id="displaypanel"'));
+      for (const re of [/data-tab="hintergrund"/, /name="bg" value="bild"/, /type="file" name="bild"/, /name="desktop"/, /data-scheme="nacht"/,
+        /data-preset="Matrix"/, /name="titleFrom"/, /<option value="comic">/, /<option value="sehr-gross">/, /name="marquee" value="aus"/,
+        /name="widgets"/, /name="css"/, /data-act="apply"/]) assert.match(panel, re);
+      const data = JSON.parse(home.match(/<script type="application\/json" id="darstellung-daten">([^<]*)<\/script>/)[1]);
+      assert.equal(data.presets.Matrix.desktop, '#001100');
+      assert.match(data.fonts.comic.stack, /Comic Sans/);
       for (const [url, opts] of [['/', { top: true }], ['/blog', {}], ['/admin', null]]) {
         const page = (await (opts ? guest.req(url, opts) : admin.req(url))).text_;
         assert.match(page, /<head>[\s\S]*<script src="\/static\/display\.js\?v=\w+"><\/script>[\s\S]*<\/head>/, url);
@@ -449,6 +455,7 @@ async function main() {
       const js = await guest.req('/static/display.js');
       assert.equal(js.status, 200);
       assert.match(js.text_, /'darstellung'/);
+      assert.doesNotMatch(js.text_, /fetch\(|XMLHttpRequest|sendBeacon|WebSocket/, 'Darstellung bleibt im Browser');
     });
 
     await step('Gelöschtes Konto verliert seine Statistik-Einträge', async () => {

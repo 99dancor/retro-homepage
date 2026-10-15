@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="<%= asset('retro.css') %>">
 <link rel="stylesheet" href="/theme.css">
 <link rel="icon" href="<%= asset('favicon.svg') %>">
+<script src="<%= asset('display.js') %>"></script>
 </head>
 <% const isAdmin = path.startsWith('/admin') && typeof counts !== 'undefined'; %>
 <% if (!isAdmin) { %>

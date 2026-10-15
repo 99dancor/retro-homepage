@@ -1,5 +1,11 @@
 # Changelog
 
+## 15.10.2026 – Datenschutz und Darstellung
+
+- **Datenschutz:** Neu im Startmenü. Dort steht kurz und verständlich, was die Seite über dich speichert, wofür und wie lange. Zu jedem Punkt lässt sich der passende Programmcode aufklappen, dazu Bilder, was der Admin zu sehen bekommt.
+- **Darstellung:** Über den 🖥️-Knopf neben der Uhr kannst du die Schrift vergrößern, dunkle Farben oder hohen Kontrast einschalten und den Lauftext anhalten. Das merkt sich nur dein Browser.
+- Wird ein Konto gelöscht, verlieren auch seine Einträge in der Besucherstatistik die Verbindung zum Konto.
+
 ## 15.10.2026 – Mein Haustier
 
 - **Mein Haustier:** Neues Spiel im Startmenü. Such dir ein Haustier aus (Katze, Hund, Kaninchen, Hamster, Ratte und besondere Tiere für treue Besucher), kümmere dich jeden Tag darum, verdiene Münzen und kauf im Shop Futter, Spielzeug, Accessoires und neue Räume.

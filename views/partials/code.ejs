@@ -1,0 +1,8 @@
+<% if (c.missing) { %><p class="msg err">Ausschnitt aus <%= c.file %> nicht gefunden.</p><% } else { %>
+<figure class="code-snippet">
+  <figcaption><a href="<%= c.url %>" target="_blank" rel="noopener"><%= c.file %>, Zeile <%= c.from %><%= c.to > c.from ? '–' + c.to : '' %></a></figcaption>
+  <pre><% c.code.split('\n').forEach((l, k) => { %><span class="ln"><%= c.from + k %></span><%= l %>
+<% }) %></pre>
+  <p><%- note %></p>
+</figure>
+<% } %>

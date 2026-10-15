@@ -75,7 +75,7 @@
   // ---------- Desktop mit Fenstern ----------
   var deskEl = document.getElementById('desk'), tasks = document.getElementById('tasks');
   var siteTitle = body.dataset.title, me = body.dataset.user;
-  var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', forum: '💬', guestbook: '📖',
+  var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
     contact: '✉️', changelog: '📜', p: '📄', login: '🔑', register: '✏️', account: '🔑' };
   var mobile = window.matchMedia('(max-width: 760px)');
   var wins = [], zTop = 10, active = null, reloading = false;
@@ -195,9 +195,11 @@
     handle.addEventListener('pointercancel', up);
   }
 
-  function place(el, s) {
-    var n = wins.length % 8;
-    var w = s && s.w || Math.min(820, deskEl.clientWidth - 40), h = s && s.h || Math.min(580, deskEl.clientHeight - 40);
+  // Fenstergröße beim ersten Öffnen; das Haustier-Spiel braucht etwas mehr Höhe
+  var SIZES = { haustier: [820, 700] };
+  function place(el, s, url) {
+    var n = wins.length % 8, size = SIZES[section(url)] || [820, 580];
+    var w = s && s.w || Math.min(size[0], deskEl.clientWidth - 40), h = s && s.h || Math.min(size[1], deskEl.clientHeight - 40);
     el.style.width = w + 'px'; el.style.height = h + 'px';
     el.style.left = (s ? s.x : Math.max(0, Math.min(30 + n * 28, deskEl.clientWidth - w))) + 'px';
     el.style.top = (s ? s.y : Math.max(0, Math.min(28 + n * 28, deskEl.clientHeight - h))) + 'px';
@@ -211,7 +213,7 @@
     w.task.type = 'button'; w.task.className = 'task';
     tasks.appendChild(w.task);
     el.style.zIndex = w.z;
-    place(el, s);
+    place(el, s, url);
     wins.push(w);
     setTitle(w, el.querySelector('.ttl').textContent);
     w.iframe.addEventListener('load', function () { onLoad(w); });

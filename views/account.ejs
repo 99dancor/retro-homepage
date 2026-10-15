@@ -14,13 +14,13 @@
 </fieldset>
 <fieldset class="groupbox"><legend>Meine Spielstände</legend>
 <% if (!saves.length) { %>
-<p>Noch keine Spielstände. Browser-Spiele unter <a href="/apps">Spiele &amp; Apps</a> speichern hier, solange du angemeldet bist.</p>
+<p>Noch keine Spielstände. <% if (!navHidden.includes('haustier')) { %><a href="/haustier/">Mein Haustier</a> und die <% } else { %>Die <% } %>Browser-Spiele unter <a href="/apps">Spiele &amp; Apps</a> speichern hier, solange du angemeldet bist.</p>
 <% } else { %>
 <table class="list">
   <tr><th>Spiel</th><th>Platz</th><th>Gespeichert</th><th>Größe</th><th></th></tr>
   <% for (const s of saves) { %>
   <tr>
-    <td><% if (s.title) { %><a href="/apps/<%= s.app_slug %>"><%= s.title %></a><% } else { %><%= s.app_slug %><% } %></td>
+    <td><% if (s.url) { %><a href="<%= s.url %>"><%= s.title %></a><% } else { %><%= s.app_slug %><% } %></td>
     <td><%= s.slot %></td>
     <td><%= fmtDate(s.updated_at) %></td>
     <td><%= fmtSize(s.size) %></td>

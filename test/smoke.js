@@ -197,6 +197,45 @@ async function main() {
       assert.equal((await admin.req('/api/saves/testspiel/slot_1')).status, 404, 'gelöscht');
     });
 
+    await step('Mein Haustier läuft unter /haustier/ und speichert im Konto', async () => {
+      const slash = await guest.req('/haustier', { top: true });
+      assert.equal(slash.status, 301);
+      assert.equal(slash.headers.get('location'), '/haustier/');
+      const desk = await guest.req('/haustier/', { top: true });
+      assert.match(desk.text_, /class="desktop"/);
+      assert.match(desk.text_, /<iframe src="\/haustier\/"/);
+      assert.match(desk.text_, /<div class="startmenu"[\s\S]*href="\/haustier\/"/);
+      const game = await guest.req('/haustier/');
+      assert.equal(game.status, 200);
+      assert.match(game.text_, /<body class="embed" data-user="" data-login="\/login\?next=\/haustier\/"/);
+      assert.match(game.text_, /data-forum="\/forum\/new"/);
+      assert.match(game.headers.get('cache-control'), /no-cache/);
+      for (const [file, type] of [['js/main.js', /javascript/], ['js/pets.js', /javascript/], ['css/game.css', /css/], ['changelog.md', /markdown/]]) {
+        const r = await guest.req('/haustier/' + file);
+        assert.equal(r.status, 200, file);
+        assert.match(r.headers.get('content-type'), type, file);
+      }
+      assert.equal((await guest.req('/haustier/package.json')).status, 404);
+
+      assert.equal((await guest.req('/api/saves/haustier/main')).status, 401, 'Gast speichert nur im Browser');
+      assert.equal((await admin.req('/api/saves/haustier/main')).status, 404, 'noch leer');
+      const data = JSON.stringify({ version: 1, coins: 42, pets: [{ name: 'Mimi' }] });
+      const put = await admin.req('/api/saves/haustier/main', { method: 'PUT', body: JSON.stringify({ data }), headers: { 'content-type': 'application/json' } });
+      assert.equal(put.status, 200);
+      assert.equal(JSON.parse((await admin.req('/api/saves/haustier/main')).text_).data, data);
+      assert.match((await admin.req('/account')).text_, /<a href="\/haustier\/">Mein Haustier<\/a>/);
+
+      // Eine App namens „Haustier“ bekäme sonst dieselben Spielstände
+      const t = await admin.csrf('/admin/apps/new');
+      const fd = new FormData();
+      fd.append('_csrf', t);
+      fd.append('title', 'Haustier');
+      fd.append('visibility', 'public');
+      fd.append('external_url', 'https://example.org/spiel');
+      assert.equal((await admin.req('/admin/apps/save', { method: 'POST', body: fd })).status, 302);
+      assert.match((await guest.req('/apps')).text_, /href="\/apps\/haustier-2"/);
+    });
+
     await step('Große Spieldateien werden komprimiert ausgeliefert', async () => {
       let r;
       for (let i = 0; i < 50; i++) {
@@ -324,6 +363,52 @@ async function main() {
       assert.match(JSON.parse(img.text_)[0].url, /^\/media\/[a-f0-9]{32}\.png$/);
       assert.equal((await admin.form(topic + '/delete', { _csrf: at })).status, 302);
       assert.equal((await guest.req(topic)).status, 404);
+    });
+
+    await step('Forum: anonym schreiben, nur Verfasser und Admin sehen den Namen', async () => {
+      const anna = browser(), bernd = browser();
+      for (const [b, name] of [[anna, 'anna'], [bernd, 'bernd']]) {
+        const tk = await b.csrf();
+        assert.equal((await b.form('/login', { _csrf: tk, username: name, password: 'passwort123' })).status, 302);
+      }
+      const form = (await anna.req('/forum/new')).text_;
+      assert.match(form, /name="anonymous"/);
+      let tk = await anna.csrf('/forum/new');
+      const r = await anna.form('/forum/new', { _csrf: tk, title: 'Mir geht es nicht gut', body_md: 'Heute war schwer.', anonymous: '1' });
+      const topic = r.headers.get('location');
+      const ANNA = /\banna\b/;
+      for (const b of [guest, bernd]) {
+        const page = (await b.req(topic)).text_;
+        assert.match(page, /👻 Anonym</);
+        assert.doesNotMatch(page, ANNA);
+        const list = (await b.req('/forum')).text_;
+        assert.match(list, /von Anonym ·/);
+        assert.doesNotMatch(list, ANNA);
+      }
+      assert.match((await admin.req(topic)).text_, /Anonym \(anna\)/, 'Admin sieht den Namen');
+      const own = (await anna.req(topic)).text_;
+      assert.match(own, /Anonym \(anna\)/, 'Verfasserin sieht sich selbst');
+      assert.match(own, /name="anonymous" value="1" checked/, 'Antwort im eigenen anonymen Thema ist vorausgewählt');
+
+      tk = await bernd.csrf(topic);
+      assert.equal((await bernd.form(topic + '/reply', { _csrf: tk, body_md: 'Ich hör dir zu.' })).status, 302);
+      assert.doesNotMatch((await bernd.req(topic)).text_, /name="anonymous" value="1" checked/);
+      tk = await anna.csrf(topic);
+      assert.equal((await anna.form(topic + '/reply', { _csrf: tk, body_md: 'Danke dir.', anonymous: '1' })).status, 302);
+      const after = (await guest.req(topic)).text_;
+      assert.match(after, /👤 bernd/);
+      assert.doesNotMatch(after, ANNA);
+      assert.equal((after.match(/👻 Anonym</g) || []).length, 2);
+      assert.doesNotMatch((await guest.req('/forum')).text_, ANNA, 'auch nicht als letzter Beitrag');
+    });
+
+    await step('Nach der Anmeldung geht es nur zu Seiten dieser Homepage', async () => {
+      for (const [next, to] of [['/haustier/', '/haustier/'], ['//example.org', '/'], ['/\\example.org', '/']]) {
+        const b = browser();
+        const tk = await b.csrf();
+        const r = await b.form('/login', { _csrf: tk, username: 'bernd', password: 'passwort123', next });
+        assert.equal(r.headers.get('location'), to, next);
+      }
     });
 
     await step('Changelog im Startmenü', async () => {

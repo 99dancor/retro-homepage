@@ -201,6 +201,7 @@ CREATE TABLE IF NOT EXISTS board_topics (
   user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   pinned INTEGER NOT NULL DEFAULT 0,
   locked INTEGER NOT NULL DEFAULT 0,
+  anonymous INTEGER NOT NULL DEFAULT 0,   -- wie der erste Beitrag
   created_at INTEGER NOT NULL,
   last_post_at INTEGER NOT NULL
 );
@@ -209,6 +210,7 @@ CREATE TABLE IF NOT EXISTS board_posts (
   topic_id INTEGER NOT NULL REFERENCES board_topics(id) ON DELETE CASCADE,
   user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   body_md TEXT NOT NULL,
+  anonymous INTEGER NOT NULL DEFAULT 0,   -- andere sehen statt des Namens "Anonym", der Admin sieht ihn
   created_at INTEGER NOT NULL,
   edited_at INTEGER
 );
@@ -226,6 +228,8 @@ function addColumn(table, column, def) {
   if (!db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
 }
 addColumn('media', 'uploader_id', 'INTEGER REFERENCES users(id) ON DELETE SET NULL');
+addColumn('board_topics', 'anonymous', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('board_posts', 'anonymous', 'INTEGER NOT NULL DEFAULT 0');
 
 function now() { return Math.floor(Date.now() / 1000); }
 

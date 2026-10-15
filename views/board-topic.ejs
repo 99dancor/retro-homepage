@@ -11,7 +11,7 @@
 <% } %>
 <% for (const p of posts) { %>
   <div class="board-post" id="b<%= p.id %>">
-    <div class="head"><span><%= p.username ? '👤 ' + p.username : '👻 Gelöschter Nutzer' %><% if (p.role === 'admin') { %> <span class="badge gray">Admin</span><% } %></span>
+    <div class="head"><span><%= p.username && !p.anonymous ? '👤 ' : '👻 ' %><%= p.author %><% if (p.role === 'admin' && !p.anonymous) { %> <span class="badge gray">Admin</span><% } %></span>
       <span><%= fmtDate(p.created_at, true) %><% if (p.edited_at) { %> · bearbeitet<% } %></span></div>
     <div class="panel">
       <div class="content"><%- p.html %></div>
@@ -37,6 +37,7 @@
 <form method="post" action="/forum/t/<%= topic.id %>/reply">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <%- include('partials/md-editor', { name: 'body_md', value: '', uploadUrl: '/forum/media', previewUrl: '/forum/preview', libraryUrl: null, compact: true }) %>
+  <%- include('partials/anonymous', { checked: replyAnon }) %>
   <div class="actions"><button>📨 Antworten</button></div>
 </form>
 </fieldset>

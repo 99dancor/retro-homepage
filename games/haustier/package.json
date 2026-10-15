@@ -1,0 +1,9 @@
+{
+  "name": "haustier",
+  "private": true,
+  "type": "module",
+  "description": "Mein Haustier: eingebautes Browserspiel der Homepage, läuft unter /haustier/",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

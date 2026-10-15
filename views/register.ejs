@@ -5,6 +5,7 @@
     <% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
     <form method="post" action="/register">
       <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="next" value="<%= next %>">
       <label>Benutzername:<input type="text" name="username" class="w100" autocomplete="username" required></label>
       <label>Passwort (min. 8 Zeichen):<input type="password" name="password" class="w100" autocomplete="new-password" required></label>
       <label>Passwort wiederholen:<input type="password" name="password2" class="w100" autocomplete="new-password" required></label>

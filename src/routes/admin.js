@@ -7,6 +7,7 @@ const analytics = require('../analytics');
 const mail = require('../mail');
 const up = require('../uploads');
 const { slugify, safeUrl, asArray, visibilityFrom, mdBlocks } = require('../util');
+const GAMES = require('../games');
 
 const router = express.Router();
 router.use(auth.requireAdmin);
@@ -27,7 +28,9 @@ const str = (v, max = 500) => String(v ?? '').trim().slice(0, max);
 function uniqueSlug(table, wanted, id) {
   const base = slugify(wanted);
   let slug = base;
-  for (let i = 2; db.prepare(`SELECT 1 FROM ${table} WHERE slug = ? AND id != ?`).get(slug, id || 0); i++) slug = `${base}-${i}`;
+  // Apps teilen sich die Spielstand-Adressen mit den eingebauten Spielen
+  const taken = s => db.prepare(`SELECT 1 FROM ${table} WHERE slug = ? AND id != ?`).get(s, id || 0) || (table === 'apps' && Object.hasOwn(GAMES, s));
+  for (let i = 2; taken(slug); i++) slug = `${base}-${i}`;
   return slug;
 }
 function saveVisibility(type, id, body) {
@@ -413,7 +416,7 @@ router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, 
 // ---------- Einstellungen ----------
 const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days'];
 const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure'];
-const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Spiele & Apps', board: 'Forum', guestbook: 'Freundebuch', contact: 'Kontakt' };
+const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Spiele & Apps', haustier: 'Mein Haustier', board: 'Forum', guestbook: 'Freundebuch', contact: 'Kontakt' };
 router.get('/settings', (req, res) => {
   const s = Object.fromEntries([...SETTING_KEYS, ...SETTING_FLAGS, 'nav_hidden'].map(k => [k, getSetting(k, '')]));
   s.smtp_pass_set = !!getSetting('smtp_pass');

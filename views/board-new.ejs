@@ -7,6 +7,7 @@
   <label>Titel:<input type="text" name="title" class="w100" maxlength="150" value="<%= form.title || '' %>" required></label>
   <label>Text:</label>
   <%- include('partials/md-editor', { name: 'body_md', value: form.body, uploadUrl: '/forum/media', previewUrl: '/forum/preview', libraryUrl: null, compact: true }) %>
+  <%- include('partials/anonymous', { checked: form.anonymous }) %>
   <div class="actions"><button>📨 Thema erstellen</button><a class="btn" href="/forum">Abbrechen</a></div>
 </form>
 <%- include('partials/foot') %>

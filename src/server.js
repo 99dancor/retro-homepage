@@ -87,6 +87,7 @@ app.use(analytics.middleware);
 app.use('/api/saves', require('./routes/saves'));
 app.use('/admin', require('./routes/admin'));
 app.use('/forum', require('./routes/board'));
+app.use('/', require('./routes/games'));
 app.use('/', require('./routes/public'));
 
 app.use((req, res) => res.status(404).render('error', { title: 'Nicht gefunden', message: 'Diese Seite gibt es nicht (oder du hast keinen Zugriff).' }));

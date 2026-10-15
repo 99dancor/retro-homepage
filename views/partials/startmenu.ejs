@@ -1,6 +1,6 @@
 <div class="startmenu" id="startmenu" data-title="<%= site.title %>">
   <a href="/">🏠 Startseite</a>
-  <% const entries = [['blog','/blog','📝 Blog'],['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['apps','/apps','🎮 Spiele & Apps'],['board','/forum','💬 Forum'],['guestbook','/guestbook','📖 Freundebuch'],['contact','/contact','✉️ Kontakt']]; %>
+  <% const entries = [['blog','/blog','📝 Blog'],['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['apps','/apps','🎮 Spiele & Apps'],['haustier','/haustier/','🐾 Mein Haustier'],['board','/forum','💬 Forum'],['guestbook','/guestbook','📖 Freundebuch'],['contact','/contact','✉️ Kontakt']]; %>
   <% for (const [key, href, label] of entries) {
        if (navHidden.includes(key)) continue;
        if (key === 'guestbook' && !guestbookEnabled) continue;

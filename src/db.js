@@ -5,6 +5,7 @@ const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 
 const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(__dirname, '..', 'data'));
+require('./privileges').dropPrivileges(DATA_DIR);
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 const MEDIA_DIR = path.join(DATA_DIR, 'media');
 const APPS_DIR = path.join(DATA_DIR, 'apps');

@@ -1,11 +1,16 @@
 FROM node:22-alpine
 
+LABEL org.opencontainers.image.title="Retro-Homepage" \
+      org.opencontainers.image.description="Selbst gehostete Homepage im Windows-98-Look mit Admin-Bereich"
+
 RUN apk add --no-cache tzdata
 WORKDIR /app
 ENV NODE_ENV=production \
     DATA_DIR=/data \
     PORT=3000 \
-    TZ=Europe/Berlin
+    TZ=Europe/Berlin \
+    PUID=99 \
+    PGID=100
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
@@ -13,7 +18,7 @@ COPY src ./src
 COPY views ./views
 COPY public ./public
 
-RUN mkdir -p /data && chmod 777 /data
+RUN mkdir -p /data
 VOLUME /data
 EXPOSE 3000
 

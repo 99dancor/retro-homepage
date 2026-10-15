@@ -12,33 +12,52 @@ Seiten, ein einziger Docker-Container. Alle Daten liegen in **einem Ordner** (`/
 
 ## 1. Installation auf Unraid
 
-**Voraussetzung:** Das Plugin **„Docker Compose Manager“** (Unraid → Apps → „Compose Manager“ suchen).
+Bei jedem Push auf `main` testet GitHub den Code und baut automatisch ein fertiges Docker-Image:
+`ghcr.io/99dancor/retro-homepage:latest`. Unraid lädt nur noch dieses Image.
 
-1. Diesen Ordner auf den Unraid-Server kopieren, z. B. nach
-   `/mnt/user/appdata/retro-homepage-src/` (per SMB-Freigabe oder `scp`).
-2. Unraid → **Docker** → unten **„Add New Stack“** → Name `retro-homepage`.
-3. Beim Stack auf das Zahnrad → **„Edit Stack“ → „Compose File“** und den Inhalt von
-   `docker-compose.yml` einfügen. Dabei `build: .` ersetzen durch
-   `build: /mnt/user/appdata/retro-homepage-src`.
-4. Optional ein Admin-Passwort bei `ADMIN_PASSWORD` eintragen (sonst wird beim ersten Start ein
-   zufälliges Passwort erzeugt und im Container-Log angezeigt).
-5. **„Compose Up“** klicken. Die Seite läuft danach unter `http://UNRAID-IP:8080`.
-6. Mit `admin` und dem Passwort anmelden → **Admin-Bereich** → zuerst unter **Mein Konto** das
-   Passwort ändern.
+### Variante A: Unraid-Vorlage (empfohlen)
 
-Alternativ per Terminal auf dem Unraid-Server:
+1. Unraid → **Terminal** (oben rechts `>_`) öffnen und die Vorlage herunterladen:
+
+   ```bash
+   wget -O /boot/config/plugins/dockerMan/templates-user/my-retro-homepage.xml \
+     https://raw.githubusercontent.com/99dancor/retro-homepage/main/unraid/retro-homepage.xml
+   ```
+
+2. Unraid → **Docker** → **Add Container** → oben bei *Template* **retro-homepage** wählen.
+3. Optional ein **Admin-Passwort** eintragen (sonst steht ein zufälliges im Container-Log),
+   dann **Apply**.
+4. Die Seite läuft unter `http://UNRAID-IP:8080`. Mit `admin` anmelden und unter
+   **Mein Konto** das Passwort ändern.
+
+**Updates per Klick:** Unraid → Docker → **Check for Updates** → beim Container **apply update**.
+Die Daten bleiben dabei erhalten.
+
+> Meldet Unraid beim ersten Mal „denied“ oder „not found“: auf GitHub unter
+> **Profil → Packages → retro-homepage → Package settings → Change visibility** auf **Public** stellen.
+
+### Variante B: Docker Compose
+
+Mit dem Plugin **„Docker Compose Manager“** einen Stack anlegen und den Inhalt von
+`docker-compose.yml` einfügen, dann **Compose Up**. Update: **Update Stack**.
+
+### Wenn das Repository privat ist
+
+Dann ist auch das Image privat. Einmalig im Unraid-Terminal anmelden
+(Token unter GitHub → Settings → Developer settings → Personal access tokens, Recht `read:packages`):
 
 ```bash
-cd /mnt/user/appdata/retro-homepage-src
-docker compose up -d --build
-docker logs retro-homepage      # zeigt ggf. das erzeugte Admin-Passwort
+docker login ghcr.io -u 99dancor
 ```
 
-**Updates:** neue Dateien in den Ordner kopieren und erneut `docker compose up -d --build`.
-Die Daten in `/mnt/user/appdata/retro-homepage` bleiben dabei erhalten.
+Die Vorlage aus Schritt 1 dann manuell als Datei nach
+`/boot/config/plugins/dockerMan/templates-user/my-retro-homepage.xml` kopieren.
 
-**Backup:** Den Ordner `/mnt/user/appdata/retro-homepage` sichern (z. B. mit dem Plugin
-„Appdata Backup“). Darin liegen Datenbank, hochgeladene Dateien, Bilder und Apps.
+### Backup
+
+Den Ordner `/mnt/user/appdata/retro-homepage` sichern (z. B. mit dem Plugin „Appdata Backup“).
+Darin liegen Datenbank, hochgeladene Dateien, Bilder und Apps. Die Dateien gehören
+`nobody:users` (99:100), wie bei Unraid üblich.
 
 ---
 
@@ -117,6 +136,7 @@ Danach „Test-E-Mail senden“.
 ```bash
 npm install
 npm run dev        # http://localhost:3000, Daten landen in ./data
+npm test           # Rauchtest: startet den Server und klickt die wichtigsten Wege durch
 ```
 
 Umgebungsvariablen siehe `.env.example`.

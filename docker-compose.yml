@@ -1,19 +1,21 @@
-# Retro-Homepage für Unraid
-# Start:  docker compose up -d --build
+# Retro-Homepage für Unraid (Alternative zur Unraid-Vorlage in unraid/retro-homepage.xml)
+# Start:   docker compose up -d
+# Update:  docker compose pull && docker compose up -d
 services:
   homepage:
-    build: .
-    image: retro-homepage:latest
+    image: ghcr.io/99dancor/retro-homepage:latest
+    # Statt das fertige Image zu laden, kann es auch lokal gebaut werden:
+    # build: .
     container_name: retro-homepage
     restart: unless-stopped
-    # Unraid-Standard: nobody:users, damit die Dateien in appdata normal zugreifbar bleiben
-    user: "99:100"
     ports:
       - "8080:3000"          # Unraid-Port 8080 -> Container-Port 3000 (in NPM eintragen)
     volumes:
       - /mnt/user/appdata/retro-homepage:/data
     environment:
       TZ: Europe/Berlin
+      PUID: "99"             # Unraid-Standard nobody:users
+      PGID: "100"
       ADMIN_USER: admin
       # Nur beim allerersten Start relevant. Leer lassen = zufälliges Passwort im Container-Log.
       ADMIN_PASSWORD: ""

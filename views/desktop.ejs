@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= title ? title + ' – ' : '' %><%= site.title %></title>
+<link rel="stylesheet" href="/static/retro.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="icon" href="/static/favicon.svg">
+</head>
+<body class="desktop" data-user="<%= user ? user.id : '' %>" data-title="<%= site.title %>">
+<div id="desk">
+  <% if (marquee) { %><marquee scrollamount="4"><%= marquee %></marquee><% } %>
+  <div class="desk-widget">
+    <% if (showCounter) { %>
+    <div class="window">
+      <div class="titlebar"><span class="ttl">🔢 Besucher</span></div>
+      <div class="body" style="text-align:center">
+        <div class="counter"><% for (const d of String(hitCounter).padStart(7, '0')) { %><span><%= d %></span><% } %></div>
+        <p><small>Besucher seit Eröffnung</small></p>
+      </div>
+    </div>
+    <% } %>
+    <div class="badges">
+      <span class="b88 a">BEST VIEWED<br>800 × 600</span>
+      <span class="b88 b">MADE WITH<br>NOTEPAD</span>
+      <span class="b88 c">&gt;_ SELF<br>HOSTED</span>
+      <span class="b88 d">NO<br>COOKIE BANNER</span>
+    </div>
+  </div>
+  <div class="window dwin active" data-src="<%= src %>">
+    <div class="titlebar">
+      <span class="icon">💾</span>
+      <span class="ttl"><%= title || site.title %></span>
+      <button type="button" class="tb-btn" data-act="min" title="Minimieren">_</button><button type="button" class="tb-btn" data-act="max" title="Maximieren">□</button><button type="button" class="tb-btn" data-act="close" title="Schließen">×</button>
+    </div>
+    <iframe src="<%= src %>" title="<%= title || site.title %>" allow="fullscreen; gamepad; autoplay" allowfullscreen></iframe>
+    <div class="statusbar"><span><%= site.tagline %></span><span style="flex:0 0 auto">🌐 Internet</span></div>
+    <div class="grip" aria-hidden="true"></div>
+  </div>
+</div>
+<%- include('partials/startmenu') %>
+<script src="/static/retro.js"></script>
+</body>
+</html>

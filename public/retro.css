@@ -139,7 +139,8 @@ marquee, .marquee { background: #000; color: #0f0; font: bold 13px "Courier New"
   padding: 3px; box-shadow: inset 0 1px var(--hi), inset 0 2px rgba(255,255,255,.5); z-index: 10;
 }
 .taskbar .start { font-weight: bold; min-width: 0; padding: 3px 8px; }
-.taskbar .task { flex: 0 1 200px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 3px 8px;
+.taskbar .tasks { flex: 1; min-width: 0; display: flex; gap: 3px; overflow: hidden; }
+.taskbar .task { flex: 0 1 180px; min-width: 0; text-align: left; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 3px 8px;
   box-shadow: inset 1px 1px var(--dark), inset -1px -1px var(--hi); background: repeating-conic-gradient(var(--win) 0 25%, #fff 0 50%) 0 0 / 2px 2px; }
 .taskbar .tray { margin-left: auto; padding: 3px 10px; box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); font-size: 12px; }
 .startmenu { position: fixed; bottom: 32px; left: 2px; background: var(--win); display: none; z-index: 11; min-width: 190px;
@@ -150,6 +151,38 @@ marquee, .marquee { background: #000; color: #0f0; font: bold 13px "Courier New"
 .startmenu.open { display: block; }
 .startmenu a { display: block; padding: 4px 10px; color: var(--text); text-decoration: none; }
 .startmenu a:hover { background: var(--title-from); color: #fff; }
+.startmenu form { margin: 0; }
+.startmenu button.menu-item { display: block; width: 100%; text-align: left; padding: 4px 10px; background: none; box-shadow: none; min-width: 0; color: var(--text); }
+.startmenu button.menu-item:hover { background: var(--title-from); color: #fff; }
+.taskbar button.task { box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--lo); background: var(--win); }
+.taskbar button.task.pressed { font-weight: bold; box-shadow: inset 1px 1px var(--dark), inset -1px -1px var(--hi);
+  background: repeating-conic-gradient(var(--win) 0 25%, #fff 0 50%) 0 0 / 2px 2px; }
+
+/* Desktop mit Fenstern */
+body.desktop { padding: 0; overflow: hidden; }
+#desk { position: fixed; inset: 0 0 32px 0; overflow: hidden; }
+.desk-widget { position: absolute; right: 12px; bottom: 12px; width: 200px; }
+.desk-widget .window { margin-bottom: 8px; }
+.dwin { position: absolute; margin: 0; max-width: none; display: flex; flex-direction: column;
+  left: max(0px, calc(50% - 490px)); top: 28px; width: min(980px, 100%); height: calc(100% - 40px); }
+.dwin iframe { flex: 1; min-height: 0; width: 100%; border: 0; display: block; background: var(--win); }
+.dwin .titlebar { cursor: default; touch-action: none; }
+.dwin:not(.active) .titlebar { background: linear-gradient(90deg, #808080, #b5b5b5); color: #d4d0c8; }
+button.tb-btn { padding: 0; min-width: 0; border: 0; cursor: pointer; }
+.dwin.min { display: none; }
+.dwin.max { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; }
+.dwin.max .grip { display: none; }
+.dwin .grip { position: absolute; right: 3px; bottom: 3px; width: 14px; height: 14px; cursor: nwse-resize; touch-action: none;
+  background: linear-gradient(135deg, transparent 0 55%, var(--lo) 55% 62%, transparent 62% 72%, var(--lo) 72% 79%, transparent 79% 89%, var(--lo) 89%); }
+body.dragging iframe { pointer-events: none; }
+body.dragging { user-select: none; }
+@media (max-width: 760px) {
+  .dwin { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; }
+  .dwin .grip, .desk-widget { display: none; }
+}
+/* Inhalt im Fenster */
+body.embed { padding: 0; background: var(--win); }
+body.admin .taskbar .task { flex: 0 1 200px; }
 
 /* Admin */
 .admin-nav a { position: relative; }

@@ -34,7 +34,8 @@ function startServer() {
 function browser() {
   const jar = new Map();
   async function req(url, opts = {}) {
-    const headers = { 'user-agent': UA, ...(opts.headers || {}) };
+    // Standard: wie ein Fenster auf dem Desktop (iframe); top: true lädt die Seite direkt wie ein Browser-Tab
+    const headers = { 'user-agent': UA, ...(opts.top ? {} : { 'sec-fetch-dest': 'iframe' }), ...(opts.headers || {}) };
     if (jar.size) headers.cookie = [...jar].map(([k, v]) => `${k}=${v}`).join('; ');
     const res = await fetch(BASE + url, { ...opts, headers, redirect: 'manual' });
     for (const c of res.headers.getSetCookie()) {
@@ -72,6 +73,19 @@ async function main() {
         assert.equal(r.status, 200, p);
       }
       assert.equal((await guest.req('/gibtsnicht')).status, 404);
+    });
+
+    await step('Direkt aufgerufen kommt der Desktop mit der Seite als Fenster', async () => {
+      const r = await guest.req('/forum', { top: true });
+      assert.equal(r.status, 200);
+      assert.match(r.text_, /class="desktop"/);
+      assert.match(r.text_, /<iframe src="\/forum"/);
+      assert.match(r.headers.get('vary') || '', /Sec-Fetch-Dest/i);
+      const inner = await guest.req('/forum');
+      assert.match(inner.text_, /class="embed"/);
+      assert.doesNotMatch(inner.text_, /id="startmenu"/);
+      assert.equal((await guest.req('/gibtsnicht', { top: true })).status, 404);
+      assert.match((await guest.req('/forum?embed', { top: true })).text_, /class="embed"/);
     });
 
     await step('Admin-Bereich ist ohne Login gesperrt', async () => {
@@ -307,8 +321,8 @@ async function main() {
       assert.equal((await guest.req(topic)).status, 404);
     });
 
-    await step('Changelog im Startmenü, nicht in der Menüleiste', async () => {
-      const home = (await guest.req('/')).text_;
+    await step('Changelog im Startmenü', async () => {
+      const home = (await guest.req('/', { top: true })).text_;
       assert.match(home, /<div class="startmenu"[\s\S]*href="\/changelog"/);
       assert.doesNotMatch(home.split('<div class="startmenu"')[0], /\/changelog/);
       const r = await guest.req('/changelog');

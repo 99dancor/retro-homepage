@@ -49,6 +49,22 @@ app.use((req, res, next) => {
   res.locals.navPages = db.prepare(`SELECT slug, title FROM pages p WHERE in_nav = 1 AND ${v.sql} ORDER BY position, title`).all(...v.params);
   next();
 });
+// Desktop: Seiten laufen als Fenster (iframes) auf einem Win98-Desktop. Direkt aufgerufen
+// liefert jede öffentliche Seite den Desktop mit ihr als Fenster, im Fenster selbst den
+// schlanken Inhalt ohne Rahmen. Der Browser verrät per Sec-Fetch-Dest, ob er ein iframe lädt.
+app.use((req, res, next) => {
+  res.vary('Sec-Fetch-Dest');
+  const embed = req.get('sec-fetch-dest') === 'iframe' || 'embed' in req.query;
+  res.locals.embed = embed;
+  if (embed || req.method !== 'GET') return next();
+  const render = res.render.bind(res);
+  res.render = (view, opts, cb) => {
+    if (view.startsWith('admin/')) return render(view, opts, cb);
+    req.shell = true;
+    return render('desktop', { title: (opts && opts.title) || '', src: req.originalUrl }, cb);
+  };
+  next();
+});
 app.use((req, res, next) => (req.is('multipart/form-data') ? next() : auth.csrfCheck(req, res, next)));
 app.use(analytics.middleware);
 

@@ -1,0 +1,17 @@
+<fieldset class="groupbox"><legend>👥 Mitglieder</legend>
+  <% if (!st.members.length) { %><p class="muted">Noch keine angemeldeten Downloads.</p><% } else { %>
+  <table class="list"><tr><th>Nutzer</th><th class="num">Downloads</th><th>Zuletzt</th></tr>
+    <% for (const m of st.members) { %><tr><td><%= m.username %></td><td class="num"><%= m.n %></td><td><%= fmtDate(m.last, true) %></td></tr><% } %>
+  </table><% } %>
+</fieldset>
+<fieldset class="groupbox"><legend>🌍 Herkunft & Geräte</legend>
+  <% if (!st.referrers.length && !st.devices.length) { %><p class="muted">Noch keine Daten.</p><% } %>
+  <% if (st.referrers.length) { %>
+  <table class="list"><tr><th>Verlinkt von</th><th class="num">Downloads</th></tr>
+    <% for (const r of st.referrers) { %><tr><td><%= r.host %></td><td class="num"><%= r.n %></td></tr><% } %>
+  </table><% } %>
+  <% if (st.devices.length) { %>
+  <table class="list" style="margin-top:6px"><tr><th>Gerät</th><th class="num">Downloads</th></tr>
+    <% for (const d of st.devices) { %><tr><td><%= d.device %></td><td class="num"><%= d.n %></td></tr><% } %>
+  </table><% } %>
+</fieldset>

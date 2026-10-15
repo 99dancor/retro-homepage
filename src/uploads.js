@@ -5,9 +5,10 @@ const crypto = require('node:crypto');
 const multer = require('multer');
 const zlib = require('node:zlib');
 const AdmZip = require('adm-zip');
-const { db, now, UPLOAD_DIR, MEDIA_DIR, APPS_DIR, DATA_DIR } = require('./db');
+const { db, now, UPLOAD_DIR, IMPORT_DIR, MEDIA_DIR, APPS_DIR, DATA_DIR } = require('./db');
 
-const MAX_MB = Number(process.env.MAX_UPLOAD_MB || 4096);
+// 0 = keine Grenze (Standard). Große Dateien landen beim Hochladen direkt im Download-Ordner, ohne Umweg.
+const MAX_MB = Number(process.env.MAX_UPLOAD_MB || 0);
 const TMP_DIR = path.join(DATA_DIR, 'tmp');
 fs.mkdirSync(TMP_DIR, { recursive: true });
 
@@ -30,7 +31,7 @@ function storageIn(dir) {
 
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/bmp', 'image/x-icon', 'image/vnd.microsoft.icon'];
 
-const fileUpload = multer({ storage: storageIn(UPLOAD_DIR), limits: { fileSize: MAX_MB * 1024 * 1024, files: 50 } });
+const fileUpload = multer({ storage: storageIn(UPLOAD_DIR), limits: { fileSize: MAX_MB > 0 ? MAX_MB * 1024 * 1024 : Infinity, files: 50 } });
 const mediaUpload = multer({
   storage: storageIn(MEDIA_DIR),
   limits: { fileSize: 25 * 1024 * 1024, files: 20 },
@@ -113,6 +114,47 @@ function findEntry(dir) {
   return html || 'index.html';
 }
 
+// Dateien im Eingangsordner, die fertig kopiert sind (seit 30 s unverändert)
+function listImports() {
+  let names = [];
+  try { names = fs.readdirSync(IMPORT_DIR); } catch { return []; }
+  const out = [];
+  for (const name of names) {
+    if (name.startsWith('.')) continue;
+    let st;
+    try { st = fs.statSync(path.join(IMPORT_DIR, name)); } catch { continue; }
+    if (!st.isFile()) continue;
+    out.push({ name, size: st.size, ready: Date.now() - st.mtimeMs > 30000 });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+
+// Verschiebt eine Datei aus dem Eingangsordner in den Download-Speicher (gleiche Platte: sofort).
+function importFile(name) {
+  const base = path.basename(name);
+  const src = path.join(IMPORT_DIR, base);
+  if (base !== name || base.startsWith('.') || !fs.statSync(src).isFile()) throw new Error('Ungültige Datei: ' + name);
+  const ext = path.extname(base).toLowerCase().replace(/[^a-z0-9.]/g, '').slice(0, 10);
+  const stored = crypto.randomBytes(16).toString('hex') + ext;
+  const dest = path.join(UPLOAD_DIR, stored);
+  try {
+    fs.renameSync(src, dest);
+  } catch (e) {
+    if (e.code !== 'EXDEV') throw e;
+    fs.copyFileSync(src, dest);
+    fs.rmSync(src);
+  }
+  return { stored, original: base, size: fs.statSync(dest).size };
+}
+
+// Freier und gesamter Platz auf der Platte des Download-Ordners
+function diskSpace() {
+  try {
+    const s = fs.statfsSync(UPLOAD_DIR);
+    return { free: s.bavail * s.bsize, total: s.blocks * s.bsize };
+  } catch { return null; }
+}
+
 function removeQuietly(p) { try { fs.rmSync(p, { recursive: true, force: true }); } catch { /* egal */ } }
 
-module.exports = { fileUpload, mediaUpload, zipUpload, saveMedia, extractApp, findEntry, removeQuietly, MAX_MB, COMPRESSIBLE, compressFile };
+module.exports = { listImports, importFile, diskSpace, fileUpload, mediaUpload, zipUpload, saveMedia, extractApp, findEntry, removeQuietly, MAX_MB, COMPRESSIBLE, compressFile };

@@ -14,7 +14,7 @@ function chownTree(dir, uid, gid) {
   }
 }
 
-function dropPrivileges(dataDir) {
+function dropPrivileges(dataDir, extraDirs = []) {
   if (typeof process.getuid !== 'function' || process.getuid() !== 0) return;
   if (process.env.PUID === '0') return; // ausdrücklich als root laufen lassen
   const uid = Number(process.env.PUID || 99);
@@ -22,6 +22,13 @@ function dropPrivileges(dataDir) {
   fs.mkdirSync(dataDir, { recursive: true });
   const st = fs.statSync(dataDir);
   if (st.uid !== uid || st.gid !== gid) chownTree(dataDir, uid, gid);
+  // Eigene Mounts (z. B. Download-Ordner auf einer anderen Platte): nur den Ordner selbst übernehmen,
+  // vorhandene Dateien darin bleiben unangetastet.
+  for (const dir of extraDirs) {
+    fs.mkdirSync(dir, { recursive: true });
+    const s = fs.statSync(dir);
+    if (s.uid !== uid || s.gid !== gid) fs.chownSync(dir, uid, gid);
+  }
   process.setgroups([gid]);
   process.setgid(gid);
   process.setuid(uid);

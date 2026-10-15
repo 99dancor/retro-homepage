@@ -53,6 +53,27 @@ docker login ghcr.io -u 99dancor
 Die Vorlage aus Schritt 1 dann manuell als Datei nach
 `/boot/config/plugins/dockerMan/templates-user/my-retro-homepage.xml` kopieren.
 
+### Große Downloads auf einer eigenen Platte
+
+Downloads liegen standardmäßig im Daten-Ordner (bei Unraid meist auf der Cache-SSD). Für Dateien
+mit mehreren GB kannst du sie auf die Festplatten im Array legen:
+
+1. Unraid → **Shares** → **Add Share**: Name `homepage-dateien`, *Primary storage* **Array**
+   (kein Cache), bei Bedarf eine bestimmte Platte unter *Included disk(s)* wählen.
+   SMB-Freigabe für dich einschalten (*SMB Security Settings* → *Export: Yes*, z. B. *Private*).
+2. Container stoppen. Falls schon Dateien hochgeladen wurden: den Inhalt von
+   `/mnt/user/appdata/retro-homepage/uploads/` in die neue Freigabe verschieben.
+3. Container bearbeiten → **Download-Dateien** auf `/mnt/user/homepage-dateien` setzen
+   (Compose: die auskommentierte Zeile bei `volumes` aktivieren) → **Apply**.
+
+Datenbank, Bilder und Einstellungen bleiben auf der SSD, nur die Download-Dateien wandern aufs Array.
+Eine Platte außerhalb des Arrays (Plugin „Unassigned Devices“) geht genauso, z. B. `/mnt/disks/NAME/homepage`.
+
+**Dateien mit vielen GB hochladen:** Statt über den Browser einfach im Heimnetz in den Ordner
+`eingang` der Freigabe kopieren (`\\UNRAID\homepage-dateien\eingang`). Unter Admin → Dateien
+erscheinen sie dann zum Übernehmen – Kategorie und Sichtbarkeit wählen, fertig.
+Das geht ohne Größengrenze und ohne Umweg über den Raspberry Pi.
+
 ### Backup
 
 Den Ordner `/mnt/user/appdata/retro-homepage` sichern (z. B. mit dem Plugin „Appdata Backup“).
@@ -72,14 +93,18 @@ Darin liegen Datenbank, hochgeladene Dateien, Bilder und Apps. Die Dateien gehö
    - ✅ Block Common Exploits
    - ✅ **Websockets Support** (für spätere Mehrspieler-Apps)
 3. **SSL**: Let's-Encrypt-Zertifikat anfordern, ✅ Force SSL, ✅ HTTP/2
-4. **Advanced** – wichtig, sonst brechen große Uploads (Spielstände, ZIPs) ab:
+4. **Advanced** – wichtig für große Dateien. Zeilen von Hand eintippen, jede endet mit `;`:
 
    ```nginx
    client_max_body_size 0;
    proxy_request_buffering off;
-   proxy_read_timeout 600s;
-   proxy_send_timeout 600s;
+   proxy_buffering off;
+   proxy_read_timeout 3600s;
+   proxy_send_timeout 3600s;
    ```
+
+   Ohne die beiden `…buffering off`-Zeilen speichert NPM große Uploads und Downloads erst
+   zwischen – auf dem Raspberry Pi, also meist auf der SD-Karte.
 
 5. Im Router die Ports **80 und 443** auf den Raspberry Pi weiterleiten (falls noch nicht
    geschehen). Port 8080 des Unraid-Servers **nicht** ins Internet freigeben.
@@ -106,7 +131,8 @@ strenger möchte, setzt `TRUST_PROXY` auf die IP des Pi.
 | **Eigene Seiten** | z. B. „Über mich“, erscheinen auf Wunsch im Menü |
 | **Spiele & Apps** | HTML5-Spiele als ZIP hochladen (Godot, Unity WebGL, Phaser, eigenes JS …) oder externe Dienste einbetten |
 | **Design** | Farben, Hintergrundbild (kacheln/füllen/zentriert), Schrift, Lauftext, Besucherzähler, eigenes CSS, 5 Vorlagen |
-| **Statistik** | Seitenaufrufe & Besucher pro Tag, Top-Seiten, Herkunft, Downloads, Geräte, aktive Mitglieder – ohne Cookies, ohne gespeicherte IPs |
+| **Statistik** | Seitenaufrufe & Besucher pro Tag, Top-Seiten, Herkunft, Geräte, aktive Mitglieder – ohne Cookies, ohne gespeicherte IPs |
+| **Download-Statistik** | Pro Datei: Downloads, verschiedene Personen, vollständig/abgebrochen, übertragene Datenmenge, Verlauf, Uhrzeit, Herkunft, Mitglieder, letzte Vorgänge; freier Speicher |
 | **Nutzer & Rechte** | Nutzer anlegen/sperren, Admin-Rolle, Upload-Recht, Gruppen; jede Datei/jeder Beitrag/jede Liste/Seite/App hat eine Sichtbarkeit: öffentlich · nur angemeldete · nur bestimmte Gruppen · nur Admin |
 
 ### E-Mail-Benachrichtigung einrichten

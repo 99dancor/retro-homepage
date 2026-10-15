@@ -200,3 +200,6 @@ marquee, .marquee { background: #000; color: #0f0; font: bold 13px "Courier New"
 .tooltip .tip-row { display: flex; align-items: center; gap: 6px; }
 .hbar { height: 4px; background: #2a78d6; margin-top: 2px; border-radius: 0 2px 2px 0; min-width: 2px; }
 details summary { cursor: pointer; margin: 6px 0; }
+.chart .col1 { fill: #2a78d6; }
+.chart .hbar-col:hover .col1 { fill: #1c5cab; }
+.kpi small { display: block; opacity: .7; }

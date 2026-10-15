@@ -112,14 +112,13 @@
     });
   });
 
-  // ---------- Diagramm: Fadenkreuz + Tooltip (Maus und Tastatur) ----------
-  var svg = document.getElementById('traffic');
-  if (svg) {
+  // ---------- Diagramme: Fadenkreuz + Tooltip (Maus und Tastatur) ----------
+  document.querySelectorAll('svg[data-chart]').forEach(function (svg) {
     var data = JSON.parse(svg.getAttribute('data-series'));
-    var ml = +svg.getAttribute('data-ml'), pw = +svg.getAttribute('data-pw');
-    var mt = +svg.getAttribute('data-mt'), ph = +svg.getAttribute('data-ph'), ymax = +svg.getAttribute('data-ymax');
-    var line = document.getElementById('traffic-x');
-    var tip = document.getElementById('traffic-tip');
+    var lines = JSON.parse(svg.getAttribute('data-lines'));
+    var ml = +svg.getAttribute('data-ml'), pw = +svg.getAttribute('data-pw'), mt = +svg.getAttribute('data-mt');
+    var line = svg.querySelector('.crosshair');
+    var tip = svg.parentNode.querySelector('.tooltip');
     var idx = data.length - 1;
     var xOf = function (i) { return ml + (data.length === 1 ? pw / 2 : i * pw / (data.length - 1)); };
     var row = function (cls, value, label) {
@@ -138,8 +137,7 @@
       var h = document.createElement('div'); h.className = 'tip-head';
       h.textContent = new Date(d.day + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
       tip.appendChild(h);
-      tip.appendChild(row('k1', d.views.toLocaleString('de-DE'), 'Seitenaufrufe'));
-      tip.appendChild(row('k2', d.visitors.toLocaleString('de-DE'), 'Besucher'));
+      lines.forEach(function (l, n) { tip.appendChild(row('k' + (n + 1), Number(d[l.key]).toLocaleString('de-DE'), l.label)); });
       tip.hidden = false;
       var box = svg.getBoundingClientRect(), scale = box.width / svg.viewBox.baseVal.width;
       var left = x * scale + 12;
@@ -151,8 +149,7 @@
     svg.addEventListener('pointermove', function (e) {
       var box = svg.getBoundingClientRect();
       var vx = (e.clientX - box.left) / box.width * svg.viewBox.baseVal.width;
-      var i = Math.round((vx - ml) / pw * (data.length - 1));
-      show(i);
+      show(Math.round((vx - ml) / pw * (data.length - 1)));
     });
     svg.addEventListener('pointerleave', hide);
     svg.addEventListener('focus', function () { show(idx); });
@@ -163,5 +160,5 @@
       if (e.key === 'Home') { show(0); e.preventDefault(); }
       if (e.key === 'End') { show(data.length - 1); e.preventDefault(); }
     });
-  }
+  });
 })();

@@ -1,0 +1,62 @@
+<%#
+  Liniendiagramm pro Tag (serverseitig gerendert, eine y-Achse).
+  Erwartet: chartId, series (Array mit day + Werten), lines [{ key, label, short }] (max. 2, gleiche Einheit), ariaLabel
+%>
+<%
+  const W = 800, H = 250, ml = 44, mr = 96, mt = 16, mb = 30;
+  const pw = W - ml - mr, ph = H - mt - mb;
+  const s = series;
+  const rawMax = Math.max(1, ...s.flatMap(d => lines.map(l => d[l.key])));
+  let tickStep;
+  if (rawMax <= 5) tickStep = 1;
+  else {
+    const mag = Math.pow(10, Math.floor(Math.log10(rawMax)));
+    tickStep = [0.1, 0.2, 0.25, 0.5, 1, 2].map(f => f * mag).find(st => st >= 1 && rawMax / st <= 5) || mag;
+  }
+  const yMax = Math.ceil(rawMax / tickStep) * tickStep;
+  const ticks = []; for (let v = 0; v <= yMax + 1e-9; v += tickStep) ticks.push(v);
+  const x = i => ml + (s.length === 1 ? pw / 2 : i * pw / (s.length - 1));
+  const y = v => mt + ph - v / yMax * ph;
+  const fmtN = n => n >= 1000 ? (Math.round(n / 100) / 10).toString().replace('.', ',') + 'K' : String(Math.round(n * 10) / 10).replace('.', ',');
+  const pts = key => s.map((d, i) => `${x(i).toFixed(1)},${y(d[key]).toFixed(1)}`).join(' ');
+  const area = `M${x(0)},${y(0)} L` + pts(lines[0].key).split(' ').join(' L') + ` L${x(s.length - 1)},${y(0)} Z`;
+  const every = Math.max(1, Math.ceil(s.length / 7));
+  const dLabel = d => d.slice(8, 10) + '.' + d.slice(5, 7) + '.';
+  const last = s[s.length - 1];
+  const ends = lines.map(l => y(last[l.key]));
+  const collide = ends.length > 1 && Math.abs(ends[0] - ends[1]) < 14;
+%>
+<% if (lines.length > 1) { %>
+<div class="chart-legend">
+  <% lines.forEach((l, i) => { %><span><i class="key k<%= i + 1 %>"></i> <%= l.label %></span><% }) %>
+</div>
+<% } %>
+<div class="chart-wrap">
+<svg class="chart" id="<%= chartId %>" data-chart viewBox="0 0 <%= W %> <%= H %>" role="img" tabindex="0"
+     aria-label="<%= ariaLabel %> Pfeiltasten wählen einen Tag."
+     data-series="<%= JSON.stringify(s) %>" data-lines="<%= JSON.stringify(lines.map(l => ({ key: l.key, label: l.label }))) %>"
+     data-ml="<%= ml %>" data-pw="<%= pw %>" data-mt="<%= mt %>" data-ph="<%= ph %>">
+  <% for (const t of ticks) { %>
+    <line x1="<%= ml %>" x2="<%= ml + pw %>" y1="<%= y(t) %>" y2="<%= y(t) %>" class="grid<%= t === 0 ? ' base' : '' %>"/>
+    <text x="<%= ml - 6 %>" y="<%= y(t) + 3 %>" text-anchor="end" class="tick"><%= fmtN(t) %></text>
+  <% } %>
+  <% s.forEach((d, i) => { if (i % every === 0 || i === s.length - 1) { %>
+    <text x="<%= x(i) %>" y="<%= H - 10 %>" text-anchor="middle" class="tick"><%= dLabel(d.day) %></text>
+  <% } }) %>
+  <path d="<%= area %>" class="area1"/>
+  <% lines.forEach((l, i) => { %><polyline points="<%= pts(l.key) %>" class="line<%= i + 1 %>"/><% }) %>
+  <% lines.forEach((l, i) => { %><circle cx="<%= x(s.length - 1) %>" cy="<%= ends[i] %>" r="4" class="dot<%= i + 1 %>"/><% }) %>
+  <% if (!collide) { lines.forEach((l, i) => { %>
+    <text x="<%= x(s.length - 1) + 9 %>" y="<%= ends[i] + 4 %>" class="endlabel"><%= fmtN(last[l.key]) %> <%= l.short %></text>
+  <% }) } %>
+  <line class="crosshair" x1="0" x2="0" y1="<%= mt %>" y2="<%= mt + ph %>" visibility="hidden"/>
+  <rect x="<%= ml %>" y="<%= mt %>" width="<%= pw %>" height="<%= ph %>" fill="transparent"/>
+</svg>
+<div class="tooltip" hidden></div>
+</div>
+<details><summary>Als Tabelle anzeigen</summary>
+  <table class="list">
+    <tr><th>Tag</th><% for (const l of lines) { %><th class="num"><%= l.label %></th><% } %></tr>
+    <% for (const d of [...s].reverse()) { %><tr><td><%= dLabel(d.day) %><%= d.day.slice(0, 4) %></td><% for (const l of lines) { %><td class="num"><%= d[l.key] %></td><% } %></tr><% } %>
+  </table>
+</details>

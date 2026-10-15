@@ -64,9 +64,14 @@ router.get('/files/dl/:id', (req, res, next) => {
   if (!f || !auth.canSee(req.user, 'file', f)) return next();
   const p = path.join(UPLOAD_DIR, f.stored_name);
   if (!fs.existsSync(p)) return next();
-  db.prepare('UPDATE files SET downloads = downloads + 1 WHERE id = ?').run(f.id);
-  try { analytics.record(req, '/files/dl/' + f.id, true); } catch { /* egal */ }
-  res.download(p, f.original_name);
+  // Fortsetzungen abgebrochener Downloads (Range ab > 0) zählen nicht als neuer Download
+  if (analytics.trackDownload(req, res, f.id)) {
+    db.prepare('UPDATE files SET downloads = downloads + 1 WHERE id = ?').run(f.id);
+    try { analytics.record(req, '/files/dl/' + f.id, true); } catch { /* egal */ }
+  }
+  res.download(p, f.original_name, err => {
+    if (err && !res.headersSent) next(err);
+  });
 });
 
 router.get('/files/upload', auth.requireLogin, (req, res, next) => {

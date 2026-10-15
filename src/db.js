@@ -194,12 +194,38 @@ CREATE TABLE IF NOT EXISTS downloads (
   complete INTEGER NOT NULL DEFAULT 0,
   resumed INTEGER NOT NULL DEFAULT 0      -- Fortsetzung eines abgebrochenen Downloads (Range ab > 0)
 );
+-- Forum: Themen und Beiträge angemeldeter Nutzer
+CREATE TABLE IF NOT EXISTS board_topics (
+  id INTEGER PRIMARY KEY,
+  title TEXT NOT NULL,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  pinned INTEGER NOT NULL DEFAULT 0,
+  locked INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  last_post_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS board_posts (
+  id INTEGER PRIMARY KEY,
+  topic_id INTEGER NOT NULL REFERENCES board_topics(id) ON DELETE CASCADE,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  body_md TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  edited_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS bp_topic ON board_posts(topic_id, created_at);
+CREATE INDEX IF NOT EXISTS bt_order ON board_topics(pinned, last_post_at);
 CREATE INDEX IF NOT EXISTS dl_day ON downloads(day);
 CREATE INDEX IF NOT EXISTS dl_file ON downloads(file_id, day);
 CREATE INDEX IF NOT EXISTS pv_day ON pageviews(day);
 CREATE INDEX IF NOT EXISTS pv_path ON pageviews(path);
 CREATE INDEX IF NOT EXISTS pv_visitor ON pageviews(day, visitor_hash);
 `);
+
+// Migrationen für bestehende Datenbanken: fehlende Spalten beim Start ergänzen
+function addColumn(table, column, def) {
+  if (!db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
+}
+addColumn('media', 'uploader_id', 'INTEGER REFERENCES users(id) ON DELETE SET NULL');
 
 function now() { return Math.floor(Date.now() / 1000); }
 
@@ -237,6 +263,8 @@ const DEFAULT_SETTINGS = {
   nav_hidden: '',
   // Kontakt / E-Mail
   contact_enabled: '1',
+  board_enabled: '1',
+  board_members_only: '0',      // Forum nur für angemeldete Nutzer lesbar
   notify_email: '',
   smtp_host: '',
   smtp_port: '587',

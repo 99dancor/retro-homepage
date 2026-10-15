@@ -37,12 +37,18 @@ const mediaUpload = multer({
   limits: { fileSize: 25 * 1024 * 1024, files: 20 },
   fileFilter: (req, file, cb) => cb(null, IMAGE_TYPES.includes(file.mimetype)),
 });
+// Bilder im Forum (angemeldete Nutzer): kleiner und weniger auf einmal
+const boardMediaUpload = multer({
+  storage: storageIn(MEDIA_DIR),
+  limits: { fileSize: 8 * 1024 * 1024, files: 5 },
+  fileFilter: (req, file, cb) => cb(null, IMAGE_TYPES.includes(file.mimetype)),
+});
 const zipUpload = multer({ storage: storageIn(TMP_DIR), limits: { fileSize: 1024 * 1024 * 1024, files: 1 } });
 
-function saveMedia(files) {
-  const ins = db.prepare('INSERT INTO media(stored_name, original_name, mime, size, created_at) VALUES (?, ?, ?, ?, ?)');
+function saveMedia(files, uploaderId = null) {
+  const ins = db.prepare('INSERT INTO media(stored_name, original_name, mime, size, uploader_id, created_at) VALUES (?, ?, ?, ?, ?, ?)');
   return (files || []).map(f => {
-    ins.run(f.filename, f.originalname, f.mimetype, f.size, now());
+    ins.run(f.filename, f.originalname, f.mimetype, f.size, uploaderId, now());
     return { url: '/media/' + f.filename, name: f.originalname };
   });
 }
@@ -157,4 +163,4 @@ function diskSpace() {
 
 function removeQuietly(p) { try { fs.rmSync(p, { recursive: true, force: true }); } catch { /* egal */ } }
 
-module.exports = { listImports, importFile, diskSpace, fileUpload, mediaUpload, zipUpload, saveMedia, extractApp, findEntry, removeQuietly, MAX_MB, COMPRESSIBLE, compressFile };
+module.exports = { listImports, importFile, diskSpace, fileUpload, mediaUpload, boardMediaUpload, zipUpload, saveMedia, extractApp, findEntry, removeQuietly, MAX_MB, COMPRESSIBLE, compressFile };

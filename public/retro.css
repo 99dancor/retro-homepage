@@ -203,3 +203,53 @@ details summary { cursor: pointer; margin: 6px 0; }
 .chart .col1 { fill: #2a78d6; }
 .chart .hbar-col:hover .col1 { fill: #1c5cab; }
 .kpi small { display: block; opacity: .7; }
+
+/* Bilder im Text: Lage und Breite aus dem Editor (![Text](bild.png "rechts 40%")) */
+.content::after { content: ''; display: block; clear: both; }
+.content img.bild-links { float: left; margin: 2px 12px 8px 0; }
+.content img.bild-rechts { float: right; margin: 2px 0 8px 12px; }
+.content img.bild-mitte { display: block; margin: 8px auto; }
+.content h1, .content h2, .content h3, .content hr, .content .clear { clear: both; }
+.content .mitte { text-align: center; }
+.content .rechts { text-align: right; }
+@media (max-width: 520px) {
+  .content img.bild-links, .content img.bild-rechts { float: none; display: block; margin: 8px auto; width: auto !important; max-width: 100%; }
+}
+
+/* Texteditor */
+.editor-tools .tool-group { display: inline-flex; gap: 2px; padding-right: 6px; margin-right: 2px; border-right: 1px solid var(--lo); box-shadow: 1px 0 var(--hi); }
+.editor-tools .tool-group:last-child { border: 0; box-shadow: none; }
+.editor-tools .view-switch { margin-left: auto; }
+button.pressed { box-shadow: inset 1px 1px var(--dark), inset -1px -1px var(--hi), inset 2px 2px var(--lo);
+  background: repeating-conic-gradient(var(--win) 0 25%, #fff 0 50%) 0 0 / 2px 2px; }
+.editor-panes { display: grid; gap: 8px; }
+.editor[data-view=split] .editor-panes { grid-template-columns: 1fr 1fr; }
+.editor[data-view=preview] textarea { display: none; }
+.editor-panes textarea.code { min-height: 420px; height: 100%; }
+.editor.compact .editor-panes textarea.code { min-height: 180px; }
+.editor .preview { position: relative; overflow: auto; max-height: 75vh; min-height: 180px; }
+.editor[data-view=preview] .preview { max-height: none; }
+.editor .preview .content img.editable { cursor: pointer; outline: 1px dashed transparent; }
+.editor .preview .content img.editable:hover { outline-color: #808080; }
+.editor .preview .content img.selected { outline: 2px dashed var(--title-from); outline-offset: 2px; }
+.editor .md-block.drop-before { box-shadow: 0 -3px 0 var(--title-from); }
+.editor .md-block.drop-after { box-shadow: 0 3px 0 var(--title-from); }
+.img-tools { position: absolute; z-index: 3; display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; background: var(--win); color: var(--text);
+  box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), 2px 2px 0 rgba(0,0,0,.35); max-width: calc(100% - 8px); }
+.img-tools[hidden], .img-handle[hidden] { display: none; }
+.img-tools .sep { width: 1px; background: var(--lo); margin: 0 2px; }
+.img-handle { position: absolute; z-index: 3; width: 14px; height: 14px; background: var(--title-from); border: 2px solid #fff;
+  cursor: nwse-resize; touch-action: none; }
+@media (max-width: 900px) { .editor[data-view=split] .editor-panes { grid-template-columns: 1fr; } }
+
+/* Forum */
+.board-post { margin-bottom: 10px; }
+.board-post .head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-weight: bold; padding: 2px 6px;
+  background: linear-gradient(90deg, var(--title-from), var(--title-to)); color: #fff; }
+.board-post .content { word-wrap: break-word; }
+.board-post .post-actions { margin-top: 6px; justify-content: flex-end; }
+table.board td small { opacity: .75; }
+
+/* Changelog */
+.changelog h2 { margin-top: 1em; padding: 2px 6px; background: linear-gradient(90deg, var(--title-from), var(--title-to)); color: #fff; font-size: 14px; }
+.changelog h2:first-child { margin-top: 0; }

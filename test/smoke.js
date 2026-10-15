@@ -67,7 +67,7 @@ async function main() {
     const admin = browser();
 
     await step('Öffentliche Seiten laden', async () => {
-      for (const p of ['/', '/blog', '/files', '/mods', '/links', '/guestbook', '/contact', '/apps', '/login', '/theme.css', '/static/retro.css']) {
+      for (const p of ['/', '/blog', '/files', '/mods', '/links', '/guestbook', '/contact', '/apps', '/forum', '/changelog', '/login', '/theme.css', '/static/retro.css', '/static/editor.js']) {
         const r = await guest.req(p);
         assert.equal(r.status, 200, p);
       }
@@ -182,7 +182,8 @@ async function main() {
       let r;
       for (let i = 0; i < 50; i++) {
         r = await guest.req('/apps/testspiel/play/index.wasm', { headers: { 'accept-encoding': 'br, gzip' } });
-        if (r.headers.get('content-encoding')) break;
+        // .gz ist oft vor .br fertig: auf beide Fassungen warten
+        if (r.headers.get('content-encoding') === 'br') break;
         await new Promise(ok => setTimeout(ok, 100));
       }
       assert.equal(r.status, 200);
@@ -237,6 +238,82 @@ async function main() {
       assert.match((await admin.req('/admin/files')).text_, /frei von/);
       const hour = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: process.env.TZ || 'Europe/Berlin' }).format(new Date());
       assert.match(file.text_, new RegExp('<title>' + String(hour).padStart(2, '0') + '–\\d\\d Uhr: [1-9]\\d* Downloads'), 'Uhrzeit-Diagramm hat Werte');
+    });
+
+    await step('Bilder im Text: Lage und Größe, Vorschau mit Blöcken', async () => {
+      const t = await admin.csrf('/admin/pages/new');
+      const body = 'Absatz eins\n\n![Katze](/media/0123456789abcdef0123456789abcdef.png "rechts 40%")\n\n<div class="mitte">\n\nMitte\n\n</div>\n\n<img src="x" style="position:fixed" class="bild-links boese" onerror="alert(1)">';
+      assert.equal((await admin.form('/admin/pages/save', { _csrf: t, title: 'Bildtest', body_md: body, visibility: 'public' })).status, 302);
+      const page = (await guest.req('/p/bildtest')).text_;
+      assert.match(page, /<img src="\/media\/0123456789abcdef0123456789abcdef\.png" alt="Katze" loading="lazy" class="bild-rechts" style="width:40%"/);
+      assert.match(page, /<div class="mitte"><p>Mitte<\/p>/);
+      assert.doesNotMatch(page, /position:fixed|onerror|boese/);
+      const pv = await admin.form('/admin/preview', { _csrf: t, md: body });
+      assert.match(pv.text_, /<div class="md-block" data-from="0" data-to="11"><p>Absatz eins/);
+      assert.match(pv.text_, /data-from="13" data-to="79"><p><img/);
+      assert.equal((await guest.form('/forum/preview', { _csrf: t, md: 'x' })).status, 403, 'Gast ohne gültiges Token');
+    });
+
+    await step('Forum: Mitglieder schreiben, Fremde dürfen nicht bearbeiten', async () => {
+      const t = await admin.csrf('/admin/users');
+      for (const name of ['anna', 'bernd']) assert.equal((await admin.form('/admin/users/create', { _csrf: t, username: name, password: 'passwort123' })).status, 302);
+      const anna = browser(), bernd = browser();
+      for (const [b, name] of [[anna, 'anna'], [bernd, 'bernd']]) {
+        const tk = await b.csrf();
+        assert.equal((await b.form('/login', { _csrf: tk, username: name, password: 'passwort123' })).status, 302);
+      }
+      assert.equal((await guest.req('/forum')).status, 200);
+      assert.equal((await guest.req('/forum/new')).status, 302, 'Gast muss sich anmelden');
+
+      let tk = await anna.csrf('/forum/new');
+      const r = await anna.form('/forum/new', { _csrf: tk, title: 'Hallo Forum', body_md: 'Erster **Beitrag** <script>x</script>' });
+      assert.equal(r.status, 302);
+      const topic = r.headers.get('location');
+      assert.match(topic, /^\/forum\/t\/\d+$/);
+      const view = (await guest.req(topic)).text_;
+      assert.match(view, /Erster <strong>Beitrag<\/strong>/);
+      assert.doesNotMatch(view, /<script>x/);
+      assert.match((await guest.req('/forum')).text_, /Hallo Forum/);
+
+      tk = await bernd.csrf(topic);
+      assert.equal((await bernd.form(topic + '/reply', { _csrf: tk, body_md: 'Antwort von Bernd' })).status, 302);
+      const page = (await bernd.req(topic)).text_;
+      assert.match(page, /Antwort von Bernd/);
+      const ids = [...page.matchAll(/id="b(\d+)"/g)].map(m => m[1]);
+      assert.equal(ids.length, 2);
+      assert.equal((await bernd.req(`/forum/p/${ids[0]}/edit`)).status, 404, 'Bernd darf Annas Beitrag nicht bearbeiten');
+      assert.equal((await bernd.form(`/forum/p/${ids[0]}/delete`, { _csrf: tk })).status, 404);
+      assert.equal((await bernd.form(topic + '/lock', { _csrf: tk })).status, 403, 'nur Admin sperrt');
+
+      tk = await anna.csrf(topic);
+      const del = await anna.form(`/forum/p/${ids[0]}/delete`, { _csrf: tk });
+      assert.match(decodeURIComponent(del.headers.get('location')), /schon geantwortet/, 'Thema mit Antworten bleibt');
+      assert.equal((await anna.form(`/forum/p/${ids[0]}/edit`, { _csrf: tk, title: 'Hallo Forum!', body_md: 'Geändert' })).status, 302);
+      const edited = (await guest.req(topic)).text_;
+      for (const re of [/<h1>Hallo Forum!<\/h1>/, /<p>Geändert<\/p>/, / · bearbeitet/]) assert.match(edited, re);
+
+      const at = await admin.csrf(topic);
+      assert.equal((await admin.form(topic + '/lock', { _csrf: at })).status, 302);
+      const bt = await bernd.csrf(topic);
+      assert.match((await bernd.form(topic + '/reply', { _csrf: bt, body_md: 'zu spät' })).headers.get('location'), /err=/);
+      assert.doesNotMatch((await guest.req(topic)).text_, /zu spät/);
+      const fd = new FormData();
+      fd.append('_csrf', tk);
+      fd.append('images', new Blob([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64')], { type: 'image/png' }), 'punkt.png');
+      const img = await anna.req('/forum/media', { method: 'POST', body: fd, headers: { accept: 'application/json' } });
+      assert.equal(img.status, 200);
+      assert.match(JSON.parse(img.text_)[0].url, /^\/media\/[a-f0-9]{32}\.png$/);
+      assert.equal((await admin.form(topic + '/delete', { _csrf: at })).status, 302);
+      assert.equal((await guest.req(topic)).status, 404);
+    });
+
+    await step('Changelog im Startmenü, nicht in der Menüleiste', async () => {
+      const home = (await guest.req('/')).text_;
+      assert.match(home, /<div class="startmenu"[\s\S]*href="\/changelog"/);
+      assert.doesNotMatch(home.split('<div class="startmenu"')[0], /\/changelog/);
+      const r = await guest.req('/changelog');
+      assert.equal(r.status, 200);
+      assert.match(r.text_, /Eröffnung/);
     });
 
     await step('Besucherstatistik zählt Aufrufe', async () => {

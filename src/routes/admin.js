@@ -6,7 +6,7 @@ const auth = require('../auth');
 const analytics = require('../analytics');
 const mail = require('../mail');
 const up = require('../uploads');
-const { slugify, safeUrl, asArray, visibilityFrom, md } = require('../util');
+const { slugify, safeUrl, asArray, visibilityFrom, mdBlocks } = require('../util');
 
 const router = express.Router();
 router.use(auth.requireAdmin);
@@ -93,14 +93,14 @@ router.post('/posts/:id/delete', (req, res) => {
   db.prepare("DELETE FROM acl WHERE item_type = 'post' AND item_id = ?").run(Number(req.params.id));
   res.redirect('/admin/posts');
 });
-router.post('/preview', (req, res) => res.type('html').send(md(String(req.body.md || ''))));
+router.post('/preview', (req, res) => res.type('html').send(mdBlocks(String(req.body.md || ''))));
 
 // ---------- Bilder / Medien ----------
 router.get('/media', (req, res) => res.render('admin/media', { title: 'Bilder', media: db.prepare('SELECT * FROM media ORDER BY created_at DESC').all() }));
 router.get('/media.json', (req, res) => res.json(db.prepare('SELECT stored_name, original_name FROM media ORDER BY created_at DESC LIMIT 200').all()
   .map(m => ({ url: '/media/' + m.stored_name, name: m.original_name }))));
 router.post('/media', up.mediaUpload.array('images'), multipartCsrf, (req, res) => {
-  const saved = up.saveMedia(req.files);
+  const saved = up.saveMedia(req.files, req.user.id);
   if (req.get('accept') === 'application/json') return res.json(saved);
   res.redirect('/admin/media?ok=1');
 });
@@ -406,14 +406,14 @@ router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, 
   }
   for (const k of THEME_KEYS) if (k in b) setSetting(k, String(b[k]).slice(0, 20000));
   setSetting('theme_show_counter', b.theme_show_counter ? '1' : '0');
-  if (req.file) setSetting('theme_bg_image', up.saveMedia([req.file])[0].url);
+  if (req.file) setSetting('theme_bg_image', up.saveMedia([req.file], req.user.id)[0].url);
   res.redirect('/admin/design?ok=1');
 });
 
 // ---------- Einstellungen ----------
 const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days'];
-const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'smtp_secure'];
-const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Spiele & Apps', guestbook: 'Freundebuch', contact: 'Kontakt' };
+const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure'];
+const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Spiele & Apps', board: 'Forum', guestbook: 'Freundebuch', contact: 'Kontakt' };
 router.get('/settings', (req, res) => {
   const s = Object.fromEntries([...SETTING_KEYS, ...SETTING_FLAGS, 'nav_hidden'].map(k => [k, getSetting(k, '')]));
   s.smtp_pass_set = !!getSetting('smtp_pass');

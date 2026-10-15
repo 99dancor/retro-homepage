@@ -40,10 +40,11 @@
   <% } else { %>
   <nav class="menubar">
     <a href="/" class="<%= path === '/' ? 'active' : '' %>">Startseite</a>
-    <% const navs = [['blog','/blog','Blog'],['files','/files','Downloads'],['mods','/mods','Modlisten'],['links','/links','Links'],['apps','/apps','Spiele & Apps'],['guestbook','/guestbook','Freundebuch'],['contact','/contact','Kontakt']]; %>
+    <% const navs = [['blog','/blog','Blog'],['files','/files','Downloads'],['mods','/mods','Modlisten'],['links','/links','Links'],['apps','/apps','Spiele & Apps'],['board','/forum','Forum'],['guestbook','/guestbook','Freundebuch'],['contact','/contact','Kontakt']]; %>
     <% for (const [key, href, label] of navs) {
          if (navHidden.includes(key)) continue;
          if (key === 'guestbook' && !guestbookEnabled) continue;
+         if (key === 'board' && !boardEnabled) continue;
          if (key === 'contact' && !contactEnabled) continue; %>
       <a href="<%= href %>" class="<%= path.startsWith(href) ? 'active' : '' %>"><%= label %></a>
     <% } %>

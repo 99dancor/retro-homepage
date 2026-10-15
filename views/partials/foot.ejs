@@ -51,9 +51,11 @@
   <a href="/mods">🧩 Modlisten</a>
   <a href="/links">🔗 Links</a>
   <a href="/apps">🎮 Spiele & Apps</a>
+  <% if (boardEnabled) { %><a href="/forum">💬 Forum</a><% } %>
   <% if (guestbookEnabled) { %><a href="/guestbook">📖 Freundebuch</a><% } %>
   <% if (contactEnabled) { %><a href="/contact">✉️ Kontakt</a><% } %>
   <hr>
+  <a href="/changelog">📜 Changelog</a>
   <% if (user && user.isAdmin) { %><a href="/admin">⚙️ Systemsteuerung</a><% } %>
   <% if (!user) { %><a href="/login">🔑 Anmelden…</a><% } %>
 </div>

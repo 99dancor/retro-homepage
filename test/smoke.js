@@ -182,7 +182,8 @@ async function main() {
       let r;
       for (let i = 0; i < 50; i++) {
         r = await guest.req('/apps/testspiel/play/index.wasm', { headers: { 'accept-encoding': 'br, gzip' } });
-        if (r.headers.get('content-encoding')) break;
+        // .gz ist oft vor .br fertig: auf beide Fassungen warten
+        if (r.headers.get('content-encoding') === 'br') break;
         await new Promise(ok => setTimeout(ok, 100));
       }
       assert.equal(r.status, 200);

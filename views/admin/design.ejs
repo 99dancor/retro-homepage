@@ -1,4 +1,5 @@
 <%- include('../partials/head') %>
+<p><small>Hier stellst du das Design für alle ein. Besucher können es über 🖥️ neben der Uhr für sich selbst überschreiben, auch du: Hast du dort etwas eingestellt, siehst du dieses Design erst nach „Alles zurücksetzen“ wieder unverändert.</small></p>
 <fieldset class="groupbox"><legend>🎨 Vorlagen</legend>
   <form method="post" action="/admin/design" enctype="multipart/form-data" class="actions" style="margin-top:0">
     <input type="hidden" name="_csrf" value="<%= csrf %>">
@@ -39,8 +40,8 @@
     </div>
     <label>Schriftart:
       <select name="theme_font">
-        <% for (const [k, v] of Object.entries({ tahoma: 'Tahoma (Windows 2000)', ms_sans: 'MS Sans Serif (Windows 98)', verdana: 'Verdana', times: 'Times New Roman', comic: 'Comic Sans MS 🤡', courier: 'Courier New' })) { %>
-          <option value="<%= k %>" <%= s.theme_font === k ? 'selected' : '' %>><%= v %></option>
+        <% for (const [k, [label]] of Object.entries(fonts)) { %>
+          <option value="<%= k %>" <%= s.theme_font === k ? 'selected' : '' %>><%= label %></option>
         <% } %>
       </select></label>
   </fieldset>

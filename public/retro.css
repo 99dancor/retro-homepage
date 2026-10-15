@@ -290,14 +290,32 @@ table.board td small { opacity: .75; }
 .changelog h2 { margin-top: 1em; padding: 2px 6px; background: linear-gradient(90deg, var(--title-from), var(--title-to)); color: #fff; font-size: 14px; }
 .changelog h2:first-child { margin-top: 0; }
 
-/* Darstellung (Knopf neben der Uhr, public/display.js) */
-.display-panel { position: fixed; right: 2px; bottom: 34px; z-index: 12; width: 340px; max-width: calc((100vw - 4px) / var(--zoom, 1)); margin: 0; }
+/* Eigenschaften von Anzeige (Knopf neben der Uhr, public/display.js) */
+.display-panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 12; margin: 0;
+  width: 460px; max-width: calc((100vw - 8px) / var(--zoom, 1)); max-height: calc((100vh - 44px) / var(--zoom, 1)); display: flex; flex-direction: column; }
 .display-panel[hidden] { display: none; }
-.display-panel .body { padding: 6px 8px; }
-.display-panel .groupbox { margin: 4px 0 8px; padding: 4px 8px; }
+.display-panel .body { padding: 8px 10px; overflow: auto; }
+.display-panel .groupbox { margin: 6px 0; padding: 4px 8px 6px; }
+.display-panel .row > * { min-width: 150px; }
+.display-panel .row > fieldset { flex: 2; }
 .display-panel p { margin: 6px 0 0; }
 .display-panel label.inline { margin: 3px 12px 3px 0; }
-.display-panel .actions { justify-content: flex-end; margin-top: 8px; }
+.display-panel .actions { margin-top: 8px; gap: 6px; }
+.display-panel .actions .spacer { flex: 1; }
+.display-panel textarea.code { min-height: 110px; }
+.display-panel .swatches { gap: 4px; }
+.display-panel .swatch { gap: 4px; padding: 2px 6px; }
+.display-panel .swatch i { width: 12px; height: 12px; }
+.display-panel .colors { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 2px 8px; }
+.display-panel .colors label { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+.display-panel .bg-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.file-btn { position: relative; overflow: hidden; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.tabs { display: flex; gap: 0; margin-bottom: -1px; position: relative; z-index: 1; }
+.tabs button { min-width: 0; padding: 3px 12px; box-shadow: inset 1px 1px var(--hi), inset -1px 0 var(--dark), inset -2px 0 var(--lo); margin-top: 2px; }
+.tabs button[aria-selected=true] { margin-top: 0; padding-bottom: 5px; background: var(--win); font-weight: bold; }
+.tab-page { box-shadow: inset 1px 1px var(--hi), inset -1px -1px var(--dark), inset -2px -2px var(--lo); padding: 8px 10px; min-height: 230px; }
+.tab-page[hidden] { display: none; }
 
 /* Schriftgröße: Inhalt der Fenster, Systemsteuerung, Taskleiste und Startmenü wachsen mit */
 html.fs-gross { --zoom: 1.15; }

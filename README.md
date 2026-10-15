@@ -129,7 +129,7 @@ strenger möchte, setzt `TRUST_PROXY` auf die IP des Pi.
 | **Forum** | Angemeldete Nutzer erstellen Themen und antworten (mit Bildern), auf Wunsch anonym (nur der Admin sieht den Namen), bearbeiten/löschen eigene Beiträge; Admin pinnt an, schließt und löscht. Unter Einstellungen abschaltbar oder nur für Mitglieder lesbar |
 | **Changelog** | Im Startmenü, Inhalt aus `CHANGELOG.md` (wird mit jedem Update ergänzt) |
 | **Datenschutz** | Im Startmenü unter `/datenschutz`: in einfacher Sprache, was über Besucher gespeichert wird, mit aufklappbaren Code-Ausschnitten und Screenshots der Admin-Ansicht. Die Ausschnitte liest der Server aus dem laufenden Code (Anker in `src/privacy.js`); wer neue Daten speichert, ergänzt Seite und Anker |
-| **Darstellung** | Knopf 🖥️ neben der Uhr: Schriftgröße, dunkle Farben oder hoher Kontrast, Lauftext anhalten. Gilt pro Browser (localStorage), nichts geht an den Server |
+| **Darstellung** | Knopf 🖥️ neben der Uhr öffnet „Eigenschaften von Anzeige“: Hintergrund (Farbe, Muster, eigenes Bild), alle Design-Vorlagen plus Dunkel/Hoher Kontrast, Einzelfarben, Schriftart und -größe, Lauftext, Desktop-Elemente, eigenes CSS. Gilt pro Browser (localStorage, eigenes Bild als verkleinerte data:-Adresse), nichts geht an den Server. Vorlagen und Schriften kommen aus `src/themes.js`, die das Admin-Design mitbenutzt |
 | **Freundebuch** | Mit Name, anonym oder als angemeldeter Nutzer; optional Freischaltung durch dich; Spam-Schutz |
 | **Kontakt** | Nachrichten landen im Admin-Postfach, optional E-Mail-Benachrichtigung (SMTP) |
 | **Eigene Seiten** | z. B. „Über mich“, erscheinen auf Wunsch im Menü |

@@ -395,16 +395,10 @@ router.post('/apps/:id/delete', (req, res) => {
 // ---------- Design ----------
 const THEME_KEYS = ['theme_bg_color', 'theme_bg_image', 'theme_bg_mode', 'theme_window_color', 'theme_title_from', 'theme_title_to',
   'theme_text_color', 'theme_link_color', 'theme_font', 'theme_marquee', 'theme_custom_css'];
-const THEME_PRESETS = {
-  'Windows 98': { theme_bg_color: '#008080', theme_window_color: '#c0c0c0', theme_title_from: '#000080', theme_title_to: '#1084d0', theme_text_color: '#000000', theme_link_color: '#0000ee' },
-  'Nachtschwarz': { theme_bg_color: '#000000', theme_window_color: '#2b2b2b', theme_title_from: '#400040', theme_title_to: '#a000a0', theme_text_color: '#e0e0e0', theme_link_color: '#00ffff' },
-  'Bubblegum': { theme_bg_color: '#ff99cc', theme_window_color: '#ffe6f2', theme_title_from: '#cc0066', theme_title_to: '#ff66b3', theme_text_color: '#330019', theme_link_color: '#6600cc' },
-  'Matrix': { theme_bg_color: '#001100', theme_window_color: '#0a1f0a', theme_title_from: '#003300', theme_title_to: '#00aa00', theme_text_color: '#33ff33', theme_link_color: '#ccff66' },
-  'Windows 2000': { theme_bg_color: '#3a6ea5', theme_window_color: '#d4d0c8', theme_title_from: '#0a246a', theme_title_to: '#a6caf0', theme_text_color: '#000000', theme_link_color: '#0000ee' },
-};
+const { PRESETS: THEME_PRESETS, FONTS } = require('../themes');
 router.get('/design', (req, res) => {
   const s = Object.fromEntries([...THEME_KEYS, 'theme_show_counter'].map(k => [k, getSetting(k, '')]));
-  res.render('admin/design', { title: 'Design', s, presets: THEME_PRESETS, media: db.prepare("SELECT * FROM media ORDER BY created_at DESC").all() });
+  res.render('admin/design', { title: 'Design', s, presets: THEME_PRESETS, fonts: FONTS, media: db.prepare("SELECT * FROM media ORDER BY created_at DESC").all() });
 });
 router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, res) => {
   const b = req.body;

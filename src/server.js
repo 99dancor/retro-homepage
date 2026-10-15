@@ -8,6 +8,7 @@ const { db, getSetting } = require('./db');
 const auth = require('./auth');
 const analytics = require('./analytics');
 const util = require('./util');
+const themes = require('./themes');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -50,6 +51,7 @@ app.use(auth.loadUser);
 app.use((req, res, next) => {
   Object.assign(res.locals, util, {
     asset,
+    themes,
     site: { title: getSetting('site_title'), tagline: getSetting('site_tagline') },
     path: req.path,
     guestbookEnabled: getSetting('guestbook_enabled') === '1',

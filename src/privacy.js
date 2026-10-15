@@ -21,6 +21,7 @@ const SNIPPETS = {
   csp: ['src/server.js', "'Content-Security-Policy': \"default-src 'self'", 1],
   desk: ['public/retro.js', "sessionStorage.setItem('desk'", 1],
   display: ['public/display.js', "var KEY = 'darstellung'", 1],
+  displaySave: ['public/display.js', 'function save(p, img)', 7],
   editor: ['public/editor.js', "var MODE_KEY = 'editor-mode'", 1],
   pet: ['games/haustier/src/js/storage.js', "const PREFIX = 'haustier:v1:'", 7],
   users: ['src/db.js', 'CREATE TABLE IF NOT EXISTS users (', 10],

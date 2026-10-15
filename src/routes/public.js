@@ -10,6 +10,7 @@ const up = require('../uploads');
 const { md } = require('../util');
 const GAMES = require('../games');
 const privacy = require('../privacy');
+const { FONTS } = require('../themes');
 
 const router = express.Router();
 
@@ -257,14 +258,6 @@ router.get('/media/:name', (req, res, next) => {
 router.get('/theme.css', (req, res) => {
   const s = k => getSetting(k, '');
   const color = v => (/^#[0-9a-f]{3,8}$/i.test(v) ? v : 'inherit');
-  const fonts = {
-    tahoma: 'Tahoma, Verdana, "Segoe UI", sans-serif',
-    ms_sans: '"MS Sans Serif", "Microsoft Sans Serif", Tahoma, sans-serif',
-    times: '"Times New Roman", Times, serif',
-    comic: '"Comic Sans MS", "Comic Neue", cursive',
-    courier: '"Courier New", Courier, monospace',
-    verdana: 'Verdana, Geneva, sans-serif',
-  };
   const bg = s('theme_bg_image');
   const mode = s('theme_bg_mode');
   const bgImg = /^\/media\/[a-f0-9]{32}(\.[a-z0-9]+)?$/.test(bg) ? `url("${bg}")` : 'none';
@@ -277,7 +270,7 @@ router.get('/theme.css', (req, res) => {
   --title-to: ${color(s('theme_title_to'))};
   --text: ${color(s('theme_text_color'))};
   --link: ${color(s('theme_link_color'))};
-  --font: ${fonts[s('theme_font')] || fonts.tahoma};
+  --font: ${(FONTS[s('theme_font')] || FONTS.tahoma)[1]};
 }
 body { background-image: ${bgImg}; ${bgExtra} }
 ${s('theme_custom_css').replace(/<\/?style/gi, '')}

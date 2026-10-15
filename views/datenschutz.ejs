@@ -62,13 +62,14 @@
 <p>Diese Dinge bleiben auf deinem Gerät und werden nicht an den Server geschickt. Du löschst sie, indem du die Websitedaten im Browser löschst.</p>
 <ul>
   <li>Welche Fenster offen sind und wo sie liegen (bis du den Tab schließt).</li>
-  <li>Deine Darstellung über den 🖥️-Knopf neben der Uhr: Schriftgröße, Farben, Lauftext.</li>
+  <li>Deine Darstellung über den 🖥️-Knopf neben der Uhr: Farben, Schrift, Hintergrund, Lauftext und eigenes CSS. Auch ein eigenes Hintergrundbild bleibt im Browser und wird nicht hochgeladen.</li>
   <li>Die gewählte Ansicht im Texteditor.</li>
   <li>Mein Haustier: ohne Konto der ganze Spielstand, mit Konto eine Kopie, damit bei Verbindungsproblemen nichts verloren geht.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('desk', '<code>sessionStorage</code> vergisst alles, sobald der Tab geschlossen wird.') %>
-  <%- code('display', 'Unter diesem Namen liegt deine Darstellung im <code>localStorage</code> des Browsers.') %>
+  <%- code('display', 'Unter diesen beiden Namen liegen deine Darstellung und ein eigenes Hintergrundbild im <code>localStorage</code> des Browsers.') %>
+  <%- code('displaySave', 'Gespeichert wird nur dort. Die ganze Datei <code>display.js</code> schickt nichts an den Server.') %>
   <%- code('editor', 'Der Editor merkt sich nur, ob du Text, Vorschau oder beides siehst.') %>
   <%- code('pet', 'Unter diesen Namen speichert das Haustier-Spiel im Browser.') %>
 </details>

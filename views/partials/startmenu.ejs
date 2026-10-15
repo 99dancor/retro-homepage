@@ -32,21 +32,4 @@
     <span id="clock"></span>
   </div>
 </div>
-<div class="window display-panel" id="displaypanel" role="dialog" aria-label="Darstellung" hidden>
-  <div class="titlebar"><span class="ttl">🖥️ Darstellung</span><button type="button" class="tb-btn" data-act="close" title="Schließen">×</button></div>
-  <form class="body">
-    <fieldset class="groupbox"><legend>Schriftgröße</legend>
-      <label class="inline"><input type="radio" name="size" value="normal"> Normal</label>
-      <label class="inline"><input type="radio" name="size" value="gross"> Groß</label>
-      <label class="inline"><input type="radio" name="size" value="sehr-gross"> Sehr groß</label>
-    </fieldset>
-    <fieldset class="groupbox"><legend>Farben</legend>
-      <label class="inline"><input type="radio" name="scheme" value="seite"> Wie die Seite</label>
-      <label class="inline"><input type="radio" name="scheme" value="nacht"> Dunkel</label>
-      <label class="inline"><input type="radio" name="scheme" value="kontrast"> Hoher Kontrast</label>
-    </fieldset>
-    <label class="inline"><input type="checkbox" name="still" value="1"> Lauftext und Blinken anhalten</label>
-    <p><small>Gilt nur für diesen Browser und wird nicht an den Server geschickt. <a href="/datenschutz">Mehr zu deinen Daten</a></small></p>
-    <div class="actions"><button type="button" class="small" data-act="reset">Zurücksetzen</button><button class="small">OK</button></div>
-  </form>
-</div>
+<%- include('display-panel') %>

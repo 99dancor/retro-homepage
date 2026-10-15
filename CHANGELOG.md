@@ -1,5 +1,12 @@
 # Changelog
 
+## 15.10.2026 – Mein Haustier
+
+- **Mein Haustier:** Neues Spiel im Startmenü. Such dir ein Haustier aus (Katze, Hund, Kaninchen, Hamster, Ratte und besondere Tiere für treue Besucher), kümmere dich jeden Tag darum, verdiene Münzen und kauf im Shop Futter, Spielzeug, Accessoires und neue Räume.
+- Ohne Konto wird der Spielstand nur im Browser gespeichert. Mit Konto ist er dauerhaft gesichert und auf allen Geräten da, dazu gibt es ein kleines Willkommensgeschenk im Spiel.
+- **Anonym im Forum schreiben:** Beim neuen Thema und beim Antworten lässt sich „Anonym veröffentlichen“ ankreuzen. Andere Mitglieder sehen dann statt des Namens „Anonym“, nur der Admin sieht, wer es war.
+- Nach dem Registrieren geht es zurück zur Seite, von der man kam.
+
 ## 15.10.2026 – Fenster-Reparatur
 
 - Nach dem letzten Update zeigten manche Browser noch das alte Design und die Fenster ließen sich nicht bewegen. Design- und Skriptdateien tragen jetzt eine Versionsnummer, sodass jeder Browser nach einem Update sofort die neue Fassung lädt.

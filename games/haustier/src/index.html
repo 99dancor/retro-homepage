@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mein Haustier</title>
+<link rel="stylesheet" href="css/game.css">
+<!-- Farben aus Admin > Design der Homepage; fehlt die Datei (lokal), gelten die Standardfarben -->
+<link rel="stylesheet" href="/theme.css">
+</head>
+<body>
+<div class="window game" id="game">
+  <div class="titlebar"><span class="icon">🐾</span><span class="ttl">Mein Haustier</span></div>
+  <div class="menubar" id="menubar">
+    <button type="button" class="menu" data-view="room">🏠 Zimmer</button>
+    <button type="button" class="menu" data-view="inventory">🎒 Inventar</button>
+    <button type="button" class="menu" data-view="shop">🛒 Shop</button>
+    <button type="button" class="menu" data-view="tasks">📋 Aufgaben <span id="task-count"></span></button>
+    <span class="spacer"></span>
+    <button type="button" class="menu" data-open="news" title="Neuigkeiten">📜<span class="dot" id="news-dot" hidden></span></button>
+    <button type="button" class="menu" data-open="help" title="Hilfe">❔</button>
+    <button type="button" class="menu" data-open="settings" title="Einstellungen">⚙️</button>
+    <span class="coins" title="Münzen">🪙 <b id="coins">0</b></span>
+  </div>
+
+  <div class="notice" id="guest-notice" hidden>
+    <span class="notice-icon" aria-hidden="true">⚠️</span>
+    <div class="notice-text">
+      <b>Du spielst als Gast.</b> Dein Spielstand liegt nur in diesem Browser und kann verloren gehen,
+      z.&nbsp;B. beim Löschen der Browserdaten. Mit einem kostenlosen Konto ist er dauerhaft gesichert
+      und auf allen deinen Geräten verfügbar. Als Dankeschön gibt es <b>200 Münzen</b> und ein exklusives
+      <b>Homepage-Halstuch</b> für dein Tier.
+      <div class="notice-actions">
+        <a class="btn" id="register-link" href="/register" target="_top">Konto erstellen</a>
+        <a class="btn" id="login-link" href="/login" target="_top">Anmelden</a>
+        <button type="button" class="small" id="notice-later">Später</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="body" id="screen">
+    <p class="loading">Lade Spielstand …</p>
+  </main>
+
+  <div class="statusbar">
+    <span id="save-status">…</span>
+    <span id="streak" class="fixed" title="Tage in Folge besucht">🔥</span>
+    <span id="account-status" class="fixed">…</span>
+  </div>
+</div>
+
+<dialog id="dlg" class="window">
+  <div class="titlebar"><span class="ttl" id="dlg-title"></span></div>
+  <form method="dialog" class="body">
+    <div id="dlg-body"></div>
+    <div class="dlg-actions" id="dlg-actions"></div>
+  </form>
+</dialog>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

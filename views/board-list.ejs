@@ -11,9 +11,9 @@
   <% for (const t of topics) { %>
   <tr>
     <td><%= t.pinned ? '📌 ' : '' %><%= t.locked ? '🔒 ' : '' %><a href="/forum/t/<%= t.id %>"><b><%= t.title %></b></a>
-      <br><small>von <%= t.username || 'Gelöschter Nutzer' %> · <%= fmtDate(t.created_at) %></small></td>
+      <br><small>von <%= t.author %> · <%= fmtDate(t.created_at) %></small></td>
     <td class="num"><%= t.replies %></td>
-    <td><a href="/forum/t/<%= t.id %>?page=last"><%= fmtDate(t.last_post_at, true) %></a><br><small><%= t.last_user || 'Gelöschter Nutzer' %></small></td>
+    <td><a href="/forum/t/<%= t.id %>?page=last"><%= fmtDate(t.last_post_at, true) %></a><br><small><%= t.last_author %></small></td>
   </tr>
   <% } %>
 </table>

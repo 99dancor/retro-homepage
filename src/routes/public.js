@@ -8,6 +8,7 @@ const analytics = require('../analytics');
 const mail = require('../mail');
 const up = require('../uploads');
 const { md } = require('../util');
+const GAMES = require('../games');
 
 const router = express.Router();
 
@@ -272,10 +273,12 @@ ${s('theme_custom_css').replace(/<\/?style/gi, '')}
 });
 
 // ---------- Konto ----------
+// Ziel nach An- oder Registrierung: nur Pfade dieser Seite ("//…" oder "/\…" führten zu fremden Seiten)
+const localPath = v => (typeof v === 'string' && /^\/(?![/\\])/.test(v) ? v : null);
 router.get('/login', (req, res) => res.render('login', { title: 'Anmelden', err: null, next: req.query.next || '' }));
 router.post('/login', auth.rateLimit('login', 10, 600), (req, res) => {
   const u = db.prepare('SELECT * FROM users WHERE username = ?').get(String(req.body.username || ''));
-  const nextUrl = /^\/(?!\/)/.test(req.body.next || '') ? req.body.next : (u && u.role === 'admin' ? '/admin' : '/');
+  const nextUrl = localPath(req.body.next) || (u && u.role === 'admin' ? '/admin' : '/');
   if (!u || u.disabled || !auth.checkPassword(String(req.body.password || ''), u.password_hash)) {
     return res.status(401).render('login', { title: 'Anmelden', err: 'Benutzername oder Passwort falsch.', next: req.body.next || '' });
   }
@@ -286,7 +289,7 @@ router.post('/logout', (req, res) => { auth.endSession(req, res); res.redirect('
 
 router.get('/register', (req, res, next) => {
   if (getSetting('registration_open') !== '1') return next();
-  res.render('register', { title: 'Registrieren', err: null });
+  res.render('register', { title: 'Registrieren', err: null, next: req.query.next || '' });
 });
 router.post('/register', auth.rateLimit('reg', 5, 3600), (req, res, next) => {
   if (getSetting('registration_open') !== '1') return next();
@@ -296,17 +299,21 @@ router.post('/register', auth.rateLimit('reg', 5, 3600), (req, res, next) => {
   else if (!auth.validPassword(password)) err = 'Passwort muss mindestens 8 Zeichen haben.';
   else if (password !== password2) err = 'Die Passwörter stimmen nicht überein.';
   else if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username)) err = 'Dieser Benutzername ist schon vergeben.';
-  if (err) return res.render('register', { title: 'Registrieren', err });
+  if (err) return res.render('register', { title: 'Registrieren', err, next: req.body.next || '' });
   const id = auth.createUser(username, password);
   mail.notifyQuietly('Neue Registrierung', `Neuer Nutzer: ${username}`);
   auth.startSession(req, res, id);
-  res.redirect('/');
+  res.redirect(localPath(req.body.next) || '/');
 });
 
 function renderAccount(req, res, msg, err) {
   const saves = db.prepare(`SELECT s.app_slug, s.slot, s.updated_at, length(CAST(s.data AS BLOB)) AS size, a.title
                             FROM game_saves s LEFT JOIN apps a ON a.slug = s.app_slug
                             WHERE s.user_id = ? ORDER BY a.title, s.app_slug, s.slot`).all(req.user.id);
+  for (const s of saves) {
+    if (Object.hasOwn(GAMES, s.app_slug)) { s.title = GAMES[s.app_slug].title; s.url = `/${s.app_slug}/`; }
+    else if (s.title) s.url = `/apps/${s.app_slug}`;
+  }
   res.render('account', { title: 'Mein Konto', msg, err, saves });
 }
 router.get('/account', auth.requireLogin, (req, res) => renderAccount(req, res, null, null));

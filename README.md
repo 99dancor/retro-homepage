@@ -126,11 +126,12 @@ strenger möchte, setzt `TRUST_PROXY` auf die IP des Pi.
 | **Downloads** | Mehrere Dateien auf einmal hochladen (mit Fortschrittsanzeige), Kategorien + Spiel, Suche, Download-Zähler |
 | **Modlisten** | Pro Spiel, eine Mod pro Zeile: `Name \| Link \| Version \| Notiz`, `*` = optional |
 | **Links** | Linksammlung nach Kategorien |
-| **Forum** | Angemeldete Nutzer erstellen Themen und antworten (mit Bildern), bearbeiten/löschen eigene Beiträge; Admin pinnt an, schließt und löscht. Unter Einstellungen abschaltbar oder nur für Mitglieder lesbar |
+| **Forum** | Angemeldete Nutzer erstellen Themen und antworten (mit Bildern), auf Wunsch anonym (nur der Admin sieht den Namen), bearbeiten/löschen eigene Beiträge; Admin pinnt an, schließt und löscht. Unter Einstellungen abschaltbar oder nur für Mitglieder lesbar |
 | **Changelog** | Im Startmenü, Inhalt aus `CHANGELOG.md` (wird mit jedem Update ergänzt) |
 | **Freundebuch** | Mit Name, anonym oder als angemeldeter Nutzer; optional Freischaltung durch dich; Spam-Schutz |
 | **Kontakt** | Nachrichten landen im Admin-Postfach, optional E-Mail-Benachrichtigung (SMTP) |
 | **Eigene Seiten** | z. B. „Über mich“, erscheinen auf Wunsch im Menü |
+| **Mein Haustier** | Eingebautes Spiel unter `/haustier/` (Startmenü): Haustier aussuchen, täglich versorgen, Münzen verdienen und im Shop ausgeben. Gäste spielen im Browser, mit Konto wird im Konto gespeichert. Details in [`games/haustier/README.md`](games/haustier/README.md) |
 | **Spiele & Apps** | HTML5-Spiele als ZIP hochladen (Godot, Unity WebGL, Phaser, eigenes JS …) oder externe Dienste einbetten |
 | **Design** | Farben, Hintergrundbild (kacheln/füllen/zentriert), Schrift, Lauftext, Besucherzähler, eigenes CSS, 5 Vorlagen |
 | **Statistik** | Seitenaufrufe & Besucher pro Tag, Top-Seiten, Herkunft, Geräte, aktive Mitglieder – ohne Cookies, ohne gespeicherte IPs |
@@ -173,7 +174,10 @@ Danach „Test-E-Mail senden“.
 ```bash
 npm install
 npm run dev        # http://localhost:3000, Daten landen in ./data
-npm test           # Rauchtest: startet den Server und klickt die wichtigsten Wege durch
+npm test           # Rauchtest (startet den Server und klickt die wichtigsten Wege durch) und Tests des Haustier-Spiels
 ```
+
+Das Haustier-Spiel liegt in `games/haustier/src` (HTML/CSS/JS ohne Build-Schritt) und läuft lokal unter
+http://localhost:3000/haustier/.
 
 Umgebungsvariablen siehe `.env.example`.

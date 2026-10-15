@@ -1,6 +1,6 @@
 'use strict';
-// Spielstände im Konto. Browser-Spiele unter /apps/<slug>/play laufen auf derselben Seite,
-// das Login-Cookie geht bei fetch() also automatisch mit.
+// Spielstände im Konto. Browser-Spiele unter /apps/<slug>/play und die eingebauten Spiele (src/games.js)
+// laufen auf derselben Seite, das Login-Cookie geht bei fetch() also automatisch mit.
 //
 //   GET    /api/saves/<app>          -> { user, slots: [{ slot, size, updated_at }] }   (401 ohne Login)
 //   GET    /api/saves/<app>/<slot>   -> { slot, data, updated_at }                      (404 wenn leer)
@@ -12,6 +12,7 @@
 const express = require('express');
 const { db, now } = require('../db');
 const auth = require('../auth');
+const GAMES = require('../games');
 
 const router = express.Router();
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -21,8 +22,10 @@ const SLOT_RE = /^[A-Za-z0-9_.-]{1,40}$/;
 router.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
 function loadApp(req, res, next) {
-  const a = db.prepare('SELECT * FROM apps WHERE slug = ?').get(req.params.app);
-  if (!a || !auth.canSee(req.user, 'app', a)) return res.status(404).json({ error: 'app' });
+  if (!Object.hasOwn(GAMES, req.params.app)) {
+    const a = db.prepare('SELECT * FROM apps WHERE slug = ?').get(req.params.app);
+    if (!a || !auth.canSee(req.user, 'app', a)) return res.status(404).json({ error: 'app' });
+  }
   if (!req.user) return res.status(401).json({ error: 'login' });
   if (req.params.slot !== undefined && !SLOT_RE.test(req.params.slot)) return res.status(400).json({ error: 'slot' });
   next();

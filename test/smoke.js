@@ -86,6 +86,11 @@ async function main() {
       assert.doesNotMatch(inner.text_, /id="startmenu"/);
       assert.equal((await guest.req('/gibtsnicht', { top: true })).status, 404);
       assert.match((await guest.req('/forum?embed', { top: true })).text_, /class="embed"/);
+      // Nach Updates darf kein alter Stand aus dem Browser-Cache kommen: Dateien tragen eine Versionsnummer
+      const css = r.text_.match(/href="(\/static\/retro\.css\?v=[a-f0-9]+)"/);
+      assert.ok(css, 'retro.css mit Versionsnummer');
+      assert.match(r.text_, /src="\/static\/retro\.js\?v=[a-f0-9]+"/);
+      assert.match((await guest.req(css[1])).headers.get('cache-control'), /immutable/);
     });
 
     await step('Admin-Bereich ist ohne Login gesperrt', async () => {

@@ -21,5 +21,5 @@
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑 Seite löschen</button>
 </form>
 <% } %>
-<script src="/static/admin.js"></script>
+<script src="<%= asset('admin.js') %>"></script>
 <%- include('../partials/foot') %>

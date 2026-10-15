@@ -8,15 +8,18 @@
 <link rel="stylesheet" href="/theme.css">
 <link rel="icon" href="/static/favicon.svg">
 </head>
-<body>
 <% const isAdmin = path.startsWith('/admin') && typeof counts !== 'undefined'; %>
-<div class="window<%= isAdmin || (typeof wide !== 'undefined' && wide) ? ' wide' : '' %>">
+<% if (!isAdmin) { %>
+<body class="embed" data-user="<%= user ? user.id : '' %>">
+<div class="body">
+<% } else { %>
+<body class="admin">
+<div class="window wide">
   <div class="titlebar">
     <span class="icon">💾</span>
-    <span class="ttl"><%= isAdmin ? 'Systemsteuerung – ' : '' %><%= site.title %><%= title ? ' – ' + title : '' %></span>
-    <a class="tb-btn" href="/" title="Startseite" aria-hidden="true">_</a><a class="tb-btn" href="#" aria-hidden="true">□</a><a class="tb-btn" href="/" title="Startseite" aria-hidden="true">×</a>
+    <span class="ttl">Systemsteuerung – <%= site.title %><%= title ? ' – ' + title : '' %></span>
+    <a class="tb-btn" href="/" title="Zur Website" aria-hidden="true">_</a><a class="tb-btn" href="#" aria-hidden="true">□</a><a class="tb-btn" href="/" title="Zur Website" aria-hidden="true">×</a>
   </div>
-  <% if (isAdmin) { %>
   <nav class="menubar admin-nav">
     <a href="/admin" class="<%= path === '/admin' || path === '/admin/' ? 'active' : '' %>">📊 Übersicht</a>
     <a href="/admin/posts" class="<%= path.startsWith('/admin/posts') ? 'active' : '' %>">📝 Blog</a>
@@ -37,21 +40,4 @@
   </nav>
   <div class="body">
   <% if (typeof flash !== 'undefined' && flash) { %><div class="msg">✔ <%= flash %></div><% } %>
-  <% } else { %>
-  <nav class="menubar">
-    <a href="/" class="<%= path === '/' ? 'active' : '' %>">Startseite</a>
-    <% const navs = [['blog','/blog','Blog'],['files','/files','Downloads'],['mods','/mods','Modlisten'],['links','/links','Links'],['apps','/apps','Spiele & Apps'],['board','/forum','Forum'],['guestbook','/guestbook','Freundebuch'],['contact','/contact','Kontakt']]; %>
-    <% for (const [key, href, label] of navs) {
-         if (navHidden.includes(key)) continue;
-         if (key === 'guestbook' && !guestbookEnabled) continue;
-         if (key === 'board' && !boardEnabled) continue;
-         if (key === 'contact' && !contactEnabled) continue; %>
-      <a href="<%= href %>" class="<%= path.startsWith(href) ? 'active' : '' %>"><%= label %></a>
-    <% } %>
-    <% for (const p of navPages) { %><a href="/p/<%= p.slug %>" class="<%= path === '/p/' + p.slug ? 'active' : '' %>"><%= p.title %></a><% } %>
-  </nav>
-  <% if (marquee) { %><marquee scrollamount="4"><%= marquee %></marquee><% } %>
-  <div class="body">
-  <div class="layout">
-  <main>
-  <% } %>
+<% } %>

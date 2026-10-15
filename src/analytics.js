@@ -59,9 +59,15 @@ function record(req, path, isDownload = false) {
   insert.run(now(), day, path.slice(0, 300), ref, hash, req.user ? req.user.id : null, device(ua), isDownload ? 1 : 0);
 }
 
+function sameHostPath(req) {
+  try { const r = new URL(req.get('referer')); return r.host === req.get('host') ? r.pathname : null; } catch { return null; }
+}
+
 // Middleware: zählt erfolgreiche HTML-Seitenaufrufe außerhalb des Admin-Bereichs.
 function middleware(req, res, next) {
   if (req.method !== 'GET' || req.path.startsWith('/admin') || req.path.startsWith('/static') || req.path.startsWith('/files/dl/')) return next();
+  // Erstes Laden eines Fensters zählt nicht doppelt: der Desktop drumherum wurde schon gezählt
+  if (res.locals.embed && sameHostPath(req) === req.path) return next();
   res.on('finish', () => {
     if (res.statusCode === 200 && String(res.get('content-type') || '').startsWith('text/html')) {
       try { record(req, req.path); } catch (e) { console.error('analytics', e.message); }

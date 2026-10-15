@@ -1,0 +1,30 @@
+<div class="startmenu" id="startmenu" data-title="<%= site.title %>">
+  <a href="/">🏠 Startseite</a>
+  <% const entries = [['blog','/blog','📝 Blog'],['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['apps','/apps','🎮 Spiele & Apps'],['board','/forum','💬 Forum'],['guestbook','/guestbook','📖 Freundebuch'],['contact','/contact','✉️ Kontakt']]; %>
+  <% for (const [key, href, label] of entries) {
+       if (navHidden.includes(key)) continue;
+       if (key === 'guestbook' && !guestbookEnabled) continue;
+       if (key === 'board' && !boardEnabled) continue;
+       if (key === 'contact' && !contactEnabled) continue; %>
+    <a href="<%= href %>"><%= label %></a>
+  <% } %>
+  <% for (const p of navPages) { %><a href="/p/<%= p.slug %>">📄 <%= p.title %></a><% } %>
+  <hr>
+  <a href="/changelog">📜 Changelog</a>
+  <% if (user) { %>
+    <% if (user.canUpload) { %><a href="/files/upload">📤 Datei hochladen</a><% } %>
+    <a href="/account">🔑 Mein Konto</a>
+    <% if (user.isAdmin) { %><a href="/admin">⚙️ Systemsteuerung</a><% } %>
+    <hr>
+    <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="menu-item">🚪 <%= user.username %> abmelden…</button></form>
+  <% } else { %>
+    <hr>
+    <a href="/login">🔑 Anmelden…</a>
+    <% if (registrationOpen) { %><a href="/register">✏️ Registrieren…</a><% } %>
+  <% } %>
+</div>
+<div class="taskbar">
+  <button class="start" id="startbtn" aria-expanded="false" aria-controls="startmenu">🪟 Start</button>
+  <div class="tasks" id="tasks"><% if (typeof shellTask !== 'undefined') { %><span class="task"><%= shellTask %></span><% } %></div>
+  <span class="tray" id="clock"></span>
+</div>

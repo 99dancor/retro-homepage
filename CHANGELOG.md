@@ -1,5 +1,13 @@
 # Changelog
 
+## 15.10.2026 – Echte Fenster
+
+- **Fenster auf dem Desktop:** Jede Seite öffnet sich als eigenes Fenster, das man an der Titelleiste verschieben, an der Ecke unten rechts größer ziehen, minimieren, maximieren und schließen kann. So lassen sich z. B. Forum und Blog gleichzeitig offen halten.
+- Geöffnet wird alles über das **Startmenü**; jedes offene Fenster hat einen Knopf in der Taskleiste. Die Reiter oben im Fenster sind weggefallen.
+- Anmelden, Konto, Hochladen und Abmelden sind ebenfalls ins Startmenü gewandert, Besucherzähler und Buttons liegen auf dem Desktop.
+- Offene Fenster bleiben beim Neuladen erhalten, und Links von außen (z. B. auf einen Forumsbeitrag) öffnen den Desktop mit genau diesem Fenster.
+- Auf dem Handy füllen Fenster den ganzen Bildschirm, gewechselt wird über die Taskleiste.
+
 ## 15.10.2026 – Neuer Editor, Forum und Changelog
 
 - **Forum:** Angemeldete Mitglieder können Themen starten, antworten, Bilder einfügen und ihre eigenen Beiträge bearbeiten oder löschen. Wichtige Themen lassen sich anpinnen oder schließen.

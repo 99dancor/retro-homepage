@@ -51,6 +51,19 @@ router.get('/', (req, res) => {
   });
 });
 
+// ---------- Download-Statistik ----------
+const periodOf = q => ([7, 30, 90, 365].includes(Number(q.days)) ? Number(q.days) : 30);
+router.get('/downloads', (req, res) => {
+  const days = periodOf(req.query);
+  res.render('admin/downloads', { title: 'Download-Statistik', days, st: analytics.downloadStats(days), disk: up.diskSpace() });
+});
+router.get('/downloads/:id', (req, res, next) => {
+  const file = db.prepare('SELECT * FROM files WHERE id = ?').get(Number(req.params.id));
+  if (!file) return next();
+  const days = periodOf(req.query);
+  res.render('admin/download-file', { title: 'Downloads: ' + file.title, days, file, st: analytics.downloadStats(days, file.id) });
+});
+
 // ---------- Blog ----------
 router.get('/posts', (req, res) => res.render('admin/posts', { title: 'Blog-Beiträge', posts: db.prepare('SELECT * FROM posts ORDER BY created_at DESC').all() }));
 router.get('/posts/new', (req, res) => res.render('admin/post-edit', { title: 'Neuer Beitrag', post: { visibility: 'public', published: 1 }, acl: [] }));
@@ -99,7 +112,7 @@ router.post('/media/:id/delete', (req, res) => {
 
 // ---------- Dateien ----------
 router.get('/files', (req, res) => res.render('admin/files', {
-  title: 'Dateien', maxMb: up.MAX_MB,
+  title: 'Dateien', maxMb: up.MAX_MB, imports: up.listImports(), disk: up.diskSpace(), importMsg: req.query.imported || null,
   files: db.prepare('SELECT f.*, u.username FROM files f LEFT JOIN users u ON u.id = f.uploader_id ORDER BY created_at DESC').all(),
   categories: db.prepare('SELECT DISTINCT category FROM files ORDER BY category').all().map(r => r.category),
 }));
@@ -116,6 +129,25 @@ router.post('/files/upload', up.fileUpload.array('files'), multipartCsrf, (req, 
     }
   });
   res.redirect('/admin/files?ok=1');
+});
+// Große Dateien per Netzwerkfreigabe in uploads/eingang kopieren und hier übernehmen
+router.post('/files/import', (req, res) => {
+  const b = req.body;
+  const ins = db.prepare(`INSERT INTO files(title, description, category, game, original_name, stored_name, size, mime, visibility, uploader_id, created_at)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  let n = 0;
+  const errors = [];
+  for (const name of asArray(b.names)) {
+    try {
+      const f = up.importFile(String(name));
+      const id = Number(ins.run(f.original, str(b.description, 2000), str(b.category, 100) || 'Allgemein', str(b.game, 100) || null,
+        f.original, f.stored, f.size, null, visibilityFrom(b), req.user.id, now()).lastInsertRowid);
+      saveVisibility('file', id, b);
+      n++;
+    } catch (e) { errors.push(e.message); }
+  }
+  const msg = `${n} Datei(en) übernommen.` + (errors.length ? ' Fehler: ' + errors.join('; ') : '');
+  res.redirect('/admin/files?imported=' + encodeURIComponent(msg));
 });
 router.get('/files/:id', (req, res, next) => {
   const file = db.prepare('SELECT * FROM files WHERE id = ?').get(Number(req.params.id));

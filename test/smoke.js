@@ -196,6 +196,49 @@ async function main() {
       assert.equal(raw.text_.length, 200000);
     });
 
+    await step('Große Datei aus dem Eingangsordner übernehmen', async () => {
+      const inbox = path.join(DATA, 'uploads', 'eingang');
+      const big = path.join(inbox, 'Riesen Mod.zip');
+      fs.writeFileSync(big, Buffer.alloc(300000, 7));
+      const old = new Date(Date.now() - 60000);
+      fs.utimesSync(big, old, old);
+      fs.writeFileSync(path.join(inbox, 'noch-im-kopieren.bin'), 'x');
+      const page = await admin.req('/admin/files');
+      assert.match(page.text_, /Riesen Mod\.zip/);
+      assert.match(page.text_, /wird noch kopiert/);
+      const t = await admin.csrf('/admin/files');
+      const r = await admin.form('/admin/files/import', { _csrf: t, names: 'Riesen Mod.zip', category: 'Mods', visibility: 'public' });
+      assert.equal(r.status, 302);
+      assert.match(decodeURIComponent(r.headers.get('location')), /1 Datei\(en\) übernommen/);
+      assert.ok(!fs.existsSync(big), 'Datei wurde aus dem Eingang verschoben');
+      const bad = await admin.form('/admin/files/import', { _csrf: t, names: '../site.db', visibility: 'public' });
+      assert.match(decodeURIComponent(bad.headers.get('location')), /0 Datei\(en\)/);
+      assert.ok(fs.existsSync(path.join(DATA, 'site.db')));
+    });
+
+    await step('Download-Statistik zählt Downloads, Abbrüche und Fortsetzungen', async () => {
+      const list = await guest.req('/files');
+      const id = list.text_.match(/\/files\/dl\/(\d+)"><b>Riesen Mod\.zip/)[1];
+      const full = await guest.req('/files/dl/' + id);
+      assert.equal(full.status, 200);
+      assert.equal(full.text_.length, 300000);
+      const part = await guest.req('/files/dl/' + id, { headers: { range: 'bytes=200000-' } });
+      assert.equal(part.status, 206);
+      assert.equal(part.text_.length, 100000);
+      await new Promise(r => setTimeout(r, 200));
+      const st = await admin.req('/admin/downloads?days=7');
+      assert.equal(st.status, 200);
+      assert.match(st.text_, /Downloads<b>[1-9]/);
+      const file = await admin.req('/admin/downloads/' + id);
+      assert.equal(file.status, 200);
+      assert.match(file.text_, /Fortsetzung/);
+      assert.match(file.text_, /Downloads<b>1</, 'Fortsetzung zählt nicht als neuer Download');
+      assert.match(file.text_, /Übertragene Daten<b>39\d,\d KB|Übertragene Daten<b>39\d KB/);
+      assert.match((await admin.req('/admin/files')).text_, /frei von/);
+      const hour = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: process.env.TZ || 'Europe/Berlin' }).format(new Date());
+      assert.match(file.text_, new RegExp('<title>' + String(hour).padStart(2, '0') + '–\\d\\d Uhr: [1-9]\\d* Downloads'), 'Uhrzeit-Diagramm hat Werte');
+    });
+
     await step('Besucherstatistik zählt Aufrufe', async () => {
       const r = await admin.req('/admin?days=7');
       assert.match(r.text_, /Seitenaufrufe<b>[1-9]/);

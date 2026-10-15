@@ -1,8 +1,36 @@
 <%- include('../partials/head') %>
+<% if (importMsg) { %><div class="msg">✔ <%= importMsg %></div><% } %>
+<% if (disk) { %>
+<p>💽 Speicher für Downloads: <b><%= fmtSize(disk.free) %></b> frei von <%= fmtSize(disk.total) %>
+  <span class="sunken" style="display:inline-block;width:160px;height:12px;padding:0;vertical-align:middle"><span style="display:block;height:100%;background:#2a78d6;width:<%= ((1 - disk.free / disk.total) * 100).toFixed(1) %>%"></span></span>
+  · <a href="/admin/downloads">📊 Download-Statistik</a></p>
+<% } %>
+<fieldset class="groupbox"><legend>📥 Große Dateien über die Netzwerkfreigabe</legend>
+  <p>Für Dateien mit mehreren GB ist das schneller und zuverlässiger als der Browser: Kopiere sie im Heimnetz in den Ordner <code>eingang</code> im Download-Ordner (siehe Anleitung) und übernimm sie hier.</p>
+  <% if (!imports.length) { %><p class="muted">Der Eingangsordner ist leer.</p><% } else { %>
+  <form method="post" action="/admin/files/import">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <table class="list">
+      <tr><th></th><th>Datei</th><th class="num">Größe</th><th>Status</th></tr>
+      <% for (const f of imports) { %>
+      <tr><td><input type="checkbox" name="names" value="<%= f.name %>" <%= f.ready ? 'checked' : 'disabled' %>></td><td><%= f.name %></td><td class="num"><%= fmtSize(f.size) %></td>
+        <td><%= f.ready ? 'bereit' : '⏳ wird noch kopiert …' %></td></tr>
+      <% } %>
+    </table>
+    <div class="row">
+      <label>Kategorie:<input type="text" name="category" class="w100" list="cats" placeholder="z. B. Spielstände"></label>
+      <label>Spiel (optional):<input type="text" name="game" class="w100"></label>
+    </div>
+    <label>Beschreibung:<textarea name="description" style="min-height:40px"></textarea></label>
+    <%- include('../partials/visibility', { item: { visibility: 'public' }, acl: [] }) %>
+    <div class="actions"><button>📥 Ausgewählte übernehmen</button> <small>Titel und Details kannst du danach bei jeder Datei ändern.</small></div>
+  </form>
+  <% } %>
+</fieldset>
 <fieldset class="groupbox"><legend>📤 Dateien hochladen</legend>
 <form method="post" action="/admin/files/upload" enctype="multipart/form-data">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
-  <label>Datei(en) – max. <%= maxMb %> MB pro Datei:<input type="file" name="files" multiple required></label>
+  <label>Datei(en)<%= maxMb ? ' – max. ' + maxMb + ' MB pro Datei' : '' %>:<input type="file" name="files" multiple required></label>
   <div class="row">
     <label>Titel (nur bei einer Datei, optional):<input type="text" name="title" class="w100"></label>
     <label>Kategorie:<input type="text" name="category" class="w100" list="cats" placeholder="z. B. Spielstände"></label>
@@ -24,7 +52,7 @@
     <td class="num"><%= fmtSize(f.size) %></td>
     <td class="num"><%= f.downloads %></td>
     <td><%= f.username || '–' %></td>
-    <td><a href="/files/dl/<%= f.id %>">Download</a></td>
+    <td><a href="/files/dl/<%= f.id %>">Download</a> · <a href="/admin/downloads/<%= f.id %>">Statistik</a></td>
   </tr>
   <% } %>
   <% if (!files.length) { %><tr><td colspan="7">Noch keine Dateien.</td></tr><% } %>

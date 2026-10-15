@@ -1,0 +1,32 @@
+<%# Säulendiagramm: Downloads nach Uhrzeit. Erwartet: hours (24 Zahlen) %>
+<%
+  const W = 800, H = 170, ml = 34, mr = 8, mt = 12, mb = 26;
+  const pw = W - ml - mr, ph = H - mt - mb;
+  const max = Math.max(1, ...hours);
+  const top = max <= 5 ? max : Math.ceil(max / 5) * 5;
+  const band = pw / 24, bw = Math.min(24, band - 6);
+  const y = v => mt + ph - v / top * ph;
+  const bar = (i, v) => {
+    const x0 = ml + i * band + (band - bw) / 2, y0 = y(v), base = mt + ph, r = Math.min(4, (base - y0) / 2);
+    if (v <= 0) return '';
+    return `M${x0},${base} V${y0 + r} Q${x0},${y0} ${x0 + r},${y0} H${x0 + bw - r} Q${x0 + bw},${y0} ${x0 + bw},${y0 + r} V${base} Z`;
+  };
+%>
+<svg class="chart" viewBox="0 0 <%= W %> <%= H %>" role="img" aria-label="Säulendiagramm: Downloads nach Uhrzeit, Höchstwert <%= max %>.">
+  <line x1="<%= ml %>" x2="<%= ml + pw %>" y1="<%= y(top) %>" y2="<%= y(top) %>" class="grid"/>
+  <text x="<%= ml - 6 %>" y="<%= y(top) + 3 %>" text-anchor="end" class="tick"><%= top %></text>
+  <line x1="<%= ml %>" x2="<%= ml + pw %>" y1="<%= y(0) %>" y2="<%= y(0) %>" class="grid base"/>
+  <text x="<%= ml - 6 %>" y="<%= y(0) + 3 %>" text-anchor="end" class="tick">0</text>
+  <% hours.forEach((v, i) => { %>
+    <g class="hbar-col"><title><%= String(i).padStart(2, '0') %>–<%= String((i + 1) % 24).padStart(2, '0') %> Uhr: <%= v %> Downloads</title>
+      <rect x="<%= ml + i * band %>" y="<%= mt %>" width="<%= band %>" height="<%= ph %>" fill="transparent"/>
+      <path d="<%= bar(i, v) %>" class="col1"/>
+    </g>
+    <% if (i % 3 === 0) { %><text x="<%= ml + i * band + band / 2 %>" y="<%= H - 8 %>" text-anchor="middle" class="tick"><%= String(i).padStart(2, '0') %> Uhr</text><% } %>
+  <% }) %>
+</svg>
+<details><summary>Als Tabelle anzeigen</summary>
+  <table class="list"><tr><th>Uhrzeit</th><th class="num">Downloads</th></tr>
+    <% hours.forEach((v, i) => { %><tr><td><%= String(i).padStart(2, '0') %>–<%= String((i + 1) % 24).padStart(2, '0') %> Uhr</td><td class="num"><%= v %></td></tr><% }) %>
+  </table>
+</details>

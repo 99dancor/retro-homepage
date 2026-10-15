@@ -1,0 +1,54 @@
+<%- include('../partials/head') %>
+<%- include('../partials/period', { base: '/admin/downloads' }) %>
+<% const t = st.totals; const pct = (a, b) => b ? Math.round(a / b * 100) + ' %' : '–'; %>
+<div class="kpis">
+  <div class="kpi">Downloads<b><%= (t.downloads || 0).toLocaleString('de-DE') %></b></div>
+  <div class="kpi">Verschiedene Personen<b><%= (t.people || 0).toLocaleString('de-DE') %></b></div>
+  <div class="kpi">Übertragene Daten<b><%= fmtSize(t.bytes || 0) %></b></div>
+  <div class="kpi">Vollständig<b><%= pct(t.complete || 0, t.downloads || 0) %></b></div>
+  <div class="kpi">Abgebrochen<b><%= (t.aborted || 0).toLocaleString('de-DE') %></b></div>
+  <% if (disk) { %><div class="kpi">Freier Speicher<b><%= fmtSize(disk.free) %></b><small>von <%= fmtSize(disk.total) %></small></div><% } %>
+</div>
+
+<fieldset class="groupbox"><legend>📈 Downloads pro Tag</legend>
+  <%- include('../partials/line-chart', { chartId: 'dl-chart', series: st.series, ariaLabel: 'Liniendiagramm: Downloads und verschiedene Personen pro Tag der letzten ' + days + ' Tage.',
+      lines: [{ key: 'downloads', label: 'Downloads', short: 'Downloads' }, { key: 'people', label: 'Verschiedene Personen', short: 'Personen' }] }) %>
+</fieldset>
+
+<fieldset class="groupbox"><legend>📁 Pro Datei</legend>
+  <% const maxN = Math.max(1, ...st.files.map(f => f.n)); %>
+  <table class="list">
+    <tr><th>Datei</th><th class="num">Downloads</th><th class="num">Personen</th><th class="num">Vollständig</th><th class="num">Abgebrochen</th><th class="num">Daten</th><th class="num">Gesamt seit Upload</th><th>Zuletzt</th></tr>
+    <% for (const f of st.files) { %>
+    <tr>
+      <td><a href="/admin/downloads/<%= f.id %>?days=<%= days %>"><b><%= f.title %></b></a><br><small><%= f.category %><%= f.game ? ' / ' + f.game : '' %> · <%= fmtSize(f.size) %></small>
+        <div class="hbar" style="width:<%= (f.n / maxN * 100).toFixed(1) %>%"></div></td>
+      <td class="num"><%= f.n %></td>
+      <td class="num"><%= f.people %></td>
+      <td class="num"><%= pct(f.complete, f.n) %></td>
+      <td class="num"><%= f.aborted %></td>
+      <td class="num"><%= fmtSize(f.bytes) %></td>
+      <td class="num"><%= f.total %></td>
+      <td><%= f.last ? fmtDate(f.last, true) : '–' %></td>
+    </tr>
+    <% } %>
+    <% if (!st.files.length) { %><tr><td colspan="8">Noch keine Dateien.</td></tr><% } %>
+  </table>
+  <small>„Personen“ zählt jeden Besucher einmal pro Tag. Fortgesetzte Downloads (z. B. nach Verbindungsabbruch) zählen nicht doppelt, nur bei den übertragenen Daten.</small>
+</fieldset>
+
+<div class="row">
+  <fieldset class="groupbox"><legend>📂 Nach Kategorie</legend>
+    <% if (!st.categories.length) { %><p class="muted">Noch keine Daten.</p><% } else { %>
+    <table class="list"><tr><th>Kategorie</th><th class="num">Downloads</th><th class="num">Daten</th></tr>
+      <% for (const c of st.categories) { %><tr><td><%= c.category %></td><td class="num"><%= c.n %></td><td class="num"><%= fmtSize(c.bytes) %></td></tr><% } %>
+    </table><% } %>
+  </fieldset>
+  <%- include('../partials/download-breakdown') %>
+</div>
+
+<fieldset class="groupbox"><legend>🕐 Uhrzeit</legend>
+  <%- include('../partials/hour-chart', { hours: st.hours }) %>
+</fieldset>
+<script src="/static/admin.js"></script>
+<%- include('../partials/foot') %>

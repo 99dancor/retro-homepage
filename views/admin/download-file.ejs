@@ -1,0 +1,39 @@
+<%- include('../partials/head') %>
+<p><a href="/admin/downloads?days=<%= days %>">« Alle Downloads</a> · <a href="/admin/files/<%= file.id %>">✏️ Datei bearbeiten</a></p>
+<p>💾 <b><%= file.original_name %></b> · <%= fmtSize(file.size) %> · <%= file.category %><%= file.game ? ' / ' + file.game : '' %> · <%= VISIBILITY[file.visibility] %> · hochgeladen am <%= fmtDate(file.created_at) %> · <b><%= file.downloads %></b> Downloads seit Upload</p>
+<%- include('../partials/period', { base: '/admin/downloads/' + file.id }) %>
+<% const t = st.totals; const pct = (a, b) => b ? Math.round(a / b * 100) + ' %' : '–'; %>
+<div class="kpis">
+  <div class="kpi">Downloads<b><%= (t.downloads || 0).toLocaleString('de-DE') %></b></div>
+  <div class="kpi">Verschiedene Personen<b><%= (t.people || 0).toLocaleString('de-DE') %></b></div>
+  <div class="kpi">Übertragene Daten<b><%= fmtSize(t.bytes || 0) %></b></div>
+  <div class="kpi">Vollständig<b><%= pct(t.complete || 0, t.downloads || 0) %></b></div>
+  <div class="kpi">Fortgesetzt<b><%= (t.resumes || 0).toLocaleString('de-DE') %></b></div>
+</div>
+<fieldset class="groupbox"><legend>📈 Downloads pro Tag</legend>
+  <%- include('../partials/line-chart', { chartId: 'dl-file-chart', series: st.series, ariaLabel: 'Liniendiagramm: Downloads dieser Datei pro Tag der letzten ' + days + ' Tage.',
+      lines: [{ key: 'downloads', label: 'Downloads', short: 'Downloads' }, { key: 'people', label: 'Verschiedene Personen', short: 'Personen' }] }) %>
+</fieldset>
+<div class="row"><%- include('../partials/download-breakdown') %></div>
+<fieldset class="groupbox"><legend>🕐 Uhrzeit</legend>
+  <%- include('../partials/hour-chart', { hours: st.hours }) %>
+</fieldset>
+<fieldset class="groupbox"><legend>📜 Letzte Download-Vorgänge</legend>
+  <table class="list">
+    <tr><th>Zeit</th><th>Wer</th><th>Gerät</th><th>Verlinkt von</th><th class="num">Übertragen</th><th>Status</th></tr>
+    <% for (const d of st.recent) { %>
+    <tr>
+      <td><%= fmtDate(d.ts, true) %></td>
+      <td><%= d.username ? '👤 ' + d.username : 'Gast #' + d.visitor_hash.slice(0, 6) %></td>
+      <td><%= d.device %></td>
+      <td><%= d.referrer_host || '–' %></td>
+      <td class="num"><%= fmtSize(d.bytes) %></td>
+      <td><%= d.resumed ? '↻ Fortsetzung' : '' %><%= d.complete ? (d.resumed ? ', fertig' : '✔ fertig') : (d.resumed ? ', abgebrochen' : '✖ abgebrochen') %></td>
+    </tr>
+    <% } %>
+    <% if (!st.recent.length) { %><tr><td colspan="6">Noch keine Downloads.</td></tr><% } %>
+  </table>
+  <small>Gäste werden nur über einen anonymen, täglich wechselnden Wert unterschieden – keine IP-Adressen.</small>
+</fieldset>
+<script src="/static/admin.js"></script>
+<%- include('../partials/foot') %>

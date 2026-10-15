@@ -5,11 +5,16 @@ const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 
 const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(__dirname, '..', 'data'));
-require('./privileges').dropPrivileges(DATA_DIR);
+// Downloads liegen in /data/uploads. Dort kann in Unraid ein eigener Ordner auf einer anderen
+// Platte eingehängt werden (siehe README). In uploads/eingang kopierte Dateien lassen sich im Admin übernehmen.
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
+const IMPORT_DIR = path.join(UPLOAD_DIR, 'eingang');
+require('./privileges').dropPrivileges(DATA_DIR, [UPLOAD_DIR, IMPORT_DIR]);
 const MEDIA_DIR = path.join(DATA_DIR, 'media');
 const APPS_DIR = path.join(DATA_DIR, 'apps');
 for (const d of [UPLOAD_DIR, MEDIA_DIR, APPS_DIR]) fs.mkdirSync(d, { recursive: true });
+fs.mkdirSync(IMPORT_DIR, { recursive: true });
+try { fs.chmodSync(IMPORT_DIR, 0o777); } catch { /* Netzwerkfreigabe darf hineinkopieren */ }
 
 const db = new DatabaseSync(path.join(DATA_DIR, 'site.db'));
 db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
@@ -175,6 +180,22 @@ CREATE TABLE IF NOT EXISTS game_saves (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, app_slug, slot)
 );
+-- Jeder Download-Vorgang: wer (anonymer Tages-Hash), wie viel übertragen, fertig oder abgebrochen
+CREATE TABLE IF NOT EXISTS downloads (
+  id INTEGER PRIMARY KEY,
+  ts INTEGER NOT NULL,
+  day TEXT NOT NULL,
+  file_id INTEGER NOT NULL,
+  visitor_hash TEXT NOT NULL,
+  user_id INTEGER,
+  device TEXT,
+  referrer_host TEXT,
+  bytes INTEGER NOT NULL DEFAULT 0,
+  complete INTEGER NOT NULL DEFAULT 0,
+  resumed INTEGER NOT NULL DEFAULT 0      -- Fortsetzung eines abgebrochenen Downloads (Range ab > 0)
+);
+CREATE INDEX IF NOT EXISTS dl_day ON downloads(day);
+CREATE INDEX IF NOT EXISTS dl_file ON downloads(file_id, day);
 CREATE INDEX IF NOT EXISTS pv_day ON pageviews(day);
 CREATE INDEX IF NOT EXISTS pv_path ON pageviews(path);
 CREATE INDEX IF NOT EXISTS pv_visitor ON pageviews(day, visitor_hash);
@@ -235,4 +256,4 @@ function tx(fn) {
   catch (e) { db.exec('ROLLBACK'); throw e; }
 }
 
-module.exports = { db, now, getSetting, setSetting, tx, DATA_DIR, UPLOAD_DIR, MEDIA_DIR, APPS_DIR };
+module.exports = { db, now, getSetting, setSetting, tx, DATA_DIR, UPLOAD_DIR, IMPORT_DIR, MEDIA_DIR, APPS_DIR };

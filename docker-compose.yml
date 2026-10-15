@@ -12,6 +12,8 @@ services:
       - "8080:3000"          # Unraid-Port 8080 -> Container-Port 3000 (in NPM eintragen)
     volumes:
       - /mnt/user/appdata/retro-homepage:/data
+      # Optional: große Downloads auf einer anderen Platte (Unraid-Freigabe mit Speicherort „Array“)
+      # - /mnt/user/homepage-dateien:/data/uploads
     environment:
       TZ: Europe/Berlin
       PUID: "99"             # Unraid-Standard nobody:users
@@ -20,6 +22,6 @@ services:
       # Nur beim allerersten Start relevant. Leer lassen = zufälliges Passwort im Container-Log.
       ADMIN_PASSWORD: ""
       # Maximale Upload-Größe pro Datei in MB
-      MAX_UPLOAD_MB: "4096"
+      MAX_UPLOAD_MB: "0"     # 0 = keine Grenze
       # Wem wird X-Forwarded-For geglaubt? Standard: private Netze (dein Raspberry Pi mit NPM).
       # TRUST_PROXY: "192.168.178.50"

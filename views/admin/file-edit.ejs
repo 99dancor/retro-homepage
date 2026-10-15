@@ -10,7 +10,7 @@
   </div>
   <label>Beschreibung:<textarea name="description" style="min-height:60px"><%= file.description || '' %></textarea></label>
   <%- include('../partials/visibility', { item: file, acl }) %>
-  <div class="actions"><button>💾 Speichern</button><a class="btn" href="/files/dl/<%= file.id %>">⬇ Download</a></div>
+  <div class="actions"><button>💾 Speichern</button><a class="btn" href="/files/dl/<%= file.id %>">⬇ Download</a><a class="btn" href="/admin/downloads/<%= file.id %>">📊 Statistik</a></div>
 </form>
 <form method="post" action="/admin/files/<%= file.id %>/delete" data-confirm="Datei endgültig löschen?" class="actions">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑 Datei löschen</button>

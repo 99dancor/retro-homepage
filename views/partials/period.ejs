@@ -1,0 +1,6 @@
+<div class="actions" style="margin-top:0">
+  <b>Zeitraum:</b>
+  <% for (const d of [7, 30, 90, 365]) { %>
+    <a class="btn small" href="<%= base %>?days=<%= d %>" <%= d === days ? 'aria-current=true' : '' %>><%= d === days ? '✔ ' : '' %><%= d === 365 ? '1 Jahr' : d + ' Tage' %></a>
+  <% } %>
+</div>

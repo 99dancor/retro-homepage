@@ -9,6 +9,7 @@ const mail = require('../mail');
 const up = require('../uploads');
 const { md } = require('../util');
 const GAMES = require('../games');
+const privacy = require('../privacy');
 
 const router = express.Router();
 
@@ -232,6 +233,17 @@ router.get('/changelog', (req, res) => {
     catch { changelogHtml = '<p>Noch keine Einträge.</p>'; }
   }
   res.render('changelog', { title: 'Changelog', changelogHtml });
+});
+
+// ---------- Datenschutz (Startmenü) ----------
+router.get('/datenschutz', (req, res) => {
+  res.render('datenschutz', {
+    title: 'Datenschutz',
+    snippets: privacy.snippets(),
+    repo: privacy.REPO,
+    retentionDays: Number(getSetting('analytics_retention_days', '365')) || 365,
+    mailOn: !!(getSetting('notify_email') && getSetting('smtp_host')),
+  });
 });
 
 // ---------- Bilder / Medien ----------

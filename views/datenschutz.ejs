@@ -1,0 +1,127 @@
+<%- include('partials/head') %>
+<% const code = (name, note) => include('partials/code', { c: snippets[name], note }); %>
+<% const shot = (file, alt) => `<figure class="shot"><a href="${asset('datenschutz/' + file)}" target="_blank"><img src="${asset('datenschutz/' + file)}" alt="${alt}" loading="lazy"></a><figcaption>${alt}</figcaption></figure>`; %>
+<div class="datenschutz">
+<h1>🔒 Deine Daten auf dieser Seite</h1>
+<p>Hier steht alles, was diese Website über dich speichert, wofür und wie lange. Unter jedem Abschnitt kannst du den
+  passenden Programmcode aufklappen: Er wird direkt aus dem Programm gelesen, das dir gerade diese Seite ausliefert.</p>
+
+<fieldset class="groupbox"><legend>Kurz gesagt</legend>
+<ul>
+  <li>Keine Werbung, keine Tracker, keine Dienste von Google &amp; Co. Nur zwei technische Cookies.</li>
+  <li>Deine IP-Adresse speichert die Website nicht.</li>
+  <li>Für ein Konto reichen Benutzername und Passwort, ohne E-Mail-Adresse.</li>
+  <li>Alles liegt auf einem eigenen Server des Betreibers, nicht bei einem Cloud-Anbieter.</li>
+  <li>Was du schreibst, kann der Admin lesen, auch „anonyme“ Forenbeiträge.</li>
+</ul>
+<p>Springe zu: <a href="#besuch">Besuch</a> · <a href="#cookies">Cookies</a> · <a href="#browser">Im Browser</a> ·
+  <a href="#konto">Konto</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#spiele">Spiele</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
+</fieldset>
+
+<h2 id="besuch">👣 Wenn du die Seite besuchst</h2>
+<ul>
+  <li>Für die Besucherstatistik speichert die Seite pro Aufruf: <b>Zeit, aufgerufene Seite, Gerätetyp</b> (Desktop, Mobil oder Tablet)
+    und die <b>Website, von der du kamst</b> (nur der Name, z. B. „google.de“).</li>
+  <li>Dazu kommt ein <b>anonymer Tageswert</b>. Er wird aus IP-Adresse und Browserkennung mit einem Zufallsschlüssel berechnet,
+    der jeden Tag neu erzeugt wird. So kann die Seite Besucher pro Tag zählen, dich aber nicht über mehrere Tage wiedererkennen.</li>
+  <li><b>Bist du angemeldet</b>, wird der Aufruf mit deinem Konto verknüpft. Der Admin sieht dann, wie viele Seiten du aufgerufen hast und wann zuletzt.</li>
+  <li>Bei Downloads kommen die Datei, die übertragene Datenmenge und „fertig“ oder „abgebrochen“ dazu.</li>
+  <li>Gelöscht wird das automatisch nach <b><%= retentionDays %> Tagen</b>. Erkennbare Bots und Suchmaschinen werden gar nicht gezählt.</li>
+  <li>Gegen Passwort-Raten und Spam merkt sich der Server deine IP-Adresse kurz im Arbeitsspeicher (höchstens eine Stunde), nie auf der Festplatte.</li>
+  <li>Die Seite lädt keine Skripte, Schriften oder Tracker von fremden Servern. Nur Bilder, die der Admin aus dem Netz in einen Text einbindet, holt dein Browser von dort.</li>
+  <li>Vor der Website läuft ein Weiterleitungsserver (Nginx Proxy Manager). Wie fast jeder Webserver führt er ein technisches
+    Zugriffsprotokoll mit IP-Adresse, Zeit und Adresse. Das dient nur der Fehlersuche. Die Website selbst führt kein solches Protokoll.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('salt', 'Einmal am Tag wird ein neuer Zufallsschlüssel erzeugt und der alte überschrieben.') %>
+  <%- code('hash', 'Aus Schlüssel, IP-Adresse und Browserkennung wird ein Prüfwert (Hash) gebildet. Gespeichert werden nur 24 Zeichen davon, nie die IP selbst.') %>
+  <%- code('pageview', 'Genau diese Spalten landen pro Seitenaufruf in der Datenbank. <code>user_id</code> ist nur gefüllt, wenn du angemeldet bist.') %>
+  <%- code('tracked', 'Ohne Browserkennung oder mit einer Bot-Kennung wird nichts gespeichert.') %>
+  <%- code('cleanup', 'Alle sechs Stunden werden Einträge gelöscht, die älter als die eingestellte Frist sind.') %>
+  <%- code('rateLimit', 'Die Sperre gegen zu viele Versuche zählt pro IP-Adresse, aber nur in einer Liste im Arbeitsspeicher.') %>
+  <%- code('csp', 'Diese Regel verbietet dem Browser, Skripte von anderen Servern zu laden.') %>
+</details>
+<details><summary>👁 So sieht es der Admin</summary>
+  <p><small>Alle Bilder zeigen Beispieldaten.</small></p>
+  <div class="shots"><%- shot('admin-statistik.png', 'Statistik: Gäste tauchen nur als Zahl auf, angemeldete Mitglieder mit Namen und letztem Besuch') %>
+  <%- shot('admin-downloads.png', 'Downloads: Gäste nur als anonymer Tageswert, Mitglieder mit Namen') %></div>
+</details>
+
+<h2 id="cookies">🍪 Cookies</h2>
+<table class="list">
+  <tr><th>Name</th><th>Wofür</th><th>Wie lange</th></tr>
+  <tr><td><code>csrf</code></td><td>Zufallswert, der gefälschte Formulare von fremden Seiten verhindert. Bekommt jeder Besucher.</td><td>Bis du den Browser schließt</td></tr>
+  <tr><td><code>sid</code></td><td>Zufällige Sitzungsnummer, damit du angemeldet bleibst. Nur nach dem Anmelden.</td><td>30 Tage oder bis zum Abmelden</td></tr>
+</table>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('session', 'Beim Anmelden entsteht eine zufällige Nummer. Die Datenbank merkt sich nur, zu welchem Konto sie gehört und wann sie abläuft.') %>
+  <%- code('csrf', 'Das Formular-Cookie ist reiner Zufall und enthält nichts über dich.') %>
+</details>
+
+<h2 id="browser">💻 Nur in deinem Browser</h2>
+<p>Diese Dinge bleiben auf deinem Gerät und werden nicht an den Server geschickt. Du löschst sie, indem du die Websitedaten im Browser löschst.</p>
+<ul>
+  <li>Welche Fenster offen sind und wo sie liegen (bis du den Tab schließt).</li>
+  <li>Deine Darstellung über den 🖥️-Knopf neben der Uhr: Schriftgröße, Farben, Lauftext.</li>
+  <li>Die gewählte Ansicht im Texteditor.</li>
+  <li>Mein Haustier: ohne Konto der ganze Spielstand, mit Konto eine Kopie, damit bei Verbindungsproblemen nichts verloren geht.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('desk', '<code>sessionStorage</code> vergisst alles, sobald der Tab geschlossen wird.') %>
+  <%- code('display', 'Unter diesem Namen liegt deine Darstellung im <code>localStorage</code> des Browsers.') %>
+  <%- code('editor', 'Der Editor merkt sich nur, ob du Text, Vorschau oder beides siehst.') %>
+  <%- code('pet', 'Unter diesen Namen speichert das Haustier-Spiel im Browser.') %>
+</details>
+
+<h2 id="konto">🔑 Dein Konto</h2>
+<ul>
+  <li>Gespeichert werden <b>Benutzername, Passwort</b> (nur als Hash), Rolle und Rechte, Gruppen, Datum der Registrierung und der <b>letzte Login</b>.</li>
+  <li>Das Passwort wird mit bcrypt unumkehrbar verschlüsselt. Auch der Admin kann es nicht lesen.</li>
+  <li>Keine E-Mail-Adresse, kein echter Name.</li>
+  <li>Wenn du das Passwort änderst, werden alle anderen Geräte abgemeldet.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('users', 'Das ist die komplette Nutzertabelle. Mehr Spalten gibt es nicht.') %>
+  <%- code('password', 'Das Passwort wird mit bcrypt (Stufe 12) gehasht, bevor es gespeichert wird.') %>
+</details>
+<details><summary>👁 So sieht es der Admin</summary>
+  <div class="shots"><%- shot('admin-nutzer.png', 'Nutzerliste: Name, Rolle, Gruppen, letzter Login') %></div>
+</details>
+
+<h2 id="schreiben">✍️ Was du schreibst oder hochlädst</h2>
+<ul>
+  <li><b>Freundebuch:</b> Name (oder dein Benutzername), Text und Zeit, für alle sichtbar. Mit „Anonym eintragen“ wird am Eintrag weder ein Name noch dein Konto gespeichert.</li>
+  <li><b>Forum:</b> Text, Zeit und dein Konto. „Anonym veröffentlichen“ versteckt deinen Namen nur vor anderen. Du selbst und der Admin sehen ihn weiterhin.</li>
+  <li><b>Kontakt:</b> Name, E-Mail (freiwillig), Betreff, Text und dein Konto, falls angemeldet. Das sieht nur der Admin. Es bleibt, bis er es löscht.</li>
+  <li><b>Bilder und Dateien</b> werden unverändert mit ihrem ursprünglichen Dateinamen gespeichert. Fotos können versteckte Angaben wie den Aufnahmeort enthalten. Entferne sie vorher, wenn du das nicht möchtest. Bilder aus dem Forum kann jeder abrufen, der die Adresse kennt.</li>
+  <li><b>E-Mail an den Admin:</b> <% if (mailOn) { %>Ist eingeschaltet. Neue Freundebuch-Einträge, Nachrichten, Forenthemen und Registrierungen gehen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } else { %>Ist gerade ausgeschaltet. Wird sie eingerichtet, gehen neue Freundebuch-Einträge, Nachrichten, Forenthemen und Registrierungen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } %></li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('guestbook', 'Bei „Anonym“ bleiben Konto und Name leer. Bist du angemeldet und nicht anonym, wird dein Benutzername eingetragen.') %>
+  <%- code('byline', 'Anonyme Forenbeiträge zeigen „Anonym“. Nur der Admin und der Verfasser bekommen den Namen in Klammern dazu.') %>
+  <%- code('contact', 'Diese Felder einer Kontaktnachricht werden gespeichert.') %>
+  <%- code('media', 'Bilder werden mit Originalname, Typ, Größe, Konto und Zeit verzeichnet. Die Datei selbst bekommt einen zufälligen Namen.') %>
+</details>
+<details><summary>👁 So sieht es der Admin</summary>
+  <div class="shots"><%- shot('forum-anonym-andere.png', 'Anonymer Forenbeitrag, wie andere Mitglieder ihn sehen') %>
+  <%- shot('forum-anonym-admin.png', 'Derselbe Beitrag, wie der Admin ihn sieht') %></div>
+</details>
+
+<h2 id="spiele">🎮 Spielstände</h2>
+<ul>
+  <li>Mit Konto speichern Browser-Spiele ihre Spielstände auf dem Server: Spiel, Speicherplatz, Inhalt und Zeit. Unter <a href="/account">Mein Konto</a> siehst und löschst du sie.</li>
+  <li>Spiele, die der Admin hochlädt, sind fremde Programme. Sie dürfen mit anderen Servern sprechen und selbst Daten in deinem Browser ablegen. Als Adresse eingebundene Spiele sind fremde Seiten mit eigenen Regeln.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('saves', 'Ein Spielstand gehört immer zu genau einem Konto, Spiel und Speicherplatz.') %>
+</details>
+
+<h2 id="fragen">🗑 Löschen und Fragen</h2>
+<ul>
+  <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen und Spielstände. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge und Nachrichten bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Freundebuch bleibt der Name am Eintrag. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
+</ul>
+<p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>
+</div>
+<%- include('partials/foot') %>

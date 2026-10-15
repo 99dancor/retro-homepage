@@ -68,7 +68,7 @@ async function main() {
     const admin = browser();
 
     await step('Öffentliche Seiten laden', async () => {
-      for (const p of ['/', '/blog', '/files', '/mods', '/links', '/guestbook', '/contact', '/apps', '/forum', '/changelog', '/login', '/theme.css', '/static/retro.css', '/static/editor.js']) {
+      for (const p of ['/', '/blog', '/files', '/mods', '/links', '/guestbook', '/contact', '/apps', '/forum', '/changelog', '/datenschutz', '/login', '/theme.css', '/static/retro.css', '/static/editor.js']) {
         const r = await guest.req(p);
         assert.equal(r.status, 200, p);
       }
@@ -418,6 +418,56 @@ async function main() {
       const r = await guest.req('/changelog');
       assert.equal(r.status, 200);
       assert.match(r.text_, /Eröffnung/);
+    });
+
+    await step('Datenschutzseite im Startmenü zeigt echten Code und Bilder', async () => {
+      const home = (await guest.req('/', { top: true })).text_;
+      assert.match(home, /<div class="startmenu"[\s\S]*href="\/changelog"[\s\S]*href="\/datenschutz"/);
+      const r = await guest.req('/datenschutz');
+      assert.equal(r.status, 200);
+      assert.doesNotMatch(r.text_, /nicht gefunden/, 'jeder Code-Anker wird im Quelltext gefunden');
+      const { snippets } = require('../src/privacy');
+      const all = Object.values(snippets());
+      assert.equal((r.text_.match(/<figure class="code-snippet">/g) || []).length, all.length, 'jeder Ausschnitt steht auf der Seite');
+      assert.ok(all.every(c => !c.missing));
+      assert.match(r.text_, /function visitorHash\(req\)/);
+      assert.match(r.text_, /nach <b>365 Tagen<\/b>/);
+      const shots = [...r.text_.matchAll(/src="(\/static\/datenschutz\/[\w-]+\.png\?v=\w+)"/g)].map(m => m[1].replace(/&amp;/g, '&'));
+      assert.ok(shots.length >= 5, 'Screenshots eingebunden');
+      for (const s of shots) assert.equal((await guest.req(s)).status, 200, s);
+    });
+
+    await step('Darstellung: Knopf neben der Uhr, Skript in jeder Seite', async () => {
+      const home = (await guest.req('/', { top: true })).text_;
+      assert.match(home, /<div class="tray">\s*<button[^>]*id="displaybtn"[\s\S]*id="clock"/);
+      assert.match(home, /id="displaypanel"[\s\S]*name="size" value="gross"[\s\S]*name="scheme" value="nacht"[\s\S]*name="still"/);
+      for (const [url, opts] of [['/', { top: true }], ['/blog', {}], ['/admin', null]]) {
+        const page = (await (opts ? guest.req(url, opts) : admin.req(url))).text_;
+        assert.match(page, /<head>[\s\S]*<script src="\/static\/display\.js\?v=\w+"><\/script>[\s\S]*<\/head>/, url);
+      }
+      assert.match((await admin.req('/admin')).text_, /id="displaybtn"/, 'auch in der Systemsteuerung');
+      const js = await guest.req('/static/display.js');
+      assert.equal(js.status, 200);
+      assert.match(js.text_, /'darstellung'/);
+    });
+
+    await step('Gelöschtes Konto verliert seine Statistik-Einträge', async () => {
+      const { DatabaseSync } = require('node:sqlite');
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'));
+      let t = await admin.csrf('/admin/users');
+      const created = await admin.form('/admin/users/create', { _csrf: t, username: 'carla', password: 'passwort123' });
+      const id = Number(created.headers.get('location').split('/').pop());
+      const carla = browser();
+      const tk = await carla.csrf();
+      await carla.form('/login', { _csrf: tk, username: 'carla', password: 'passwort123' });
+      await carla.req('/blog');
+      await new Promise(r => setTimeout(r, 100));
+      const count = () => sql.prepare('SELECT COUNT(*) AS n FROM pageviews WHERE user_id = ?').get(id).n;
+      assert.ok(count() > 0, 'Aufruf mit Konto gezählt');
+      t = await admin.csrf('/admin/users');
+      assert.equal((await admin.form(`/admin/users/${id}/delete`, { _csrf: t })).status, 302);
+      assert.equal(count(), 0);
+      sql.close();
     });
 
     await step('Besucherstatistik zählt Aufrufe', async () => {

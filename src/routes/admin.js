@@ -312,7 +312,12 @@ router.post('/users/:id', (req, res) => {
 });
 router.post('/users/:id/delete', (req, res) => {
   const id = Number(req.params.id);
-  if (id !== req.user.id) db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  // Statistik hat keinen Fremdschlüssel: Verbindung lösen, sonst erbte ein neues Konto mit derselben Nummer die Einträge
+  if (id !== req.user.id) tx(() => {
+    db.prepare('UPDATE pageviews SET user_id = NULL WHERE user_id = ?').run(id);
+    db.prepare('UPDATE downloads SET user_id = NULL WHERE user_id = ?').run(id);
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  });
   res.redirect('/admin/users');
 });
 router.post('/groups/create', (req, res) => {

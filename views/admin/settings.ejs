@@ -20,6 +20,8 @@
     <label class="inline"><input type="checkbox" name="registration_open" value="1" <%= s.registration_open === '1' ? 'checked' : '' %>> Jeder darf sich registrieren</label><br>
     <label class="inline"><input type="checkbox" name="guestbook_enabled" value="1" <%= s.guestbook_enabled === '1' ? 'checked' : '' %>> Freundebuch aktiv</label>
     <label class="inline"><input type="checkbox" name="guestbook_moderation" value="1" <%= s.guestbook_moderation === '1' ? 'checked' : '' %>> Freundebuch-Einträge erst nach Freischaltung anzeigen</label><br>
+    <label class="inline"><input type="checkbox" name="board_enabled" value="1" <%= s.board_enabled === '1' ? 'checked' : '' %>> Forum aktiv (schreiben dürfen angemeldete Nutzer)</label>
+    <label class="inline"><input type="checkbox" name="board_members_only" value="1" <%= s.board_members_only === '1' ? 'checked' : '' %>> Forum nur für angemeldete Nutzer lesbar</label><br>
     <label class="inline"><input type="checkbox" name="contact_enabled" value="1" <%= s.contact_enabled === '1' ? 'checked' : '' %>> Kontaktformular aktiv</label>
     <label>Statistik-Daten aufbewahren (Tage):<input type="number" name="analytics_retention_days" value="<%= s.analytics_retention_days %>" min="7"></label>
   </fieldset>

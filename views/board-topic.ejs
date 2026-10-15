@@ -1,0 +1,44 @@
+<%- include('partials/head') %>
+<p><a href="/forum">« Zurück zum Forum</a></p>
+<h1><%= topic.pinned ? '📌 ' : '' %><%= topic.locked ? '🔒 ' : '' %><%= topic.title %></h1>
+<% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+<% if (user && user.isAdmin) { %>
+<div class="actions" style="margin-top:0">
+  <form method="post" action="/forum/t/<%= topic.id %>/pin" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small"><%= topic.pinned ? 'Nicht mehr anpinnen' : '📌 Anpinnen' %></button></form>
+  <form method="post" action="/forum/t/<%= topic.id %>/lock" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small"><%= topic.locked ? '🔓 Wieder öffnen' : '🔒 Schließen' %></button></form>
+  <form method="post" action="/forum/t/<%= topic.id %>/delete" class="inline" data-confirm="Ganzes Thema mit allen Antworten löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">🗑 Thema löschen</button></form>
+</div>
+<% } %>
+<% for (const p of posts) { %>
+  <div class="board-post" id="b<%= p.id %>">
+    <div class="head"><span><%= p.username ? '👤 ' + p.username : '👻 Gelöschter Nutzer' %><% if (p.role === 'admin') { %> <span class="badge gray">Admin</span><% } %></span>
+      <span><%= fmtDate(p.created_at, true) %><% if (p.edited_at) { %> · bearbeitet<% } %></span></div>
+    <div class="panel">
+      <div class="content"><%- p.html %></div>
+      <% if (p.editable) { %>
+      <div class="actions post-actions">
+        <a class="btn small" href="/forum/p/<%= p.id %>/edit">✏️ Bearbeiten</a>
+        <form method="post" action="/forum/p/<%= p.id %>/delete" class="inline" data-confirm="<%= p.first ? 'Das ganze Thema löschen?' : 'Beitrag löschen?' %>">
+          <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">🗑 Löschen</button></form>
+      </div>
+      <% } %>
+    </div>
+  </div>
+<% } %>
+<% if (pages > 1) { %>
+  <p class="actions"><% for (let i = 1; i <= pages; i++) { %><a class="btn small" href="/forum/t/<%= topic.id %>?page=<%= i %>"><%= i === page ? '[' + i + ']' : i %></a><% } %></p>
+<% } %>
+<% if (!user) { %>
+  <p>Zum Antworten bitte <a href="/login?next=/forum/t/<%= topic.id %>">anmelden</a>.</p>
+<% } else if (topic.locked && !user.isAdmin) { %>
+  <p class="muted">🔒 Dieses Thema ist geschlossen.</p>
+<% } else { %>
+<fieldset class="groupbox"><legend>✍️ Antworten</legend>
+<form method="post" action="/forum/t/<%= topic.id %>/reply">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <%- include('partials/md-editor', { name: 'body_md', value: '', uploadUrl: '/forum/media', previewUrl: '/forum/preview', libraryUrl: null, compact: true }) %>
+  <div class="actions"><button>📨 Antworten</button></div>
+</form>
+</fieldset>
+<% } %>
+<%- include('partials/foot') %>

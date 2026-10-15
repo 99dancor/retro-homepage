@@ -222,6 +222,17 @@ router.get('/p/:slug', (req, res, next) => {
   res.render('page', { title: page.title, page, bodyHtml: md(page.body_md) });
 });
 
+// ---------- Changelog (Startmenü) ----------
+// CHANGELOG.md liegt im Image und wird mit jedem Update ergänzt.
+let changelogHtml = null;
+router.get('/changelog', (req, res) => {
+  if (changelogHtml === null) {
+    try { changelogHtml = md(fs.readFileSync(path.join(__dirname, '..', '..', 'CHANGELOG.md'), 'utf8').replace(/^# .*\n/, '')); }
+    catch { changelogHtml = '<p>Noch keine Einträge.</p>'; }
+  }
+  res.render('changelog', { title: 'Changelog', changelogHtml });
+});
+
 // ---------- Bilder / Medien ----------
 router.get('/media/:name', (req, res, next) => {
   const name = req.params.name;

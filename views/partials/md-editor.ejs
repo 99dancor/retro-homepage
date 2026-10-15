@@ -1,20 +1,69 @@
-<%# Markdown-Editor mit Bild-Upload und Vorschau. Erwartet: name, value %>
-<div class="editor" data-editor>
+<%# Texteditor mit Live-Vorschau und Bildwerkzeugen.
+    Erwartet: name, value. Optional: uploadUrl, previewUrl, libraryUrl (null = ausblenden), compact %>
+<% const _up = typeof uploadUrl === 'undefined' ? '/admin/media' : uploadUrl;
+   const _pv = typeof previewUrl === 'undefined' ? '/admin/preview' : previewUrl;
+   const _lib = typeof libraryUrl === 'undefined' ? '/admin/media.json' : libraryUrl;
+   const _compact = typeof compact !== 'undefined' && compact; %>
+<div class="editor<%= _compact ? ' compact' : '' %>" data-editor data-preview-url="<%= _pv %>"<% if (_up) { %> data-upload-url="<%= _up %>"<% } %><% if (_lib) { %> data-library-url="<%= _lib %>"<% } %>>
   <div class="editor-tools">
-    <button type="button" class="small" data-md="**|**" title="Fett"><b>F</b></button>
-    <button type="button" class="small" data-md="*|*" title="Kursiv"><i>K</i></button>
-    <button type="button" class="small" data-md="## |" title="Überschrift">H</button>
-    <button type="button" class="small" data-md="[|](https://)" title="Link">🔗 Link</button>
-    <button type="button" class="small" data-md="- |" title="Liste">• Liste</button>
-    <button type="button" class="small" data-md="> |" title="Zitat">❝ Zitat</button>
-    <button type="button" class="small" data-md="```\n|\n```" title="Code">&lt;/&gt;</button>
-    <label class="btn small" style="margin:0">🖼️ Bild hochladen…<input type="file" accept="image/*" multiple data-upload hidden></label>
-    <button type="button" class="small" data-library>📚 Aus Bibliothek</button>
-    <button type="button" class="small" data-preview>👁 Vorschau</button>
-    <span data-status class="muted"></span>
+    <span class="tool-group">
+      <button type="button" class="small" data-md="**|**" title="Fett"><b>F</b></button>
+      <button type="button" class="small" data-md="*|*" title="Kursiv"><i>K</i></button>
+      <button type="button" class="small" data-md="~~|~~" title="Durchgestrichen"><del>S</del></button>
+      <button type="button" class="small" data-line="## " title="Überschrift">H2</button>
+      <button type="button" class="small" data-line="### " title="Kleine Überschrift">H3</button>
+    </span>
+    <span class="tool-group">
+      <button type="button" class="small" data-md="[|](https://)" title="Link">🔗</button>
+      <button type="button" class="small" data-line="- " title="Liste">•</button>
+      <button type="button" class="small" data-line="1. " title="Nummerierte Liste">1.</button>
+      <button type="button" class="small" data-line="> " title="Zitat">❝</button>
+      <button type="button" class="small" data-md="```\n|\n```" title="Code">&lt;/&gt;</button>
+      <button type="button" class="small" data-block="table" title="Tabelle">▦</button>
+      <button type="button" class="small" data-block="hr" title="Trennlinie">―</button>
+    </span>
+    <span class="tool-group">
+      <button type="button" class="small" data-block="mitte" title="Markierten Text zentrieren">≡ Mitte</button>
+      <button type="button" class="small" data-block="rechts" title="Markierten Text rechtsbündig">⇥ Rechts</button>
+      <button type="button" class="small" data-block="details" title="Aufklappbarer Bereich">▸ Aufklappen</button>
+      <button type="button" class="small" data-block="clear" title="Nachfolgender Text beginnt unter dem Bild">⤓ Unter Bild weiter</button>
+    </span>
+    <% if (_up || _lib) { %><span class="tool-group">
+      <% if (_up) { %><label class="btn small" style="margin:0">🖼️ Bild…<input type="file" accept="image/*" multiple data-upload hidden></label><% } %>
+      <% if (_lib) { %><button type="button" class="small" data-library>📚 Bibliothek</button><% } %>
+    </span><% } %>
+    <span class="tool-group view-switch">
+      <button type="button" class="small" data-mode="text" title="Nur Text">✏️ Text</button>
+      <button type="button" class="small" data-mode="split" title="Text und Vorschau nebeneinander">◫ Beides</button>
+      <button type="button" class="small" data-mode="preview" title="Nur Vorschau (Bilder bearbeiten)">👁 Vorschau</button>
+    </span>
   </div>
-  <textarea name="<%= name %>" class="code"><%= value || '' %></textarea>
-  <div class="panel content preview" data-preview-box hidden></div>
   <div class="panel" data-library-box hidden><div class="thumbs" data-library-list>Lade…</div></div>
-  <small>Formatierung mit <a href="https://www.markdownguide.org/basic-syntax/" target="_blank" rel="noopener">Markdown</a>. Bilder kannst du auch per Drag & Drop oder Strg+V ins Textfeld einfügen.</small>
+  <div class="editor-panes">
+    <textarea name="<%= name %>" class="code"><%= value || '' %></textarea>
+    <div class="panel preview" data-preview-box hidden>
+      <div class="content" data-preview-content></div>
+      <div class="img-tools" data-img-tools hidden>
+        <button type="button" class="small" data-pos="links" title="Links, Text fließt rechts daneben">⇤ Links</button>
+        <button type="button" class="small" data-pos="mitte" title="Mittig, eigene Zeile">⇔ Mitte</button>
+        <button type="button" class="small" data-pos="rechts" title="Rechts, Text fließt links daneben">⇥ Rechts</button>
+        <button type="button" class="small" data-pos="" title="Normal im Text">Normal</button>
+        <span class="sep"></span>
+        <button type="button" class="small" data-width="25">¼</button>
+        <button type="button" class="small" data-width="33">⅓</button>
+        <button type="button" class="small" data-width="50">½</button>
+        <button type="button" class="small" data-width="75">¾</button>
+        <button type="button" class="small" data-width="100">Voll</button>
+        <button type="button" class="small" data-width="0" title="Originalgröße">1:1</button>
+        <span class="sep"></span>
+        <button type="button" class="small" data-move="-1" title="Einen Absatz nach oben">▲</button>
+        <button type="button" class="small" data-move="1" title="Einen Absatz nach unten">▼</button>
+        <button type="button" class="small" data-alt title="Bildbeschreibung">✎</button>
+        <button type="button" class="small danger" data-remove title="Bild entfernen">🗑</button>
+      </div>
+      <div class="img-handle" data-img-handle hidden title="Ziehen, um die Größe zu ändern"></div>
+    </div>
+  </div>
+  <small><span data-status class="muted"></span> Formatierung mit <a href="https://www.markdownguide.org/basic-syntax/" target="_blank" rel="noopener">Markdown</a>.<% if (_up) { %> Bilder auch per Drag &amp; Drop oder Strg+V ins Textfeld.<% } %> In der Vorschau Bilder anklicken zum Anpassen, an der Ecke ziehen für die Größe, auf einen Absatz ziehen zum Verschieben.</small>
 </div>
+<script src="/static/editor.js" defer></script>

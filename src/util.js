@@ -4,21 +4,70 @@ const sanitizeHtml = require('sanitize-html');
 
 marked.setOptions({ gfm: true, breaks: true });
 
+// Bildoptionen stehen im Titel des Markdown-Bildes: ![Text](/media/x.png "rechts 40%")
+// Lage: links | rechts | mitte, Breite in Prozent der Textbreite. Der Editor schreibt das selbst.
+const IMG_OPTS = /^\s*(links|rechts|mitte)?\s*(?:(\d{1,3})\s*%)?\s*$/i;
+function imageOptions(title) {
+  const m = IMG_OPTS.exec(title || '');
+  if (!m || (!m[1] && !m[2])) return null;
+  const width = m[2] ? Math.min(100, Math.max(5, Number(m[2]))) : null;
+  return { pos: m[1] ? m[1].toLowerCase() : null, width };
+}
+
+const SANITIZE = {
+  allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'del', 'details', 'summary']),
+  allowedAttributes: {
+    a: ['href', 'title', 'target', 'rel'],
+    img: ['src', 'alt', 'title', 'width', 'height', 'loading', 'class', 'style'],
+    div: ['class'],
+    code: ['class'],
+    th: ['align'], td: ['align'],
+  },
+  allowedClasses: { img: ['bild-links', 'bild-rechts', 'bild-mitte'], div: ['mitte', 'rechts', 'clear'] },
+  allowedStyles: { img: { width: [/^\d{1,3}%$/] } },
+  allowedSchemes: ['http', 'https', 'mailto'],
+  transformTags: {
+    a: (tag, attrs) => ({ tagName: 'a', attribs: /^https?:/.test(attrs.href || '') ? { ...attrs, rel: 'noopener noreferrer', target: '_blank' } : attrs }),
+    img: (tag, attrs) => {
+      const a = { ...attrs, loading: 'lazy' };
+      const o = imageOptions(a.title);
+      if (o) {
+        delete a.title;
+        if (o.pos) a.class = 'bild-' + o.pos;
+        if (o.width) a.style = `width:${o.width}%`;
+      }
+      return { tagName: 'img', attribs: a };
+    },
+  },
+};
+const clean = html => sanitizeHtml(html, SANITIZE);
+
 function md(src) {
-  return sanitizeHtml(marked.parse(src || ''), {
-    allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'del', 'details', 'summary']),
-    allowedAttributes: {
-      a: ['href', 'title', 'target', 'rel'],
-      img: ['src', 'alt', 'title', 'width', 'height', 'loading'],
-      code: ['class'],
-      th: ['align'], td: ['align'],
-    },
-    allowedSchemes: ['http', 'https', 'mailto'],
-    transformTags: {
-      a: (tag, attrs) => ({ tagName: 'a', attribs: /^https?:/.test(attrs.href || '') ? { ...attrs, rel: 'noopener noreferrer', target: '_blank' } : attrs }),
-      img: (tag, attrs) => ({ tagName: 'img', attribs: { ...attrs, loading: 'lazy' } }),
-    },
-  });
+  return clean(marked.parse(src || ''));
+}
+
+// Vorschau für den Editor: jeder Markdown-Block steht in einem eigenen <div> mit seiner Position im Text.
+// So kann der Editor Bilder per Ziehen an einen anderen Absatz verschieben.
+function mdBlocks(src) {
+  src = String(src || '');
+  const tokens = marked.lexer(src);
+  if (tokens.reduce((n, t) => n + t.raw.length, 0) !== src.length) return md(src); // Text wurde umgeformt: ohne Blöcke
+  let pos = 0, from = 0, depth = 0, group = [];
+  let out = '';
+  for (const t of tokens) {
+    if (!group.length) from = pos;
+    pos += t.raw.length;
+    if (t.type === 'space' && !depth) continue;
+    group.push(t);
+    // Ein <div class="mitte"> … </div> über mehrere Absätze bleibt ein Block
+    if (t.type === 'html') depth = Math.max(0, depth + (t.raw.match(/<(div|details)\b/gi) || []).length - (t.raw.match(/<\/(div|details)>/gi) || []).length);
+    if (depth) continue;
+    const list = Object.assign(group, { links: tokens.links });
+    out += `<div class="md-block" data-from="${from}" data-to="${pos}">${clean(marked.parser(list))}</div>`;
+    group = [];
+  }
+  if (group.length) out += `<div class="md-block" data-from="${from}" data-to="${pos}">${clean(marked.parser(Object.assign(group, { links: tokens.links })))}</div>`;
+  return out;
 }
 
 function slugify(s) {
@@ -61,4 +110,4 @@ function visibilityFrom(body) {
   return Object.hasOwn(VISIBILITY, body.visibility) ? body.visibility : 'public';
 }
 
-module.exports = { md, slugify, fmtDate, fmtSize, VISIBILITY, safeUrl, asArray, visibilityFrom };
+module.exports = { md, mdBlocks, imageOptions, slugify, fmtDate, fmtSize, VISIBILITY, safeUrl, asArray, visibilityFrom };

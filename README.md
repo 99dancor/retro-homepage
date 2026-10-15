@@ -1,7 +1,7 @@
 # 💾 Retro-Homepage
 
 Selbst gehostete Homepage im Look von Windows 98 / 2000 – mit Blog, Downloads (z. B. Spielstände),
-Modlisten, Linksammlung, Freundebuch, Kontaktformular, eigenen Seiten, einem Bereich für
+Modlisten, Linksammlung, Forum, Freundebuch, Kontaktformular, eigenen Seiten, einem Bereich für
 Browser-Spiele/Apps und einem Admin-Bereich mit Besucherstatistik, Nutzer- und Rechteverwaltung
 und Design-Editor.
 
@@ -122,10 +122,12 @@ strenger möchte, setzt `TRUST_PROXY` auf die IP des Pi.
 
 | Bereich | Was geht |
 |---|---|
-| **Blog** | Markdown-Editor mit Toolbar, Bilder hochladen per Button, Drag & Drop oder Strg+V, Vorschau, Tags, Entwürfe, Datum frei wählbar |
+| **Blog** | Editor mit Live-Vorschau, Bilder hochladen per Button, Drag & Drop oder Strg+V; Bilder in der Vorschau anklicken für Lage (links/mittig/rechts, Text fließt drumherum) und Größe, an der Ecke ziehen, per Drag & Drop verschieben; Tags, Entwürfe, Datum frei wählbar |
 | **Downloads** | Mehrere Dateien auf einmal hochladen (mit Fortschrittsanzeige), Kategorien + Spiel, Suche, Download-Zähler |
 | **Modlisten** | Pro Spiel, eine Mod pro Zeile: `Name \| Link \| Version \| Notiz`, `*` = optional |
 | **Links** | Linksammlung nach Kategorien |
+| **Forum** | Angemeldete Nutzer erstellen Themen und antworten (mit Bildern), bearbeiten/löschen eigene Beiträge; Admin pinnt an, schließt und löscht. Unter Einstellungen abschaltbar oder nur für Mitglieder lesbar |
+| **Changelog** | Im Startmenü, Inhalt aus `CHANGELOG.md` (wird mit jedem Update ergänzt) |
 | **Freundebuch** | Mit Name, anonym oder als angemeldeter Nutzer; optional Freischaltung durch dich; Spam-Schutz |
 | **Kontakt** | Nachrichten landen im Admin-Postfach, optional E-Mail-Benachrichtigung (SMTP) |
 | **Eigene Seiten** | z. B. „Über mich“, erscheinen auf Wunsch im Menü |

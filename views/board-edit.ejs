@@ -1,0 +1,12 @@
+<%- include('partials/head') %>
+<p><a href="/forum/t/<%= topic.id %>">« Zurück zum Thema</a></p>
+<h1>✏️ Beitrag bearbeiten</h1>
+<% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+<form method="post" action="/forum/p/<%= post.id %>/edit">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <% if (isFirst) { %><label>Titel des Themas:<input type="text" name="title" class="w100" maxlength="150" value="<%= topic.title %>" required></label><% } %>
+  <label>Text:</label>
+  <%- include('partials/md-editor', { name: 'body_md', value: post.body_md, uploadUrl: '/forum/media', previewUrl: '/forum/preview', libraryUrl: null, compact: true }) %>
+  <div class="actions"><button>💾 Speichern</button><a class="btn" href="/forum/t/<%= topic.id %>">Abbrechen</a></div>
+</form>
+<%- include('partials/foot') %>

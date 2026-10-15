@@ -17,6 +17,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY src ./src
 COPY views ./views
 COPY public ./public
+COPY CHANGELOG.md ./
 
 RUN mkdir -p /data
 VOLUME /data

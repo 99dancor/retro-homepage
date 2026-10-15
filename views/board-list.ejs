@@ -1,0 +1,24 @@
+<%- include('partials/head') %>
+<h1>💬 Forum</h1>
+<div class="actions" style="margin-top:0">
+  <% if (user) { %><a class="btn" href="/forum/new">✍️ Neues Thema</a>
+  <% } else { %><span>Zum Mitschreiben bitte <a href="/login?next=/forum">anmelden</a><%= registrationOpen ? '' : '.' %><% if (registrationOpen) { %> oder <a href="/register">registrieren</a>.<% } %></span><% } %>
+  <small><%= total %> <%= total === 1 ? "Thema" : "Themen" %></small>
+</div>
+<% if (!topics.length) { %><p class="muted">Noch keine Themen. Fang doch eins an!</p><% } else { %>
+<table class="list board">
+  <tr><th>Thema</th><th class="num">Antworten</th><th>Letzter Beitrag</th></tr>
+  <% for (const t of topics) { %>
+  <tr>
+    <td><%= t.pinned ? '📌 ' : '' %><%= t.locked ? '🔒 ' : '' %><a href="/forum/t/<%= t.id %>"><b><%= t.title %></b></a>
+      <br><small>von <%= t.username || 'Gelöschter Nutzer' %> · <%= fmtDate(t.created_at) %></small></td>
+    <td class="num"><%= t.replies %></td>
+    <td><a href="/forum/t/<%= t.id %>?page=last"><%= fmtDate(t.last_post_at, true) %></a><br><small><%= t.last_user || 'Gelöschter Nutzer' %></small></td>
+  </tr>
+  <% } %>
+</table>
+<% } %>
+<% if (pages > 1) { %>
+  <p class="actions"><% for (let i = 1; i <= pages; i++) { %><a class="btn small" href="/forum?page=<%= i %>"><%= i === page ? '[' + i + ']' : i %></a><% } %></p>
+<% } %>
+<%- include('partials/foot') %>

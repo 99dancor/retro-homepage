@@ -140,6 +140,62 @@ async function main() {
       assert.match((await admin.req('/admin/messages')).text_, /Frage/);
     });
 
+    await step('Spielstände im Konto speichern und laden', async () => {
+      const AdmZip = require('adm-zip');
+      const zip = new AdmZip();
+      zip.addFile('spiel/index.html', Buffer.from('<!doctype html><title>Spiel</title>'));
+      zip.addFile('spiel/index.wasm', Buffer.alloc(200000, 'pax machina '));
+      const t = await admin.csrf('/admin/apps/new');
+      const fd = new FormData();
+      fd.append('_csrf', t);
+      fd.append('title', 'Testspiel');
+      fd.append('visibility', 'public');
+      fd.append('zip', new Blob([zip.toBuffer()]), 'spiel.zip');
+      assert.equal((await admin.req('/admin/apps/save', { method: 'POST', body: fd })).status, 302);
+      const json = (b, data) => b.req('/api/saves/testspiel/slot_1', { method: 'PUT', body: JSON.stringify({ data }), headers: { 'content-type': 'application/json' } });
+
+      assert.equal((await guest.req('/api/saves/testspiel')).status, 401, 'Gast ohne Login');
+      assert.equal((await json(guest, 'x')).status, 401, 'Gast darf nicht speichern');
+      assert.equal((await admin.req('/api/saves/gibtsnicht')).status, 404);
+      assert.equal((await admin.req('/api/saves/testspiel/slot_1')).status, 404, 'leerer Platz');
+      const plain = await admin.req('/api/saves/testspiel/slot_1', { method: 'PUT', body: '{"data":"x"}', headers: { 'content-type': 'text/plain' } });
+      assert.equal(plain.status, 415, 'nur JSON');
+      assert.equal((await admin.req('/api/saves/testspiel/..%2Fx', { method: 'PUT', body: '{"data":"x"}', headers: { 'content-type': 'application/json' } })).status, 400);
+
+      const save = JSON.stringify({ version: 10, money: 9.79, name: 'Größe äöü' });
+      assert.equal((await json(admin, save)).status, 200);
+      const got = await admin.req('/api/saves/testspiel/slot_1');
+      assert.equal(got.status, 200);
+      assert.equal(JSON.parse(got.text_).data, save);
+      const list = JSON.parse((await admin.req('/api/saves/testspiel')).text_);
+      assert.equal(list.user, 'admin');
+      assert.deepEqual(list.slots.map(x => x.slot), ['slot_1']);
+
+      const acc = await admin.req('/account');
+      assert.match(acc.text_, /Testspiel/);
+      const t2 = acc.text_.match(/name="_csrf" value="([a-f0-9]+)"/)[1];
+      assert.equal((await admin.form('/account/saves/delete', { _csrf: t2, app: 'testspiel', slot: 'slot_1' })).status, 200);
+      assert.equal((await admin.req('/api/saves/testspiel/slot_1')).status, 404, 'gelöscht');
+    });
+
+    await step('Große Spieldateien werden komprimiert ausgeliefert', async () => {
+      let r;
+      for (let i = 0; i < 50; i++) {
+        r = await guest.req('/apps/testspiel/play/index.wasm', { headers: { 'accept-encoding': 'br, gzip' } });
+        if (r.headers.get('content-encoding')) break;
+        await new Promise(ok => setTimeout(ok, 100));
+      }
+      assert.equal(r.status, 200);
+      assert.equal(r.headers.get('content-encoding'), 'br');
+      assert.equal(r.headers.get('content-type'), 'application/wasm');
+      assert.equal(r.text_.length, 200000);
+      const gz = await guest.req('/apps/testspiel/play/index.wasm', { headers: { 'accept-encoding': 'gzip' } });
+      assert.equal(gz.headers.get('content-encoding'), 'gzip');
+      const raw = await guest.req('/apps/testspiel/play/index.wasm', { headers: { 'accept-encoding': 'identity' } });
+      assert.equal(raw.headers.get('content-encoding'), null);
+      assert.equal(raw.text_.length, 200000);
+    });
+
     await step('Besucherstatistik zählt Aufrufe', async () => {
       const r = await admin.req('/admin?days=7');
       assert.match(r.text_, /Seitenaufrufe<b>[1-9]/);

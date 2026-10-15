@@ -12,4 +12,25 @@
   <div class="actions"><button>Ändern</button></div>
 </form>
 </fieldset>
+<fieldset class="groupbox"><legend>Meine Spielstände</legend>
+<% if (!saves.length) { %>
+<p>Noch keine Spielstände. Browser-Spiele unter <a href="/apps">Spiele &amp; Apps</a> speichern hier, solange du angemeldet bist.</p>
+<% } else { %>
+<table class="list">
+  <tr><th>Spiel</th><th>Platz</th><th>Gespeichert</th><th>Größe</th><th></th></tr>
+  <% for (const s of saves) { %>
+  <tr>
+    <td><% if (s.title) { %><a href="/apps/<%= s.app_slug %>"><%= s.title %></a><% } else { %><%= s.app_slug %><% } %></td>
+    <td><%= s.slot %></td>
+    <td><%= fmtDate(s.updated_at) %></td>
+    <td><%= fmtSize(s.size) %></td>
+    <td><form method="post" action="/account/saves/delete" class="inline" data-confirm="Spielstand wirklich löschen?">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="app" value="<%= s.app_slug %>"><input type="hidden" name="slot" value="<%= s.slot %>">
+      <button class="small danger">Löschen</button></form></td>
+  </tr>
+  <% } %>
+</table>
+<% } %>
+</fieldset>
 <%- include('partials/foot') %>

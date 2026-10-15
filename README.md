@@ -124,6 +124,15 @@ Danach „Test-E-Mail senden“.
 ### Spiele & Apps hosten
 - **Statische Spiele/Apps:** Build als ZIP hochladen. Liegt alles in einem Unterordner, wird das
   automatisch erkannt. Vorkomprimierte Unity-Dateien (`.br`, `.gz`) werden korrekt ausgeliefert.
+  Große Dateien (z. B. Godots `.wasm`) komprimiert die Seite nach dem Hochladen selbst im
+  Hintergrund und liefert sie dann komprimiert aus (38 MB → etwa 7 MB).
+- **Spielstände im Konto:** Spiele können für angemeldete Nutzer speichern. Sie liegen unter
+  **Mein Konto → Meine Spielstände** und lassen sich dort löschen. Schnittstelle für das Spiel
+  (`<app>` ist der Kurzname aus der Adresse `/apps/<app>`, `<platz>` z. B. `slot_1`):
+  - `GET /api/saves/<app>`: Liste der Plätze, ohne Login `401`
+  - `GET /api/saves/<app>/<platz>`: `{ "data": "…" }`, `404` wenn leer
+  - `PUT /api/saves/<app>/<platz>` mit JSON `{ "data": "…" }` (höchstens 5 MB, 20 Plätze je Spiel)
+  - `DELETE /api/saves/<app>/<platz>`
 - **Alles mit eigenem Server** (z. B. Mehrspieler-Quiz mit WebSockets): als eigenen Docker-Container
   auf Unraid laufen lassen, in NPM eine Subdomain anlegen (z. B. `quiz.deine-domain.de`,
   Websockets an) und die Adresse bei der App unter „Externer Dienst“ eintragen. Die App erscheint

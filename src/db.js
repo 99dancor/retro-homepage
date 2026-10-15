@@ -166,6 +166,15 @@ CREATE TABLE IF NOT EXISTS apps (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
+-- Spielstände der Browser-Spiele, pro Konto, App und Platz
+CREATE TABLE IF NOT EXISTS game_saves (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  app_slug TEXT NOT NULL,
+  slot TEXT NOT NULL,
+  data TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, app_slug, slot)
+);
 CREATE INDEX IF NOT EXISTS pv_day ON pageviews(day);
 CREATE INDEX IF NOT EXISTS pv_path ON pageviews(path);
 CREATE INDEX IF NOT EXISTS pv_visitor ON pageviews(day, visitor_hash);

@@ -173,9 +173,30 @@ router.get('/apps/:slug', loadApp, (req, res) => {
   db.prepare('UPDATE apps SET plays = plays + 1 WHERE id = ?').run(a.id);
   res.render('app-play', { title: a.title, app: a, src: a.external_url || `/apps/${a.slug}/play/${a.entry}` });
 });
+// Liefert eine vorkomprimierte Fassung (.br/.gz neben der Datei), wenn der Browser sie annimmt.
+// Fehlt sie noch (z. B. bei Apps von vor diesem Update), wird sie im Hintergrund angelegt.
+function servePrecompressed(req, res, next) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  let rel;
+  try { rel = decodeURIComponent(req.path); } catch { return next(); }
+  if (!up.COMPRESSIBLE.test(rel)) return next();
+  const dir = path.join(APPS_DIR, req.appItem.slug);
+  const file = path.resolve(dir, '.' + rel);
+  if (!file.startsWith(dir + path.sep) || !fs.existsSync(file)) return next();
+  res.vary('Accept-Encoding');
+  const enc = req.acceptsEncodings('br', 'gzip');
+  const suffix = enc === 'br' && fs.existsSync(file + '.br') ? '.br' : enc && fs.existsSync(file + '.gz') ? '.gz' : null;
+  if (!suffix) { up.compressFile(file); return next(); }
+  res.set('Content-Encoding', suffix === '.br' ? 'br' : 'gzip');
+  res.type(rel.toLowerCase().endsWith('.wasm') ? 'application/wasm' : path.extname(rel));
+  res.sendFile(file + suffix, err => err && !res.headersSent && next());
+}
+
 // Hochgeladene HTML5-Apps: lockerere Sicherheitsrichtlinie, damit Spiele-Engines laufen.
 router.use('/apps/:slug/play', loadApp, (req, res, next) => {
   res.set('Content-Security-Policy', "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; img-src * data: blob:; media-src * data: blob:; connect-src *; font-src * data:; worker-src 'self' blob:; frame-ancestors 'self'");
+  next();
+}, servePrecompressed, (req, res, next) => {
   express.static(path.join(APPS_DIR, req.appItem.slug), {
     index: ['index.html'],
     // Vorkomprimierte Builds (z. B. Unity WebGL: *.wasm.br, *.js.gz) korrekt ausliefern
@@ -266,10 +287,21 @@ router.post('/register', auth.rateLimit('reg', 5, 3600), (req, res, next) => {
   res.redirect('/');
 });
 
-router.get('/account', auth.requireLogin, (req, res) => res.render('account', { title: 'Mein Konto', msg: null, err: null }));
+function renderAccount(req, res, msg, err) {
+  const saves = db.prepare(`SELECT s.app_slug, s.slot, s.updated_at, length(CAST(s.data AS BLOB)) AS size, a.title
+                            FROM game_saves s LEFT JOIN apps a ON a.slug = s.app_slug
+                            WHERE s.user_id = ? ORDER BY a.title, s.app_slug, s.slot`).all(req.user.id);
+  res.render('account', { title: 'Mein Konto', msg, err, saves });
+}
+router.get('/account', auth.requireLogin, (req, res) => renderAccount(req, res, null, null));
+router.post('/account/saves/delete', auth.requireLogin, (req, res) => {
+  db.prepare('DELETE FROM game_saves WHERE user_id = ? AND app_slug = ? AND slot = ?')
+    .run(req.user.id, String(req.body.app || ''), String(req.body.slot || ''));
+  renderAccount(req, res, 'Spielstand gelöscht.', null);
+});
 router.post('/account', auth.requireLogin, (req, res) => {
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-  const render = (msg, err) => res.render('account', { title: 'Mein Konto', msg, err });
+  const render = (msg, err) => renderAccount(req, res, msg, err);
   if (!auth.checkPassword(String(req.body.current || ''), u.password_hash)) return render(null, 'Aktuelles Passwort ist falsch.');
   if (!auth.validPassword(req.body.password)) return render(null, 'Neues Passwort muss mindestens 8 Zeichen haben.');
   if (req.body.password !== req.body.password2) return render(null, 'Die Passwörter stimmen nicht überein.');

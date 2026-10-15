@@ -51,6 +51,7 @@ app.use((req, res, next) => {
 app.use((req, res, next) => (req.is('multipart/form-data') ? next() : auth.csrfCheck(req, res, next)));
 app.use(analytics.middleware);
 
+app.use('/api/saves', require('./routes/saves'));
 app.use('/admin', require('./routes/admin'));
 app.use('/', require('./routes/public'));
 

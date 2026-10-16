@@ -65,6 +65,12 @@ const SNIPPETS = {
   artworkPainters: ['src/db.js', 'CREATE TABLE IF NOT EXISTS artwork_painters (', 6],
   paintCursor: ['src/paintlobby.js', 'function cursor(l, user, sid, b) {', 5],
   paintChat: ['src/paintlobby.js', 'function chat(l, user, text) {', 10],
+  quizCookie: ['src/routes/quiz.js', "res.cookie('quiz', t", 1],
+  quizGuest: ['public/quiz.js', "localStorage.setItem('quiz-gast'", 1],
+  quizPlayer: ['src/quiz.js', 'r.players.set(who.pid, {', 8],
+  quizInput: ['src/quiz.js', 'function sendInput(r, pid, text) {', 4],
+  quizGames: ['src/db.js', 'CREATE TABLE IF NOT EXISTS quiz_games (', 11],
+  quizResults: ['src/db.js', 'CREATE TABLE IF NOT EXISTS quiz_results (', 10],
 };
 
 let cache = null;

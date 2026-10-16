@@ -252,6 +252,38 @@ router.post('/paint/:id/loeschen', (req, res) => {
   res.redirect('/admin/paint');
 });
 
+// ---------- Quiz ----------
+router.get('/quiz', (req, res) => {
+  const quiz = require('../quiz');
+  const s = Object.fromEntries(['quiz_enabled', 'quiz_guests', 'quiz_hosts', 'quiz_max_rooms', 'quiz_max_players'].map(k => [k, getSetting(k, '')]));
+  Object.assign(s, quiz.config(), { quiz_enabled: getSetting('quiz_enabled', '1'), quiz_guests: getSetting('quiz_guests', '1') });
+  const rooms = [...quiz._rooms.values()].map(r => ({ code: r.code, name: r.name, host: r.hostName, players: r.players.size, phase: r.phase, cur: r.cur, created: r.created, hidden: r.hidden }));
+  const games = db.prepare(`SELECT g.*, (SELECT name FROM quiz_results WHERE game_id = g.id AND place = 1 LIMIT 1) AS winner
+                            FROM quiz_games g ORDER BY ended_at DESC LIMIT 30`).all();
+  const total = db.prepare('SELECT COUNT(*) AS games, COALESCE(SUM(players), 0) AS players FROM quiz_games').get();
+  res.render('admin/quiz', { title: 'Quiz', s, rooms, games, total, ok: 'ok' in req.query });
+});
+router.post('/quiz', (req, res) => {
+  const b = req.body;
+  setSetting('quiz_enabled', b.quiz_enabled === '1' ? '1' : '0');
+  setSetting('quiz_guests', b.quiz_guests === '1' ? '1' : '0');
+  setSetting('quiz_hosts', ['all', 'members', 'admin'].includes(b.quiz_hosts) ? b.quiz_hosts : 'all');
+  const n = (v, d, min, max) => String(Math.max(min, Math.min(max, Math.round(Number(v)) || d)));
+  setSetting('quiz_max_rooms', n(b.quiz_max_rooms, 20, 1, 200));
+  setSetting('quiz_max_players', n(b.quiz_max_players, 30, 2, 200));
+  res.redirect('/admin/quiz?ok=1');
+});
+router.post('/quiz/raum/:code/schliessen', (req, res) => {
+  const quiz = require('../quiz');
+  const r = quiz.get(req.params.code);
+  if (r) quiz.remove(r, 'Der Admin hat den Raum geschlossen.');
+  res.redirect('/admin/quiz?ok=1');
+});
+router.post('/quiz/spiel/:id/loeschen', (req, res) => {
+  db.prepare('DELETE FROM quiz_games WHERE id = ?').run(Number(req.params.id));
+  res.redirect('/admin/quiz?ok=1');
+});
+
 // ---------- Modlisten ----------
 // Format im Textfeld: eine Mod pro Zeile -> Name | URL | Version | Notiz   (optional mit * am Anfang = optional)
 function parseMods(text) {
@@ -407,6 +439,8 @@ router.post('/users/:id/delete', (req, res) => {
   if (id !== req.user.id) tx(() => {
     db.prepare('UPDATE pageviews SET user_id = NULL WHERE user_id = ?').run(id);
     db.prepare('UPDATE downloads SET user_id = NULL WHERE user_id = ?').run(id);
+    // Quiz: eigene Ergebnisse fallen über den Fremdschlüssel weg, als Spielleiter bleibt nur „gelöschtes Konto“
+    db.prepare("UPDATE quiz_games SET host_name = 'gelöschtes Konto' WHERE host_user_id = ?").run(id);
     db.prepare('DELETE FROM users WHERE id = ?').run(id);
   });
   if (old && id !== req.user.id) profiles.removeAvatar(old.avatar);
@@ -509,7 +543,7 @@ router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, 
 const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days', 'music_quota_mb',
   'bj_buyin', 'bj_rebuy_below', 'bj_decks', 'bj_turn'];
 const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure', 'lobby_enabled', 'youtube_enabled', 'bj_enabled', 'bj_h17'];
-const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Andere Games', haustier: 'Mein Haustier', musik: 'Musikplayer', zufall: 'Zufallsgenerator', blackjack: 'Blackjack', paint: 'Paint', galerie: 'Galerie', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
+const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Andere Games', haustier: 'Mein Haustier', musik: 'Musikplayer', zufall: 'Zufallsgenerator', blackjack: 'Blackjack', quiz: 'Quiz', paint: 'Paint', galerie: 'Galerie', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
 router.get('/settings', (req, res) => {
   const s = Object.fromEntries([...SETTING_KEYS, ...SETTING_FLAGS, 'nav_hidden', 'music_upload'].map(k => [k, getSetting(k, '')]));
   s.smtp_pass_set = !!getSetting('smtp_pass');

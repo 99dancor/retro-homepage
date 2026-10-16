@@ -985,6 +985,83 @@ async function main() {
       assert.ok(sql.prepare("SELECT s.ended_at FROM bj_sessions s JOIN users u ON u.id = s.user_id WHERE u.username = 'anna'").get().ended_at);
     });
 
+    await step('Quiz: Raum, Gast mit Namen, Live-Verbindung, Wertung, Profil und Admin', async () => {
+      const { anna, bernd } = members;
+      const home = (await guest.req('/', { top: true })).text_;
+      assert.match(home, /<div class="startmenu"[\s\S]*href="\/quiz">❓ Quiz/);
+      const oma = browser();
+      assert.match((await oma.req('/quiz')).text_, /quiz\.js/, 'auch Gäste bekommen das Quiz');
+      const made = await api(anna, '/quiz/raeume', { name: 'Freitagsquiz' });
+      assert.equal(made.status, 200);
+      const code = made.json.code;
+      assert.match(code, /^[A-Z0-9]{4}$/);
+      assert.deepEqual((await api(bernd, '/quiz/raeume', undefined, 'GET')).json.rooms.map(r => r.name), ['Freitagsquiz']);
+      assert.match((await oma.req('/quiz/' + code)).text_, new RegExp('data-code="' + code + '"'), 'Einladungslink');
+      assert.equal((await api(oma, `/quiz/${code}/info`, undefined, 'GET')).json.joined, false);
+      assert.equal((await api(oma, `/quiz/${code}/beitreten`, { name: '' })).status, 400);
+      assert.equal((await api(oma, `/quiz/${code}/beitreten`, { name: 'Oma Gerda', emoji: '🦉' })).status, 200);
+      assert.ok(/^[a-f0-9]{32}$/.test(oma.jar.get('quiz')), 'Gast-Cookie');
+      assert.equal((await api(oma, `/quiz/${code}/info`, undefined, 'GET')).json.joined, true);
+      assert.equal((await api(bernd, `/quiz/${code}/beitreten`, {})).status, 200);
+      assert.equal((await api(guest, `/quiz/${code}/beitreten`, { name: 'Oma gerda' })).status, 400, 'Name schon vergeben');
+      assert.match((await oma.req(`/quiz/${code}/qr.svg`)).text_, /^<svg/);
+
+      const listen = b => {
+        const ctrl = new AbortController(), states = [];
+        let buf = '', wake = null;
+        fetch(`${BASE}/quiz/${code}/events`, { headers: { cookie: [...b.jar].map(([k, v]) => `${k}=${v}`).join('; '), 'user-agent': UA }, signal: ctrl.signal }).then(async res => {
+          const reader = res.body.getReader();
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) return;
+            buf += Buffer.from(value).toString();
+            let i;
+            while ((i = buf.indexOf('\n\n')) >= 0) {
+              const ev = buf.slice(0, i); buf = buf.slice(i + 2);
+              const m = ev.match(/^event: state\ndata: (.*)$/m);
+              if (m) { states.push(JSON.parse(m[1])); if (wake) wake(); }
+            }
+          }
+        }).catch(() => {});
+        const until = (pred, ms = 3000) => new Promise((resolve, reject) => {
+          const t = setTimeout(() => reject(new Error('Kein passender Stand: ' + JSON.stringify(states.at(-1)))), ms);
+          const check = () => { const s = states.slice().reverse().find(pred); if (s) { clearTimeout(t); wake = null; resolve(s); } else wake = check; };
+          check();
+        });
+        return { until, close: () => ctrl.abort() };
+      };
+      assert.equal((await fetch(`${BASE}/quiz/${code}/events`, { headers: { 'user-agent': UA } })).status, 403, 'nicht dabei');
+      const host = listen(anna), player = listen(oma);
+      let hs = await host.until(s => s.players.length === 2);
+      assert.equal(hs.isHost, true);
+      assert.ok(hs.players.some(p => p.name === 'Oma Gerda' && p.guest && p.emoji === '🦉'));
+      assert.equal((await api(oma, `/quiz/${code}`, { action: 'start' })).status, 400, 'Spieler können nicht steuern');
+      assert.equal((await api(anna, `/quiz/${code}`, { action: 'start' })).status, 200);
+      assert.equal((await api(anna, `/quiz/${code}`, { action: 'edit', index: 0, q: { type: 'mc', text: 'Nevermind?', options: ['Pearl Jam', 'Nirvana', 'Blur', 'Oasis'], correct: 1 } })).status, 200);
+      assert.equal((await api(anna, `/quiz/${code}`, { action: 'open' })).status, 200);
+      const ps = await player.until(s => s.phase === 'open');
+      assert.equal(ps.q.text, 'Nevermind?');
+      assert.equal(JSON.stringify(ps).includes('"correct"'), false, 'Lösung bleibt auf dem Server');
+      assert.equal(ps.questions, undefined);
+      assert.equal((await api(oma, `/quiz/${code}`, { action: 'answer', value: 0 })).status, 200);
+      assert.equal((await api(bernd, `/quiz/${code}`, { action: 'answer', value: 1 })).status, 200);
+      hs = await host.until(s => s.inputs && Object.values(s.inputs).filter(v => v !== null).length === 2);
+      assert.equal((await api(anna, `/quiz/${code}`, { action: 'reveal' })).status, 200);
+      const rv = await player.until(s => s.phase === 'reveal');
+      assert.equal(rv.result.correct.text, 'Nirvana');
+      assert.deepEqual(rv.players.map(p => [p.guest, p.score]), [[false, 100], [true, -50]]);
+      assert.equal((await api(anna, `/quiz/${code}`, { action: 'give', pid: 'all', points: 3 })).status, 200);
+      assert.equal((await api(anna, `/quiz/${code}`, { action: 'end' })).status, 200);
+      const end = await player.until(s => s.phase === 'end');
+      assert.deepEqual(end.awards.places.map(p => p.place), [1, 2]);
+      host.close(); player.close();
+      const prof = (await anna.req('/nutzer/bernd')).text_;
+      assert.match(prof, /href="\/quiz"><b>Quiz<\/b>[\s\S]*Mitgespielt<\/td><td class="num">1</);
+      assert.match((await admin.req('/admin/quiz')).text_, /<td>Freitagsquiz<\/td>/);
+      assert.equal((await api(anna, `/quiz/${code}`, { action: 'close' })).status, 200);
+      assert.equal((await api(oma, `/quiz/${code}/info`, undefined, 'GET')).status, 404);
+    });
+
     await step('Changelog im Startmenü', async () => {
       const home = (await guest.req('/', { top: true })).text_;
       assert.match(home, /<div class="startmenu"[\s\S]*href="\/changelog"/);

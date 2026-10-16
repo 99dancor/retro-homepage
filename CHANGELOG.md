@@ -6,6 +6,7 @@
 - **Mitglieder finden:** Neu im Startmenü unter 👥 Mitglieder. Durchsuche alle Mitglieder und öffne ihre Profile.
 - **Namen anklicken:** Im Forum, im Freundebuch und in Musik-Lobbys führt ein Klick auf einen Namen zum Profil. In der Lobby steht dafür „👤 Profil ansehen“ im Menü des Zuhörers.
 - **Freunde:** Schick anderen eine Freundschaftsanfrage. Offene Anfragen und deine Freunde stehen oben unter Mitglieder.
+- **Freundebuch im Profil:** Jedes Profil hat ein eigenes Freundebuch, in das sich andere Mitglieder eintragen können. Du bestimmst, ob das alle dürfen, nur Freunde oder niemand, und kannst Einträge löschen.
 - **Privatnachrichten:** Schreib anderen Mitgliedern direkt, über ihr Profil oder 💌 Nachrichten im Startmenü. Neue Nachrichten zeigt ein 💌 neben der Uhr, und du siehst, ob deine Nachricht gelesen wurde.
 - **Spielstatistik:** Das Profil zeigt, wie oft du welches Spiel gestartet hast, dazu Werte aus Mein Haustier (Tiere, höchste Stufe, verdiente Münzen, Besuche). Spiele können eigene Zahlen wie Siege oder Rekorde melden.
 - **Du entscheidest:** Wer dein Profil sieht (alle, nur Mitglieder oder nur Freunde) und wer dir schreiben darf (alle Mitglieder oder nur Freunde). Anonyme Forenbeiträge bleiben anonym und zählen im Profil nicht mit.

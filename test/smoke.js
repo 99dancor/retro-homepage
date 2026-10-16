@@ -787,6 +787,35 @@ async function main() {
       assert.match(prof, /Forenbeiträge<\/td><td class="num">0</, 'anonyme Beiträge zählen nicht');
     });
 
+    await step('Freundebuch im Profil: eintragen, Rechte, löschen', async () => {
+      const { anna, bernd } = members;
+      let t = await bernd.csrf('/account');
+      assert.equal((await bernd.form('/nutzer/anna/freundebuch', { _csrf: t, body: 'Schönes Profil!\nGruß, Bernd' })).status, 302);
+      let prof = (await anna.req('/nutzer/anna')).text_;
+      assert.match(prof, /📖 Freundebuch \(1\)[\s\S]*href="\/nutzer\/bernd" class="userlink">[\s\S]*Schönes Profil!\nGruß, Bernd/);
+      const id = prof.match(/id="g(\d+)"/)[1];
+      assert.doesNotMatch((await guest.req('/nutzer/anna')).text_, /Schönes Profil/, 'nur wer das Profil sieht');
+      // Nur Freunde dürfen schreiben: Bernd ist gerade kein Freund
+      t = await anna.csrf('/account');
+      await anna.form('/account/profil', { _csrf: t, display_name: 'Anna B.', about: 'Ich mag Katzen.', profile_visibility: 'members', pm_from: 'all', gb_from: 'friends' });
+      assert.match((await bernd.req('/nutzer/anna')).text_, /nur Freunde von Anna B\. schreiben/);
+      t = await bernd.csrf('/account');
+      await bernd.form('/nutzer/anna/freundebuch', { _csrf: t, body: 'Darf ich nicht' });
+      assert.doesNotMatch((await anna.req('/nutzer/anna')).text_, /Darf ich nicht/);
+      // Fremde dürfen nicht löschen, die Profilinhaberin schon
+      t = await bernd.csrf('/account');
+      await bernd.form(`/nutzer/bernd/freundebuch/${id}/loeschen`, { _csrf: t });
+      assert.match((await anna.req('/nutzer/anna')).text_, /Schönes Profil/);
+      t = await anna.csrf('/account');
+      await anna.form(`/nutzer/anna/freundebuch/${id}/loeschen`, { _csrf: t });
+      prof = (await anna.req('/nutzer/anna')).text_;
+      assert.doesNotMatch(prof, /Schönes Profil/);
+      assert.match(prof, /Noch keine Einträge/);
+      t = await anna.csrf('/account');
+      await anna.form('/account/profil', { _csrf: t, display_name: 'Anna B.', profile_visibility: 'members', pm_from: 'all', gb_from: 'off' });
+      assert.doesNotMatch((await bernd.req('/nutzer/anna')).text_, /📖 Freundebuch/, 'ausgeschaltet');
+    });
+
     await step('Lobby und Musik verlinken auf Profile', async () => {
       const js = (await guest.req('/static/music.js')).text_;
       assert.match(js, /Profil ansehen/);

@@ -24,7 +24,7 @@ const SNIPPETS = {
   displaySave: ['public/display.js', 'function save(p, img)', 7],
   editor: ['public/editor.js', "var MODE_KEY = 'editor-mode'", 1],
   pet: ['games/haustier/src/js/storage.js', "const PREFIX = 'haustier:v1:'", 7],
-  users: ['src/db.js', 'CREATE TABLE IF NOT EXISTS users (', 15],
+  users: ['src/db.js', 'CREATE TABLE IF NOT EXISTS users (', 16],
   password: ['src/auth.js', 'function hashPassword(pw)', 1],
   guestbook: ['src/routes/public.js', 'const userId = req.user && !anonymous', 6],
   byline: ['src/routes/board.js', 'function byline(viewer, name, anonymous, userId)', 5],
@@ -45,6 +45,7 @@ const SNIPPETS = {
   friends: ['src/db.js', 'CREATE TABLE IF NOT EXISTS friends (', 7],
   pms: ['src/db.js', 'CREATE TABLE IF NOT EXISTS private_messages (', 10],
   pmDelete: ['src/profiles.js', 'function hideConversation(meId, otherId)', 7],
+  profileGuestbook: ['src/db.js', 'CREATE TABLE IF NOT EXISTS profile_guestbook (', 7],
   gameStats: ['src/db.js', 'CREATE TABLE IF NOT EXISTS game_stats (', 8],
   countStart: ['src/profiles.js', 'function countStart(user, app)', 5],
 };

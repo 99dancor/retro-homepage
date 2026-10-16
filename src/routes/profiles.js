@@ -49,6 +49,8 @@ router.get('/nutzer/:name', (req, res) => {
     const tv = auth.visibilitySql(me, 'track', 't');
     Object.assign(data, {
       friends: p.friendsOf(u.id),
+      guestbook: u.gb_from === 'off' ? null : p.guestbookOf(u.id),
+      canSign: p.canSign(me, u), maxGb: p.MAX_GB,
       games: p.gameStats(u.id, me),
       counts: {
         // Anonyme Beiträge zählen nicht mit, sonst ließen sie sich zuordnen
@@ -71,6 +73,24 @@ router.post('/nutzer/:name/freund', auth.requireLogin, auth.rateLimit('friends',
   const msg = p.friendAction(req.user.id, u.id, String(req.body.action || ''));
   const to = back(req.body.back, p.profileUrl(u.username));
   res.redirect(to.split('?')[0] + (msg ? '?ok=' + msg : ''));
+});
+
+// ---------- Freundebuch im Profil ----------
+router.post('/nutzer/:name/freundebuch', auth.requireLogin, auth.rateLimit('pgb', 10, 600), (req, res) => {
+  const u = p.findUser(req.params.name);
+  if (!u || u.disabled) return notFound(res);
+  const body = String(req.body.body || '').replace(/\r\n/g, '\n').trim().slice(0, p.MAX_GB);
+  if (body && p.canSign(req.user, u)) {
+    const id = p.signGuestbook(u.id, req.user.id, body);
+    return res.redirect(p.profileUrl(u.username) + '#g' + id);
+  }
+  res.redirect(p.profileUrl(u.username) + '#freundebuch');
+});
+router.post('/nutzer/:name/freundebuch/:id/loeschen', auth.requireLogin, (req, res) => {
+  const u = p.findUser(req.params.name);
+  if (!u) return notFound(res);
+  p.deleteGuestbookEntry(req.user, u.id, Number(req.params.id));
+  res.redirect(p.profileUrl(u.username) + '#freundebuch');
 });
 
 // ---------- Privatnachrichten ----------
@@ -130,11 +150,12 @@ router.post('/account/profil', auth.requireLogin, (req, res) => {
   const name = p.cleanDisplayName(b.display_name);
   if (name === null) return accountBack(res, 'err=name');
   if (name && name.toLowerCase() !== req.user.username.toLowerCase() && p.nameTaken(name, req.user.id)) return accountBack(res, 'err=taken');
-  db.prepare('UPDATE users SET display_name = ?, about = ?, profile_visibility = ?, pm_from = ? WHERE id = ?').run(
+  db.prepare('UPDATE users SET display_name = ?, about = ?, profile_visibility = ?, pm_from = ?, gb_from = ? WHERE id = ?').run(
     name && name !== req.user.username ? name : null,
     String(b.about || '').replace(/\r\n/g, '\n').trim().slice(0, 1000) || null,
     Object.hasOwn(p.PROFILE_VIS, b.profile_visibility) ? b.profile_visibility : 'members',
     Object.hasOwn(p.PM_FROM, b.pm_from) ? b.pm_from : 'all',
+    Object.hasOwn(p.GB_FROM, b.gb_from) ? b.gb_from : 'all',
     req.user.id);
   accountBack(res, 'ok=profil');
 });

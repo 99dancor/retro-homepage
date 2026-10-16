@@ -338,7 +338,7 @@ function renderAccount(req, res, msg, err) {
   res.render('account', {
     title: 'Mein Konto', msg, err, saves,
     profile: db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id),
-    profileVis: profiles.PROFILE_VIS, pmFrom: profiles.PM_FROM,
+    profileVis: profiles.PROFILE_VIS, pmFrom: profiles.PM_FROM, gbFrom: profiles.GB_FROM,
   });
 }
 const pick = (map, key) => (typeof key === 'string' && Object.hasOwn(map, key) ? map[key] : null);

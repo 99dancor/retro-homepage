@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS users (
   avatar TEXT,                                -- Profilbild unter data/avatare
   about TEXT,                                 -- „Über mich“ im Profil
   profile_visibility TEXT NOT NULL DEFAULT 'members',  -- public | members | friends
-  pm_from TEXT NOT NULL DEFAULT 'all'         -- Privatnachrichten von: all (allen Mitgliedern) | friends
+  pm_from TEXT NOT NULL DEFAULT 'all',        -- Privatnachrichten von: all (allen Mitgliedern) | friends
+  gb_from TEXT NOT NULL DEFAULT 'all'         -- Einträge ins Freundebuch im Profil von: all | friends | off
 );
 CREATE TABLE IF NOT EXISTS groups (
   id INTEGER PRIMARY KEY,
@@ -270,6 +271,14 @@ CREATE TABLE IF NOT EXISTS private_messages (
   hidden_from INTEGER NOT NULL DEFAULT 0,   -- Absender hat den Verlauf gelöscht
   hidden_to INTEGER NOT NULL DEFAULT 0      -- Empfänger hat den Verlauf gelöscht
 );
+-- Freundebuch im Profil: Mitglieder schreiben einem anderen Mitglied etwas auf sein Profil
+CREATE TABLE IF NOT EXISTS profile_guestbook (
+  id INTEGER PRIMARY KEY,
+  profile_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  author_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
 -- Spielstatistiken im Profil: pro Konto, Spiel und Wert eine Zahl (z. B. Siege, Höchstpunktzahl)
 CREATE TABLE IF NOT EXISTS game_stats (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -279,6 +288,7 @@ CREATE TABLE IF NOT EXISTS game_stats (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, app_slug, key)
 );
+CREATE INDEX IF NOT EXISTS pg_profile ON profile_guestbook(profile_id, created_at);
 CREATE INDEX IF NOT EXISTS fr_friend ON friends(friend_id);
 CREATE INDEX IF NOT EXISTS pm_to ON private_messages(to_id, read_at);
 CREATE INDEX IF NOT EXISTS pm_pair ON private_messages(from_id, to_id, created_at);
@@ -303,6 +313,7 @@ addColumn('users', 'avatar', 'TEXT');
 addColumn('users', 'about', 'TEXT');
 addColumn('users', 'profile_visibility', "TEXT NOT NULL DEFAULT 'members'");
 addColumn('users', 'pm_from', "TEXT NOT NULL DEFAULT 'all'");
+addColumn('users', 'gb_from', "TEXT NOT NULL DEFAULT 'all'");
 
 function now() { return Math.floor(Date.now() / 1000); }
 

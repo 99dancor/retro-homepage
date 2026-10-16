@@ -86,7 +86,7 @@
   <li>Wenn du das Passwort änderst, werden alle anderen Geräte abgemeldet.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
-  <%- code('users', 'Das ist die komplette Nutzertabelle. Mehr Spalten gibt es nicht. Die letzten fünf gehören zum Profil.') %>
+  <%- code('users', 'Das ist die komplette Nutzertabelle. Mehr Spalten gibt es nicht. Die letzten sechs gehören zum Profil.') %>
   <%- code('password', 'Das Passwort wird mit bcrypt (Stufe 12) gehasht, bevor es gespeichert wird.') %>
 </details>
 <details><summary>👁 So sieht es der Admin</summary>
@@ -95,10 +95,11 @@
 
 <h2 id="profil">👥 Profil, Freunde und Nachrichten</h2>
 <ul>
-  <li><b>Profil:</b> Anzeigename, Profilbild und „Über mich“ (die letzten Spalten der <a href="#konto">Nutzertabelle</a>) trägst du freiwillig unter <a href="/account#profil">Mein Konto</a> ein. Anzeigename und Profilbild stehen an deinen Beiträgen und in Lobbys, auch für Gäste, wo diese mitlesen. Anonyme Forenbeiträge bleiben anonym: Sie bekommen weder Namen noch Bild und zählen im Profil nicht mit.</li>
+  <li><b>Profil:</b> Anzeigename, Profilbild und „Über mich“ (die letzten Spalten der <a href="#konto">Nutzertabelle</a>, dort auch wer dir schreiben darf) trägst du freiwillig unter <a href="/account#profil">Mein Konto</a> ein. Anzeigename und Profilbild stehen an deinen Beiträgen und in Lobbys, auch für Gäste, wo diese mitlesen. Anonyme Forenbeiträge bleiben anonym: Sie bekommen weder Namen noch Bild und zählen im Profil nicht mit.</li>
   <li><b>Wer dein Profil sieht,</b> bestimmst du: alle Besucher, nur angemeldete Mitglieder (Standard) oder nur deine Freunde. Das Profil zeigt, seit wann du dabei bist, deine Freunde, deine Spielstatistik, wie viele Forenbeiträge, Freundebuch-Einträge und Musiktitel von dir sichtbar sind, und deine letzten Forenbeiträge. Den letzten Login zeigt es nicht. Gäste finden unter Mitglieder nur Profile, die für alle sichtbar sind.</li>
   <li><b>Profilbild:</b> Versteckte Angaben im Bild (EXIF mit Aufnahmeort und Kamera, Textfelder) entfernt die Seite beim Hochladen. Nur die Drehung eines Fotos bleibt. Das Bild kann jeder abrufen, der die Adresse kennt. Ein neues Bild ersetzt das alte, „Entfernen“ löscht die Datei.</li>
   <li><b>Freunde:</b> Gespeichert werden, wer wen angefragt hat, ob angenommen wurde, und wann. Wer auf deinem Profil ist, sieht deine Freunde. Entfernen oder Ablehnen löscht den Eintrag ganz.</li>
+  <li><b>Freundebuch im Profil:</b> Gespeichert werden, auf wessen Profil, wer, Text und Zeit. Lesen kann es jeder, der das Profil sehen darf. Unter Mein Konto stellst du ein, wer sich eintragen darf (alle Mitglieder, nur Freunde oder niemand). Löschen können Verfasser, Profilinhaber und Admin.</li>
   <li><b>Privatnachrichten:</b> Absender, Empfänger, Text, Zeit und wann sie gelesen wurde. Der Absender sieht „gelesen“. Die Seite zeigt Nachrichten nur euch beiden, auch dem Admin nicht. Sie liegen aber unverschlüsselt in der Datenbank auf dem Server, wer diesen betreibt, könnte sie also lesen. Schick deshalb keine Passwörter oder ähnliches. „Verlauf löschen“ versteckt das Gespräch für dich; haben es beide gelöscht, verschwindet es ganz aus der Datenbank.</li>
   <li>Unter Mein Konto stellst du ein, ob dir alle Mitglieder schreiben dürfen oder nur deine Freunde. Wer dir zuerst geschrieben hat, dem kannst du immer antworten.</li>
   <li>Der Desktop fragt einmal pro Minute beim Server nach, ob du neue Nachrichten hast. Dabei wird nichts gespeichert.</li>
@@ -108,6 +109,7 @@
   <%- code('profileCounts', 'Die Zahlen im Profil zählen nur Beiträge mit Namen.') %>
   <%- code('avatarStrip', 'Beim Hochladen eines Profilbilds fallen die Blöcke mit versteckten Angaben weg.') %>
   <%- code('friends', 'Eine Freundschaft ist eine Zeile: wer angefragt hat, wer angefragt wurde, angenommen oder nicht, und wann.') %>
+  <%- code('profileGuestbook', 'Ein Eintrag im Freundebuch eines Profils: für wen, von wem, Text und Zeit.') %>
   <%- code('pms', 'Diese Spalten speichert die Seite zu jeder Privatnachricht.') %>
   <%- code('pmDelete', 'Verlauf löschen: erst für dich verstecken, und wenn beide gelöscht haben, endgültig weg.') %>
 </details>
@@ -162,7 +164,7 @@
 <h2 id="fragen">🗑 Löschen und Fragen</h2>
 <ul>
   <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
-  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Profilbild, Freundschaften und Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern). Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Freundebuch bleibt der Name am Eintrag. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Freundebuch der Seite bleibt der Name am Eintrag. Sag Bescheid, wenn auch die weg sollen.</li>
   <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
 </ul>
 <p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>

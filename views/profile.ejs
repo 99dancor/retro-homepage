@@ -43,7 +43,7 @@
   <fieldset class="groupbox"><legend>📊 Auf der Seite</legend>
     <table class="kv">
       <% if (boardOpen) { %><tr><td>Forenbeiträge</td><td class="num"><%= num(counts.posts) %></td></tr><tr><td>Forenthemen</td><td class="num"><%= num(counts.topics) %></td></tr><% } %>
-      <% if (guestbookEnabled) { %><tr><td>Freundebuch-Einträge</td><td class="num"><%= num(counts.guestbook) %></td></tr><% } %>
+      <% if (guestbookEnabled) { %><tr><td>Einträge im Freundebuch der Seite</td><td class="num"><%= num(counts.guestbook) %></td></tr><% } %>
       <tr><td>Hochgeladene Musik</td><td class="num"><%= num(counts.tracks) %></td></tr>
       <tr><td>Freunde</td><td class="num"><%= num(friends.length) %></td></tr>
     </table>
@@ -52,6 +52,30 @@
       <ul><% for (const r of recent) { %><li><a href="/forum/t/<%= r.topic_id %>#b<%= r.id %>"><%= r.title %></a> <small class="muted"><%= fmtDate(r.created_at, true) %></small></li><% } %></ul>
     <% } %>
   </fieldset>
+
+  <% if (guestbook) { %>
+  <fieldset class="groupbox" id="freundebuch"><legend>📖 Freundebuch (<%= guestbook.length %><%= guestbook.length === 50 ? '+' : '' %>)</legend>
+  <% if (canSign) { %>
+  <form method="post" action="<%= profileUrl(u.username) %>/freundebuch">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Schreib <%= me ? 'etwas in dein eigenes' : displayName(u) + ' etwas ins' %> Freundebuch:<textarea name="body" maxlength="<%= maxGb %>" required style="min-height:50px"></textarea></label>
+    <div class="actions"><button class="small">✍️ Eintragen</button></div>
+  </form>
+  <% } else if (!user) { %><p><small><a href="/login?next=<%= encodeURIComponent(profileUrl(u.username)) %>">Anmelden</a>, um dich einzutragen.</small></p>
+  <% } else if (!me) { %><p><small class="muted">🔒 Hier dürfen nur Freunde von <%= displayName(u) %> schreiben.</small></p><% } %>
+  <% if (!guestbook.length) { %><p class="muted">Noch keine Einträge.</p><% } %>
+  <% for (const e of guestbook) { %>
+    <div class="gb-entry" id="g<%= e.id %>">
+      <div class="head"><span class="who"><a href="<%= profileUrl(e.username) %>" class="userlink"><%- include('partials/avatar', { u: { id: e.author_id, username: e.username, display_name: e.display_name, avatar: e.avatar }, size: 24 }) %> <%= displayName(e) %></a></span>
+        <span><%= fmtDate(e.created_at, true) %>
+        <% if (user && (user.isAdmin || user.id === e.author_id || me)) { %>
+          <form method="post" action="<%= profileUrl(u.username) %>/freundebuch/<%= e.id %>/loeschen" class="inline" data-confirm="Eintrag löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger" title="Löschen">🗑</button></form>
+        <% } %></span></div>
+      <div class="panel text"><%= e.body %></div>
+    </div>
+  <% } %>
+  </fieldset>
+  <% } %>
 
   <fieldset class="groupbox"><legend>⭐ Freunde (<%= friends.length %>)</legend>
   <% if (!friends.length) { %><p class="muted">Noch keine Freunde.</p><% } else { %>

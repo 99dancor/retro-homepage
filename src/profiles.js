@@ -11,6 +11,7 @@ const displayName = u => (u && (u.display_name || u.username)) || 'Gelöschter N
 const profileUrl = username => '/nutzer/' + encodeURIComponent(username);
 const PROFILE_VIS = { public: 'Alle Besucher', members: 'Angemeldete Mitglieder', friends: 'Nur meine Freunde' };
 const PM_FROM = { all: 'Allen Mitgliedern', friends: 'Nur meinen Freunden' };
+const GB_FROM = { all: 'Allen Mitgliedern', friends: 'Nur meinen Freunden', off: 'Niemandem (Freundebuch aus)' };
 
 // Anzeigename: 2–32 Zeichen, Leerzeichen zusammengefasst, keine unsichtbaren Steuerzeichen.
 // '' heißt zurück zum Benutzernamen, null ist ungültig.
@@ -104,6 +105,28 @@ function canMessage(sender, target) {
   if (sender.isAdmin || target.pm_from !== 'friends') return true;
   if (friendship(sender.id, target.id) === 'friends') return true;
   return !!db.prepare('SELECT 1 FROM private_messages WHERE from_id = ? AND to_id = ?').get(target.id, sender.id);
+}
+
+// ---------- Freundebuch im Profil ----------
+const MAX_GB = 2000;
+function canSign(viewer, target) {
+  if (!viewer || !canViewProfile(viewer, target) || target.disabled || target.gb_from === 'off') return false;
+  if (viewer.isAdmin || viewer.id === target.id || target.gb_from !== 'friends') return true;
+  return friendship(viewer.id, target.id) === 'friends';
+}
+function guestbookOf(profileId, limit = 50) {
+  return db.prepare(`SELECT g.*, u.username, u.display_name, u.avatar FROM profile_guestbook g JOIN users u ON u.id = g.author_id
+                     WHERE g.profile_id = ? AND u.disabled = 0 ORDER BY g.created_at DESC, g.id DESC LIMIT ?`).all(profileId, limit);
+}
+function signGuestbook(profileId, authorId, body) {
+  return Number(db.prepare('INSERT INTO profile_guestbook(profile_id, author_id, body, created_at) VALUES (?, ?, ?, ?)').run(profileId, authorId, body, now()).lastInsertRowid);
+}
+// Löschen dürfen Verfasser, Profilinhaber und Admin
+function deleteGuestbookEntry(viewer, profileId, id) {
+  const e = db.prepare('SELECT * FROM profile_guestbook WHERE id = ? AND profile_id = ?').get(id, profileId);
+  if (!e || !viewer || !(viewer.isAdmin || viewer.id === e.author_id || viewer.id === e.profile_id)) return false;
+  db.prepare('DELETE FROM profile_guestbook WHERE id = ?').run(id);
+  return true;
 }
 
 // ---------- Privatnachrichten ----------
@@ -336,7 +359,7 @@ function removeAvatar(name) {
 }
 
 module.exports = {
-  displayName, profileUrl, PROFILE_VIS, PM_FROM, cleanDisplayName, nameTaken, findUser,
+  displayName, profileUrl, PROFILE_VIS, PM_FROM, GB_FROM, MAX_GB, canSign, guestbookOf, signGuestbook, deleteGuestbookEntry, cleanDisplayName, nameTaken, findUser,
   friendship, friendAction, FRIEND_MSG, friendsOf, requestsTo, requestsFrom, canViewProfile, canMessage,
   MAX_PM, unreadCount, conversations, thread, markRead, sendMessage, hideConversation,
   STARTS, recordStats, countStart, ownStats, gameStats,

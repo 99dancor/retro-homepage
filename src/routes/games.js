@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const express = require('express');
 const GAMES = require('../games');
+const profiles = require('../profiles');
 
 const router = express.Router();
 const attr = v => String(v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -25,6 +26,7 @@ for (const [slug, game] of Object.entries(GAMES)) {
     if (!res.locals.embed) return res.render('desktop', { title: game.title, src: req.originalUrl });
     fs.readFile(path.join(dir, 'index.html'), 'utf8', (err, html) => {
       if (err) return next(err);
+      profiles.countStart(req.user, slug);   // für die Spielstatistik im Profil
       const l = res.locals;
       const data = {
         class: 'embed',

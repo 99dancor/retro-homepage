@@ -8,6 +8,7 @@ const mail = require('../mail');
 const up = require('../uploads');
 const { slugify, safeUrl, asArray, visibilityFrom, mdBlocks } = require('../util');
 const GAMES = require('../games');
+const profiles = require('../profiles');
 const music = require('../music');
 const { deleteTrack } = require('./music');
 
@@ -345,6 +346,14 @@ router.post('/users/:id', (req, res) => {
       if (!isSelf) db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
     }
     if (b.disabled && !isSelf) db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
+    // Moderation: unpassende Profilangaben zurücksetzen
+    if (b.reset_name) db.prepare('UPDATE users SET display_name = NULL WHERE id = ?').run(id);
+    if (b.reset_about) db.prepare('UPDATE users SET about = NULL WHERE id = ?').run(id);
+    if (b.reset_avatar) {
+      const old = db.prepare('SELECT avatar FROM users WHERE id = ?').get(id);
+      if (old) profiles.removeAvatar(old.avatar);
+      db.prepare('UPDATE users SET avatar = NULL WHERE id = ?').run(id);
+    }
     db.prepare('DELETE FROM user_groups WHERE user_id = ?').run(id);
     const ins = db.prepare('INSERT OR IGNORE INTO user_groups(user_id, group_id) VALUES (?, ?)');
     for (const g of asArray(b.groups)) ins.run(id, Number(g));
@@ -354,11 +363,14 @@ router.post('/users/:id', (req, res) => {
 router.post('/users/:id/delete', (req, res) => {
   const id = Number(req.params.id);
   // Statistik hat keinen Fremdschlüssel: Verbindung lösen, sonst erbte ein neues Konto mit derselben Nummer die Einträge
+  // Freunde, Privatnachrichten und Spielstatistiken verschwinden über ihre Fremdschlüssel mit, das Profilbild hier
+  const old = db.prepare('SELECT avatar FROM users WHERE id = ?').get(id);
   if (id !== req.user.id) tx(() => {
     db.prepare('UPDATE pageviews SET user_id = NULL WHERE user_id = ?').run(id);
     db.prepare('UPDATE downloads SET user_id = NULL WHERE user_id = ?').run(id);
     db.prepare('DELETE FROM users WHERE id = ?').run(id);
   });
+  if (old && id !== req.user.id) profiles.removeAvatar(old.avatar);
   res.redirect('/admin/users');
 });
 router.post('/groups/create', (req, res) => {
@@ -456,7 +468,7 @@ router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, 
 // ---------- Einstellungen ----------
 const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days', 'music_quota_mb'];
 const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure', 'lobby_enabled', 'youtube_enabled'];
-const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Spiele & Apps', haustier: 'Mein Haustier', musik: 'Musik', zufall: 'Zufallsgenerator', board: 'Forum', guestbook: 'Freundebuch', contact: 'Kontakt' };
+const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Spiele & Apps', haustier: 'Mein Haustier', musik: 'Musik', zufall: 'Zufallsgenerator', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Freundebuch', contact: 'Kontakt' };
 router.get('/settings', (req, res) => {
   const s = Object.fromEntries([...SETTING_KEYS, ...SETTING_FLAGS, 'nav_hidden', 'music_upload'].map(k => [k, getSetting(k, '')]));
   s.smtp_pass_set = !!getSetting('smtp_pass');

@@ -13,7 +13,8 @@ require('./privileges').dropPrivileges(DATA_DIR, [UPLOAD_DIR, IMPORT_DIR]);
 const MEDIA_DIR = path.join(DATA_DIR, 'media');
 const APPS_DIR = path.join(DATA_DIR, 'apps');
 const MUSIC_DIR = path.join(DATA_DIR, 'musik');
-for (const d of [UPLOAD_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR]) fs.mkdirSync(d, { recursive: true });
+const AVATAR_DIR = path.join(DATA_DIR, 'avatare');
+for (const d of [UPLOAD_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR, AVATAR_DIR]) fs.mkdirSync(d, { recursive: true });
 fs.mkdirSync(IMPORT_DIR, { recursive: true });
 try { fs.chmodSync(IMPORT_DIR, 0o777); } catch { /* Netzwerkfreigabe darf hineinkopieren */ }
 
@@ -29,7 +30,13 @@ CREATE TABLE IF NOT EXISTS users (
   disabled INTEGER NOT NULL DEFAULT 0,
   can_upload INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
-  last_login INTEGER
+  last_login INTEGER,
+  display_name TEXT,                          -- Anzeigename, sonst gilt der Benutzername
+  avatar TEXT,                                -- Profilbild unter data/avatare
+  about TEXT,                                 -- „Über mich“ im Profil
+  profile_visibility TEXT NOT NULL DEFAULT 'members',  -- public | members | friends
+  pm_from TEXT NOT NULL DEFAULT 'all',        -- Privatnachrichten von: all (allen Mitgliedern) | friends
+  gb_from TEXT NOT NULL DEFAULT 'all'         -- Einträge ins Freundebuch im Profil von: all | friends | off
 );
 CREATE TABLE IF NOT EXISTS groups (
   id INTEGER PRIMARY KEY,
@@ -245,6 +252,46 @@ CREATE TABLE IF NOT EXISTS playlist_tracks (
   track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
   PRIMARY KEY (playlist_id, position)
 );
+-- Freunde: eine Zeile pro Paar, user_id hat die Anfrage geschickt
+CREATE TABLE IF NOT EXISTS friends (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  friend_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  accepted INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, friend_id)
+);
+-- Privatnachrichten zwischen zwei Mitgliedern. Löschen beide den Verlauf, verschwindet die Nachricht ganz.
+CREATE TABLE IF NOT EXISTS private_messages (
+  id INTEGER PRIMARY KEY,
+  from_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  to_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  read_at INTEGER,
+  hidden_from INTEGER NOT NULL DEFAULT 0,   -- Absender hat den Verlauf gelöscht
+  hidden_to INTEGER NOT NULL DEFAULT 0      -- Empfänger hat den Verlauf gelöscht
+);
+-- Freundebuch im Profil: Mitglieder schreiben einem anderen Mitglied etwas auf sein Profil
+CREATE TABLE IF NOT EXISTS profile_guestbook (
+  id INTEGER PRIMARY KEY,
+  profile_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  author_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+-- Spielstatistiken im Profil: pro Konto, Spiel und Wert eine Zahl (z. B. Siege, Höchstpunktzahl)
+CREATE TABLE IF NOT EXISTS game_stats (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  app_slug TEXT NOT NULL,
+  key TEXT NOT NULL,
+  value REAL NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, app_slug, key)
+);
+CREATE INDEX IF NOT EXISTS pg_profile ON profile_guestbook(profile_id, created_at);
+CREATE INDEX IF NOT EXISTS fr_friend ON friends(friend_id);
+CREATE INDEX IF NOT EXISTS pm_to ON private_messages(to_id, read_at);
+CREATE INDEX IF NOT EXISTS pm_pair ON private_messages(from_id, to_id, created_at);
 CREATE INDEX IF NOT EXISTS bp_topic ON board_posts(topic_id, created_at);
 CREATE INDEX IF NOT EXISTS bt_order ON board_topics(pinned, last_post_at);
 CREATE INDEX IF NOT EXISTS dl_day ON downloads(day);
@@ -261,6 +308,12 @@ function addColumn(table, column, def) {
 addColumn('media', 'uploader_id', 'INTEGER REFERENCES users(id) ON DELETE SET NULL');
 addColumn('board_topics', 'anonymous', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('board_posts', 'anonymous', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('users', 'display_name', 'TEXT');
+addColumn('users', 'avatar', 'TEXT');
+addColumn('users', 'about', 'TEXT');
+addColumn('users', 'profile_visibility', "TEXT NOT NULL DEFAULT 'members'");
+addColumn('users', 'pm_from', "TEXT NOT NULL DEFAULT 'all'");
+addColumn('users', 'gb_from', "TEXT NOT NULL DEFAULT 'all'");
 
 function now() { return Math.floor(Date.now() / 1000); }
 
@@ -323,4 +376,4 @@ function tx(fn) {
   catch (e) { db.exec('ROLLBACK'); throw e; }
 }
 
-module.exports = { db, now, getSetting, setSetting, tx, DATA_DIR, UPLOAD_DIR, IMPORT_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR };
+module.exports = { db, now, getSetting, setSetting, tx, DATA_DIR, UPLOAD_DIR, IMPORT_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR, AVATAR_DIR };

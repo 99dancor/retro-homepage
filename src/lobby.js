@@ -16,8 +16,8 @@ function create(user, { name, hidden, open }) {
   if (lobbies.size >= MAX_LOBBIES) return null;
   const id = crypto.randomBytes(5).toString('hex');
   const l = {
-    id, name: String(name || '').trim().slice(0, 60) || `Lobby von ${user.username}`,
-    hostId: user.id, hostName: user.username, hidden: !!hidden, open: open !== false,
+    id, name: String(name || '').trim().slice(0, 60) || `Lobby von ${user.name}`,
+    hostId: user.id, hostName: user.name, hidden: !!hidden, open: open !== false,
     queue: [], index: -1, playing: false, startedAt: 0, pausedPos: 0,
     clients: new Set(), emptySince: Date.now(), timer: null, version: 0,
     rights: new Map(),   // Player-Rechte einzelner Zuhörer (Konto-ID -> true/false), sonst gilt „open“
@@ -36,7 +36,7 @@ const canControl = (l, user) => isHost(l, user) || (!!user && (l.rights.has(user
 function listeners(l) {
   const users = new Map();
   for (const c of l.clients) users.set(c.user.id, c.user);
-  return [...users.values()].map(u => ({ id: u.id, name: u.username, host: u.id === l.hostId, control: canControl(l, u) }))
+  return [...users.values()].map(u => ({ id: u.id, name: u.name, user: u.username, host: u.id === l.hostId, control: canControl(l, u) }))
     .sort((a, b) => b.host - a.host || a.name.localeCompare(b.name, 'de'));
 }
 
@@ -93,7 +93,7 @@ function advance(l, step) {
 
 function addItems(l, items, user) {
   const room = MAX_QUEUE - l.queue.length;
-  const added = items.slice(0, Math.max(0, room)).map(it => ({ ...it, key: crypto.randomBytes(4).toString('hex'), by: user.username }));
+  const added = items.slice(0, Math.max(0, room)).map(it => ({ ...it, key: crypto.randomBytes(4).toString('hex'), by: user.name, byUser: user.username }));
   l.queue.push(...added);
   // Lief nichts mehr (leer oder am Ende), startet das erste neue Lied sofort
   if (added.length && (l.index < 0 || l.index >= l.queue.length - added.length) && !l.playing) playAt(l, l.queue.length - added.length);

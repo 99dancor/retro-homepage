@@ -1,6 +1,6 @@
 <div class="startmenu" id="startmenu" data-title="<%= site.title %>">
   <a href="/">🏠 Startseite</a>
-  <% const entries = [['blog','/blog','📝 Blog'],['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['apps','/apps','🎮 Spiele & Apps'],['haustier','/haustier/','🐾 Mein Haustier'],['musik','/musik','🎵 Musik'],['zufall','/zufall','🎲 Zufallsgenerator'],['board','/forum','💬 Forum'],['guestbook','/guestbook','📖 Freundebuch'],['contact','/contact','✉️ Kontakt']]; %>
+  <% const entries = [['blog','/blog','📝 Blog'],['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['apps','/apps','🎮 Spiele & Apps'],['haustier','/haustier/','🐾 Mein Haustier'],['musik','/musik','🎵 Musik'],['zufall','/zufall','🎲 Zufallsgenerator'],['board','/forum','💬 Forum'],['nutzer','/nutzer','👥 Mitglieder'],['guestbook','/guestbook','📖 Freundebuch'],['contact','/contact','✉️ Kontakt']]; %>
   <% for (const [key, href, label] of entries) {
        if (navHidden.includes(key)) continue;
        if (key === 'guestbook' && !guestbookEnabled) continue;
@@ -14,10 +14,12 @@
   <a href="/datenschutz">🔒 Datenschutz</a>
   <% if (user) { %>
     <% if (user.canUpload) { %><a href="/files/upload">📤 Datei hochladen</a><% } %>
+    <a href="<%= profileUrl(user.username) %>">👤 Mein Profil</a>
+    <a href="/nachrichten" id="pm-menu">💌 Nachrichten<% if (unreadPm) { %> (<%= unreadPm %>)<% } %></a>
     <a href="/account">🔑 Mein Konto</a>
     <% if (user.isAdmin) { %><a href="/admin">⚙️ Systemsteuerung</a><% } %>
     <hr>
-    <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="menu-item">🚪 <%= user.username %> abmelden…</button></form>
+    <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="menu-item">🚪 <%= user.name %> abmelden…</button></form>
   <% } else { %>
     <hr>
     <a href="/login">🔑 Anmelden…</a>
@@ -28,6 +30,7 @@
   <button class="start" id="startbtn" aria-expanded="false" aria-controls="startmenu">🪟 Start</button>
   <div class="tasks" id="tasks"><% if (typeof shellTask !== 'undefined') { %><span class="task"><%= shellTask %></span><% } %></div>
   <div class="tray">
+    <% if (user) { %><a class="tray-btn pm-tray" id="pmtray" href="/nachrichten" title="<%= unreadPm ? unreadPm + ' ungelesene Nachrichten' : 'Nachrichten' %>"<%= unreadPm ? '' : ' hidden' %>>💌<span class="pm-count"><%= unreadPm %></span></a><% } %>
     <button type="button" class="tray-btn" id="displaybtn" title="Darstellung anpassen" aria-label="Darstellung anpassen" aria-expanded="false" aria-controls="displaypanel">🖥️</button>
     <button type="button" class="tray-btn" id="volumebtn" title="Lautstärke" aria-label="Lautstärke" aria-expanded="false" aria-controls="volumepanel">🔊</button>
     <span id="clock"></span>

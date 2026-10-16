@@ -169,6 +169,13 @@ Danach „Test-E-Mail senden“.
   - `GET /api/saves/<app>/<platz>`: `{ "data": "…" }`, `404` wenn leer
   - `PUT /api/saves/<app>/<platz>` mit JSON `{ "data": "…" }` (höchstens 5 MB, 20 Plätze je Spiel)
   - `DELETE /api/saves/<app>/<platz>`
+- **Spielstatistik im Profil:** Mit Konto zählt die Seite selbst, wie oft ein Spiel gestartet wurde.
+  Weitere Zahlen meldet das Spiel; sie erscheinen im Profil unter „Spielstatistik“:
+  - `GET /api/stats/<app>`: `{ "stats": { "Siege": 3, … } }`, ohne Login `401`
+  - `PATCH /api/stats/<app>` mit JSON, z. B. `{ "add": { "Siege": 1 }, "max": { "Höchster Gewinn": 250 } }`.
+    `add` zählt hoch, `max`/`min` behalten den größten/kleinsten Wert, `set` überschreibt.
+    Namen: bis 40 Zeichen (Buchstaben, Zahlen, Leerzeichen, `_ . : ' ( ) -`), höchstens 50 je Spiel;
+    „Gestartet“ ist der Zähler der Seite.
 - **Alles mit eigenem Server** (z. B. Mehrspieler-Quiz mit WebSockets): als eigenen Docker-Container
   auf Unraid laufen lassen, in NPM eine Subdomain anlegen (z. B. `quiz.deine-domain.de`,
   Websockets an) und die Adresse bei der App unter „Externer Dienst“ eintragen. Die App erscheint

@@ -24,7 +24,7 @@ const SNIPPETS = {
   displaySave: ['public/display.js', 'function save(p, img)', 7],
   editor: ['public/editor.js', "var MODE_KEY = 'editor-mode'", 1],
   pet: ['games/haustier/src/js/storage.js', "const PREFIX = 'haustier:v1:'", 7],
-  users: ['src/db.js', 'CREATE TABLE IF NOT EXISTS users (', 10],
+  users: ['src/db.js', 'CREATE TABLE IF NOT EXISTS users (', 16],
   password: ['src/auth.js', 'function hashPassword(pw)', 1],
   guestbook: ['src/routes/public.js', 'const userId = req.user && !anonymous', 6],
   byline: ['src/routes/board.js', 'function byline(viewer, name, anonymous, userId)', 5],
@@ -39,6 +39,15 @@ const SNIPPETS = {
   plays: ['src/routes/music.js', "db.prepare('UPDATE tracks SET plays = plays + 1", 1],
   lobbyState: ['src/lobby.js', 'function state(l) {', 7],
   oembed: ['src/youtube.js', 'async function oembed(id) {', 4],
+  profileVis: ['src/profiles.js', 'function canViewProfile(viewer, target)', 7],
+  profileCounts: ['src/routes/profiles.js', '// Anonyme Beiträge zählen nicht mit', 5],
+  avatarStrip: ['src/profiles.js', '// APP1 (EXIF, XMP), APP13 (IPTC) und Kommentare fallen weg', 3],
+  friends: ['src/db.js', 'CREATE TABLE IF NOT EXISTS friends (', 7],
+  pms: ['src/db.js', 'CREATE TABLE IF NOT EXISTS private_messages (', 10],
+  pmDelete: ['src/profiles.js', 'function hideConversation(meId, otherId)', 7],
+  profileGuestbook: ['src/db.js', 'CREATE TABLE IF NOT EXISTS profile_guestbook (', 7],
+  gameStats: ['src/db.js', 'CREATE TABLE IF NOT EXISTS game_stats (', 8],
+  countStart: ['src/profiles.js', 'function countStart(user, app)', 5],
 };
 
 let cache = null;

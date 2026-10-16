@@ -1,8 +1,34 @@
 <%- include('partials/head') %>
 <h1>🔑 Mein Konto</h1>
-<p>Angemeldet als <b><%= user.username %></b><%= user.isAdmin ? ' (Admin)' : '' %>.</p>
+<p>Angemeldet als <b><%= user.username %></b><%= user.isAdmin ? ' (Admin)' : '' %>. <a href="<%= profileUrl(user.username) %>">👤 Mein Profil ansehen</a></p>
 <% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
 <% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+<fieldset class="groupbox" id="profil"><legend>Profil</legend>
+<div class="avatar-edit">
+  <%- include('partials/avatar', { u: profile, size: 64 }) %>
+  <form method="post" action="/account/avatar" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Profilbild (PNG, JPEG, GIF oder WebP, höchstens 2 MB):<input type="file" name="avatar" accept="image/png,image/jpeg,image/gif,image/webp" required></label>
+    <div class="actions"><button class="small">📷 Hochladen</button><% if (profile.avatar) { %><button class="small danger" form="avatar-del">Entfernen</button><% } %></div>
+  </form>
+</div>
+<% if (profile.avatar) { %><form method="post" action="/account/avatar/loeschen" id="avatar-del" data-confirm="Profilbild entfernen?"><input type="hidden" name="_csrf" value="<%= csrf %>"></form><% } %>
+<p><small class="muted">Versteckte Angaben im Bild wie Aufnahmeort oder Kamera entfernt die Seite beim Hochladen.</small></p>
+<form method="post" action="/account/profil">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label>Anzeigename (so sehen dich andere; leer = <%= user.username %>):
+    <input type="text" name="display_name" maxlength="32" value="<%= profile.display_name || '' %>" placeholder="<%= user.username %>"></label>
+  <label>Über mich:<textarea name="about" maxlength="1000" style="min-height:60px"><%= profile.about || '' %></textarea></label>
+  <label>Wer darf mein Profil sehen?
+    <select name="profile_visibility"><% for (const [k, v] of Object.entries(profileVis)) { %><option value="<%= k %>"<%= profile.profile_visibility === k ? ' selected' : '' %>><%= v %></option><% } %></select></label>
+  <label>Privatnachrichten von:
+    <select name="pm_from"><% for (const [k, v] of Object.entries(pmFrom)) { %><option value="<%= k %>"<%= profile.pm_from === k ? ' selected' : '' %>><%= v %></option><% } %></select></label>
+  <label>Einträge in mein Freundebuch im Profil von:
+    <select name="gb_from"><% for (const [k, v] of Object.entries(gbFrom)) { %><option value="<%= k %>"<%= profile.gb_from === k ? ' selected' : '' %>><%= v %></option><% } %></select></label>
+  <p><small class="muted">Name und Profilbild stehen immer an deinen Beiträgen und in Lobbys. Mit dem Benutzernamen meldest du dich weiter an.</small></p>
+  <div class="actions"><button>💾 Speichern</button></div>
+</form>
+</fieldset>
 <fieldset class="groupbox"><legend>Passwort ändern</legend>
 <form method="post" action="/account">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
@@ -32,5 +58,6 @@
   <% } %>
 </table>
 <% } %>
+<p><small class="muted">Spielstatistiken stehen in deinem <a href="<%= profileUrl(user.username) %>">Profil</a>.</small></p>
 </fieldset>
 <%- include('partials/foot') %>

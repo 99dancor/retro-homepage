@@ -69,6 +69,10 @@
       if (first) first.focus();
     });
   }
+  // Profile öffnen sich als eigenes Fenster auf dem Desktop: retro.js fängt Klicks auf Links ab
+  function profileUrl(name) { return '/nutzer/' + encodeURIComponent(name); }
+  function userLink(name, user) { return user ? '<a href="' + profileUrl(user) + '">' + esc(name || user) + '</a>' : esc(name || ''); }
+  function openPage(url) { var a = document.createElement('a'); a.href = url; document.body.appendChild(a); a.click(); a.remove(); }
   function field(name) { var el = dlg.querySelector('[name=' + name + ']'); return el ? (el.type === 'checkbox' ? el.checked : el.value) : null; }
   function confirmBox(title, text, yes) {
     return dialog(title, '<p>' + text + '</p>', [{ label: yes, value: 'ok', danger: true }, { label: 'Abbrechen', value: 'cancel' }]).then(function (r) { return r === 'ok'; });
@@ -230,7 +234,7 @@
         '<td><button type="button" class="mp-track" data-act="play-track">' + esc(t.title) + '</button>' +
         (t.visibility !== 'public' ? ' <small title="' + VIS_LABEL[t.visibility] + '">' + (t.visibility === 'private' ? '🔒' : '👥') + '</small>' : '') + '</td>' +
         '<td>' + esc(t.artist) + '</td><td class="num">' + (t.duration ? fmt(t.duration) : '') + '</td>' +
-        '<td class="mp-by">' + (t.byAdmin ? '' : esc(t.by || '')) + '</td><td class="mp-acts">' + acts + '</td></tr>';
+        '<td class="mp-by">' + (t.byAdmin ? '' : userLink(t.by, t.byUser)) + '</td><td class="mp-acts">' + acts + '</td></tr>';
     }).join('');
     list.innerHTML = '<table class="list mp-table"><thead><tr><th class="num">#</th><th>Titel</th><th>Interpret</th><th class="num">Länge</th><th>Von</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
   }
@@ -700,7 +704,7 @@
         var now = i === s.index;
         return '<tr data-key="' + esc(q.key) + '" class="' + (now ? 'playing' : i < s.index ? 'done' : '') + '"><td class="num">' + (now ? (s.playing ? '🔊' : '⏸') : i + 1) + '</td>' +
           '<td><button type="button" class="mp-track" data-act="jump"' + (ctl ? '' : ' disabled') + '>' + esc(q.title) + '</button>' + (q.type === 'yt' ? ' <small class="mp-ytbadge">YouTube</small>' : '') + '</td>' +
-          '<td>' + esc(q.artist) + '</td><td class="num">' + (q.duration ? fmt(q.duration) : '') + '</td><td class="mp-by">' + esc(q.by) + '</td><td class="mp-acts">' +
+          '<td>' + esc(q.artist) + '</td><td class="num">' + (q.duration ? fmt(q.duration) : '') + '</td><td class="mp-by">' + userLink(q.by, q.byUser) + '</td><td class="mp-acts">' +
           (ctl ? '<button type="button" class="small" data-act="up" title="Nach oben">▲</button><button type="button" class="small" data-act="down" title="Nach unten">▼</button><button type="button" class="small" data-act="remove" title="Entfernen">✕</button>' : '') +
           '</td></tr>';
       }).join('') + '</tbody></table>';
@@ -724,11 +728,13 @@
     var s = lob.state, u = s.listeners.filter(function (x) { return x.id === id; })[0];
     if (!u) return;
     var acts = [];
-    if (lib.me && lib.me.admin) acts.push({ label: '👤 Konto öffnen', value: 'account' });
+    if (u.user) acts.push({ label: '👤 Profil ansehen', value: 'profile' });
+    if (lib.me && lib.me.admin) acts.push({ label: '⚙️ In der Systemsteuerung', value: 'account' });
     if (lobbyIsHost() && !u.host) acts.push(u.control ? { label: '🚫 Player-Rechte entziehen', value: 'revoke' } : { label: '🎶 Player-Rechte geben', value: 'grant' });
     acts.push({ label: 'Schließen', value: 'cancel' });
     dialog('👤 ' + u.name, '<p>' + (u.host ? '👑 Gastgeber dieser Lobby.' : u.control ? '🎶 Darf den Player steuern und Lieder hinzufügen.' : '🎧 Hört nur zu.') + '</p>', acts).then(function (r) {
-      if (r === 'account') window.open('/admin/users/' + u.id, '_blank');
+      if (r === 'profile') openPage(profileUrl(u.user));
+      else if (r === 'account') window.open('/admin/users/' + u.id, '_blank');
       else if (r === 'grant' || r === 'revoke') lobbyCtl('rights', { user: u.id, allow: r === 'grant' });
     });
   }

@@ -37,12 +37,13 @@ function loadUser(req, res, next) {
   req.user = null;
   const sid = req.cookies.sid;
   if (sid) {
-    const u = db.prepare(`SELECT u.id, u.username, u.role, u.disabled, u.can_upload FROM sessions s JOIN users u ON u.id = s.user_id
+    const u = db.prepare(`SELECT u.id, u.username, u.display_name, u.avatar, u.role, u.disabled, u.can_upload FROM sessions s JOIN users u ON u.id = s.user_id
                           WHERE s.id = ? AND s.expires > ?`).get(sid, now());
     if (u && !u.disabled) {
       u.groups = db.prepare('SELECT group_id FROM user_groups WHERE user_id = ?').all(u.id).map(r => r.group_id);
       u.isAdmin = u.role === 'admin';
       u.canUpload = u.isAdmin || !!u.can_upload;
+      u.name = u.display_name || u.username;
       req.user = u;
     }
   }

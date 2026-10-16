@@ -39,7 +39,7 @@ router.get('/', (req, res) => {
 function trackRow(t, user) {
   return {
     id: t.id, title: t.title, artist: t.artist || '', album: t.album || '', duration: t.duration || 0, plays: t.plays,
-    visibility: t.visibility, by: t.username || null, byAdmin: t.role === 'admin',
+    visibility: t.visibility, by: t.username ? t.display_name || t.username : null, byUser: t.username || null, byAdmin: t.role === 'admin',
     mine: !!user && t.uploader_id === user.id,
     canEdit: !!user && (user.isAdmin || t.uploader_id === user.id),
     // In Lobbys hören nur angemeldete Mitglieder: dafür muss der Titel für alle Mitglieder sichtbar sein
@@ -50,21 +50,21 @@ function trackRow(t, user) {
 router.get('/bibliothek', (req, res) => {
   const u = req.user;
   const tv = auth.visibilitySql(u, 'track', 't');
-  const tracks = db.prepare(`SELECT t.*, us.username, us.role FROM tracks t LEFT JOIN users us ON us.id = t.uploader_id
+  const tracks = db.prepare(`SELECT t.*, us.username, us.display_name, us.role FROM tracks t LEFT JOIN users us ON us.id = t.uploader_id
                              WHERE ${tv.sql} ORDER BY t.artist COLLATE NOCASE, t.title COLLATE NOCASE`).all(...tv.params).map(t => trackRow(t, u));
   const visible = new Set(tracks.map(t => t.id));
   let playlists = [];
   if (u) {
     const pv = auth.visibilitySql(u, 'playlist', 'p');
-    playlists = db.prepare(`SELECT p.*, us.username FROM playlists p JOIN users us ON us.id = p.user_id WHERE ${pv.sql}
+    playlists = db.prepare(`SELECT p.*, us.username, us.display_name FROM playlists p JOIN users us ON us.id = p.user_id WHERE ${pv.sql}
                             ORDER BY p.user_id != ?, p.title COLLATE NOCASE`).all(...pv.params, u.id).map(p => ({
-      id: p.id, title: p.title, visibility: p.visibility, owner: p.username, mine: p.user_id === u.id,
+      id: p.id, title: p.title, visibility: p.visibility, owner: p.display_name || p.username, ownerUser: p.username, mine: p.user_id === u.id,
       tracks: db.prepare('SELECT track_id FROM playlist_tracks WHERE playlist_id = ? ORDER BY position').all(p.id).map(r => r.track_id).filter(id => visible.has(id)),
     }));
   }
   const canUpload = music.canUpload(u);
   res.json({
-    me: u ? { id: u.id, name: u.username, admin: u.isAdmin } : null,
+    me: u ? { id: u.id, name: u.name, admin: u.isAdmin } : null,
     canUpload,
     quota: canUpload && !u.isAdmin ? { used: music.usedBytes(u.id), total: music.quotaBytes() } : null,
     tracks, playlists,
@@ -114,7 +114,7 @@ router.post('/hochladen', needLogin, pickUpload, auth.csrfCheck, (req, res) => {
                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
     str(b.title) || tags.title || guess.title || f.originalname, str(b.artist) || tags.artist || guess.artist || null, tags.album || null,
     duration, f.originalname, f.filename, f.size, f.mimetype, ownVis(b.visibility, u.isAdmin ? 'public' : 'members'), u.id, now()).lastInsertRowid);
-  const t = db.prepare('SELECT t.*, us.username, us.role FROM tracks t LEFT JOIN users us ON us.id = t.uploader_id WHERE t.id = ?').get(id);
+  const t = db.prepare('SELECT t.*, us.username, us.display_name, us.role FROM tracks t LEFT JOIN users us ON us.id = t.uploader_id WHERE t.id = ?').get(id);
   res.json({ track: trackRow(t, u) });
 });
 

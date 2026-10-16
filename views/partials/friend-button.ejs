@@ -1,0 +1,10 @@
+<%# Knöpfe für Freundschaft. Parameter: target (Konto), relation (aus profiles.friendship), back (Rücksprung) %>
+<% if (user && relation !== 'self') { %>
+<form method="post" action="<%= profileUrl(target.username) %>/freund" class="inline"<% if (relation === 'friends') { %> data-confirm="<%= displayName(target) %> aus deinen Freunden entfernen?"<% } %>>
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= back %>">
+  <% if (relation === 'none') { %><button class="small" name="action" value="add">➕ Als Freund hinzufügen</button>
+  <% } else if (relation === 'sent') { %><button class="small" name="action" value="cancel">⏳ Anfrage zurückziehen</button>
+  <% } else if (relation === 'received') { %><button class="small" name="action" value="accept">✔ Annehmen</button> <button class="small" name="action" value="decline">✖ Ablehnen</button>
+  <% } else if (relation === 'friends') { %><button class="small" name="action" value="remove">💔 Freund entfernen</button><% } %>
+</form>
+<% } %>

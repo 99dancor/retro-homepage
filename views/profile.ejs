@@ -1,0 +1,87 @@
+<%- include('partials/head') %>
+<% const me = user && user.id === u.id; const num = v => Number(v).toLocaleString('de-DE', { maximumFractionDigits: 2 }); %>
+<% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+<div class="profile-head">
+  <%- include('partials/avatar', { u, size: 96 }) %>
+  <div>
+    <h1><%= displayName(u) %></h1>
+    <p><small class="muted">@<%= u.username %></small>
+      <% if (u.role === 'admin') { %> <span class="badge gray">Admin</span><% } %>
+      <% if (relation === 'friends') { %> <span class="badge">⭐ Freund</span><% } %>
+      <% if (u.disabled) { %> <span class="badge gray">gesperrt</span><% } %></p>
+    <% if (visible) { %><p><small>Mitglied seit <%= fmtDate(u.created_at) %></small></p><% } %>
+    <div class="actions">
+      <% if (me) { %><a class="btn small" href="/account#profil">✏️ Profil bearbeiten</a>
+      <% } else if (user) { %>
+        <% if (canMessage) { %><a class="btn small" href="/nachrichten/<%= encodeURIComponent(u.username) %>">💌 Nachricht schreiben</a><% } %>
+        <%- include('partials/friend-button', { target: u, relation, back: profileUrl(u.username) }) %>
+        <% if (user.isAdmin) { %><a class="btn small" href="/admin/users/<%= u.id %>">⚙️ In der Systemsteuerung</a><% } %>
+      <% } else { %><small><a href="/login?next=<%= encodeURIComponent(profileUrl(u.username)) %>">Anmelden</a>, um Freunde hinzuzufügen und Nachrichten zu schreiben.</small><% } %>
+    </div>
+  </div>
+</div>
+<% if (!visible) { %>
+  <div class="msg">🔒 <%= u.profile_visibility === 'friends' ? 'Dieses Profil sehen nur Freunde von ' + displayName(u) + '.' : 'Dieses Profil sehen nur angemeldete Mitglieder.' %></div>
+<% } else { %>
+  <% if (me && u.profile_visibility !== 'public') { %><p><small class="muted">🔒 Sichtbar für: <%= u.profile_visibility === 'friends' ? 'nur deine Freunde' : 'angemeldete Mitglieder' %> (änderbar unter <a href="/account#profil">Mein Konto</a>)</small></p><% } %>
+  <% if (u.about) { %><fieldset class="groupbox"><legend>Über mich</legend><p class="about"><%= u.about %></p></fieldset><% } %>
+
+  <fieldset class="groupbox"><legend>🎮 Spielstatistik</legend>
+  <% if (!games.length) { %><p class="muted"><%= me ? 'Noch nichts gespielt. Mit Konto zählen' : 'Noch keine Spiele. Mit Konto zählen' %> <a href="/apps">Spiele &amp; Apps</a><% if (!navHidden.includes('haustier')) { %> und <a href="/haustier/">Mein Haustier</a><% } %> hier mit.</p>
+  <% } else { %>
+    <div class="game-stats">
+    <% for (const g of games) { %>
+      <div class="panel game-card">
+        <div class="game-title"><a href="<%= g.url %>"><b><%= g.title %></b></a><small class="muted">zuletzt <%= fmtDate(g.last) %></small></div>
+        <table class="kv"><% for (const s of g.stats) { %><tr><td><%= s.key %></td><td class="num"><%= num(s.value) %></td></tr><% } %></table>
+      </div>
+    <% } %>
+    </div>
+  <% } %>
+  </fieldset>
+
+  <fieldset class="groupbox"><legend>📊 Auf der Seite</legend>
+    <table class="kv">
+      <% if (boardOpen) { %><tr><td>Forenbeiträge</td><td class="num"><%= num(counts.posts) %></td></tr><tr><td>Forenthemen</td><td class="num"><%= num(counts.topics) %></td></tr><% } %>
+      <% if (guestbookEnabled) { %><tr><td>Einträge im Freundebuch der Seite</td><td class="num"><%= num(counts.guestbook) %></td></tr><% } %>
+      <tr><td>Hochgeladene Musik</td><td class="num"><%= num(counts.tracks) %></td></tr>
+      <tr><td>Freunde</td><td class="num"><%= num(friends.length) %></td></tr>
+    </table>
+    <% if (recent.length) { %>
+      <p><b>Zuletzt im Forum:</b></p>
+      <ul><% for (const r of recent) { %><li><a href="/forum/t/<%= r.topic_id %>#b<%= r.id %>"><%= r.title %></a> <small class="muted"><%= fmtDate(r.created_at, true) %></small></li><% } %></ul>
+    <% } %>
+  </fieldset>
+
+  <% if (guestbook) { %>
+  <fieldset class="groupbox" id="freundebuch"><legend>📖 Freundebuch (<%= guestbook.length %><%= guestbook.length === 50 ? '+' : '' %>)</legend>
+  <% if (canSign) { %>
+  <form method="post" action="<%= profileUrl(u.username) %>/freundebuch">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Schreib <%= me ? 'etwas in dein eigenes' : displayName(u) + ' etwas ins' %> Freundebuch:<textarea name="body" maxlength="<%= maxGb %>" required style="min-height:50px"></textarea></label>
+    <div class="actions"><button class="small">✍️ Eintragen</button></div>
+  </form>
+  <% } else if (!user) { %><p><small><a href="/login?next=<%= encodeURIComponent(profileUrl(u.username)) %>">Anmelden</a>, um dich einzutragen.</small></p>
+  <% } else if (!me) { %><p><small class="muted">🔒 Hier dürfen nur Freunde von <%= displayName(u) %> schreiben.</small></p><% } %>
+  <% if (!guestbook.length) { %><p class="muted">Noch keine Einträge.</p><% } %>
+  <% for (const e of guestbook) { %>
+    <div class="gb-entry" id="g<%= e.id %>">
+      <div class="head"><span class="who"><a href="<%= profileUrl(e.username) %>" class="userlink"><%- include('partials/avatar', { u: { id: e.author_id, username: e.username, display_name: e.display_name, avatar: e.avatar }, size: 24 }) %> <%= displayName(e) %></a></span>
+        <span><%= fmtDate(e.created_at, true) %>
+        <% if (user && (user.isAdmin || user.id === e.author_id || me)) { %>
+          <form method="post" action="<%= profileUrl(u.username) %>/freundebuch/<%= e.id %>/loeschen" class="inline" data-confirm="Eintrag löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger" title="Löschen">🗑</button></form>
+        <% } %></span></div>
+      <div class="panel text"><%= e.body %></div>
+    </div>
+  <% } %>
+  </fieldset>
+  <% } %>
+
+  <fieldset class="groupbox"><legend>⭐ Freunde (<%= friends.length %>)</legend>
+  <% if (!friends.length) { %><p class="muted">Noch keine Freunde.</p><% } else { %>
+    <ul class="people grid"><% for (const f of friends) { %><li><a href="<%= profileUrl(f.username) %>"><%- include('partials/avatar', { u: f, size: 32 }) %> <%= displayName(f) %></a></li><% } %></ul>
+  <% } %>
+  </fieldset>
+<% } %>
+<p><a href="/nutzer">« Alle Mitglieder</a></p>
+<%- include('partials/foot') %>

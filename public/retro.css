@@ -413,6 +413,8 @@ button.mp-nav.active { background: var(--title-from); color: #fff; }
 .mp-consent label.inline { color: #fff; margin-left: 8px; }
 .mp-head { display: flex; flex-direction: column; gap: 3px; }
 .mp-title small { opacity: .75; }
+.mp-users { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin: 2px 0 4px; font-size: 12px; }
+.mp-user.me { font-weight: bold; }
 .mp-tools { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .mp-tools input[type=search], .mp-tools input[type=text] { flex: 0 1 220px; min-width: 120px; }
 .mp-tools input.mp-yt-url { flex: 1 1 260px; }

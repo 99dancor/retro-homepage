@@ -20,6 +20,7 @@ function create(user, { name, hidden, open }) {
     hostId: user.id, hostName: user.username, hidden: !!hidden, open: open !== false,
     queue: [], index: -1, playing: false, startedAt: 0, pausedPos: 0,
     clients: new Set(), emptySince: Date.now(), timer: null, version: 0,
+    rights: new Map(),   // Player-Rechte einzelner Zuhörer (Konto-ID -> true/false), sonst gilt „open“
   };
   lobbies.set(id, l);
   return l;
@@ -28,12 +29,15 @@ function create(user, { name, hidden, open }) {
 const get = id => lobbies.get(String(id)) || null;
 const position = l => (l.playing ? Math.max(0, (Date.now() - l.startedAt) / 1000) : l.pausedPos);
 const current = l => l.queue[l.index] || null;
-const canControl = (l, user) => !!user && (user.isAdmin || user.id === l.hostId || l.open);
+const isHost = (l, user) => !!user && (user.isAdmin || user.id === l.hostId);
+const canControl = (l, user) => isHost(l, user) || (!!user && (l.rights.has(user.id) ? l.rights.get(user.id) : l.open));
 
+// Wer gerade zuhört (jedes Konto einmal, auch mit mehreren Fenstern)
 function listeners(l) {
-  const names = new Map();
-  for (const c of l.clients) names.set(c.user.id, c.user.username);
-  return [...names.values()].sort((a, b) => a.localeCompare(b, 'de'));
+  const users = new Map();
+  for (const c of l.clients) users.set(c.user.id, c.user);
+  return [...users.values()].map(u => ({ id: u.id, name: u.username, host: u.id === l.hostId, control: canControl(l, u) }))
+    .sort((a, b) => b.host - a.host || a.name.localeCompare(b.name, 'de'));
 }
 
 function summary(l) {
@@ -151,10 +155,19 @@ function control(l, user, b) {
       return null;
     }
     case 'clear': l.queue = []; l.index = -1; l.playing = false; l.pausedPos = 0; return null;
+    case 'rights': {
+      // Gastgeber und Admin geben einzelnen Zuhörern Player-Rechte oder nehmen sie ihnen
+      if (!isHost(l, user)) return 'Nur der Gastgeber vergibt Player-Rechte.';
+      const id = Number(b.user);
+      if (!id || id === l.hostId) return 'Dem Gastgeber kann man die Rechte nicht nehmen.';
+      l.rights.set(id, !!b.allow);
+      return null;
+    }
     case 'settings':
-      if (user.id !== l.hostId && !user.isAdmin) return 'Nur der Gastgeber ändert die Einstellungen.';
+      if (!isHost(l, user)) return 'Nur der Gastgeber ändert die Einstellungen.';
       if (typeof b.name === 'string' && b.name.trim()) l.name = b.name.trim().slice(0, 60);
-      if ('open' in b) l.open = !!b.open;
+      // „Alle dürfen steuern“ neu gesetzt: einzeln vergebene Rechte gelten nicht mehr
+      if ('open' in b && l.open !== !!b.open) { l.open = !!b.open; l.rights.clear(); }
       if ('hidden' in b) l.hidden = !!b.hidden;
       return null;
     default: return 'Unbekannte Aktion.';

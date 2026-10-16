@@ -1,5 +1,11 @@
 # Changelog
 
+## 16.10.2026 – Wer ist in der Lobby?
+
+- **Zuhörer-Liste:** In einer Musik-Lobby siehst du oben alle, die gerade zuhören. 👑 markiert den Gastgeber, 🎶 alle, die den Player steuern dürfen.
+- **Player-Rechte:** Als Gastgeber (oder Admin) klickst du auf einen Namen und gibst ihm Player-Rechte oder nimmst sie wieder weg, auch wenn sonst nur du steuerst. Wer „Alle dürfen steuern“ in den Einstellungen umstellt, setzt die einzeln vergebenen Rechte zurück.
+- Der Admin kommt mit einem Klick auf einen Namen direkt zum Konto in der Systemsteuerung.
+
 ## 16.10.2026 – Zufallsgenerator
 
 - **Zufallsgenerator:** Neu im Startmenü unter 🎲 Zufallsgenerator, mit drei Reitern:

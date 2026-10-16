@@ -1,5 +1,11 @@
 # Changelog
 
+## 16.10.2026 – Dein Tier macht Geräusche
+
+- **Tierstimmen:** Beim Streicheln, Kuscheln und Adoptieren hörst du dein Tier, von Miau und Wuff bis zum Brüllen des Drachen.
+- **Klänge** für Füttern, Wasser, Spielen, Bürsten, Baden, Gassi, Schlafen und Aufwachen, dazu Münzen, Einkäufe und eine Fanfare bei jeder neuen Zuneigungsstufe.
+- Die Lautstärke regelst du mit 🔊 neben der Uhr der Homepage. Oben im Spiel schaltet 🔊 den Ton schnell aus und wieder an.
+
 ## 15.10.2026 – Jetzt auf der Homepage
 
 - **Mein Haustier** hat ein Zuhause: Du findest es im Startmenü der Homepage unter 🐾 Mein Haustier, in einem eigenen Fenster.

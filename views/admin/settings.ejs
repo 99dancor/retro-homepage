@@ -25,6 +25,18 @@
     <label class="inline"><input type="checkbox" name="contact_enabled" value="1" <%= s.contact_enabled === '1' ? 'checked' : '' %>> Kontaktformular aktiv</label>
     <label>Statistik-Daten aufbewahren (Tage):<input type="number" name="analytics_retention_days" value="<%= s.analytics_retention_days %>" min="7"></label>
   </fieldset>
+  <fieldset class="groupbox"><legend>🎵 Musik</legend>
+    <label>Musik hochladen dürfen:
+      <select name="music_upload">
+        <option value="members" <%= s.music_upload === 'members' ? 'selected' : '' %>>Alle angemeldeten Mitglieder</option>
+        <option value="upload" <%= s.music_upload === 'upload' ? 'selected' : '' %>>Nur Mitglieder mit „Darf selbst Dateien hochladen“</option>
+        <option value="admin" <%= s.music_upload === 'admin' ? 'selected' : '' %>>Nur ich (Admin)</option>
+      </select></label>
+    <label>Speicher für Musik pro Mitglied (MB):<input type="number" name="music_quota_mb" value="<%= s.music_quota_mb %>" min="0"></label>
+    <label class="inline"><input type="checkbox" name="lobby_enabled" value="1" <%= s.lobby_enabled === '1' ? 'checked' : '' %>> Lobbys zum gemeinsamen Hören</label>
+    <label class="inline"><input type="checkbox" name="youtube_enabled" value="1" <%= s.youtube_enabled === '1' ? 'checked' : '' %>> YouTube-Lieder in Lobbys erlauben</label>
+    <br><small>Ein Titel darf bei Mitgliedern höchstens 50 MB groß sein. Hochgeladene Musik verwaltest du unter <a href="/admin/musik">Musik</a>.</small>
+  </fieldset>
   <fieldset class="groupbox"><legend>✉️ E-Mail-Benachrichtigung</legend>
     <p><small>Bei neuen Nachrichten, Freundebuch-Einträgen und Registrierungen bekommst du eine E-Mail. Du brauchst dafür einen SMTP-Zugang – z. B. von deinem Mail-Anbieter (GMX, web.de, Gmail mit App-Passwort, Mailbox.org …).</small></p>
     <div class="row">

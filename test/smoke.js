@@ -15,7 +15,8 @@ const UA = 'Mozilla/5.0 (Smoke Test) Firefox/130';
 
 function startServer() {
   const child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', path.join(__dirname, '..', 'src', 'server.js')], {
-    env: { ...process.env, PORT: String(PORT), DATA_DIR: DATA, ADMIN_USER: 'admin', ADMIN_PASSWORD: PASSWORD, PUID: '0' },
+    // YouTube ist im Test nicht erreichbar: Titel fallen auf „YouTube-Video <id>“ zurück
+    env: { ...process.env, PORT: String(PORT), DATA_DIR: DATA, ADMIN_USER: 'admin', ADMIN_PASSWORD: PASSWORD, PUID: '0', YOUTUBE_OEMBED_URL: 'http://127.0.0.1:9/oembed' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let log = '';
@@ -68,7 +69,7 @@ async function main() {
     const admin = browser();
 
     await step('Öffentliche Seiten laden', async () => {
-      for (const p of ['/', '/blog', '/files', '/mods', '/links', '/guestbook', '/contact', '/apps', '/forum', '/changelog', '/datenschutz', '/login', '/theme.css', '/static/retro.css', '/static/editor.js']) {
+      for (const p of ['/', '/blog', '/files', '/mods', '/links', '/guestbook', '/contact', '/apps', '/forum', '/changelog', '/datenschutz', '/login', '/theme.css', '/static/retro.css', '/static/editor.js', '/musik', '/musik/bibliothek', '/static/sound.js', '/static/music.js', '/static/visualizer.js']) {
         const r = await guest.req(p);
         assert.equal(r.status, 200, p);
       }
@@ -113,7 +114,7 @@ async function main() {
       assert.equal(r.headers.get('location'), '/admin');
       for (const p of ['/admin', '/admin/posts', '/admin/posts/new', '/admin/media', '/admin/files', '/admin/mods', '/admin/mods/new',
         '/admin/links', '/admin/guestbook', '/admin/messages', '/admin/users', '/admin/pages', '/admin/pages/new', '/admin/apps',
-        '/admin/apps/new', '/admin/design', '/admin/settings']) {
+        '/admin/apps/new', '/admin/design', '/admin/settings', '/admin/musik']) {
         assert.equal((await admin.req(p)).status, 200, p);
       }
     });
@@ -365,8 +366,10 @@ async function main() {
       assert.equal((await guest.req(topic)).status, 404);
     });
 
+    // Angemeldete Mitglieder für spätere Schritte (das Anmelden ist pro IP begrenzt)
+    const members = {};
     await step('Forum: anonym schreiben, nur Verfasser und Admin sehen den Namen', async () => {
-      const anna = browser(), bernd = browser();
+      const anna = members.anna = browser(), bernd = members.bernd = browser();
       for (const [b, name] of [[anna, 'anna'], [bernd, 'bernd']]) {
         const tk = await b.csrf();
         assert.equal((await b.form('/login', { _csrf: tk, username: name, password: 'passwort123' })).status, 302);
@@ -409,6 +412,168 @@ async function main() {
         const r = await b.form('/login', { _csrf: tk, username: 'bernd', password: 'passwort123', next });
         assert.equal(r.headers.get('location'), to, next);
       }
+    });
+
+    // Kleine MP3 mit ID3v2.3-Angaben (Titel, Interpret); der Inhalt danach ist egal
+    const mp3 = (title, artist) => {
+      const frame = (id, text) => { const body = Buffer.concat([Buffer.from([3]), Buffer.from(text, 'utf8')]); const h = Buffer.alloc(10); h.write(id, 0, 'latin1'); h.writeUInt32BE(body.length, 4); return Buffer.concat([h, body]); };
+      const frames = Buffer.concat([frame('TIT2', title), frame('TPE1', artist)]);
+      const size = frames.length, head = Buffer.from([0x49, 0x44, 0x33, 3, 0, 0, (size >> 21) & 127, (size >> 14) & 127, (size >> 7) & 127, size & 127]);
+      return Buffer.concat([head, frames, Buffer.alloc(4000, 0xff)]);
+    };
+    const api = async (b, url, body, method = 'POST') => {
+      const tk = b.jar.get('csrf');
+      const r = await b.req(url, { method, body: body === undefined ? undefined : JSON.stringify(body), headers: { 'content-type': 'application/json', 'x-csrf-token': tk || '' } });
+      return { status: r.status, json: r.text_ ? JSON.parse(r.text_) : null };
+    };
+    const lib = async b => JSON.parse((await b.req('/musik/bibliothek')).text_);
+
+    await step('Musik: Admin lädt hoch, Angaben kommen aus der Datei, Sichtbarkeit gilt', async () => {
+      const t = await admin.csrf('/admin/musik');
+      const fd = new FormData();
+      fd.append('_csrf', t);
+      fd.append('visibility', 'public');
+      fd.append('files', new Blob([mp3('Sommerlied', 'Die Ärzte-Probe')]), 'egal.mp3');
+      fd.append('files', new Blob([mp3('Geheimtitel', 'Niemand')]), '02 - geheim.mp3');
+      assert.equal((await admin.req('/admin/musik/upload', { method: 'POST', body: fd })).status, 302);
+      const fd2 = new FormData();
+      fd2.append('_csrf', t);
+      fd2.append('files', new Blob(['kein audio']), 'notiz.txt');
+      assert.equal((await admin.req('/admin/musik/upload', { method: 'POST', body: fd2 })).status, 302);
+      const all = (await lib(admin)).tracks;
+      assert.deepEqual(all.map(x => x.title).sort(), ['Geheimtitel', 'Sommerlied'], 'Textdatei wurde nicht übernommen');
+      const song = all.find(x => x.title === 'Sommerlied'), secret = all.find(x => x.title === 'Geheimtitel');
+      assert.equal(song.artist, 'Die Ärzte-Probe');
+      assert.ok(song.byAdmin);
+      const at = await admin.csrf('/admin/musik/' + secret.id);
+      assert.equal((await admin.form('/admin/musik/' + secret.id, { _csrf: at, title: 'Geheimtitel', visibility: 'private' })).status, 302);
+      assert.deepEqual((await lib(guest)).tracks.map(x => x.title), ['Sommerlied']);
+      const range = await guest.req('/musik/stream/' + song.id, { headers: { range: 'bytes=0-99' } });
+      assert.equal(range.status, 206, 'Spulen braucht Range-Anfragen');
+      assert.match(range.headers.get('content-type'), /audio\/mpeg/);
+      assert.equal((await guest.req('/musik/stream/' + secret.id)).status, 404, 'privater Titel');
+      const page = await guest.req('/musik');
+      assert.match(page.headers.get('content-security-policy'), /frame-src 'self' https:\/\/www\.youtube-nocookie\.com/);
+      assert.match(page.headers.get('content-security-policy'), /media-src 'self' blob:/);
+      assert.doesNotMatch((await guest.req('/blog')).headers.get('content-security-policy'), /youtube/, 'nur der Player darf YouTube einbetten');
+      assert.match(page.text_, /<script src="\/static\/visualizer\.js\?v=\w+"><\/script>/);
+      const desk = (await guest.req('/', { top: true })).text_;
+      assert.match(desk, /<div class="startmenu"[\s\S]*href="\/musik"/);
+      assert.match(desk, /id="displaybtn"[\s\S]*id="volumebtn"[\s\S]*id="clock"/, '🔊 neben der Uhr');
+      assert.match(desk, /<script src="\/static\/sound\.js\?v=\w+"><\/script>/);
+    });
+
+    await step('Musik: Mitglieder laden hoch und bearbeiten nur ihre eigenen Titel', async () => {
+      const { anna, bernd } = members;
+      const fd = new FormData();
+      fd.append('visibility', 'members');
+      fd.append('duration', '183.4');
+      fd.append('file', new Blob([mp3('Annas Lied', 'Anna')]), 'anna.mp3');
+      const up = await anna.req('/musik/hochladen', { method: 'POST', body: fd, headers: { 'x-csrf-token': anna.jar.get('csrf') } });
+      assert.equal(up.status, 200, up.text_);
+      const track = JSON.parse(up.text_).track;
+      assert.equal(track.duration, 183.4);
+      assert.ok(track.mine && !track.byAdmin);
+      const bad = new FormData();
+      bad.append('file', new Blob(['x']), 'bild.png');
+      assert.equal((await anna.req('/musik/hochladen', { method: 'POST', body: bad, headers: { 'x-csrf-token': anna.jar.get('csrf') } })).status, 400);
+      const noToken = new FormData();
+      noToken.append('file', new Blob([mp3('x', 'y')]), 'x.mp3');
+      assert.equal((await anna.req('/musik/hochladen', { method: 'POST', body: noToken })).status, 403, 'ohne Formular-Token');
+      assert.ok(!(await lib(guest)).tracks.some(x => x.title === 'Annas Lied'), 'nur für Mitglieder');
+      const seen = (await lib(bernd)).tracks.find(x => x.title === 'Annas Lied');
+      assert.equal(seen.by, 'anna');
+      assert.ok(!seen.canEdit);
+      assert.equal((await api(bernd, '/musik/titel/' + track.id, { title: 'Gehackt' })).status, 404);
+      assert.equal((await api(bernd, '/musik/titel/' + track.id + '/loeschen', {})).status, 404);
+      assert.equal((await api(anna, '/musik/titel/' + track.id, { title: 'Annas Lied (neu)', artist: 'Anna', visibility: 'public' })).status, 200);
+      assert.ok((await lib(guest)).tracks.some(x => x.title === 'Annas Lied (neu)'));
+      assert.match((await admin.req('/admin/musik')).text_, /Annas Lied \(neu\)[\s\S]*anna \(Mitglied\)/);
+    });
+
+    await step('Musik: Playlists sind privat, bis man sie freigibt', async () => {
+      const { anna, bernd } = members;
+      const ids = (await lib(anna)).tracks.map(x => x.id);
+      const made = await api(anna, '/musik/playlists', { title: 'Lieblingslieder', tracks: ids });
+      assert.equal(made.status, 200);
+      const pl = (await lib(anna)).playlists.find(p => p.id === made.json.id);
+      assert.equal(pl.visibility, 'private');
+      assert.deepEqual(pl.tracks, ids);
+      assert.ok(!(await lib(bernd)).playlists.length, 'Bernd sieht die private Playlist nicht');
+      assert.equal((await api(bernd, '/musik/playlists/' + pl.id, { title: 'Meins' })).status, 404);
+      assert.equal((await api(anna, '/musik/playlists/' + pl.id, { visibility: 'members', tracks: [...ids].reverse() })).status, 200);
+      const other = (await lib(bernd)).playlists.find(p => p.id === pl.id);
+      assert.equal(other.owner, 'anna');
+      assert.deepEqual(other.tracks, [...ids].reverse());
+      assert.equal((await api(guest, '/musik/playlists', { title: 'x' })).status, 401);
+    });
+
+    await step('Musik-Lobby: gemeinsam hören, Live-Verbindung und YouTube', async () => {
+      const { anna, bernd } = members;
+      assert.equal((await api(guest, '/musik/lobbys', undefined, 'GET')).status, 401, 'nur für Mitglieder');
+      const made = await api(anna, '/musik/lobbys', { name: 'Freitagabend', open: false });
+      assert.equal(made.status, 200);
+      const id = made.json.id;
+      assert.deepEqual((await api(bernd, '/musik/lobbys', undefined, 'GET')).json.lobbies.map(l => l.name), ['Freitagabend']);
+
+      // Live-Verbindung wie EventSource im Browser
+      const ctrl = new AbortController();
+      const res = await fetch(`${BASE}/musik/lobby/${id}/events`, { headers: { cookie: [...bernd.jar].map(([k, v]) => `${k}=${v}`).join('; '), 'user-agent': UA }, signal: ctrl.signal });
+      assert.match(res.headers.get('content-type'), /text\/event-stream/);
+      assert.equal(res.headers.get('x-accel-buffering'), 'no');
+      const reader = res.body.getReader();
+      let buf = '';
+      const nextState = async () => {
+        for (;;) {
+          const i = buf.indexOf('\n\n');
+          if (i >= 0) { const ev = buf.slice(0, i); buf = buf.slice(i + 2); const m = ev.match(/^event: state\ndata: (.*)$/m); if (m) return JSON.parse(m[1]); continue; }
+          const { value, done } = await reader.read();
+          if (done) throw new Error('Verbindung zu');
+          buf += Buffer.from(value).toString();
+        }
+      };
+      let st = await nextState();
+      assert.deepEqual(st.listeners, ['bernd']);
+      assert.equal(st.queue.length, 0);
+
+      const tracks = (await lib(anna)).tracks;
+      const pub = tracks.find(x => x.title === 'Sommerlied');
+      const add = await api(anna, `/musik/lobby/${id}`, { action: 'add', tracks: [pub.id], youtube: ['dQw4w9WgXcQ', 'kaputt', 'dQw4w9WgXcQ'] });
+      assert.equal(add.status, 200);
+      assert.equal(add.json.added, 2, 'doppeltes und ungültiges YouTube-Video fallen weg');
+      st = await nextState();
+      assert.deepEqual(st.queue.map(q => q.type), ['track', 'yt']);
+      assert.equal(st.queue[1].title, 'YouTube-Video dQw4w9WgXcQ');
+      assert.equal(st.index, 0);
+      assert.ok(st.playing, 'das erste Lied startet sofort');
+      assert.ok(Math.abs(st.startedAt - st.now) < 2000);
+
+      assert.equal((await api(bernd, `/musik/lobby/${id}`, { action: 'pause' })).status, 403, 'nur der Gastgeber steuert');
+      assert.equal((await api(bernd, `/musik/lobby/${id}`, { action: 'add', tracks: [pub.id] })).status, 403);
+      assert.equal((await api(anna, `/musik/lobby/${id}`, { action: 'settings', open: true })).status, 200);
+      st = await nextState();
+      assert.ok(st.open);
+      assert.equal((await api(bernd, `/musik/lobby/${id}`, { action: 'pause' })).status, 200);
+      st = await nextState();
+      assert.ok(!st.playing);
+      assert.equal((await api(bernd, `/musik/lobby/${id}`, { action: 'jump', key: st.queue[1].key })).status, 200);
+      st = await nextState();
+      assert.equal(st.index, 1);
+      // Die Länge eines YouTube-Videos meldet der Player im Browser
+      assert.equal((await api(bernd, `/musik/lobby/${id}`, { action: 'meta', key: st.queue[1].key, duration: 212.3, title: 'Echter Titel' })).status, 200);
+      st = await nextState();
+      assert.equal(st.queue[1].duration, 212);
+      assert.equal(st.queue[1].title, 'Echter Titel');
+
+      // Private Titel wären nicht für alle hörbar
+      const secretId = (await lib(admin)).tracks.find(x => x.title === 'Geheimtitel').id;
+      const skip = await api(admin, `/musik/lobby/${id}`, { action: 'add', tracks: [secretId] });
+      assert.equal(skip.json.added, 0);
+      assert.match(skip.json.msg, /nicht für alle hörbar/);
+      assert.equal((await api(bernd, `/musik/lobby/${id}`, { action: 'close' })).status, 403);
+      assert.equal((await api(anna, `/musik/lobby/${id}`, { action: 'close' })).status, 200);
+      ctrl.abort();
+      assert.equal((await api(anna, `/musik/lobby/${id}`, { action: 'play' })).status, 404);
     });
 
     await step('Changelog im Startmenü', async () => {

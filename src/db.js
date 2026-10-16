@@ -12,7 +12,8 @@ const IMPORT_DIR = path.join(UPLOAD_DIR, 'eingang');
 require('./privileges').dropPrivileges(DATA_DIR, [UPLOAD_DIR, IMPORT_DIR]);
 const MEDIA_DIR = path.join(DATA_DIR, 'media');
 const APPS_DIR = path.join(DATA_DIR, 'apps');
-for (const d of [UPLOAD_DIR, MEDIA_DIR, APPS_DIR]) fs.mkdirSync(d, { recursive: true });
+const MUSIC_DIR = path.join(DATA_DIR, 'musik');
+for (const d of [UPLOAD_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR]) fs.mkdirSync(d, { recursive: true });
 fs.mkdirSync(IMPORT_DIR, { recursive: true });
 try { fs.chmodSync(IMPORT_DIR, 0o777); } catch { /* Netzwerkfreigabe darf hineinkopieren */ }
 
@@ -214,6 +215,36 @@ CREATE TABLE IF NOT EXISTS board_posts (
   created_at INTEGER NOT NULL,
   edited_at INTEGER
 );
+-- Musik: hochgeladene Titel (Admin und Mitglieder), Playlists der Mitglieder
+CREATE TABLE IF NOT EXISTS tracks (
+  id INTEGER PRIMARY KEY,
+  title TEXT NOT NULL,
+  artist TEXT,
+  album TEXT,
+  duration REAL,                          -- Sekunden, vom Browser gemessen (beim Hochladen oder ersten Abspielen)
+  original_name TEXT NOT NULL,
+  stored_name TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  mime TEXT,
+  visibility TEXT NOT NULL DEFAULT 'public',
+  plays INTEGER NOT NULL DEFAULT 0,
+  uploader_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS playlists (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  visibility TEXT NOT NULL DEFAULT 'private',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS playlist_tracks (
+  playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL,
+  track_id INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+  PRIMARY KEY (playlist_id, position)
+);
 CREATE INDEX IF NOT EXISTS bp_topic ON board_posts(topic_id, created_at);
 CREATE INDEX IF NOT EXISTS bt_order ON board_topics(pinned, last_post_at);
 CREATE INDEX IF NOT EXISTS dl_day ON downloads(day);
@@ -269,6 +300,10 @@ const DEFAULT_SETTINGS = {
   contact_enabled: '1',
   board_enabled: '1',
   board_members_only: '0',      // Forum nur für angemeldete Nutzer lesbar
+  music_upload: 'members',      // Musik hochladen: members (alle Mitglieder) | upload (nur mit Upload-Recht) | admin
+  music_quota_mb: '500',        // Speicher für Musik pro Mitglied (Admin unbegrenzt)
+  lobby_enabled: '1',           // Musik-Lobbys zum gemeinsamen Hören
+  youtube_enabled: '1',         // YouTube-Lieder in Lobbys
   notify_email: '',
   smtp_host: '',
   smtp_port: '587',
@@ -288,4 +323,4 @@ function tx(fn) {
   catch (e) { db.exec('ROLLBACK'); throw e; }
 }
 
-module.exports = { db, now, getSetting, setSetting, tx, DATA_DIR, UPLOAD_DIR, IMPORT_DIR, MEDIA_DIR, APPS_DIR };
+module.exports = { db, now, getSetting, setSetting, tx, DATA_DIR, UPLOAD_DIR, IMPORT_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR };

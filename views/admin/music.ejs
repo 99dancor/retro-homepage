@@ -1,0 +1,30 @@
+<%- include('../partials/head') %>
+<p>🎵 <b><%= tracks.length %></b> Titel · <%= fmtSize(tracks.reduce((n, t) => n + t.size, 0)) %> · <%= playlists %> Playlists der Mitglieder ·
+  <a href="/musik" target="_blank">Zum Player</a> · Wer hochladen darf und wie viel, stellst du unter <a href="/admin/settings">Einstellungen</a> ein (Mitglieder: je <%= quotaMb %> MB).</p>
+<fieldset class="groupbox"><legend>📤 Musik hochladen</legend>
+<form method="post" action="/admin/musik/upload" enctype="multipart/form-data">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label>Audiodateien (MP3, OGG, WAV, FLAC, M4A …):<input type="file" name="files" accept="audio/*,.mp3,.ogg,.oga,.opus,.wav,.flac,.m4a,.aac" multiple required></label>
+  <label>Interpret für alle (optional, sonst aus der Datei oder dem Dateinamen „Interpret - Titel.mp3“):<input type="text" name="artist" class="w100"></label>
+  <%- include('../partials/visibility', { item: { visibility: 'public' }, acl: [] }) %>
+  <div class="actions"><button>Hochladen</button><span class="muted" data-progress></span></div>
+  <small>Titel, Interpret und Album werden aus den Angaben in der Datei (ID3-Tags) übernommen. Die Länge misst der Player beim ersten Abspielen.</small>
+</form>
+</fieldset>
+<table class="list">
+  <tr><th>Titel</th><th>Interpret</th><th>Sichtbarkeit</th><th class="num">Länge</th><th class="num">Größe</th><th class="num">▶</th><th>Von</th></tr>
+  <% for (const t of tracks) { %>
+  <tr>
+    <td><a href="/admin/musik/<%= t.id %>"><b><%= t.title %></b></a><br><small><%= t.original_name %></small></td>
+    <td><%= t.artist || '–' %></td>
+    <td><%= VISIBILITY[t.visibility] %></td>
+    <td class="num"><%= t.duration ? Math.floor(t.duration / 60) + ':' + String(Math.round(t.duration % 60)).padStart(2, '0') : '–' %></td>
+    <td class="num"><%= fmtSize(t.size) %></td>
+    <td class="num"><%= t.plays %></td>
+    <td><%= t.username ? t.username + (t.role === 'admin' ? '' : ' (Mitglied)') : '–' %></td>
+  </tr>
+  <% } %>
+  <% if (!tracks.length) { %><tr><td colspan="7">Noch keine Musik.</td></tr><% } %>
+</table>
+<script src="<%= asset('admin.js') %>"></script>
+<%- include('../partials/foot') %>

@@ -1,0 +1,50 @@
+<%- include('partials/head') %>
+<%# Musik-Player: Logik in public/music.js, Visualisierungen in public/visualizer.js %>
+<div class="mp" id="mp" data-csrf="<%= csrf %>" data-upload="<%= canUploadMusic ? '1' : '' %>" data-lobby="<%= lobbyOn ? '1' : '' %>" data-youtube="<%= lobbyOn && youtubeOn ? '1' : '' %>">
+  <div class="menubar mp-toolbar">
+    <% if (canUploadMusic) { %><button type="button" class="small" data-act="upload">📤 Hochladen</button><% } %>
+    <% if (user) { %><button type="button" class="small" data-act="new-playlist">📃 Neue Playlist</button><% } %>
+    <% if (lobbyOn && user) { %><button type="button" class="small" data-act="lobbys">🎧 Lobbys</button><% } %>
+    <span class="spacer"></span>
+    <label class="inline mp-vis-pick">Visualisierung:
+      <select id="mp-vis-select" aria-label="Visualisierung"></select></label>
+    <button type="button" class="small" data-act="fullscreen" title="Vollbild (oder Doppelklick auf das Bild)">⛶</button>
+  </div>
+  <div class="mp-main">
+    <nav class="mp-side sunken" id="mp-side" aria-label="Bibliothek"></nav>
+    <section class="mp-center">
+      <div class="mp-stage" id="mp-stage">
+        <canvas id="mp-canvas"></canvas>
+        <div class="mp-yt" id="mp-yt" hidden></div>
+        <div class="mp-overlay" id="mp-overlay" hidden></div>
+        <div class="mp-now" id="mp-now"></div>
+      </div>
+      <div class="mp-head" id="mp-head"></div>
+      <div class="mp-list sunken" id="mp-list"></div>
+    </section>
+  </div>
+  <div class="mp-controls">
+    <button type="button" data-act="prev" title="Zurück" aria-label="Zurück">⏮</button>
+    <button type="button" data-act="play" class="mp-play" title="Abspielen" aria-label="Abspielen">▶</button>
+    <button type="button" data-act="stop" title="Stopp" aria-label="Stopp">⏹</button>
+    <button type="button" data-act="next" title="Weiter" aria-label="Weiter">⏭</button>
+    <button type="button" data-act="shuffle" title="Zufällige Reihenfolge" aria-label="Zufällige Reihenfolge" aria-pressed="false">🔀</button>
+    <button type="button" data-act="repeat" title="Wiederholen: aus" aria-label="Wiederholen" data-mode="aus">🔁</button>
+    <span class="mp-time" id="mp-time">0:00</span>
+    <input type="range" id="mp-seek" min="0" max="1000" value="0" aria-label="Stelle im Lied">
+    <span class="mp-time" id="mp-dur">0:00</span>
+    <span class="mp-vol" title="Lautstärke Musik (gilt für die ganze Seite, wie 🔊 neben der Uhr)">🔊<input type="range" id="mp-vol" min="0" max="100" aria-label="Lautstärke Musik"></span>
+  </div>
+  <div class="statusbar"><span id="mp-status">Bereit</span><span class="fixed" id="mp-mode">💿 Eigene Wiedergabe</span></div>
+</div>
+<dialog class="window mp-dlg" id="mp-dlg">
+  <div class="titlebar"><span class="ttl" id="mp-dlg-title"></span></div>
+  <form method="dialog" class="body" id="mp-dlg-form">
+    <div id="mp-dlg-body"></div>
+    <div class="actions" id="mp-dlg-actions"></div>
+  </form>
+</dialog>
+<audio id="mp-audio" preload="metadata"></audio>
+<script src="<%= asset('visualizer.js') %>"></script>
+<script src="<%= asset('music.js') %>"></script>
+<%- include('partials/foot') %>

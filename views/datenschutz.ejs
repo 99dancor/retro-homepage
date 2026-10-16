@@ -8,14 +8,14 @@
 
 <fieldset class="groupbox"><legend>Kurz gesagt</legend>
 <ul>
-  <li>Keine Werbung, keine Tracker, keine Dienste von Google &amp; Co. Nur zwei technische Cookies.</li>
+  <li>Keine Werbung, keine Tracker, keine Dienste von Google &amp; Co. Nur zwei technische Cookies. Einzige Ausnahme: YouTube-Lieder in Musik-Lobbys, und die erst, wenn du sie ausdrücklich lädst.</li>
   <li>Deine IP-Adresse speichert die Website nicht.</li>
   <li>Für ein Konto reichen Benutzername und Passwort, ohne E-Mail-Adresse.</li>
   <li>Alles liegt auf einem eigenen Server des Betreibers, nicht bei einem Cloud-Anbieter.</li>
   <li>Was du schreibst, kann der Admin lesen, auch „anonyme“ Forenbeiträge.</li>
 </ul>
 <p>Springe zu: <a href="#besuch">Besuch</a> · <a href="#cookies">Cookies</a> · <a href="#browser">Im Browser</a> ·
-  <a href="#konto">Konto</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#spiele">Spiele</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
+  <a href="#konto">Konto</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
 </fieldset>
 
 <h2 id="besuch">👣 Wenn du die Seite besuchst</h2>
@@ -28,7 +28,7 @@
   <li>Bei Downloads kommen die Datei, die übertragene Datenmenge und „fertig“ oder „abgebrochen“ dazu.</li>
   <li>Gelöscht wird das automatisch nach <b><%= retentionDays %> Tagen</b>. Erkennbare Bots und Suchmaschinen werden gar nicht gezählt.</li>
   <li>Gegen Passwort-Raten und Spam merkt sich der Server deine IP-Adresse kurz im Arbeitsspeicher (höchstens eine Stunde), nie auf der Festplatte.</li>
-  <li>Die Seite lädt keine Skripte, Schriften oder Tracker von fremden Servern. Nur Bilder, die der Admin aus dem Netz in einen Text einbindet, holt dein Browser von dort.</li>
+  <li>Die Seite lädt keine Skripte, Schriften oder Tracker von fremden Servern. Nur Bilder, die der Admin aus dem Netz in einen Text einbindet, holt dein Browser von dort, und den YouTube-Player nur, wenn du ihn im Musik-Player selbst lädst (siehe <a href="#musik">Musik</a>).</li>
   <li>Vor der Website läuft ein Weiterleitungsserver (Nginx Proxy Manager). Wie fast jeder Webserver führt er ein technisches
     Zugriffsprotokoll mit IP-Adresse, Zeit und Adresse. Das dient nur der Fehlersuche. Die Website selbst führt kein solches Protokoll.</li>
 </ul>
@@ -65,6 +65,7 @@
   <li>Deine Darstellung über den 🖥️-Knopf neben der Uhr: Farben, Schrift, Hintergrund, Lauftext und eigenes CSS. Auch ein eigenes Hintergrundbild bleibt im Browser und wird nicht hochgeladen.</li>
   <li>Die gewählte Ansicht im Texteditor.</li>
   <li>Mein Haustier: ohne Konto der ganze Spielstand, mit Konto eine Kopie, damit bei Verbindungsproblemen nichts verloren geht.</li>
+  <li>Die Lautstärke für Musik und Effekte (🔊 neben der Uhr), die gewählte Visualisierung im Musik-Player, Zufall und Wiederholen, und ob du „YouTube laden“ für diesen Browser merken wolltest.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('desk', '<code>sessionStorage</code> vergisst alles, sobald der Tab geschlossen wird.') %>
@@ -72,6 +73,9 @@
   <%- code('displaySave', 'Gespeichert wird nur dort. Die ganze Datei <code>display.js</code> schickt nichts an den Server.') %>
   <%- code('editor', 'Der Editor merkt sich nur, ob du Text, Vorschau oder beides siehst.') %>
   <%- code('pet', 'Unter diesen Namen speichert das Haustier-Spiel im Browser.') %>
+  <%- code('volume', 'Die Lautstärke liegt unter diesem Namen im Browser. Musik-Player und Haustier-Spiel lesen sie von dort.') %>
+  <%- code('musicPrefs', 'Der Musik-Player merkt sich Visualisierung, Zufall und Wiederholen.') %>
+  <%- code('youtubeKey', 'Hier steht nur „1“, wenn du „Für diesen Browser merken“ angekreuzt hast.') %>
 </details>
 
 <h2 id="konto">🔑 Dein Konto</h2>
@@ -108,6 +112,22 @@
   <%- shot('forum-anonym-admin.png', 'Derselbe Beitrag, wie der Admin ihn sieht') %></div>
 </details>
 
+<h2 id="musik">🎵 Musik</h2>
+<ul>
+  <li><b>Hochgeladene Musik:</b> Die Datei mit ihrem ursprünglichen Namen, Titel, Interpret und Album (auch aus den Angaben in der Datei, z. B. ID3-Tags), Länge, Größe, Sichtbarkeit, Zeit und dein Konto. Neben Titeln von Mitgliedern steht für alle, die den Titel hören dürfen, dein Benutzername. Die Datei bleibt unverändert, auch eingebettete Angaben wie ein Cover-Bild.</li>
+  <li>Wie oft ein Titel gespielt wurde, wird nur als Zahl gezählt, nicht wer ihn gehört hat.</li>
+  <li><b>Playlists:</b> Name, Sichtbarkeit, Titel und dein Konto. Private Playlists sehen nur du und der Admin.</li>
+  <li><b>Lobbys:</b> Wer in einer Lobby ist, sieht die Benutzernamen der anderen Zuhörer, wer ein Lied hinzugefügt hat und die Warteschlange. Lobbys liegen nur im Arbeitsspeicher des Servers und sind nach einem Neustart oder zehn Minuten ohne Zuhörer weg.</li>
+  <li><b>YouTube:</b> Lieder von YouTube spielt der eingebettete Player von youtube-nocookie.com. Den lädt dein Browser erst, wenn du auf „YouTube laden“ klickst. Ab dann bekommt YouTube (Google) deine IP-Adresse und Angaben zu deinem Browser, und es gelten die Datenschutzregeln von Google. Für die Titel fragt der Server selbst bei YouTube nach, dabei geht nichts über dich mit.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('tracks', 'Diese Spalten speichert die Seite zu jedem hochgeladenen Titel.') %>
+  <%- code('playlists', 'Eine Playlist gehört genau einem Konto und verschwindet mit ihm.') %>
+  <%- code('plays', 'Der Abspiel-Zähler erhöht nur eine Zahl am Titel.') %>
+  <%- code('lobbyState', 'Das bekommen alle Zuhörer einer Lobby: Name, Gastgeber, Warteschlange, Stelle im Lied und die Namen der Zuhörer.') %>
+  <%- code('oembed', 'Die Titel von YouTube-Videos holt der Server über die öffentliche oEmbed-Adresse, ohne Angaben über dich.') %>
+</details>
+
 <h2 id="spiele">🎮 Spielstände</h2>
 <ul>
   <li>Mit Konto speichern Browser-Spiele ihre Spielstände auf dem Server: Spiel, Speicherplatz, Inhalt und Zeit. Unter <a href="/account">Mein Konto</a> siehst und löschst du sie.</li>
@@ -120,7 +140,7 @@
 <h2 id="fragen">🗑 Löschen und Fragen</h2>
 <ul>
   <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
-  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen und Spielstände. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge und Nachrichten bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Freundebuch bleibt der Name am Eintrag. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists und Spielstände. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Freundebuch bleibt der Name am Eintrag. Sag Bescheid, wenn auch die weg sollen.</li>
   <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
 </ul>
 <p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>

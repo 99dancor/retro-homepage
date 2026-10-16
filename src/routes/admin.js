@@ -8,6 +8,8 @@ const mail = require('../mail');
 const up = require('../uploads');
 const { slugify, safeUrl, asArray, visibilityFrom, mdBlocks } = require('../util');
 const GAMES = require('../games');
+const music = require('../music');
+const { deleteTrack } = require('./music');
 
 const router = express.Router();
 router.use(auth.requireAdmin);
@@ -172,6 +174,45 @@ router.post('/files/:id/delete', (req, res) => {
     db.prepare("DELETE FROM acl WHERE item_type = 'file' AND item_id = ?").run(f.id);
   }
   res.redirect('/admin/files');
+});
+
+// ---------- Musik ----------
+// Hier lädt der Admin seine Sammlung hoch und vergibt Sichtbarkeit (auch Gruppen) für alle Titel, auch die der Mitglieder.
+router.get('/musik', (req, res) => res.render('admin/music', {
+  title: 'Musik', quotaMb: getSetting('music_quota_mb', '500'),
+  tracks: db.prepare('SELECT t.*, u.username, u.role FROM tracks t LEFT JOIN users u ON u.id = t.uploader_id ORDER BY t.created_at DESC').all(),
+  playlists: db.prepare('SELECT COUNT(*) AS n FROM playlists').get().n,
+}));
+router.post('/musik/upload', music.adminUpload.array('files'), multipartCsrf, (req, res) => {
+  const b = req.body;
+  const ins = db.prepare(`INSERT INTO tracks(title, artist, album, original_name, stored_name, size, mime, visibility, uploader_id, created_at)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  tx(() => {
+    for (const f of req.files || []) {
+      const tags = music.readTags(f.path), guess = music.fromFilename(f.originalname);
+      const id = Number(ins.run(tags.title || guess.title || f.originalname, str(b.artist, 200) || tags.artist || guess.artist || null, tags.album || null,
+        f.originalname, f.filename, f.size, f.mimetype, visibilityFrom(b), req.user.id, now()).lastInsertRowid);
+      saveVisibility('track', id, b);
+    }
+  });
+  res.redirect('/admin/musik?ok=1');
+});
+router.get('/musik/:id', (req, res, next) => {
+  const t = db.prepare('SELECT t.*, u.username FROM tracks t LEFT JOIN users u ON u.id = t.uploader_id WHERE t.id = ?').get(Number(req.params.id));
+  if (!t) return next();
+  res.render('admin/track-edit', { title: 'Titel bearbeiten', t, acl: auth.getAcl('track', t.id) });
+});
+router.post('/musik/:id', (req, res) => {
+  const b = req.body, id = Number(req.params.id);
+  db.prepare('UPDATE tracks SET title = ?, artist = ?, album = ?, visibility = ? WHERE id = ?')
+    .run(str(b.title, 200) || 'Titel', str(b.artist, 200) || null, str(b.album, 200) || null, visibilityFrom(b), id);
+  saveVisibility('track', id, b);
+  res.redirect(`/admin/musik/${id}?ok=1`);
+});
+router.post('/musik/:id/delete', (req, res) => {
+  const t = db.prepare('SELECT * FROM tracks WHERE id = ?').get(Number(req.params.id));
+  if (t) deleteTrack(t);
+  res.redirect('/admin/musik');
 });
 
 // ---------- Modlisten ----------
@@ -413,11 +454,11 @@ router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, 
 });
 
 // ---------- Einstellungen ----------
-const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days'];
-const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure'];
-const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Spiele & Apps', haustier: 'Mein Haustier', board: 'Forum', guestbook: 'Freundebuch', contact: 'Kontakt' };
+const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days', 'music_quota_mb'];
+const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure', 'lobby_enabled', 'youtube_enabled'];
+const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Spiele & Apps', haustier: 'Mein Haustier', musik: 'Musik', board: 'Forum', guestbook: 'Freundebuch', contact: 'Kontakt' };
 router.get('/settings', (req, res) => {
-  const s = Object.fromEntries([...SETTING_KEYS, ...SETTING_FLAGS, 'nav_hidden'].map(k => [k, getSetting(k, '')]));
+  const s = Object.fromEntries([...SETTING_KEYS, ...SETTING_FLAGS, 'nav_hidden', 'music_upload'].map(k => [k, getSetting(k, '')]));
   s.smtp_pass_set = !!getSetting('smtp_pass');
   res.render('admin/settings', { title: 'Einstellungen', s, navItems: NAV_ITEMS, mailMsg: req.query.mail || null });
 });
@@ -425,6 +466,7 @@ router.post('/settings', (req, res) => {
   const b = req.body;
   for (const k of SETTING_KEYS) if (k in b) setSetting(k, String(b[k]).slice(0, 20000));
   for (const k of SETTING_FLAGS) setSetting(k, b[k] ? '1' : '0');
+  if (['members', 'upload', 'admin'].includes(b.music_upload)) setSetting('music_upload', b.music_upload);
   if (b.smtp_pass) setSetting('smtp_pass', b.smtp_pass);
   if (b.smtp_pass_clear) setSetting('smtp_pass', '');
   const shown = asArray(b.nav);

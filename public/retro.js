@@ -10,12 +10,15 @@
   }
 
   var btn = document.getElementById('startbtn'), menu = document.getElementById('startmenu');
+  // Klangeffekte aus sound.js (🔊 neben der Uhr); fehlt das Skript, bleibt es still
+  function sound(name) { if (window.RetroSound) window.RetroSound.play(name); }
   function closeMenu() { if (menu) { menu.classList.remove('open'); btn.setAttribute('aria-expanded', false); } }
   if (btn && menu) {
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
       var open = menu.classList.toggle('open');
       btn.setAttribute('aria-expanded', open);
+      if (open) sound('menue');
     });
     document.addEventListener('click', closeMenu);
   }
@@ -55,6 +58,8 @@
     var desk;
     try { desk = window.parent.RetroDesk; } catch (e) { desk = null; }
     if (!desk) return;
+    // Fehlermeldungen klingen wie bei Windows
+    if (document.querySelector('.msg.err, .error-page')) sound('fehler');
     document.addEventListener('click', function (e) {
       var a = e.target.closest && e.target.closest('a[href]');
       if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || a.target || a.hasAttribute('download')) return;
@@ -76,7 +81,7 @@
   var deskEl = document.getElementById('desk'), tasks = document.getElementById('tasks');
   var siteTitle = body.dataset.title, me = body.dataset.user;
   var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
-    contact: '✉️', changelog: '📜', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑' };
+    contact: '✉️', changelog: '📜', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵' };
   var mobile = window.matchMedia('(max-width: 760px)');
   var wins = [], zTop = 10, active = null, reloading = false;
   var template = deskEl.querySelector('.dwin').cloneNode(true);
@@ -117,9 +122,10 @@
     else { active = null; wins.forEach(function (o) { o.el.classList.remove('active'); o.task.classList.remove('pressed'); }); syncTop(); }
   }
 
-  function minimize(w) { w.el.classList.add('min'); if (active === w) focusTopmost(); save(); }
-  function toggleMax(w) { w.el.classList.toggle('max'); focus(w); }
+  function minimize(w) { w.el.classList.add('min'); sound('minimieren'); if (active === w) focusTopmost(); save(); }
+  function toggleMax(w) { w.el.classList.toggle('max'); sound('maximieren'); focus(w); }
   function close(w) {
+    sound('schliessen');
     w.el.remove(); w.task.remove();
     wins.splice(wins.indexOf(w), 1);
     if (active === w) focusTopmost();
@@ -195,8 +201,8 @@
     handle.addEventListener('pointercancel', up);
   }
 
-  // Fenstergröße beim ersten Öffnen; das Haustier-Spiel braucht etwas mehr Höhe
-  var SIZES = { haustier: [820, 700] };
+  // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Musik-Player brauchen etwas mehr Platz
+  var SIZES = { haustier: [820, 700], musik: [900, 640] };
   function place(el, s, url) {
     var n = wins.length % 8, size = SIZES[section(url)] || [820, 580];
     var w = s && s.w || Math.min(size[0], deskEl.clientWidth - 40), h = s && s.h || Math.min(size[1], deskEl.clientHeight - 40);
@@ -245,7 +251,7 @@
   function open(url, navigate) {
     var k = winKey(url);
     var w = wins.filter(function (o) { return winKey(o.url) === k; })[0];
-    if (!w) w = create(url);
+    if (!w) { w = create(url); sound('oeffnen'); }
     else if (navigate && w.url !== url) { w.iframe.src = url; w.url = url; }
     focus(w);
     return w;

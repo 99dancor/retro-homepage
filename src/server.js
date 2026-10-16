@@ -89,6 +89,7 @@ app.use(analytics.middleware);
 app.use('/api/saves', require('./routes/saves'));
 app.use('/admin', require('./routes/admin'));
 app.use('/forum', require('./routes/board'));
+app.use('/musik', require('./routes/music').router);
 app.use('/', require('./routes/games'));
 app.use('/', require('./routes/public'));
 

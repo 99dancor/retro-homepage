@@ -18,6 +18,12 @@ Reines HTML/CSS/JavaScript ohne Build-Schritt und ohne eigene Abhängigkeiten.
 - Gespeichert wird über `/api/saves/haustier/main`, ohne Eintrag unter Spiele & Apps (`src/games.js`).
 - Im Docker-Image landet nur `src/`.
 
+## Ton
+
+`src/js/sound.js` erzeugt Tierstimmen (eine pro Art) und Effekte mit Web Audio, ohne Tondateien. Die Lautstärke
+liest das Spiel aus dem localStorage-Eintrag `lautstaerke` der Homepage (`effekte` 0–1, `stumm`), den der
+🔊-Regler neben der Uhr schreibt; der 🔊-Knopf im Spiel schaltet dort `stumm` um. Fehlt der Eintrag, gilt 50 %.
+
 ## Spielregeln
 
 Grundlage ist das Konzept in der Projektablage (`haustier/konzept.md`), als „Mischung“ mit dem schon Gebauten.

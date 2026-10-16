@@ -1,0 +1,19 @@
+<%- include('../partials/head') %>
+<p><a href="/admin/musik">« Alle Titel</a></p>
+<p>🎵 <b><%= t.original_name %></b> · <%= fmtSize(t.size) %> · <%= t.plays %>× gespielt · hochgeladen am <%= fmtDate(t.created_at, true) %><%= t.username ? ' von ' + t.username : '' %></p>
+<audio controls preload="none" src="/musik/stream/<%= t.id %>"></audio>
+<form method="post" action="/admin/musik/<%= t.id %>">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <div class="row">
+    <label>Titel:<input type="text" name="title" class="w100" value="<%= t.title %>"></label>
+    <label>Interpret:<input type="text" name="artist" class="w100" value="<%= t.artist || '' %>"></label>
+    <label>Album:<input type="text" name="album" class="w100" value="<%= t.album || '' %>"></label>
+  </div>
+  <%- include('../partials/visibility', { item: t, acl }) %>
+  <small>In Musik-Lobbys lassen sich nur Titel abspielen, die öffentlich oder für alle angemeldeten Nutzer sichtbar sind.</small>
+  <div class="actions"><button>💾 Speichern</button></div>
+</form>
+<form method="post" action="/admin/musik/<%= t.id %>/delete" data-confirm="Titel endgültig löschen?" class="actions">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑 Titel löschen</button>
+</form>
+<%- include('../partials/foot') %>

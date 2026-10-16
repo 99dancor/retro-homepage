@@ -1,6 +1,6 @@
 <div class="startmenu" id="startmenu" data-title="<%= site.title %>">
   <a href="/">🏠 Startseite</a>
-  <% const entries = [['blog','/blog','📝 Blog'],['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['apps','/apps','🎮 Spiele & Apps'],['haustier','/haustier/','🐾 Mein Haustier'],['board','/forum','💬 Forum'],['guestbook','/guestbook','📖 Freundebuch'],['contact','/contact','✉️ Kontakt']]; %>
+  <% const entries = [['blog','/blog','📝 Blog'],['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['apps','/apps','🎮 Spiele & Apps'],['haustier','/haustier/','🐾 Mein Haustier'],['musik','/musik','🎵 Musik'],['board','/forum','💬 Forum'],['guestbook','/guestbook','📖 Freundebuch'],['contact','/contact','✉️ Kontakt']]; %>
   <% for (const [key, href, label] of entries) {
        if (navHidden.includes(key)) continue;
        if (key === 'guestbook' && !guestbookEnabled) continue;
@@ -29,7 +29,19 @@
   <div class="tasks" id="tasks"><% if (typeof shellTask !== 'undefined') { %><span class="task"><%= shellTask %></span><% } %></div>
   <div class="tray">
     <button type="button" class="tray-btn" id="displaybtn" title="Darstellung anpassen" aria-label="Darstellung anpassen" aria-expanded="false" aria-controls="displaypanel">🖥️</button>
+    <button type="button" class="tray-btn" id="volumebtn" title="Lautstärke" aria-label="Lautstärke" aria-expanded="false" aria-controls="volumepanel">🔊</button>
     <span id="clock"></span>
   </div>
 </div>
 <%- include('display-panel') %>
+<%# Lautstärke: öffnet sich über den 🔊-Knopf neben der Uhr, Logik in public/sound.js %>
+<div class="window volume-panel" id="volumepanel" role="dialog" aria-label="Lautstärke" hidden>
+  <div class="titlebar"><span class="ttl">🔊 Lautstärke</span></div>
+  <div class="body">
+    <div class="vol-cols">
+      <label class="vol-col"><span>Musik</span><input type="range" class="vertical" name="musik" min="0" max="100" aria-label="Lautstärke Musik"><output></output></label>
+      <label class="vol-col"><span>Effekte</span><input type="range" class="vertical" name="effekte" min="0" max="100" aria-label="Lautstärke Effekte"><output></output></label>
+    </div>
+    <label class="inline"><input type="checkbox" name="stumm"> Ton aus</label>
+  </div>
+</div>

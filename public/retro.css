@@ -157,6 +157,21 @@ marquee, .marquee { background: #000; color: #0f0; font: bold 13px "Courier New"
 .startmenu form { margin: 0; }
 .startmenu button.menu-item { display: block; width: 100%; text-align: left; padding: 4px 10px; background: none; box-shadow: none; min-width: 0; color: var(--text); }
 .startmenu button.menu-item:hover { background: var(--title-from); color: #fff; }
+/* Untermenüs: klappen wie bei Windows 98 zur Seite auf (Maus: beim Drüberfahren, Handy: beim Antippen) */
+.startmenu .sub { position: relative; }
+.startmenu .sub-toggle::after { content: '▸'; float: right; margin-left: 12px; }
+.startmenu .submenu { display: none; position: absolute; left: 100%; bottom: -3px; min-width: 170px; background: var(--win); padding: 3px; z-index: 12;
+  box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--lo); }
+.startmenu .sub.open > .submenu { display: block; }
+.startmenu .sub.open > .sub-toggle { background: var(--title-from); color: #fff; }
+@media (hover: hover) {
+  .startmenu .sub:hover > .submenu { display: block; }
+  .startmenu .sub:hover > .sub-toggle { background: var(--title-from); color: #fff; }
+}
+/* Schmale Bildschirme: kein Platz daneben, also eingerückt darunter */
+@media (max-width: 480px) {
+  .startmenu .submenu { position: static; box-shadow: none; padding: 0 0 0 14px; }
+}
 .taskbar button.task { box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--lo); background: var(--win); }
 .taskbar button.task.pressed { font-weight: bold; box-shadow: inset 1px 1px var(--dark), inset -1px -1px var(--hi);
   background: repeating-conic-gradient(var(--win) 0 25%, #fff 0 50%) 0 0 / 2px 2px; }

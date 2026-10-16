@@ -168,7 +168,7 @@ router.post('/contact', auth.rateLimit('contact', 5, 600), (req, res, next) => {
 // ---------- Apps & Spiele ----------
 router.get('/apps', (req, res) => {
   const v = auth.visibilitySql(req.user, 'app', 'a');
-  res.render('apps', { title: 'Spiele & Apps', apps: db.prepare(`SELECT * FROM apps a WHERE ${v.sql} ORDER BY title`).all(...v.params) });
+  res.render('apps', { title: 'Andere Games', apps: db.prepare(`SELECT * FROM apps a WHERE ${v.sql} ORDER BY title`).all(...v.params) });
 });
 
 function loadApp(req, res, next) {
@@ -336,7 +336,7 @@ function renderAccount(req, res, msg, err) {
     else if (s.title) s.url = `/apps/${s.app_slug}`;
   }
   res.render('account', {
-    title: 'Mein Konto', msg, err, saves,
+    title: 'Kontoeinstellungen', msg, err, saves,
     profile: db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id),
     profileVis: profiles.PROFILE_VIS, pmFrom: profiles.PM_FROM, gbFrom: profiles.GB_FROM,
   });

@@ -31,6 +31,14 @@ const SNIPPETS = {
   contact: ['src/routes/public.js', "db.prepare('INSERT INTO messages(", 3],
   media: ['src/uploads.js', 'function saveMedia(files, uploaderId = null)', 7],
   saves: ['src/routes/saves.js', 'db.prepare(`INSERT INTO game_saves', 3],
+  volume: ['public/sound.js', "var KEY = 'lautstaerke'", 1],
+  musicPrefs: ['public/music.js', "var PREF_KEY = 'musik-player'", 1],
+  youtubeKey: ['public/music.js', "var YT = 'https://www.youtube-nocookie.com', YT_KEY", 1],
+  tracks: ['src/db.js', 'CREATE TABLE IF NOT EXISTS tracks (', 15],
+  playlists: ['src/db.js', 'CREATE TABLE IF NOT EXISTS playlists (', 8],
+  plays: ['src/routes/music.js', "db.prepare('UPDATE tracks SET plays = plays + 1", 1],
+  lobbyState: ['src/lobby.js', 'function state(l) {', 7],
+  oembed: ['src/youtube.js', 'async function oembed(id) {', 4],
 };
 
 let cache = null;

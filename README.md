@@ -1,8 +1,8 @@
 # 💾 Retro-Homepage
 
 Selbst gehostete Homepage im Look von Windows 98 / 2000 – mit Blog, Downloads (z. B. Spielstände),
-Modlisten, Linksammlung, Forum, Freundebuch, Kontaktformular, eigenen Seiten, einem Bereich für
-Browser-Spiele/Apps und einem Admin-Bereich mit Besucherstatistik, Nutzer- und Rechteverwaltung
+Modlisten, Linksammlung, Forum, Freundebuch, Kontaktformular, eigenen Seiten, Musik-Player mit
+Lobbys zum gemeinsamen Hören, einem Bereich für Browser-Spiele/Apps und einem Admin-Bereich mit Besucherstatistik, Nutzer- und Rechteverwaltung
 und Design-Editor.
 
 Technik: Node.js 22 + Express, SQLite (eingebaut, keine extra Datenbank), serverseitig gerenderte
@@ -104,7 +104,9 @@ Darin liegen Datenbank, hochgeladene Dateien, Bilder und Apps. Die Dateien gehö
    ```
 
    Ohne die beiden `…buffering off`-Zeilen speichert NPM große Uploads und Downloads erst
-   zwischen – auf dem Raspberry Pi, also meist auf der SD-Karte.
+   zwischen – auf dem Raspberry Pi, also meist auf der SD-Karte. `proxy_buffering off` brauchen
+   auch die Musik-Lobbys, damit Play, Pause und Liedwechsel sofort bei allen ankommen.
+   (Die Seite schickt dafür zusätzlich `X-Accel-Buffering: no` mit.)
 
 5. Im Router die Ports **80 und 443** auf den Raspberry Pi weiterleiten (falls noch nicht
    geschehen). Port 8080 des Unraid-Servers **nicht** ins Internet freigeben.
@@ -133,6 +135,9 @@ strenger möchte, setzt `TRUST_PROXY` auf die IP des Pi.
 | **Freundebuch** | Mit Name, anonym oder als angemeldeter Nutzer; optional Freischaltung durch dich; Spam-Schutz |
 | **Kontakt** | Nachrichten landen im Admin-Postfach, optional E-Mail-Benachrichtigung (SMTP) |
 | **Eigene Seiten** | z. B. „Über mich“, erscheinen auf Wunsch im Menü |
+| **Musik** | Player im Startmenü unter `/musik` im Stil des Windows Media Player: Bibliothek (deine Sammlung und Uploads der Mitglieder), Suche, Zufall/Wiederholen, Playlists der Mitglieder (privat, für Mitglieder oder öffentlich), 8 Visualisierungen nach Art der XP-Klassiker (Balken, Oszilloskop, Ozeannebel, Feuersturm, Ambiente, Batterie, Stacheln, Musikfarben) mit Vollbild. Du lädst unter Admin → Musik hoch und vergibst Sichtbarkeit inkl. Gruppen; Mitglieder laden im Player hoch (wer darf und wie viel Speicher, unter Einstellungen). Titel/Interpret kommen aus den ID3-Tags oder dem Dateinamen |
+| **Musik-Lobbys** | Mitglieder öffnen eine Lobby und hören dieselbe Warteschlange gleichzeitig (Live-Verbindung per Server-Sent Events). Eigene Titel, Playlists und YouTube-Videos oder -Playlists hinzufügen; Gastgeber legt fest, ob alle steuern dürfen, und kann die Lobby verstecken (nur mit Einladungslink). YouTube läuft über youtube-nocookie.com und erst nach einem Klick; unter Einstellungen abschaltbar. Lobbys leben nur im Arbeitsspeicher |
+| **Ton** | Knopf 🔊 neben der Uhr: Lautstärke für Musik und Effekte, „Ton aus“. Fenster öffnen/schließen, Startmenü und Fehlermeldungen klingen wie bei Windows (eigene, im Browser erzeugte Klänge), das Haustier-Spiel hat Tierstimmen und Effekte |
 | **Mein Haustier** | Eingebautes Spiel unter `/haustier/` (Startmenü): Haustier aussuchen, täglich versorgen, Münzen verdienen und im Shop ausgeben. Gäste spielen im Browser, mit Konto wird im Konto gespeichert. Details in [`games/haustier/README.md`](games/haustier/README.md) |
 | **Spiele & Apps** | HTML5-Spiele als ZIP hochladen (Godot, Unity WebGL, Phaser, eigenes JS …) oder externe Dienste einbetten |
 | **Design** | Farben, Hintergrundbild (kacheln/füllen/zentriert), Schrift, Lauftext, Besucherzähler, eigenes CSS, 5 Vorlagen |

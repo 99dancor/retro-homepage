@@ -323,7 +323,8 @@ html.fs-sehr-gross { --zoom: 1.3; }
 html.fs-gross body.embed, html.fs-sehr-gross body.embed, html.fs-gross body.admin, html.fs-sehr-gross body.admin,
 html.fs-gross body.desktop .taskbar, html.fs-sehr-gross body.desktop .taskbar,
 html.fs-gross body.desktop .startmenu, html.fs-sehr-gross body.desktop .startmenu,
-html.fs-gross body.desktop .display-panel, html.fs-sehr-gross body.desktop .display-panel { zoom: var(--zoom); }
+html.fs-gross body.desktop .display-panel, html.fs-sehr-gross body.desktop .display-panel,
+html.fs-gross .volume-panel, html.fs-sehr-gross .volume-panel { zoom: var(--zoom); }
 html.fs-gross #desk, html.fs-sehr-gross #desk { bottom: calc(32px * var(--zoom)); }
 
 /* Farben: überschreiben das Design der Seite (html.… schlägt :root aus /theme.css) */
@@ -368,3 +369,86 @@ html.still .blink { animation: none; }
 .shot { margin: 4px 0; flex: 0 1 auto; max-width: 100%; }
 .shot img { display: block; border: 1px solid var(--lo); box-shadow: 2px 2px 0 var(--lo); }
 .shot figcaption { font-size: 12px; margin-top: 3px; }
+
+/* Lautstärke (Knopf 🔊 neben der Uhr, public/sound.js) */
+.volume-panel { position: fixed; right: 4px; bottom: 34px; z-index: 12; margin: 0; width: 170px; }
+.volume-panel[hidden] { display: none; }
+.volume-panel .body { padding: 6px 8px; }
+.vol-cols { display: flex; justify-content: space-around; }
+.vol-col { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 0; font-size: 12px; }
+.vol-col output { font-size: 11px; opacity: .8; }
+input[type=range].vertical { writing-mode: vertical-lr; direction: rtl; width: 24px; height: 110px; margin: 0; }
+.volume-panel.muted .vol-cols { opacity: .5; }
+.volume-panel label.inline { margin: 6px 0 0; }
+
+/* Musik-Player (public/music.js) */
+.mp { display: flex; flex-direction: column; height: calc(100vh - 20px); min-height: 380px; gap: 4px; }
+.mp-toolbar { align-items: center; gap: 4px; padding: 2px 0 4px; }
+.mp-toolbar label.inline { margin: 0; }
+.mp-vis-pick select { max-width: 210px; }
+.mp-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 190px 1fr; gap: 6px; }
+.mp-side { overflow: auto; padding: 4px; display: flex; flex-direction: column; align-items: stretch; }
+.mp-group { font-size: 11px; font-weight: bold; opacity: .7; margin: 8px 4px 2px; text-transform: uppercase; letter-spacing: .03em; }
+.mp-group:first-child { margin-top: 2px; }
+button.mp-nav { display: block; width: 100%; text-align: left; background: none; box-shadow: none; min-width: 0; padding: 2px 6px; color: inherit;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+button.mp-nav:hover { background: var(--hover); }
+button.mp-nav.active { background: var(--title-from); color: #fff; }
+.mp-hint { font-size: 12px; margin: 6px 4px; opacity: .85; }
+.mp-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 4px; }
+.mp-stage { position: relative; height: 38%; min-height: 120px; background: #000; color: #fff;
+  box-shadow: inset 1px 1px var(--lo), inset 2px 2px var(--dark), inset -1px -1px var(--hi); overflow: hidden; }
+.mp-stage canvas { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); display: block; }
+.mp-stage:fullscreen { height: 100%; }
+.mp-yt { position: absolute; inset: 2px; background: #000; }
+.mp-yt[hidden] { display: none; }
+.mp-yt iframe { width: 100%; height: 100%; border: 0; display: block; }
+.mp-yt-probe { position: absolute; width: 1px; height: 1px; left: -9999px; border: 0; }
+.mp-now { position: absolute; left: 8px; right: 8px; bottom: 6px; font: bold 12px var(--font); text-shadow: 1px 1px 0 #000, 0 0 4px #000;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.mp-overlay { position: absolute; inset: 2px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.75); padding: 10px; text-align: center; }
+.mp-overlay[hidden] { display: none; }
+.mp-consent { max-width: 460px; font-size: 12px; }
+.mp-consent p { margin: 4px 0; }
+.mp-consent label.inline { color: #fff; margin-left: 8px; }
+.mp-head { display: flex; flex-direction: column; gap: 3px; }
+.mp-title small { opacity: .75; }
+.mp-tools { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.mp-tools input[type=search], .mp-tools input[type=text] { flex: 0 1 220px; min-width: 120px; }
+.mp-tools input.mp-yt-url { flex: 1 1 260px; }
+.mp-tools label.inline { margin: 0 6px 0 0; }
+.mp-head .mp-hint { margin: 0; }
+.mp-list { flex: 1; min-height: 0; overflow: auto; padding: 0; }
+.mp-table { box-shadow: none; }
+.mp-table td { vertical-align: middle; padding: 1px 6px; }
+.mp-table tr.playing td, .mp-table tr.playing:hover td { background: var(--title-from); color: #fff; }
+.mp-table tr.playing button.mp-track { color: #fff; font-weight: bold; }
+.mp-table tr.done td { opacity: .55; }
+.mp-table tr.locked td { opacity: .5; }
+button.mp-track { background: none; box-shadow: none; padding: 0; min-width: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+button.mp-track:hover:not(:disabled) { text-decoration: underline; }
+button.mp-track:disabled { cursor: default; }
+.mp-acts { white-space: nowrap; text-align: right; }
+.mp-acts button.small { padding: 0 5px; }
+.mp-by { font-size: 12px; }
+.mp-ytbadge { background: #c00; color: #fff; padding: 0 4px; font-size: 10px; opacity: 1 !important; }
+.mp-empty { padding: 12px; margin: 0; }
+.mp-controls { display: flex; align-items: center; gap: 3px; padding: 4px 2px; }
+.mp-controls button { min-width: 0; padding: 3px 8px; }
+.mp-controls button.mp-play { padding: 3px 14px; }
+.mp-controls button:disabled { opacity: .5; cursor: default; }
+.mp-controls #mp-seek { flex: 1; min-width: 60px; }
+.mp-time { font: 12px "Courier New", monospace; min-width: 42px; text-align: center; }
+.mp-vol { display: inline-flex; align-items: center; gap: 2px; }
+.mp-vol input { width: 80px; }
+.mp-dlg { width: min(440px, calc(100vw - 20px)); padding: 3px; border: 0; color: var(--text); }
+.mp-dlg::backdrop { background: rgba(0,0,0,.3); }
+.mp-picks { display: flex; flex-direction: column; gap: 3px; max-height: 50vh; overflow: auto; }
+.mp-picks button { text-align: left; }
+@media (max-width: 640px) {
+  .mp-main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .mp-side { max-height: 110px; }
+  .mp-by, .mp-table th:nth-child(5) { display: none; }
+  .mp-vis-pick { display: none; }
+  .mp-vol input { width: 50px; }
+}

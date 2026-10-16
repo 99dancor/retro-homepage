@@ -88,6 +88,7 @@ function canSee(user, type, item) {
   if (!item) return false;
   if (user && user.isAdmin) return true;
   if (user && item.uploader_id && item.uploader_id === user.id) return true;
+  if (user && type === 'playlist' && item.user_id === user.id) return true;
   switch (item.visibility) {
     case 'public': return true;
     case 'members': return !!user;
@@ -105,7 +106,8 @@ function canSee(user, type, item) {
 function visibilitySql(user, type, alias) {
   if (user && user.isAdmin) return { sql: '1=1', params: [] };
   if (!user) return { sql: `${alias}.visibility = 'public'`, params: [] };
-  const own = type === 'file' ? `${alias}.uploader_id = ${Number(user.id)} OR ` : '';
+  const owner = { file: 'uploader_id', track: 'uploader_id', playlist: 'user_id' }[type];
+  const own = owner ? `${alias}.${owner} = ${Number(user.id)} OR ` : '';
   return {
     sql: `(${own}${alias}.visibility IN ('public','members') OR (${alias}.visibility = 'groups' AND EXISTS (
             SELECT 1 FROM acl a JOIN user_groups ug ON ug.group_id = a.group_id

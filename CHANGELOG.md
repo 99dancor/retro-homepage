@@ -1,5 +1,16 @@
 # Changelog
 
+## 16.10.2026 – Musik, Lobbys und Ton
+
+- **Musik-Player:** Neu im Startmenü unter 🎵 Musik. Hör dir die Musik-Sammlung der Seite an, durchsuche sie, spiele alles der Reihe nach, zufällig oder in Dauerschleife. Läuft weiter, wenn du das Fenster minimierst.
+- **Visualisierungen** wie früher im Windows Media Player: Balken, Oszilloskop, Ozeannebel, Feuersturm, Ambiente, Batterie, Stacheln und Musikfarben. Doppelklick aufs Bild macht Vollbild.
+- **Eigene Musik hochladen:** Mit Konto lädst du über 📤 Hochladen eigene Titel hoch (MP3, OGG, WAV, FLAC, M4A …) und bestimmst, wer sie hören darf. Titel und Interpret liest der Player aus der Datei.
+- **Playlists:** Stell dir eigene Playlists zusammen, sortiere sie und teile sie mit anderen Mitgliedern oder mit allen.
+- **Lobbys zum gemeinsamen Hören:** Öffne eine Lobby, schick den Einladungslink herum, und alle hören dasselbe Lied zur selben Zeit. Lieder aus der Sammlung, ganze Playlists oder Videos und Playlists von YouTube kommen in die gemeinsame Warteschlange. Du entscheidest, ob alle steuern dürfen.
+- **Lautstärke neben der Uhr:** Über 🔊 regelst du Musik und Effekte getrennt oder schaltest den Ton ganz aus.
+- **Klänge:** Startmenü, Fenster öffnen, schließen, minimieren und Fehlermeldungen machen jetzt Geräusche wie bei Windows. **Mein Haustier** hat Tierstimmen und Klänge für Füttern, Spielen, Baden, Münzen und mehr.
+- YouTube-Lieder lädt dein Browser erst, wenn du auf „YouTube laden“ klickst. Was dabei passiert, steht auf der Datenschutzseite.
+
 ## 15.10.2026 – Dein eigener Desktop
 
 - **Eigenschaften von Anzeige:** Der 🖥️-Knopf neben der Uhr öffnet jetzt ein richtiges Einstellungsfenster mit drei Reitern, wie bei Windows 98:

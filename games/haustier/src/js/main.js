@@ -13,6 +13,7 @@ import {
   CHECKIN_QUESTIONS, checkIn, checkinDone,
 } from './economy.js';
 import { petSvg, roomSvg } from './art.js';
+import { play as sfx, actionSound, muted, toggleMuted, VOLUME_KEY } from './sound.js';
 
 // Adressen der Homepage. Der Server schreibt sie als data-Attribute in <body> (data-login, data-register,
 // data-forum); ein leerer Wert heißt: gibt es gerade nicht (z. B. Registrierung geschlossen, Forum aus).
@@ -363,14 +364,15 @@ async function act(action, itemId = null) {
   if (lastAction[key] && now - lastAction[key] < ACTIONS[action].cooldown) return;
   tickPet(pet, now, tickOpts(state));
   const check = canDo(pet, action, state, itemId, now);
-  if (!check.ok) { if (view === 'room') say(check.reason, 3500); else ok(ACTIONS[action].label, `<p>${esc(check.reason)}</p>`); return; }
+  if (!check.ok) { sfx('nein'); if (view === 'room') say(check.reason, 3500); else ok(ACTIONS[action].label, `<p>${esc(check.reason)}</p>`); return; }
   if (ACTIONS[action].item && !itemId) {
     itemId = await pickItem(pet, action);
     if (!itemId) return;
   }
   const r = doAction(pet, action, state, Date.now(), { itemId });
-  if (!r.ok) { say(r.text, 3500); return; }
+  if (!r.ok) { sfx('nein'); say(r.text, 3500); return; }
   lastAction[key] = now;
+  actionSound(action, pet.species).forEach((n, i) => setTimeout(() => sfx(n), i * 350));
   let gained = actionCoins(state, action, r.factor);
   const notes = [r.text];
   if (action === 'pet' && pet.acc.neck === 'acc_bell') notes[0] += ' 🔔 Klingeling!';
@@ -383,7 +385,9 @@ async function act(action, itemId = null) {
   bubble = { text: notes.join(' '), until: Date.now() + 4000 + notes.length * 1500 };
   render();
   floaters(r.delta, gained);
+  if (gained) setTimeout(() => sfx('muenze'), 450);
   if (r.levelUp) {
+    setTimeout(() => sfx('fanfare'), 700);
     const bonus = levelReward(state, r.levelUp);
     store.save(state);
     render();
@@ -395,13 +399,14 @@ async function act(action, itemId = null) {
 async function doBuy(id) {
   const item = ITEMS[id];
   const c = canBuy(state, id);
-  if (!c.ok) { ok('Shop', `<p>${esc(c.reason)}</p>`); return; }
+  if (!c.ok) { sfx('nein'); ok('Shop', `<p>${esc(c.reason)}</p>`); return; }
   if (c.price >= 300) {
     const sure = await dialog('Kaufen?', `<p>${item.icon} <b>${item.name}</b> für ${coins(c.price)} kaufen?</p>`, [{ label: 'Kaufen', value: 'yes' }, { label: 'Abbrechen', value: 'no' }]);
     if (sure !== 'yes') return;
   }
   const r = buy(state, id);
   if (!r.ok) return;
+  sfx('kaufen');
   store.save(state);
   render();
   const extra = r.done.map((t) => `<p>✅ Aufgabe erledigt: ${t.text} (+${t.reward} Münzen)</p>`).join('');
@@ -434,6 +439,7 @@ async function runCheckin() {
   }
   const res = checkIn(state, answers);
   if (!res.ok) return;
+  sfx('freude');
   store.save(state);
   const feelsBad = answers[2] === false;
   bubble = pet ? { text: feelsBad ? `${pet.name} kuschelt sich ganz nah an dich.` : `${pet.name} freut sich mit dir!`, until: Date.now() + 6000 } : null;
@@ -495,6 +501,7 @@ function wire() {
   $('menubar').addEventListener('click', (e) => {
     const b = e.target.closest('[data-view]');
     if (!b || !state.pets.length) return;
+    sfx('klick');
     view = b.dataset.view; picked = null; render();
   });
 
@@ -528,6 +535,7 @@ function wire() {
     view = 'room'; picked = null;
     ensureDaily(state);
     store.save(state);
+    sfx('stimme:' + r.pet.species);
     const welcome = state.pets.length === 1 ? ' Im Inventar liegen schon ein Ball und etwas Trockenfutter.' : '';
     bubble = { text: `${r.pet.name} ist bei dir eingezogen! Streichle ${r.pet.name}, damit ihr euch kennenlernt.${welcome}`, until: Date.now() + 9000 };
     render();
@@ -551,6 +559,12 @@ function wire() {
   screen.addEventListener('pointercancel', end);
 
   document.querySelector('[data-open=news]').addEventListener('click', showNews);
+  // Ton an/aus: derselbe Schalter wie „Ton aus“ am 🔊-Regler der Homepage
+  const soundBtn = document.querySelector('[data-open=sound]');
+  const showSound = () => { const m = muted(); soundBtn.textContent = m ? '🔇' : '🔊'; soundBtn.title = m ? 'Ton einschalten' : 'Ton ausschalten'; };
+  soundBtn.addEventListener('click', () => { toggleMuted(); showSound(); sfx('pop'); });
+  window.addEventListener('storage', (e) => { if (e.key === VOLUME_KEY) showSound(); });
+  showSound();
   document.querySelector('[data-open=help]').addEventListener('click', () => ok('Hilfe',
     `<p>Kümmere dich jeden Tag um dein Haustier. Die Werte sinken mit der Zeit, auch wenn du nicht da bist,
      aber nie unter 10. Krank wird dein Tier nicht, es wird nur traurig, wenn du es vernachlässigst.</p>

@@ -9,6 +9,7 @@
 <link rel="icon" href="<%= asset('favicon.svg') %>">
 <script type="application/json" id="darstellung-daten"><%- themes.clientData %></script>
 <script src="<%= asset('display.js') %>"></script>
+<script src="<%= asset('sound.js') %>"></script>
 </head>
 <% const isAdmin = path.startsWith('/admin') && typeof counts !== 'undefined'; %>
 <% if (!isAdmin) { %>
@@ -30,6 +31,7 @@
     <a href="/admin/downloads" class="<%= path.startsWith('/admin/downloads') ? 'active' : '' %>">⬇ Downloads</a>
     <a href="/admin/mods" class="<%= path.startsWith('/admin/mods') ? 'active' : '' %>">🧩 Modlisten</a>
     <a href="/admin/links" class="<%= path.startsWith('/admin/links') ? 'active' : '' %>">🔗 Links</a>
+    <a href="/admin/musik" class="<%= path.startsWith('/admin/musik') ? 'active' : '' %>">🎵 Musik</a>
     <a href="/admin/apps" class="<%= path.startsWith('/admin/apps') ? 'active' : '' %>">🎮 Apps</a>
     <a href="/admin/pages" class="<%= path.startsWith('/admin/pages') ? 'active' : '' %>">📄 Seiten</a>
     <a href="/admin/guestbook" class="<%= path.startsWith('/admin/guestbook') ? 'active' : '' %>">📖 Freundebuch<% if (counts.pending) { %> <span class="badge"><%= counts.pending %></span><% } %></a>

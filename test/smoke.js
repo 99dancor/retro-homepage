@@ -744,6 +744,11 @@ async function main() {
       assert.ok(!(await api(bernd)).items.some(n => /Abo-Test/.test(n.title)), 'eigene Antworten melden nichts');
       await anna.req(topic);
       assert.equal((await api(anna)).unread, 0);
+      // Startseite: rechts die eigenen Benachrichtigungen, für Gäste Anmelden; links Neues aus dem Forum
+      const home = (await anna.req('/')).text_;
+      assert.match(home, /🔔 Für dich[\s\S]*Neue Antwort in „Abo-Test“/);
+      assert.match(home, /💬 Neu im Forum[\s\S]*Abo-Test/);
+      assert.match((await guest.req('/')).text_, /👋 Mitmachen[\s\S]*href="\/login"/);
 
       // Einstellungen: Forum aus, dann kommt nichts mehr
       const acc = (await anna.req('/account')).text_;

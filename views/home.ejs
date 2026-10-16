@@ -1,7 +1,13 @@
 <%- include('partials/head') %>
 <div class="content"><%- homeHtml %></div>
+<div class="home-links">
+  <% if (rulesUrl) { %><a class="btn small" href="<%= rulesUrl %>">📜 Regelkodex</a><% } else if (user && user.isAdmin) { %><small class="muted">📜 Für den Link zum Regelkodex lege unter <a href="/admin/pages/new" target="_top">Eigene Seiten</a> eine Seite mit der Adresse <code>regeln</code> an.</small><% } %>
+  <button type="button" class="small" id="guide-start">🧭 Kurzer Rundgang</button>
+</div>
 <div class="construction"></div>
 
+<div class="home-cols">
+<div class="home-new">
 <h2>📝 Neueste Beiträge</h2>
 <% if (!posts.length) { %><p class="muted">Noch keine Beiträge.</p><% } %>
 <% for (const p of posts) { %>
@@ -9,6 +15,15 @@
     <a href="/blog/<%= p.slug %>"><b><%= p.title %></b></a> <span class="meta">– <%= fmtDate(p.created_at) %></span>
     <% if (p.summary) { %><div><%= p.summary %></div><% } %>
   </div>
+<% } %>
+
+<% if (topics.length && !navHidden.includes('board')) { %>
+<h2>💬 Neu im Forum</h2>
+<table class="list">
+  <% for (const t of topics) { %>
+  <tr><td><a href="/forum/t/<%= t.id %>?page=last"><%= t.title %></a></td><td class="num"><small><%= t.replies %> <%= t.replies === 1 ? 'Antwort' : 'Antworten' %></small></td><td class="num"><small><%= fmtDate(t.last_post_at, true) %></small></td></tr>
+  <% } %>
+</table>
 <% } %>
 
 <% if (files.length && !navHidden.includes('files')) { %>
@@ -28,4 +43,35 @@
 <% } %>
 <p><a href="/guestbook">» Ins Besucherbuch eintragen</a></p>
 <% } %>
+</div>
+
+<aside class="home-me">
+<% if (user) { %>
+  <fieldset class="groupbox"><legend>🔔 Für dich</legend>
+    <% if (!notes.length) { %><p class="muted">Nichts Neues. Hier erscheinen Nachrichten, Freundschaftsanfragen, Antworten im Forum und mehr.</p><% } else { %>
+    <div class="notify-page">
+      <% for (const n of notes) { %>
+      <div class="notify-row<%= n.read_at ? '' : ' unread' %>"><a href="/benachrichtigungen/<%= n.id %>"><b><%= n.title %></b><% if (n.count > 1) { %> <span class="tag"><%= n.count %>×</span><% } %><% if (n.body) { %><br><small><%= n.body %></small><% } %></a></div>
+      <% } %>
+    </div>
+    <% } %>
+    <div class="actions"><a class="btn small" href="/benachrichtigungen">Alle anzeigen</a><a class="btn small" href="/account#benachrichtigungen">⚙️ Einstellungen</a></div>
+  </fieldset>
+<% } else { %>
+  <fieldset class="groupbox"><legend>👋 Mitmachen</legend>
+    <p>Mit einem Konto schreibst du im Forum, spielst Blackjack, malst in Paint, sammelst Freunde und bekommst hier Nachrichten und Benachrichtigungen.</p>
+    <div class="actions"><a class="btn" href="/login">🔑 Anmelden</a><% if (registrationOpen) { %><a class="btn" href="/register">✏️ Registrieren</a><% } %></div>
+  </fieldset>
+<% } %>
+</aside>
+</div>
+
+<dialog class="window guide" id="guide">
+  <div class="titlebar"><span class="ttl">🧭 Kurzer Rundgang</span></div>
+  <form method="dialog" class="body">
+    <div id="guide-step"></div>
+    <div class="actions"><button type="button" id="guide-back">« Zurück</button><button type="button" id="guide-next">Weiter »</button><button value="close">Schließen</button></div>
+  </form>
+</dialog>
+<script src="<%= asset('guide.js') %>"></script>
 <%- include('partials/foot') %>

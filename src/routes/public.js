@@ -17,15 +17,22 @@ const { FONTS } = require('../themes');
 const router = express.Router();
 
 // ---------- Startseite ----------
+// Startseite: links das Neueste der Seite, rechts die eigenen Benachrichtigungen (oder Anmelden/Registrieren)
 router.get('/', (req, res) => {
   const pv = auth.visibilitySql(req.user, 'post', 'p');
   const fv = auth.visibilitySql(req.user, 'file', 'f');
+  const boardOpen = getSetting('board_enabled') === '1' && (getSetting('board_members_only') !== '1' || req.user);
+  const rules = db.prepare("SELECT * FROM pages WHERE slug = 'regeln'").get();
   res.render('home', {
     title: 'Startseite',
     homeHtml: md(getSetting('home_md')),
     posts: db.prepare(`SELECT * FROM posts p WHERE published = 1 AND ${pv.sql} ORDER BY created_at DESC LIMIT 5`).all(...pv.params),
     files: db.prepare(`SELECT * FROM files f WHERE ${fv.sql} ORDER BY created_at DESC LIMIT 5`).all(...fv.params),
     guestbook: db.prepare('SELECT * FROM guestbook WHERE approved = 1 ORDER BY created_at DESC, id DESC LIMIT 3').all(),
+    topics: boardOpen ? db.prepare(`SELECT t.id, t.title, t.last_post_at, (SELECT COUNT(*) FROM board_posts p WHERE p.topic_id = t.id) - 1 AS replies
+                                    FROM board_topics t ORDER BY t.last_post_at DESC LIMIT 5`).all() : [],
+    notes: req.user ? notify.list(req.user.id, 8) : [],
+    rulesUrl: rules && auth.canSee(req.user, 'page', rules) ? '/p/regeln' : null,
   });
 });
 

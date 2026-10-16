@@ -14,6 +14,7 @@ const MAX_THUMB = 256 * 1024;
 const enabled = () => getSetting('paint_enabled', '1') === '1';
 const guestsOk = () => getSetting('paint_guests', '1') === '1';
 const galleryOn = () => enabled() && getSetting('paint_gallery', '1') === '1';
+const lobbiesOn = () => enabled() && getSetting('paint_lobbies', '1') === '1';
 const moderation = () => getSetting('paint_moderation', '0') === '1';
 const num = (k, d, max) => Math.max(1, Math.min(max, Number(getSetting(k, String(d))) || d));
 const maxSize = () => ({ w: num('paint_max_w', 2000, 4000), h: num('paint_max_h', 2000, 4000) });
@@ -26,20 +27,25 @@ function canSave(user) {
 function quotaBytes() { return Math.max(0, Number(getSetting('paint_quota_mb', '50')) || 0) * 1024 * 1024; }
 function usedBytes(userId) { return db.prepare('SELECT COALESCE(SUM(size), 0) AS n FROM artworks WHERE owner_id = ?').get(userId).n; }
 
-// Wer darf ein Bild sehen? Besitzer und Admin immer, sonst je nach Sichtbarkeit.
-// Öffentliche Bilder, die noch auf die Freigabe warten, sehen nur Besitzer und Admin.
+// Wer darf ein Bild sehen? Besitzer, Mitmaler aus einer Lobby und Admin immer, sonst je nach Sichtbarkeit.
+// Öffentliche Bilder, die noch auf die Freigabe warten, und Entwürfe sehen nur sie.
 function canSee(user, a) {
   if (!a) return false;
-  if (user && (user.isAdmin || user.id === a.owner_id)) return true;
-  if (a.visibility === 'public') return a.approved === 1;
-  if (a.visibility === 'members') return !!user;
+  if (user && (user.isAdmin || user.id === a.owner_id || (a.id != null && isPainter(a.id, user.id)))) return true;
+  if (a.visibility === 'public') return a.approved === 1 && !a.draft;
+  if (a.visibility === 'members') return !!user && !a.draft;
   return false;
 }
+const isPainter = (artId, userId) => !!db.prepare('SELECT 1 FROM artwork_painters WHERE artwork_id = ? AND user_id = ?').get(artId, userId);
 // Dasselbe als SQL-Bedingung für Listen (Alias a)
 function visibleSql(user) {
   if (user && user.isAdmin) return { sql: '1=1', params: [] };
-  if (!user) return { sql: "(a.visibility = 'public' AND a.approved = 1)", params: [] };
-  return { sql: "(a.owner_id = ? OR (a.visibility = 'public' AND a.approved = 1) OR a.visibility = 'members')", params: [user.id] };
+  if (!user) return { sql: "(a.visibility = 'public' AND a.approved = 1 AND a.draft = 0)", params: [] };
+  return {
+    sql: `(a.owner_id = ? OR a.id IN (SELECT artwork_id FROM artwork_painters WHERE user_id = ?)
+           OR (a.draft = 0 AND ((a.visibility = 'public' AND a.approved = 1) OR a.visibility = 'members')))`,
+    params: [user.id, user.id],
+  };
 }
 
 // Breite und Höhe aus dem Kopf einer PNG-Datei, null wenn es keine ist
@@ -97,30 +103,55 @@ const filesOf = userId => db.prepare('SELECT stored_name FROM artworks WHERE own
 const needsApproval = (user, visibility) => visibility === 'public' && moderation() && !(user && user.isAdmin);
 
 function get(id) {
-  return db.prepare('SELECT a.*, u.username, u.display_name FROM artworks a JOIN users u ON u.id = a.owner_id WHERE a.id = ?').get(Number(id)) || null;
+  return db.prepare(`SELECT a.*, u.username, u.display_name, ${WITH} FROM artworks a JOIN users u ON u.id = a.owner_id WHERE a.id = ?`).get(Number(id)) || null;
 }
+// Mitmaler eines Bildes, meiste Änderungen zuerst
+function painters(artId) {
+  return db.prepare(`SELECT u.id, u.username, u.display_name, p.strokes FROM artwork_painters p JOIN users u ON u.id = p.user_id
+                     WHERE p.artwork_id = ? ORDER BY p.strokes DESC, u.username`).all(artId)
+    .map(u => ({ id: u.id, name: u.display_name || u.username, user: u.username, strokes: u.strokes }));
+}
+function setPainters(artId, list) {
+  db.prepare('DELETE FROM artwork_painters WHERE artwork_id = ?').run(artId);
+  const ins = db.prepare('INSERT OR IGNORE INTO artwork_painters(artwork_id, user_id, strokes) VALUES (?, ?, ?)');
+  for (const p of list) ins.run(artId, p.id, Math.max(0, Math.floor(p.strokes) || 0));
+}
+// Namen der Mitmaler für Listen in einem Rutsch (eine Abfrage statt einer pro Bild)
+const WITH = "(SELECT GROUP_CONCAT(COALESCE(pu.display_name, pu.username), ', ') FROM artwork_painters pp JOIN users pu ON pu.id = pp.user_id WHERE pp.artwork_id = a.id) AS with_names";
 function row(a, user) {
   return {
-    id: a.id, title: a.title, w: a.width, h: a.height, visibility: a.visibility,
+    id: a.id, title: a.title, w: a.width, h: a.height, visibility: a.visibility, draft: !!a.draft,
     pending: a.visibility === 'public' && !a.approved, mine: !!user && user.id === a.owner_id,
-    by: a.display_name || a.username, byUser: a.username, date: fmtDate(a.updated_at), updated: a.updated_at,
+    by: a.display_name || a.username, byUser: a.username, with: a.with_names || '', date: fmtDate(a.updated_at), updated: a.updated_at,
   };
 }
-// Bilder eines Mitglieds, die der Betrachter sehen darf (Profil und Galerie)
-function byUser(ownerId, viewer, limit = 200) {
+// Bilder eines Mitglieds (selbst gemalt oder mitgemalt), die der Betrachter sehen darf (Profil und Galerie). Entwürfe nicht.
+function byUser(userId, viewer, limit = 200) {
   const v = visibleSql(viewer);
-  return db.prepare(`SELECT a.*, u.username, u.display_name FROM artworks a JOIN users u ON u.id = a.owner_id
-                     WHERE a.owner_id = ? AND ${v.sql} ORDER BY a.updated_at DESC, a.id DESC LIMIT ?`).all(ownerId, ...v.params, limit);
+  return db.prepare(`SELECT a.*, u.username, u.display_name, ${WITH} FROM artworks a JOIN users u ON u.id = a.owner_id
+                     WHERE (a.owner_id = ? OR a.id IN (SELECT artwork_id FROM artwork_painters WHERE user_id = ?)) AND a.draft = 0 AND ${v.sql}
+                     ORDER BY a.updated_at DESC, a.id DESC LIMIT ?`).all(userId, userId, ...v.params, limit);
+}
+// Eigene Bilder und Entwürfe (Datei → Öffnen → Meine Bilder)
+function mine(userId) {
+  return db.prepare(`SELECT a.*, u.username, u.display_name, ${WITH} FROM artworks a JOIN users u ON u.id = a.owner_id
+                     WHERE a.owner_id = ? ORDER BY a.updated_at DESC, a.id DESC`).all(userId);
+}
+// Bilder anderer, an denen man mitgemalt hat (Datei → Öffnen → Gemeinsam gemalt)
+function shared(userId) {
+  return db.prepare(`SELECT a.*, u.username, u.display_name, ${WITH} FROM artworks a JOIN users u ON u.id = a.owner_id
+                     WHERE a.id IN (SELECT artwork_id FROM artwork_painters WHERE user_id = ?) ORDER BY a.updated_at DESC, a.id DESC`).all(userId);
 }
 // Galerie: öffentliche Bilder, für Mitglieder auch die für Mitglieder freigegebenen. Private stehen nur unter „Meine Bilder“.
 function gallery(viewer, limit = 500) {
   const vis = viewer ? "a.visibility IN ('public','members')" : "a.visibility = 'public'";
-  return db.prepare(`SELECT a.*, u.username, u.display_name FROM artworks a JOIN users u ON u.id = a.owner_id
-                     WHERE ${vis} AND (a.visibility != 'public' OR a.approved = 1) AND u.disabled = 0
+  return db.prepare(`SELECT a.*, u.username, u.display_name, ${WITH} FROM artworks a JOIN users u ON u.id = a.owner_id
+                     WHERE ${vis} AND (a.visibility != 'public' OR a.approved = 1) AND a.draft = 0 AND u.disabled = 0
                      ORDER BY a.updated_at DESC, a.id DESC LIMIT ?`).all(limit);
 }
 
 module.exports = {
-  VIS, MAX_FILE, enabled, guestsOk, galleryOn, moderation, maxSize, canSave, quotaBytes, usedBytes,
-  canSee, visibleSql, pngSize, cleanPng, checkFiles, file, store, removeFiles, filesOf, needsApproval, get, row, byUser, gallery,
+  VIS, MAX_FILE, enabled, guestsOk, galleryOn, lobbiesOn, moderation, maxSize, canSave, quotaBytes, usedBytes,
+  canSee, isPainter, visibleSql, pngSize, cleanPng, checkFiles, file, store, removeFiles, filesOf, needsApproval, get, row, byUser, gallery,
+  painters, setPainters, mine, shared,
 };

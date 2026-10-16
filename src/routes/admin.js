@@ -12,6 +12,7 @@ const profiles = require('../profiles');
 const music = require('../music');
 const paint = require('../paint');
 const paintRoutes = require('./paint');
+const paintLobby = require('../paintlobby');
 const { deleteTrack } = require('./music');
 
 const router = express.Router();
@@ -219,12 +220,13 @@ router.post('/musik/:id/delete', (req, res) => {
 });
 
 // ---------- Paint ----------
-const PAINT_FLAGS = ['paint_enabled', 'paint_guests', 'paint_gallery', 'paint_moderation'];
+const PAINT_FLAGS = ['paint_enabled', 'paint_guests', 'paint_gallery', 'paint_moderation', 'paint_lobbies'];
 router.get('/paint', (req, res) => {
   const s = Object.fromEntries([...PAINT_FLAGS, 'paint_save', 'paint_quota_mb', 'paint_max_w', 'paint_max_h'].map(k => [k, getSetting(k, '')]));
   const stats = db.prepare(`SELECT COUNT(*) AS n, COUNT(DISTINCT owner_id) AS users, COALESCE(SUM(size), 0) AS bytes,
                             COALESCE(SUM(visibility = 'public' AND approved = 0), 0) AS pending FROM artworks`).get();
-  res.render('admin/paint', { title: 'Paint', s, stats, artworks: paintRoutes.adminList(), ok: 'ok' in req.query });
+  const lobbies = [...paintLobby._lobbies.values()].map(l => ({ ...paintLobby.state(l), owner: l.owner.name }));
+  res.render('admin/paint', { title: 'Paint', s, stats, lobbies, artworks: paintRoutes.adminList(), ok: 'ok' in req.query });
 });
 router.post('/paint', (req, res) => {
   const b = req.body;
@@ -234,6 +236,11 @@ router.post('/paint', (req, res) => {
   setSetting('paint_quota_mb', n(b.paint_quota_mb, 50, 1, 100000));
   setSetting('paint_max_w', n(b.paint_max_w, 2000, 16, 4000));
   setSetting('paint_max_h', n(b.paint_max_h, 2000, 16, 4000));
+  res.redirect('/admin/paint?ok=1');
+});
+router.post('/paint/lobby/:id/schliessen', (req, res) => {
+  const l = paintLobby.get(req.params.id);
+  if (l) paintLobby.remove(l);
   res.redirect('/admin/paint?ok=1');
 });
 router.post('/paint/:id/freigeben', (req, res) => {

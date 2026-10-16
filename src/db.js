@@ -322,6 +322,14 @@ CREATE TABLE IF NOT EXISTS artworks (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
+-- Paint: wer an einem Bild aus einer Lobby mitgemalt hat (der Besitzer steht nicht drin)
+CREATE TABLE IF NOT EXISTS artwork_painters (
+  artwork_id INTEGER NOT NULL REFERENCES artworks(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  strokes INTEGER NOT NULL DEFAULT 0,       -- wie viele Änderungen von ihm im Bild stecken
+  PRIMARY KEY (artwork_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS awp_user ON artwork_painters(user_id);
 CREATE INDEX IF NOT EXISTS aw_owner ON artworks(owner_id, updated_at);
 CREATE INDEX IF NOT EXISTS aw_list ON artworks(visibility, approved, updated_at);
 CREATE INDEX IF NOT EXISTS bj_user ON bj_sessions(user_id, started_at);
@@ -351,6 +359,7 @@ addColumn('users', 'about', 'TEXT');
 addColumn('users', 'profile_visibility', "TEXT NOT NULL DEFAULT 'members'");
 addColumn('users', 'pm_from', "TEXT NOT NULL DEFAULT 'all'");
 addColumn('users', 'gb_from', "TEXT NOT NULL DEFAULT 'all'");
+addColumn('artworks', 'draft', 'INTEGER NOT NULL DEFAULT 0');    // 1 = Entwurf, den eine Paint-Lobby von selbst sichert
 
 function now() { return Math.floor(Date.now() / 1000); }
 
@@ -408,6 +417,7 @@ const DEFAULT_SETTINGS = {
   paint_max_h: '2000',
   paint_gallery: '1',           // Galerie mit öffentlichen Bildern
   paint_moderation: '0',        // öffentliche Bilder erst nach Freigabe durch den Admin zeigen
+  paint_lobbies: '1',           // gemeinsam malen in Lobbys (nur Mitglieder)
   notify_email: '',
   smtp_host: '',
   smtp_port: '587',

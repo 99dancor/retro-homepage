@@ -183,16 +183,23 @@
   <li>Mit Konto kannst du Bilder <b>auf der Seite speichern</b>. Gespeichert werden das Bild und eine kleine Vorschau als PNG, dazu Titel, Größe, dein Konto, die Sichtbarkeit und wann du es gespeichert und zuletzt geändert hast. Eingefügte Fotos sind danach Teil des Bildes. Versteckte Angaben wie der Aufnahmeort kommen nicht mit: Paint speichert nur die Pixel, und der Server entfernt beim Speichern alles andere aus der Datei.</li>
   <li><b>Wer es sieht</b>, bestimmst du beim Speichern: nur du, alle angemeldeten Mitglieder oder alle (dann auch in der Galerie und auf deinem Profil für Gäste). Der Admin sieht alle Bilder. Stellt er die Freigabe ein, erscheinen öffentliche Bilder erst, wenn er sie freigegeben hat.</li>
   <li>Du löschst deine Bilder unter Datei → Öffnen. Löschst du dein Konto, verschwinden sie mit.</li>
+  <li><b>Lobbys</b> (gemeinsam malen, nur mit Konto): Deine Änderungen am Bild, wo dein Mauszeiger gerade ist (mit deinem Namen) und was du in der Unterhaltung schreibst, gehen über den Server an alle in der Lobby. Der Server hält das Bild, die letzten 50 Nachrichten und deine letzten 10 Schritte (für Rückgängig) nur im Arbeitsspeicher. Mauszeiger reicht er nur weiter, ohne sie zu behalten. Schließt die Lobby oder startet der Server neu, ist all das weg.</li>
+  <li><b>Entwurf:</b> Jede Minute sichert die Lobby das Bild als privaten Entwurf bei dem, der sie aufgemacht hat, dazu, wer mitgemalt hat und wie viele Änderungen von wem stammen. Wer mitgemalt hat, sieht den Entwurf ebenfalls.</li>
+  <li><b>Mitmaler:</b> Wer ein Lobby-Bild speichert, wählt aus, wer als Mitmaler eingetragen wird. Mitmaler sehen das Bild auch, wenn es privat ist, und stehen in Galerie und Profil mit ihrem Namen daneben (je nach Sichtbarkeit des Bildes). Unter Datei → Öffnen → Gemeinsam gemalt kannst du dich selbst austragen. Löschst du dein Konto, verschwinden deine Einträge als Mitmaler.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('artworks', 'Diese Spalten speichert die Seite zu jedem Bild. Die Bilddatei selbst liegt unter einem Zufallsnamen in <code>data/paint</code>.') %>
+  <%- code('artworkDraft', 'Diese Spalte markiert Entwürfe, die eine Lobby von selbst sichert.') %>
+  <%- code('artworkPainters', 'Hier steht, wer an einem Bild mitgemalt hat.') %>
   <%- code('artworkSee', 'So entscheidet der Server, wer ein Bild sehen darf.') %>
+  <%- code('paintCursor', 'Mauszeiger und die Vorschau eines Strichs reicht der Server nur an die anderen in der Lobby weiter.') %>
+  <%- code('paintChat', 'Die Unterhaltung: höchstens 300 Zeichen pro Nachricht, nur die letzten 50 bleiben im Arbeitsspeicher.') %>
 </details>
 
 <h2 id="fragen">🗑 Löschen und Fragen</h2>
 <ul>
   <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
-  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Blackjack-Sitzungen, Bilder aus Paint, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Blackjack-Sitzungen, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag. Sag Bescheid, wenn auch die weg sollen.</li>
   <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
 </ul>
 <p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>

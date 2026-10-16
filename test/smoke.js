@@ -1075,7 +1075,140 @@ async function main() {
       await new Promise(r => setTimeout(r, 100));
       assert.equal(files().length, 0);
       assert.equal((await admin.req(`/paint/bild/${art.id}.png`)).status, 404);
+      assert.equal((await admin.form('/admin/paint', { _csrf: t, paint_enabled: '1', paint_guests: '1', paint_gallery: '1', paint_lobbies: '1', paint_save: 'members', paint_quota_mb: '50', paint_max_w: '2000', paint_max_h: '2000' })).status, 302);
+    });
+
+    await step('Paint-Lobby: gemeinsam malen, Rückgängig, Unterhaltung, Speichern mit Mitmalern', async () => {
+      const P = require('../public/paint-core');
+      const pngio = require('../src/png');
+      let t = await admin.csrf('/admin/users');
+      for (const name of ['lena', 'tom']) assert.equal((await admin.form('/admin/users/create', { _csrf: t, username: name, password: 'passwort123' })).status, 302);
+      const lena = browser(), tom = browser();
+      for (const [b, name] of [[lena, 'lena'], [tom, 'tom']]) {
+        const tk = await b.csrf();
+        const r = await b.req('/login', { method: 'POST', body: new URLSearchParams({ _csrf: tk, username: name, password: 'passwort123' }), headers: { 'content-type': 'application/x-www-form-urlencoded', 'x-forwarded-for': '10.9.1.' + name.length } });
+        assert.equal(r.status, 302);
+      }
+      const json = async (b, url, body, token = true) => {
+        const r = await b.req(url, { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json', ...(token ? { 'x-csrf-token': b.jar.get('csrf') } : {}) } });
+        let parsed = null;
+        try { parsed = JSON.parse(r.text_ || 'null'); } catch { /* Fehlerseite in HTML, z. B. ohne Formular-Token */ }
+        return { status: r.status, json: parsed };
+      };
+      // Live-Verbindung mitlesen wie ein Browser
+      function listen(b, url) {
+        const ctl = new AbortController(), events = [], waiters = [];
+        const done = fetch(BASE + url, { headers: { cookie: [...b.jar].map(([k, v]) => `${k}=${v}`).join('; ') }, signal: ctl.signal }).then(async res => {
+          assert.equal(res.status, 200);
+          let buf = '';
+          for await (const chunk of res.body) {
+            buf += Buffer.from(chunk).toString();
+            let i;
+            while ((i = buf.indexOf('\n\n')) >= 0) {
+              const block = buf.slice(0, i); buf = buf.slice(i + 2);
+              const ev = /^event: (.+)$/m.exec(block), data = /^data: (.*)$/m.exec(block);
+              if (ev && data) { events.push({ event: ev[1], data: JSON.parse(data[1]) }); waiters.slice().forEach(w => w()); }
+            }
+          }
+        }).catch(e => { if (e.name !== 'AbortError') throw e; });
+        const next = (pred, ms = 3000) => new Promise((resolve, reject) => {
+          const check = () => { const e = events.find(pred); if (e) { waiters.splice(waiters.indexOf(check), 1); clearTimeout(tm); resolve(e); } };
+          const tm = setTimeout(() => reject(new Error('Kein passendes Ereignis: ' + JSON.stringify(events.map(e => e.event)))), ms);
+          waiters.push(check); check();
+        });
+        return { events, next, close: () => { ctl.abort(); return done; } };
+      }
+      const patch = (w, h, color) => { const b = { w, h, d: new Uint8ClampedArray(w * h * 4) }; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if ((x + y) % 2 === 0) P.set(b, x, y, color); return pngio.encode(b).toString('base64'); };
+
+      assert.equal((await guest.req('/paint/lobbys')).status, 401);
+      assert.equal((await json(lena, '/paint/lobbys', { name: 'x' }, false)).status, 403, 'ohne Formular-Token');
+      const made = await json(lena, '/paint/lobbys', { name: 'Gemeinsam', w: 50, h: 40 });
+      assert.equal(made.status, 200);
+      const id = made.json.id;
+      assert.ok((await json(tom, '/paint/lobbys', {})).json.id, 'jeder darf eine Lobby aufmachen');
+      const listed = JSON.parse((await tom.req('/paint/lobbys')).text_).lobbies;
+      assert.ok(listed.some(l => l.id === id && l.name === 'Gemeinsam' && l.w === 50));
+
+      const sl = listen(lena, `/paint/lobby/${id}/events`), st = listen(tom, `/paint/lobby/${id}/events`);
+      const hl = (await sl.next(e => e.event === 'hello')).data, ht = (await st.next(e => e.event === 'hello')).data;
+      assert.equal(hl.state.ownerId, hl.me);
+      await sl.next(e => e.event === 'state' && e.data.people.length === 2);
+
+      // Lena malt ein Stück: Tom bekommt es als PNG, Lena nur die Bestätigung
+      const op = await json(lena, `/paint/lobby/${id}/op`, { sid: hl.sid, cid: 'a1', x: 2, y: 3, data: patch(6, 4, 0xff0000) });
+      assert.equal(op.status, 200, JSON.stringify(op.json));
+      const got = (await st.next(e => e.event === 'op' && e.data.seq === op.json.seq)).data;
+      assert.deepEqual([got.kind, got.x, got.y, got.w, got.h], ['patch', 2, 3, 50, 40]);
+      assert.equal(P.get(pngio.decode(Buffer.from(got.data, 'base64')), 0, 0), 0xff0000);
+      await sl.next(e => e.event === 'ack' && e.data.cid === 'a1');
+      const snap = await tom.req(`/paint/lobby/${id}/bild.png`);
+      assert.equal(snap.headers.get('content-type'), 'image/png');
+      assert.equal(snap.headers.get('x-seq'), String(op.json.seq));
+      // Befehl für das ganze Bild
+      const rot = await json(tom, `/paint/lobby/${id}/op`, { sid: ht.sid, cid: 'b1', cmd: { t: 'rotate', deg: 90 } });
+      assert.equal(rot.status, 200);
+      const rotated = (await sl.next(e => e.event === 'op' && e.data.kind === 'cmd')).data;
+      assert.deepEqual([rotated.w, rotated.h], [40, 50]);
+      assert.equal((await json(tom, `/paint/lobby/${id}/op`, { sid: ht.sid, cid: 'b2', data: 'kaputt' })).status, 400);
+
+      // Rückgängig: Tom nimmt seine Drehung zurück, Lena kann ihr Stück danach nicht mehr zurücknehmen (Drehung lag darüber)
+      const back = await json(tom, `/paint/lobby/${id}/undo`, { sid: ht.sid, cid: 'u1' });
+      assert.equal(back.status, 200);
+      assert.equal((await sl.next(e => e.event === 'op' && e.data.seq === back.json.seq)).data.w, 50);
+      assert.equal((await json(lena, `/paint/lobby/${id}/undo`, { sid: hl.sid, cid: 'u2' })).status, 409);
+
+      // Zeiger und Unterhaltung
+      await json(tom, `/paint/lobby/${id}/zeiger`, { sid: ht.sid, x: 5, y: 6, pv: { k: 's', id: 1, pts: [[5, 6]], c: 0, sh: 'round', sz: 2 } });
+      const cur = (await sl.next(e => e.event === 'cursor')).data;
+      assert.deepEqual([cur.x, cur.y, cur.pv.k], [5, 6, 's']);
+      assert.equal((await json(tom, `/paint/lobby/${id}/chat`, { text: 'Hallo <b>Lena</b>' })).status, 200);
+      assert.equal((await sl.next(e => e.event === 'chat')).data.text, 'Hallo <b>Lena</b>', 'Text kommt roh, der Browser setzt ihn als Text ein');
+
+      // Nur Freigegebene malen: Tom sieht zu, bis Lena ihm das Malrecht gibt
+      assert.equal((await json(tom, `/paint/lobby/${id}`, { action: 'settings', everyone: false })).status, 403, 'nur der Gastgeber');
+      assert.equal((await json(lena, `/paint/lobby/${id}`, { action: 'settings', everyone: false })).status, 200);
+      assert.match((await json(tom, `/paint/lobby/${id}/op`, { sid: ht.sid, cid: 'b3', x: 0, y: 0, data: patch(2, 2, 0x0000ff) })).json.error, /zusehen/);
+      await json(lena, `/paint/lobby/${id}`, { action: 'rights', user: ht.me, allow: true });
+      assert.equal((await json(tom, `/paint/lobby/${id}/op`, { sid: ht.sid, cid: 'b4', x: 40, y: 30, data: patch(4, 4, 0x0000ff) })).status, 200);
+
+      // Speichern mit Mitmaler: Tom findet das Bild unter „Gemeinsam gemalt“, Gäste sehen es nicht
+      const saved = await json(lena, `/paint/lobby/${id}/speichern`, { title: 'Zu zweit', visibility: 'private', painters: [ht.me] });
+      assert.equal(saved.status, 200, JSON.stringify(saved.json));
+      const art = saved.json.artwork;
+      assert.equal(art.with, 'tom');
+      assert.deepEqual(JSON.parse((await tom.req('/paint/bilder?tab=shared')).text_).artworks.map(a => a.title), ['Zu zweit']);
+      assert.equal((await tom.req(`/paint/bild/${art.id}.png`)).status, 200, 'Mitmaler sehen private Bilder');
+      assert.equal((await guest.req(`/paint/bild/${art.id}.png`)).status, 404);
+      await json(lena, `/paint/bild/${art.id}`, { visibility: 'public' });
+      assert.match((await guest.req(`/galerie/${art.id}`)).text_, /mit <a href="\/nutzer\/tom">tom<\/a>/);
+      assert.match((await lena.req('/nutzer/tom')).text_, /id="bilder"[\s\S]*Zu zweit/, 'mitgemalte Bilder im Profil');
+      assert.equal((await json(tom, `/paint/bild/${art.id}/austragen`, {})).status, 200);
+      assert.deepEqual(JSON.parse((await tom.req('/paint/bilder?tab=shared')).text_).artworks, []);
+
+      // Entwurf: wer die Lobby aufgemacht hat, findet den letzten Stand unter „Meine Bilder“
+      assert.equal((await json(tom, `/paint/lobby/${id}/op`, { sid: ht.sid, cid: 'b5', x: 10, y: 10, data: patch(4, 4, 0x00ff00) })).status, 200);
+      const sse = await st.close();
+      assert.equal((await json(tom, `/paint/lobby/${id}/chat`, { text: 'weg' })).status, 409, 'ohne Verbindung keine Änderungen');
+      assert.equal((await json(lena, `/paint/lobby/${id}`, { action: 'close' })).status, 200);
+      await sl.next(e => e.event === 'closed');
+      await sl.close();
+      const mine = JSON.parse((await lena.req('/paint/bilder')).text_).artworks;
+      const draft = mine.find(a => a.draft);
+      assert.ok(draft, 'Entwurf gesichert');
+      assert.equal(draft.visibility, 'private');
+      assert.equal((await tom.req(`/paint/bild/${draft.id}.png`)).status, 200, 'Mitmaler sehen den Entwurf');
+      assert.ok(!JSON.parse((await guest.req('/paint/bilder?tab=gallery')).text_).artworks.some(a => a.id === draft.id));
+      assert.equal((await lena.req(`/paint/lobby/${id}`)).status, 404, 'geschlossen');
+
+      // Admin: Lobbys ausschalten
+      t = await admin.csrf('/admin/paint');
+      assert.match((await admin.req('/admin/paint')).text_, /Offene Lobbys/);
       assert.equal((await admin.form('/admin/paint', { _csrf: t, paint_enabled: '1', paint_guests: '1', paint_gallery: '1', paint_save: 'members', paint_quota_mb: '50', paint_max_w: '2000', paint_max_h: '2000' })).status, 302);
+      assert.equal((await lena.req('/paint/lobbys')).status, 404);
+      assert.doesNotMatch((await lena.req('/paint')).text_, /paint-lobby\.js/);
+      assert.equal((await admin.form('/admin/paint', { _csrf: t, paint_enabled: '1', paint_guests: '1', paint_gallery: '1', paint_lobbies: '1', paint_save: 'members', paint_quota_mb: '50', paint_max_w: '2000', paint_max_h: '2000' })).status, 302);
+      assert.match((await lena.req('/paint')).text_, /paint-lobby\.js/);
+      void sse;
     });
 
     await step('Gelöschtes Konto verliert seine Statistik-Einträge', async () => {

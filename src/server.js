@@ -59,6 +59,7 @@ app.use((req, res, next) => {
     registrationOpen: getSetting('registration_open') === '1',
     contactEnabled: getSetting('contact_enabled') === '1',
     boardEnabled: getSetting('board_enabled') === '1',
+    blackjackEnabled: getSetting('bj_enabled', '1') === '1',
     navHidden: (getSetting('nav_hidden') || '').split(','),
     marquee: getSetting('theme_marquee'),
     showCounter: getSetting('theme_show_counter') === '1',
@@ -96,6 +97,7 @@ app.use('/api/stats', profileRoutes.stats);
 app.use('/admin', require('./routes/admin'));
 app.use('/forum', require('./routes/board'));
 app.use('/musik', require('./routes/music').router);
+app.use('/blackjack', require('./routes/blackjack'));
 app.use('/', require('./routes/games'));
 app.use('/', profileRoutes.router);
 app.use('/', require('./routes/public'));

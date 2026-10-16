@@ -536,3 +536,100 @@ table.kv td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .pm-tray:not([hidden]) { animation: pm-blink 1s steps(2) 3; }
 @keyframes pm-blink { 50% { opacity: .3; } }
 @media (prefers-reduced-motion: reduce) { .pm-tray:not([hidden]) { animation: none; } }
+
+/* Gewinn und Verlust (Blackjack-Bilanz, auch im Profil) */
+.pos { color: #006400; font-weight: bold; }
+.neg { color: var(--danger); font-weight: bold; }
+html.scheme-nacht .pos, html.scheme-kontrast .pos { color: #7cfc7c; }
+html.scheme-nacht .neg, html.scheme-kontrast .neg { color: #ff8a8a; }
+
+/* Nutzermenü (public/usermenu.js): Klick auf einen Namen in Lobbys */
+.usermenu { position: fixed; z-index: 50; min-width: 210px; max-width: 280px; background: var(--win); color: var(--text); padding: 3px;
+  box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--lo), 2px 2px 0 rgba(0,0,0,.35); font-size: 13px; }
+.usermenu .um-head { display: flex; gap: 8px; align-items: center; padding: 4px 6px 6px; border-bottom: 1px solid var(--lo); box-shadow: 0 1px var(--hi); margin-bottom: 3px; }
+.usermenu .um-head small { opacity: .75; }
+.usermenu .um-note { padding: 3px 6px; font-size: 12px; }
+.usermenu .um-flash { background: #ffffe1; color: #000; margin: 2px 0; }
+.usermenu .menu-item { display: block; width: 100%; text-align: left; padding: 4px 10px; background: none; box-shadow: none; min-width: 0; color: var(--text); }
+.usermenu .menu-item:hover, .usermenu .menu-item:focus-visible { background: var(--title-from); color: #fff; outline: none; }
+.usermenu .menu-item.danger { color: var(--danger); }
+.usermenu .menu-item.danger:hover { color: #fff; }
+.usermenu hr { margin: 3px 2px; }
+
+/* Blackjack */
+.bj { display: flex; flex-direction: column; height: calc(100vh - 20px); min-height: 420px; gap: 4px; }
+.bj-nav [hidden] { display: none; }
+.bj-me { font-size: 12px; align-self: center; padding: 0 6px; }
+.bj-main { flex: 1; min-height: 0; overflow: auto; }
+.bj-pad { padding: 4px 2px; }
+.bj-top { margin: 0 0 8px; }
+.bj-empty, .bj-guest { padding: 16px; text-align: center; opacity: .85; }
+.bj-big { font-size: 28px; font-weight: bold; margin: 8px 0; }
+.bj-acts { white-space: nowrap; text-align: right; }
+.bj-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 2px 2px 6px; }
+.bj-table { display: flex; gap: 6px; height: calc(100% - 30px); min-height: 380px; }
+.bj-felt { flex: 1; position: relative; min-width: 0; min-height: 380px; overflow: hidden; color: #fff;
+  background: radial-gradient(ellipse at 50% 25%, #1f7a3a, #0d4d22 75%);
+  box-shadow: inset 1px 1px var(--lo), inset 2px 2px var(--dark), inset -1px -1px var(--hi); }
+.bj-dealer { position: absolute; left: 0; right: 0; top: 10px; text-align: center; }
+.bj-label { font-weight: bold; letter-spacing: 2px; opacity: .8; font-size: 12px; margin-bottom: 4px; }
+.bj-motto { position: absolute; left: 0; right: 0; top: 118px; text-align: center; font: italic 11px Georgia, serif; opacity: .65; }
+.bj-cards { display: inline-flex; vertical-align: middle; padding-right: 14px; }
+.bj-card { width: 44px; height: 62px; margin-right: -14px; background: #fff; color: #000; border: 1px solid #333; border-radius: 4px; position: relative;
+  font: bold 14px/1.05 Georgia, serif; box-shadow: 2px 2px 0 rgba(0,0,0,.35); animation: bj-deal .25s ease-out both; flex: none; }
+.bj-card .r { position: absolute; left: 4px; top: 3px; text-align: center; }
+.bj-card .s { position: absolute; right: 4px; bottom: 2px; font-size: 22px; }
+.bj-card.red { color: #c00000; }
+.bj-card.back { background: repeating-linear-gradient(45deg, var(--title-from) 0 4px, var(--title-to) 4px 8px); border: 3px solid #fff; outline: 1px solid #333; }
+@keyframes bj-deal { from { transform: translateY(-14px) rotate(-6deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .bj-card { animation: none; } }
+.bj-badge { display: inline-block; background: #000; color: #ff0; font: bold 11px var(--font); padding: 1px 6px; border-radius: 9px; vertical-align: middle; white-space: nowrap; }
+.bj-badge.win, .bj-badge.blackjack { background: #ffd700; color: #000; }
+.bj-badge.lose, .bj-badge.bust { background: #7a0000; color: #fff; }
+.bj-badge.push { background: #555; color: #fff; }
+.bj-seat { position: absolute; transform: translateX(-50%); width: 19%; min-width: 120px; text-align: center; font-size: 12px; top: 46%; }
+.bj-seat.empty { opacity: .8; }
+.bj-free { font-style: italic; opacity: .6; }
+.bj-hand { min-height: 66px; display: flex; flex-direction: column; align-items: center; gap: 3px; margin-bottom: 3px; padding: 3px; }
+.bj-hand.active { outline: 2px dashed #ff0; outline-offset: 1px; }
+.bj-seat.turn .bj-name { background: #ff0; color: #000; }
+.bj-nobet { justify-content: center; opacity: .7; font-style: italic; }
+.bj-name { background: none; box-shadow: none; color: #fff; font-weight: bold; padding: 1px 6px; min-width: 0; text-shadow: 1px 1px #000; }
+.bj-seat.mine .bj-name { text-decoration: underline; }
+.bj-name:hover { background: rgba(255,255,255,.2); }
+.bj-chips { text-shadow: 1px 1px #000; }
+.bj-felt .pos { color: #9cff9c; } .bj-felt .neg { color: #ff9c9c; }
+.bj-chip { display: inline-flex; width: 28px; height: 28px; min-width: 0; padding: 0; border-radius: 50%; align-items: center; justify-content: center; vertical-align: middle;
+  font: bold 10px var(--font); color: #fff; border: 3px dashed #fff; box-shadow: 0 0 0 1px #000, 1px 2px 0 rgba(0,0,0,.4); background: #1565c0; }
+button.bj-chip { width: 36px; height: 36px; font-size: 11px; }
+button.bj-chip:active { transform: translateY(1px); box-shadow: 0 0 0 1px #000; }
+.bj-chip.c5 { background: #c62828; } .bj-chip.c10 { background: #1565c0; } .bj-chip.c25 { background: #2e7d32; } .bj-chip.c50 { background: #ef6c00; }
+.bj-chip.c100 { background: #222; } .bj-chip.c500 { background: #6a1b9a; } .bj-chip.c1000 { background: #b8860b; }
+.bj-bottom { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.bj-phase { text-shadow: 1px 1px #000; }
+.bj-controls { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.bj-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.bj button:disabled { opacity: .5; cursor: default; }
+.bj-controls small { text-shadow: 1px 1px #000; }
+.bj-betbar { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.bj-side { width: 230px; flex: none; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.bj-side .groupbox { margin: 0; padding: 4px 8px 6px; font-size: 12px; }
+.bj-side .actions { margin-top: 6px; gap: 4px; }
+.bj-link { background: none; box-shadow: none; padding: 0; min-width: 0; color: var(--field-link, var(--link)); text-decoration: underline; font: inherit; text-align: left; }
+.bj-side .bj-link { color: var(--link); }
+.bj-log { flex: 1; min-height: 80px; overflow: auto; font: 11px/1.35 "Courier New", monospace; }
+.bj-log div + div { border-top: 1px dotted #ccc; }
+.bj-me-row td { font-weight: bold; background: var(--hover); }
+.bj-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 4px 0 10px; }
+.bj-kpis .sunken { text-align: center; display: flex; flex-direction: column; gap: 2px; }
+.bj-kpis b { font-size: 20px; }
+.bj-rules li { margin: 4px 0; }
+@media (max-width: 760px) {
+  .bj { height: auto; }
+  .bj-table { flex-direction: column; height: auto; }
+  .bj-felt { min-height: 460px; }
+  .bj-side { width: auto; }
+  .bj-seat { width: 30%; min-width: 0; }
+  .bj-card { width: 34px; height: 50px; font-size: 12px; margin-right: -12px; }
+  .bj-card .s { font-size: 16px; }
+}

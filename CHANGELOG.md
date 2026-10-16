@@ -1,5 +1,15 @@
 # Changelog
 
+## 16.10.2026 – Blackjack
+
+- **Blackjack:** Neu im Startmenü unter 🃏 Blackjack. Mach einen Tisch auf oder setz dich an einen offenen, mit bis zu fünf Mitgliedern gegen den Dealer. Andere können zusehen, und über 🔗 Einladen kommt man per Link direkt an den Tisch.
+- **Spielgeld:** Jeder startet mit 1.000 €. Hast du weniger als 200 €, kaufst du dich zwischen zwei Händen für 1.000 € nach, so oft du willst. Echtes Geld gibt es nicht.
+- **Bilanz:** Gezählt wird, was du am Tisch hast, minus allem, was du eingekauft hast. Wer mit 1.000 € startet, dreimal nachkauft und mit 500 € aufhört, steht bei −3.500 €. Die Bilanz wird nach jeder Hand gespeichert.
+- **Statistik:** Bestenliste, Rekorde und deine letzten Sitzungen stehen im Spiel unter 📊 Statistik, Bilanz, Hände, Blackjacks und größter Gewinn auch in deinem Profil.
+- **Regeln:** 6 Decks, Blackjack zahlt 3 zu 2, Verdoppeln und einmal Teilen. Pro Zug hast du 30 Sekunden, am Tisch geht es auch mit der Tastatur (Z, H, V, T). Der Admin stellt Buy-in, Nachkauf-Grenze, Decks und Bedenkzeit unter Einstellungen ein.
+- **Nutzermenü:** Ein Klick auf einen Namen am Tisch oder in einer Musik-Lobby öffnet überall dasselbe Menü: Profil ansehen, als Freund hinzufügen oder Anfrage annehmen, Nachricht schreiben. Gastgeber finden dort auch „Vom Tisch nehmen“ bzw. die Player-Rechte.
+- **Besucherbuch:** Das Freundebuch der Seite heißt jetzt Besucherbuch, damit es nicht mit dem Freundebuch in jedem Profil verwechselt wird. Adresse und Einträge bleiben.
+
 ## 16.10.2026 – Profile, Freunde und Nachrichten
 
 - **Profil:** Jedes Mitglied hat jetzt ein eigenes Profil mit Profilbild, Anzeigename und „Über mich“. Einstellen kannst du das unter 🔑 Mein Konto. Mit dem Benutzernamen meldest du dich weiter an.

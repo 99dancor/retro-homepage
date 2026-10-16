@@ -33,7 +33,7 @@
     <% for (const g of games) { %>
       <div class="panel game-card">
         <div class="game-title"><a href="<%= g.url %>"><b><%= g.title %></b></a><small class="muted">zuletzt <%= fmtDate(g.last) %></small></div>
-        <table class="kv"><% for (const s of g.stats) { %><tr><td><%= s.key %></td><td class="num"><%= num(s.value) %></td></tr><% } %></table>
+        <table class="kv"><% for (const s of g.stats) { %><tr><td><%= s.key %></td><td class="num<%= s.cls ? ' ' + s.cls : '' %>"><%= s.text || num(s.value) %></td></tr><% } %></table>
       </div>
     <% } %>
     </div>
@@ -43,7 +43,7 @@
   <fieldset class="groupbox"><legend>📊 Auf der Seite</legend>
     <table class="kv">
       <% if (boardOpen) { %><tr><td>Forenbeiträge</td><td class="num"><%= num(counts.posts) %></td></tr><tr><td>Forenthemen</td><td class="num"><%= num(counts.topics) %></td></tr><% } %>
-      <% if (guestbookEnabled) { %><tr><td>Einträge im Freundebuch der Seite</td><td class="num"><%= num(counts.guestbook) %></td></tr><% } %>
+      <% if (guestbookEnabled) { %><tr><td>Einträge im Besucherbuch</td><td class="num"><%= num(counts.guestbook) %></td></tr><% } %>
       <tr><td>Hochgeladene Musik</td><td class="num"><%= num(counts.tracks) %></td></tr>
       <tr><td>Freunde</td><td class="num"><%= num(friends.length) %></td></tr>
     </table>

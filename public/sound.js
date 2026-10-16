@@ -69,6 +69,10 @@
     ding: function (c, t) { tone(c, t, { f: 1319, d: 0.5, v: 0.22 }); tone(c, t, { f: 2637, d: 0.25, v: 0.06 }); },
     // Zufallsgenerator: Würfel klappern und ein kleiner Tusch zum Ergebnis
     wuerfel: function (c, t) { noise(c, t, { d: 0.025, f: 1800, q: 4, v: 0.22 }); noise(c, t + 0.035, { d: 0.02, f: 2600, q: 4, v: 0.15 }); },
+    // Blackjack: Karte wird ausgeteilt, Chips klimpern
+    karte: function (c, t) { noise(c, t, { d: 0.05, f: 4200, q: 1.2, v: 0.18 }); noise(c, t + 0.03, { d: 0.03, f: 1500, q: 2, v: 0.1 }); },
+    chips: function (c, t) { [0, 0.045, 0.085].forEach(function (o, i) { tone(c, t + o, { f: 2900 + i * 350, d: 0.05, type: 'triangle', v: 0.09 }); }); },
+    // Tusch: Zufallsgenerator und Blackjack
     tusch: function (c, t) { chord(c, t, [523, 659, 784], { d: 0.12, type: 'square', v: 0.07, step: 0.09 }); chord(c, t + 0.3, [523, 659, 784, 1047], { d: 0.7, type: 'square', v: 0.06 }); },
     anmelden: function (c, t) { chord(c, t, [392, 523, 659, 784], { d: 0.9, type: 'triangle', v: 0.14, step: 0.11 }); },
   };

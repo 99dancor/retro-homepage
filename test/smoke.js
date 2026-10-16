@@ -158,7 +158,7 @@ async function main() {
       assert.doesNotMatch((await guest.req('/files')).text_, /Speicherstand/);
     });
 
-    await step('Freundebuch-Eintrag als Gast', async () => {
+    await step('Besucherbuch-Eintrag als Gast', async () => {
       const t = await guest.csrf('/guestbook');
       const r = await guest.form('/guestbook', { _csrf: t, name: 'Tester', message: 'Grüße <b>!</b>' });
       assert.equal(r.status, 302);
@@ -631,7 +631,7 @@ async function main() {
       assert.match((await guest.req('/nutzer/anna')).text_, /Ich mag Katzen\./);
       assert.match((await guest.req('/nutzer')).text_, /\/nutzer\/anna"/);
 
-      // Anzeigename im Freundebuch, Startmenü und als Link
+      // Anzeigename im Besucherbuch, Startmenü und als Link
       tk = await anna.csrf('/guestbook');
       await anna.form('/guestbook', { _csrf: tk, message: 'Hallo von Anna' });
       assert.match((await guest.req('/guestbook')).text_, /href="\/nutzer\/anna" class="userlink">[\s\S]*?Anna B\.<\/a>/);
@@ -816,10 +816,104 @@ async function main() {
       assert.doesNotMatch((await bernd.req('/nutzer/anna')).text_, /📖 Freundebuch/, 'ausgeschaltet');
     });
 
-    await step('Lobby und Musik verlinken auf Profile', async () => {
+    await step('Lobby und Musik verlinken auf Profile, Namen öffnen das Nutzermenü', async () => {
+      const { anna, bernd } = members;
       const js = (await guest.req('/static/music.js')).text_;
-      assert.match(js, /Profil ansehen/);
+      assert.match(js, /RetroUserMenu\.open\(e, u\.user/);
       assert.match(js, /'\/nutzer\/' \+ encodeURIComponent/);
+      assert.match((await guest.req('/static/usermenu.js')).text_, /Profil ansehen[\s\S]*Als Freund hinzufügen[\s\S]*Nachricht schreiben/);
+      assert.match((await anna.req('/musik')).text_, /usermenu\.js[\s\S]*music\.js/);
+      // Kurzinfo fürs Menü und Freundschaft per fetch
+      const info = await api(bernd, '/api/nutzer/anna', undefined, 'GET');
+      assert.equal(info.status, 200);
+      assert.equal(info.json.user, 'anna');
+      assert.equal(info.json.url, '/nutzer/anna');
+      assert.equal(typeof info.json.canMessage, 'boolean');
+      assert.equal((await api(bernd, '/api/nutzer/gibtsnicht', undefined, 'GET')).status, 404);
+      const rel = info.json.relation;
+      const fr = await bernd.req('/nutzer/anna/freund', { method: 'POST', body: new URLSearchParams({ action: rel === 'friends' ? 'remove' : 'add' }), headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json', 'x-csrf-token': bernd.jar.get('csrf') } });
+      assert.equal(fr.status, 200);
+      const j = JSON.parse(fr.text_);
+      assert.equal(j.ok, true);
+      assert.notEqual(j.relation, rel);
+      // wieder wie vorher
+      await bernd.req('/nutzer/anna/freund', { method: 'POST', body: new URLSearchParams({ action: rel === 'friends' ? 'add' : 'cancel' }), headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json', 'x-csrf-token': bernd.jar.get('csrf') } });
+      if (rel === 'friends') await anna.req('/nutzer/bernd/freund', { method: 'POST', body: new URLSearchParams({ action: 'accept' }), headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json', 'x-csrf-token': anna.jar.get('csrf') } });
+      assert.equal((await api(bernd, '/api/nutzer/anna', undefined, 'GET')).json.relation, rel);
+    });
+
+    await step('Blackjack: Tisch, Live-Verbindung, Runde, Bilanz im Profil', async () => {
+      const { anna, bernd } = members;
+      const home = (await guest.req('/', { top: true })).text_;
+      assert.match(home, /<div class="startmenu"[\s\S]*href="\/blackjack">🃏 Blackjack/);
+      assert.match(home, /href="\/guestbook">📖 Besucherbuch/);
+      const page = (await guest.req('/blackjack')).text_;
+      assert.match(page, /Anmelden/);
+      assert.doesNotMatch(page, /blackjack\.js/, 'Gäste bekommen kein Spiel');
+      assert.match((await anna.req('/blackjack')).text_, /usermenu\.js[\s\S]*blackjack\.js/);
+      assert.equal((await api(guest, '/blackjack/tische', undefined, 'GET')).status, 401);
+      // Zahlen zählt der Server selbst: Browser dürfen für Blackjack nichts melden
+      assert.equal((await api(anna, '/api/stats/blackjack', { add: { Bilanz: 1e6 } }, 'PATCH')).status, 404);
+
+      const made = await api(anna, '/blackjack/tische', { name: 'Freitagsrunde', minBet: 10, maxBet: 500, seats: 3 });
+      assert.equal(made.status, 200);
+      const id = made.json.id;
+      const list = await api(bernd, '/blackjack/tische', undefined, 'GET');
+      assert.deepEqual(list.json.tables.map(t => [t.name, t.seats]), [['Freitagsrunde', 3]]);
+      assert.equal(list.json.me.balance, 0);
+
+      const ctrl = new AbortController();
+      const res = await fetch(`${BASE}/blackjack/tisch/${id}/events`, { headers: { cookie: [...anna.jar].map(([k, v]) => `${k}=${v}`).join('; '), 'user-agent': UA }, signal: ctrl.signal });
+      assert.match(res.headers.get('content-type'), /text\/event-stream/);
+      const reader = res.body.getReader();
+      let buf = '';
+      const nextState = async () => {
+        for (;;) {
+          const i = buf.indexOf('\n\n');
+          if (i >= 0) { const ev = buf.slice(0, i); buf = buf.slice(i + 2); const m = ev.match(/^event: state\ndata: (.*)$/m); if (m) return JSON.parse(m[1]); continue; }
+          const { value, done } = await reader.read();
+          if (done) throw new Error('Verbindung zu');
+          buf += Buffer.from(value).toString();
+        }
+      };
+      let st = await nextState();
+      assert.equal(st.seatCount, 3);
+      assert.equal((await api(anna, `/blackjack/tisch/${id}`, { action: 'sit' })).status, 200);
+      st = await nextState();
+      assert.equal(st.seats[0].user, 'anna');
+      assert.deepEqual([st.seats[0].chips, st.seats[0].buyins, st.seats[0].balance], [1000, 1, 0]);
+      const rebuy = await api(anna, `/blackjack/tisch/${id}`, { action: 'rebuy' });
+      assert.equal(rebuy.status, 400);
+      assert.match(rebuy.json.error, /weniger als 200 €/);
+      assert.equal((await api(bernd, `/blackjack/tisch/${id}`, { action: 'kick', user: st.seats[0].id })).status, 400, 'nur der Gastgeber');
+
+      // Eine Runde: setzen, beim eigenen Zug halten, Ergebnis abwarten
+      assert.equal((await api(anna, `/blackjack/tisch/${id}`, { action: 'bet', amount: 100 })).status, 200);
+      for (;;) {
+        st = await nextState();
+        if (st.phase === 'playing') assert.ok(st.dealer[1] === null, 'Lochkarte verdeckt');
+        if (st.phase === 'playing' && st.turn && st.turn.seat === 0) await api(anna, `/blackjack/tisch/${id}`, { action: 'stand' });
+        if (st.phase === 'result') break;
+      }
+      const balance = st.seats[0].balance;
+      assert.equal(balance, st.seats[0].chips - 1000);
+      assert.ok(['win', 'blackjack', 'push', 'lose', 'bust'].includes(st.seats[0].hands[0].result));
+      ctrl.abort();
+
+      const stats = await api(anna, '/blackjack/statistik', undefined, 'GET');
+      assert.equal(stats.json.me.hands, 1);
+      assert.equal(stats.json.me.balance, balance);
+      assert.equal(stats.json.sessions[0].table, 'Freitagsrunde');
+      assert.equal(stats.json.board[0].user, 'anna');
+      const prof = (await bernd.req('/nutzer/anna')).text_;
+      assert.match(prof, /href="\/blackjack"><b>Blackjack<\/b>[\s\S]*Bilanz<\/td><td class="num[^"]*">[−+±][\d.]+ €/);
+      assert.match(prof, /Hände<\/td><td class="num">1</);
+
+      // Aufstehen schließt die Sitzung ab, Gastgeber schließt den Tisch
+      assert.equal((await api(anna, `/blackjack/tisch/${id}`, { action: 'close' })).status, 200);
+      assert.equal((await api(anna, `/blackjack/tisch/${id}`, { action: 'sit' })).status, 404);
+      const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'));
+      assert.ok(sql.prepare("SELECT s.ended_at FROM bj_sessions s JOIN users u ON u.id = s.user_id WHERE u.username = 'anna'").get().ended_at);
     });
 
     await step('Changelog im Startmenü', async () => {

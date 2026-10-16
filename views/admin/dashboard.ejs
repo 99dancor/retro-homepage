@@ -15,7 +15,7 @@
   <div class="kpi">Besucher (pro Tag gezählt)<b><%= (stats.totals.visitors || 0).toLocaleString('de-DE') %></b></div>
   <div class="kpi">Downloads<b><%= (stats.totals.downloads || 0).toLocaleString('de-DE') %></b></div>
   <div class="kpi">Ungelesene Nachrichten<b><a href="/admin/messages"><%= counts.unread %></a></b></div>
-  <div class="kpi">Freundebuch wartet<b><a href="/admin/guestbook"><%= counts.pending %></a></b></div>
+  <div class="kpi">Besucherbuch wartet<b><a href="/admin/guestbook"><%= counts.pending %></a></b></div>
 </div>
 
 <fieldset class="groupbox"><legend>📈 Seitenaufrufe und Besucher pro Tag</legend>
@@ -68,7 +68,7 @@
 </div>
 
 <fieldset class="groupbox"><legend>📦 Inhalte</legend>
-  <%= totals.posts %> Beiträge · <%= totals.files.n %> Dateien (<%= fmtSize(totals.files.size) %>, <%= totals.files.dl %> Downloads insgesamt) · <%= totals.users %> Nutzer · <%= totals.guestbook %> Freundebuch-Einträge
+  <%= totals.posts %> Beiträge · <%= totals.files.n %> Dateien (<%= fmtSize(totals.files.size) %>, <%= totals.files.dl %> Downloads insgesamt) · <%= totals.users %> Nutzer · <%= totals.guestbook %> Besucherbuch-Einträge
 </fieldset>
 <p><small>Datenschutz: Es werden keine IP-Adressen und keine Cookies zum Zählen gespeichert. Besucher werden über einen täglich wechselnden, anonymen Hash gezählt; Bots werden herausgefiltert.</small></p>
 <script src="<%= asset('admin.js') %>"></script>

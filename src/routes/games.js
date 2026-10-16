@@ -15,6 +15,7 @@ const attr = v => String(v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;'
 const noCache = res => res.set('Cache-Control', 'no-cache');
 
 for (const [slug, game] of Object.entries(GAMES)) {
+  if (game.url) continue;   // läuft als normale Seite, z. B. Blackjack
   const dir = path.join(__dirname, '..', '..', 'games', slug, 'src');
   const base = `/${slug}/`;
 

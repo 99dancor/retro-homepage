@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning src/server.js",
     "dev": "node --watch --disable-warning=ExperimentalWarning src/server.js",
-    "test": "node --disable-warning=ExperimentalWarning test/smoke.js && node --test games/haustier/test/*.test.js"
+    "test": "node --disable-warning=ExperimentalWarning test/smoke.js && node --test --disable-warning=ExperimentalWarning test/blackjack.test.js games/haustier/test/*.test.js"
   },
   "license": "UNLICENSED",
   "dependencies": {

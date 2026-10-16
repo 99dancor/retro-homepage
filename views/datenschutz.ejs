@@ -96,7 +96,7 @@
 <h2 id="profil">👥 Profil, Freunde und Nachrichten</h2>
 <ul>
   <li><b>Profil:</b> Anzeigename, Profilbild und „Über mich“ (die letzten Spalten der <a href="#konto">Nutzertabelle</a>, dort auch wer dir schreiben darf) trägst du freiwillig unter <a href="/account#profil">Mein Konto</a> ein. Anzeigename und Profilbild stehen an deinen Beiträgen und in Lobbys, auch für Gäste, wo diese mitlesen. Anonyme Forenbeiträge bleiben anonym: Sie bekommen weder Namen noch Bild und zählen im Profil nicht mit.</li>
-  <li><b>Wer dein Profil sieht,</b> bestimmst du: alle Besucher, nur angemeldete Mitglieder (Standard) oder nur deine Freunde. Das Profil zeigt, seit wann du dabei bist, deine Freunde, deine Spielstatistik, wie viele Forenbeiträge, Freundebuch-Einträge und Musiktitel von dir sichtbar sind, und deine letzten Forenbeiträge. Den letzten Login zeigt es nicht. Gäste finden unter Mitglieder nur Profile, die für alle sichtbar sind.</li>
+  <li><b>Wer dein Profil sieht,</b> bestimmst du: alle Besucher, nur angemeldete Mitglieder (Standard) oder nur deine Freunde. Das Profil zeigt, seit wann du dabei bist, deine Freunde, deine Spielstatistik, wie viele Forenbeiträge, Besucherbuch-Einträge und Musiktitel von dir sichtbar sind, und deine letzten Forenbeiträge. Den letzten Login zeigt es nicht. Gäste finden unter Mitglieder nur Profile, die für alle sichtbar sind.</li>
   <li><b>Profilbild:</b> Versteckte Angaben im Bild (EXIF mit Aufnahmeort und Kamera, Textfelder) entfernt die Seite beim Hochladen. Nur die Drehung eines Fotos bleibt. Das Bild kann jeder abrufen, der die Adresse kennt. Ein neues Bild ersetzt das alte, „Entfernen“ löscht die Datei.</li>
   <li><b>Freunde:</b> Gespeichert werden, wer wen angefragt hat, ob angenommen wurde, und wann. Wer auf deinem Profil ist, sieht deine Freunde. Entfernen oder Ablehnen löscht den Eintrag ganz.</li>
   <li><b>Freundebuch im Profil:</b> Gespeichert werden, auf wessen Profil, wer, Text und Zeit. Lesen kann es jeder, der das Profil sehen darf. Unter Mein Konto stellst du ein, wer sich eintragen darf (alle Mitglieder, nur Freunde oder niemand). Löschen können Verfasser, Profilinhaber und Admin.</li>
@@ -116,11 +116,11 @@
 
 <h2 id="schreiben">✍️ Was du schreibst oder hochlädst</h2>
 <ul>
-  <li><b>Freundebuch:</b> Name (oder dein Benutzername), Text und Zeit, für alle sichtbar. Mit „Anonym eintragen“ wird am Eintrag weder ein Name noch dein Konto gespeichert.</li>
+  <li><b>Besucherbuch:</b> Name (oder dein Benutzername), Text und Zeit, für alle sichtbar. Mit „Anonym eintragen“ wird am Eintrag weder ein Name noch dein Konto gespeichert.</li>
   <li><b>Forum:</b> Text, Zeit und dein Konto. „Anonym veröffentlichen“ versteckt deinen Namen nur vor anderen. Du selbst und der Admin sehen ihn weiterhin.</li>
   <li><b>Kontakt:</b> Name, E-Mail (freiwillig), Betreff, Text und dein Konto, falls angemeldet. Das sieht nur der Admin. Es bleibt, bis er es löscht.</li>
   <li><b>Bilder und Dateien</b> (außer Profilbildern) werden unverändert mit ihrem ursprünglichen Dateinamen gespeichert. Fotos können versteckte Angaben wie den Aufnahmeort enthalten. Entferne sie vorher, wenn du das nicht möchtest. Bilder aus dem Forum kann jeder abrufen, der die Adresse kennt.</li>
-  <li><b>E-Mail an den Admin:</b> <% if (mailOn) { %>Ist eingeschaltet. Neue Freundebuch-Einträge, Nachrichten, Forenthemen und Registrierungen gehen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } else { %>Ist gerade ausgeschaltet. Wird sie eingerichtet, gehen neue Freundebuch-Einträge, Nachrichten, Forenthemen und Registrierungen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } %></li>
+  <li><b>E-Mail an den Admin:</b> <% if (mailOn) { %>Ist eingeschaltet. Neue Besucherbuch-Einträge, Nachrichten, Forenthemen und Registrierungen gehen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } else { %>Ist gerade ausgeschaltet. Wird sie eingerichtet, gehen neue Besucherbuch-Einträge, Nachrichten, Forenthemen und Registrierungen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } %></li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('guestbook', 'Bei „Anonym“ bleiben Konto und Name leer. Bist du angemeldet und nicht anonym, wird dein Benutzername eingetragen.') %>
@@ -161,10 +161,23 @@
   <%- code('countStart', 'Beim Start eines Spiels zählt nur der Zähler „Gestartet“ eins hoch, und nur mit Konto.') %>
 </details>
 
+<h2 id="blackjack">🃏 Blackjack</h2>
+<ul>
+  <li>Gespielt wird mit <b>Spielgeld</b>. Es gibt keine Zahlungen und nichts, was sich in echtes Geld tauschen lässt.</li>
+  <li><b>Pro Sitzung an einem Tisch</b> speichert der Server: dein Konto, den Namen des Tisches, deine Chips, wie oft und für wie viel du eingekauft hast, Zahl der Hände, Siege, Niederlagen, Unentschieden und Blackjacks, deinen größten Gewinn in einer Runde, deine längste Siegesserie sowie Beginn, letzte Änderung und Ende. Einzelne Karten und Züge werden nicht gespeichert.</li>
+  <li>Daraus entstehen deine <b>Bilanz</b> und Zahlen im Profil (sieht, wer dein Profil sehen darf) und die <b>Bestenliste</b>. Dort erscheinst du nur für Mitglieder, die dein Profil sehen dürfen.</li>
+  <li>Am Tisch sehen alle, die dort sitzen oder zusehen, deinen Namen, deine Karten, Einsätze, Chips und deine Bilanz an diesem Tisch. Tische selbst leben nur im Arbeitsspeicher und sind nach einem Neustart weg.</li>
+  <li>Der Admin kann deine Bilanz oder die ganze Bestenliste zurücksetzen. Löschst du dein Konto, verschwinden deine Sitzungen mit.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('bjSessions', 'Eine Zeile pro Sitzung an einem Tisch. Die Bilanz ist die Summe aus Chips minus eingekauftem Geld.') %>
+  <%- code('bjState', 'Das bekommen alle am Tisch: die Plätze mit Namen, Chips, Einsatz und Bilanz. Die verdeckte Karte des Dealers bleibt auf dem Server.') %>
+</details>
+
 <h2 id="fragen">🗑 Löschen und Fragen</h2>
 <ul>
   <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
-  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Freundebuch der Seite bleibt der Name am Eintrag. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Blackjack-Sitzungen, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag. Sag Bescheid, wenn auch die weg sollen.</li>
   <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
 </ul>
 <p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>

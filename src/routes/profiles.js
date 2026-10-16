@@ -71,8 +71,24 @@ router.post('/nutzer/:name/freund', auth.requireLogin, auth.rateLimit('friends',
   const u = p.findUser(req.params.name);
   if (!u || u.disabled) return notFound(res);
   const msg = p.friendAction(req.user.id, u.id, String(req.body.action || ''));
+  // Das Nutzermenü in Lobbys fragt per fetch und will nur wissen, wie es jetzt steht
+  if (req.accepts(['html', 'json']) === 'json') return res.json({ ok: !!msg, msg: msg ? p.FRIEND_MSG[msg] : null, relation: p.friendship(req.user.id, u.id) });
   const to = back(req.body.back, p.profileUrl(u.username));
   res.redirect(to.split('?')[0] + (msg ? '?ok=' + msg : ''));
+});
+
+// Kurzinfo für das Nutzermenü (public/usermenu.js), z. B. beim Klick auf einen Namen in einer Lobby
+router.get('/api/nutzer/:name', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const u = p.findUser(req.params.name);
+  const me = req.user;
+  if (!u || (u.disabled && !(me && me.isAdmin))) return res.status(404).json({ error: 'Dieses Mitglied gibt es nicht (mehr).' });
+  res.json({
+    id: u.id, user: u.username, name: p.displayName(u), avatar: u.avatar ? '/avatar/' + u.avatar : null, admin: u.role === 'admin',
+    url: p.profileUrl(u.username), visible: p.canViewProfile(me, u),
+    relation: me ? p.friendship(me.id, u.id) : 'none', canMessage: p.canMessage(me, u),
+    me: me ? { id: me.id, admin: me.isAdmin } : null,
+  });
 });
 
 // ---------- Freundebuch im Profil ----------
@@ -191,6 +207,8 @@ router.get('/avatar/:name', (req, res, next) => {
 const stats = express.Router();
 stats.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 function statsApp(req, res, next) {
+  // Spiele, die ihre Zahlen selbst auf dem Server zählen (Blackjack), nehmen nichts vom Browser an
+  if (Object.hasOwn(GAMES, req.params.app) && GAMES[req.params.app].userStats) return res.status(404).json({ error: 'app' });
   if (!Object.hasOwn(GAMES, req.params.app)) {
     const a = db.prepare('SELECT * FROM apps WHERE slug = ?').get(req.params.app);
     if (!a || !auth.canSee(req.user, 'app', a)) return res.status(404).json({ error: 'app' });

@@ -119,8 +119,8 @@ router.get('/links', (req, res) => {
   res.render('links', { title: 'Links', grouped });
 });
 
-// ---------- Freundebuch ----------
-function guestbookOn(req, res, next) { return getSetting('guestbook_enabled') === '1' ? next() : res.status(404).render('error', { title: 'Freundebuch', message: 'Das Freundebuch ist gerade geschlossen.' }); }
+// ---------- Besucherbuch (früher Freundebuch; Adresse /guestbook) ----------
+function guestbookOn(req, res, next) { return getSetting('guestbook_enabled') === '1' ? next() : res.status(404).render('error', { title: 'Besucherbuch', message: 'Das Besucherbuch ist gerade geschlossen.' }); }
 
 router.get('/guestbook', guestbookOn, (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
@@ -128,7 +128,7 @@ router.get('/guestbook', guestbookOn, (req, res) => {
   const total = db.prepare('SELECT COUNT(*) AS n FROM guestbook WHERE approved = 1').get().n;
   const entries = db.prepare(`SELECT g.*, u.username, u.display_name, u.avatar FROM guestbook g LEFT JOIN users u ON u.id = g.user_id
                               WHERE approved = 1 ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`).all(per, (page - 1) * per);
-  res.render('guestbook', { title: 'Freundebuch', entries, page, pages: Math.max(1, Math.ceil(total / per)), total, msg: req.query.ok ? (req.query.ok === 'mod' ? 'Danke! Dein Eintrag erscheint, sobald er freigeschaltet wurde.' : 'Danke für deinen Eintrag!') : null, err: null });
+  res.render('guestbook', { title: 'Besucherbuch', entries, page, pages: Math.max(1, Math.ceil(total / per)), total, msg: req.query.ok ? (req.query.ok === 'mod' ? 'Danke! Dein Eintrag erscheint, sobald er freigeschaltet wurde.' : 'Danke für deinen Eintrag!') : null, err: null });
 });
 
 router.post('/guestbook', guestbookOn, auth.rateLimit('gb', 5, 600), (req, res) => {
@@ -142,7 +142,7 @@ router.post('/guestbook', guestbookOn, auth.rateLimit('gb', 5, 600), (req, res) 
   const moderated = getSetting('guestbook_moderation') === '1' && !(req.user && req.user.isAdmin);
   db.prepare('INSERT INTO guestbook(name, user_id, message, approved, created_at) VALUES (?, ?, ?, ?, ?)')
     .run(name || null, userId, message, moderated ? 0 : 1, now());
-  mail.notifyQuietly('Neuer Freundebuch-Eintrag', `Von: ${name || 'Anonym'}\n\n${message}`);
+  mail.notifyQuietly('Neuer Besucherbuch-Eintrag', `Von: ${name || 'Anonym'}\n\n${message}`);
   res.redirect('/guestbook?ok=' + (moderated ? 'mod' : '1'));
 });
 

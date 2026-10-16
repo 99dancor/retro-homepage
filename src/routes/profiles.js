@@ -8,6 +8,7 @@ const auth = require('../auth');
 const p = require('../profiles');
 const GAMES = require('../games');
 const paint = require('../paint');
+const notify = require('../notify');
 
 const router = express.Router();
 const PER_PAGE = 50;
@@ -74,6 +75,12 @@ router.post('/nutzer/:name/freund', auth.requireLogin, auth.rateLimit('friends',
   const u = p.findUser(req.params.name);
   if (!u || u.disabled) return notFound(res);
   const msg = p.friendAction(req.user.id, u.id, String(req.body.action || ''));
+  const me = p.displayName(req.user), key = 'friend:' + req.user.id;
+  if (msg === 'gesendet') notify.send(u.id, 'friend', { key, title: `👥 ${me} möchte mit dir befreundet sein`, body: 'Annehmen oder ablehnen kannst du unter Mitglieder.', url: '/nutzer' });
+  else if (msg === 'freunde') {
+    notify.readKey(req.user.id, 'friend:' + u.id);
+    notify.send(u.id, 'friend', { key, title: `👥 ${me} hat deine Freundschaftsanfrage angenommen`, body: 'Ihr seid jetzt Freunde.', url: p.profileUrl(req.user.username) });
+  } else if (msg === 'abgelehnt') notify.readKey(req.user.id, 'friend:' + u.id);
   // Das Nutzermenü in Lobbys fragt per fetch und will nur wissen, wie es jetzt steht
   if (req.accepts(['html', 'json']) === 'json') return res.json({ ok: !!msg, msg: msg ? p.FRIEND_MSG[msg] : null, relation: p.friendship(req.user.id, u.id) });
   const to = back(req.body.back, p.profileUrl(u.username));
@@ -133,6 +140,7 @@ function loadPartner(req, res, next) {
 function renderThread(req, res, err, draft) {
   const u = req.partner;
   p.markRead(req.user.id, u.id);
+  notify.readKey(req.user.id, 'pm:' + u.id);
   res.status(err ? 400 : 200).render('conversation', {
     title: 'Nachrichten mit ' + p.displayName(u), u, messages: p.thread(req.user.id, u.id),
     canMessage: p.canMessage(req.user, u), err, draft: draft || '', maxLength: p.MAX_PM,
@@ -145,6 +153,10 @@ router.post('/nachrichten/:name', auth.requireLogin, auth.rateLimit('pm', 30, 60
   if (!body) return res.redirect('/nachrichten/' + encodeURIComponent(req.partner.username));
   if (body.length > p.MAX_PM) return renderThread(req, res, `Höchstens ${p.MAX_PM} Zeichen.`, body);
   const id = p.sendMessage(req.user.id, req.partner.id, body);
+  notify.send(req.partner.id, 'pm', {
+    key: 'pm:' + req.user.id, title: '💌 Nachricht von ' + p.displayName(req.user),
+    body: body.length > 140 ? body.slice(0, 140) + '…' : body, url: '/nachrichten/' + encodeURIComponent(req.user.username),
+  });
   res.redirect('/nachrichten/' + encodeURIComponent(req.partner.username) + '#n' + id);
 });
 router.post('/nachrichten/:name/loeschen', auth.requireLogin, loadPartner, (req, res) => {
@@ -222,8 +234,21 @@ function statsApp(req, res, next) {
 stats.get('/:app', statsApp, (req, res) => res.json({ stats: p.ownStats(req.user.id, req.params.app) }));
 stats.patch('/:app', auth.rateLimit('stats', 120, 60), statsApp, express.json({ limit: '20kb' }), (req, res) => {
   if (!req.is('application/json')) return res.status(415).json({ error: 'json' });
+  // Wer bisher den Rekord hielt (nur bei „max“-Werten), bekommt Bescheid, wenn er geknackt wird
+  const maxes = req.body && req.body.max && typeof req.body.max === 'object' ? Object.entries(req.body.max).filter(([, v]) => typeof v === 'number').slice(0, 50) : [];
+  const before = maxes.map(([key]) => db.prepare('SELECT user_id, value FROM game_stats WHERE app_slug = ? AND key = ? ORDER BY value DESC, updated_at LIMIT 1').get(req.params.app, key));
   const err = p.recordStats(req.user.id, req.params.app, req.body);
   if (err) return res.status(400).json({ error: err });
+  maxes.forEach(([key, value], i) => {
+    const prev = before[i];
+    if (!prev || prev.user_id === req.user.id || !(value > prev.value)) return;
+    const g = Object.hasOwn(GAMES, req.params.app) ? { title: GAMES[req.params.app].title, url: GAMES[req.params.app].url || `/${req.params.app}/` }
+      : { title: (db.prepare('SELECT title FROM apps WHERE slug = ?').get(req.params.app) || {}).title || req.params.app, url: `/apps/${req.params.app}` };
+    notify.send(prev.user_id, 'highscore', {
+      title: `🏆 ${p.displayName(req.user)} hat deinen Rekord in ${g.title} geknackt`,
+      body: `${key}: ${value.toLocaleString('de-DE')} (dein Rekord: ${prev.value.toLocaleString('de-DE')})`, url: g.url,
+    });
+  });
   res.json({ ok: true, stats: p.ownStats(req.user.id, req.params.app) });
 });
 stats.use((err, req, res, next) => res.status(err.status || 500).json({ error: err.status ? 'request' : 'server' }));

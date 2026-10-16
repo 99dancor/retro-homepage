@@ -7,6 +7,7 @@ const mail = require('../mail');
 const up = require('../uploads');
 const { md, mdBlocks } = require('../util');
 const { displayName, profileUrl } = require('../profiles');
+const notify = require('../notify');
 
 const router = express.Router();
 const PER_PAGE = 25;
@@ -113,7 +114,10 @@ router.post('/new', auth.requireLogin, auth.rateLimit('board', 10, 600), (req, r
     subscribe(req.user.id, tid);
     return tid;
   });
-  if (!req.user.isAdmin) mail.notifyQuietly('Neues Thema im Forum: ' + title, `Von: ${req.user.username}${anon ? ' (anonym)' : ''}\n\n${body}`);
+  if (!req.user.isAdmin) {
+    mail.notifyQuietly('Neues Thema im Forum: ' + title, `Von: ${req.user.username}${anon ? ' (anonym)' : ''}\n\n${body}`);
+    notify.toAdmins('💬 Neues Thema im Forum: ' + title, `Von ${anon ? 'Anonym (' + req.user.username + ')' : displayName(req.user)}`, '/forum/t/' + id);
+  }
   res.redirect('/forum/t/' + id);
 });
 
@@ -127,6 +131,7 @@ router.get('/t/:id', loadTopic, (req, res) => {
                             WHERE p.topic_id = ? ORDER BY p.created_at, p.id LIMIT ? OFFSET ?`).all(t.id, PER_PAGE, (page - 1) * PER_PAGE);
   const firstId = db.prepare('SELECT MIN(id) AS id FROM board_posts WHERE topic_id = ?').get(t.id).id;
   countView(req, t.id);
+  if (req.user) notify.readKey(req.user.id, 'board:' + t.id);
   for (const p of posts) {
     p.html = md(p.body_md); p.editable = canEdit(req.user, p); p.first = p.id === firstId;
     p.author = byline(req.user, p.username && displayName(p), p.anonymous, p.user_id);
@@ -150,6 +155,12 @@ router.post('/t/:id/reply', auth.requireLogin, auth.rateLimit('board', 10, 600),
     subscribe(req.user.id, t.id);
     return id;
   });
+  // Alle anderen, die das Thema abonniert haben, bekommen Bescheid
+  const who = req.body.anonymous ? 'Anonym' : displayName(req.user);
+  const text = body.replace(/\s+/g, ' ');
+  for (const s of db.prepare('SELECT user_id FROM board_subs WHERE topic_id = ? AND user_id != ?').all(t.id, req.user.id)) {
+    notify.send(s.user_id, 'board', { key: 'board:' + t.id, title: `💬 Neue Antwort in „${t.title}“`, body: `${who}: ${text.length > 120 ? text.slice(0, 120) + '…' : text}`, url: `/forum/t/${t.id}?page=last#b${pid}` });
+  }
   res.redirect(`/forum/t/${t.id}?page=last#b${pid}`);
 });
 

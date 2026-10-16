@@ -67,6 +67,17 @@ function saveSession(seat, end = false) {
     .run(...[seat.chips, seat.bought, seat.buyins, s.hands, s.wins, s.losses, s.pushes, s.blackjacks, s.bestWin, s.bestStreak, now()], ...(end ? [now()] : []), seat.sessionId);
 }
 
+// Größter Gewinn einer Runde: Wer den Rekord bisher hielt, bekommt Bescheid, wenn ihn jemand anderes übertrifft
+function recordWin(seat, net) {
+  if (net <= 0) return;
+  const prev = db.prepare('SELECT user_id, best_win FROM bj_sessions WHERE best_win > 0 ORDER BY best_win DESC, updated_at LIMIT 1').get();
+  if (!prev || prev.user_id === seat.userId || net <= prev.best_win) return;
+  require('./notify').send(prev.user_id, 'highscore', {
+    title: `🏆 ${seat.name} hat deinen Blackjack-Rekord geknackt`,
+    body: `Größter Gewinn in einer Runde: +${net.toLocaleString('de-DE')} € (dein Rekord: +${prev.best_win.toLocaleString('de-DE')} €)`, url: '/blackjack#statistik',
+  });
+}
+
 // Bilanz und Zahlen eines Kontos über alle Sitzungen
 function userTotals(userId) {
   return db.prepare(`SELECT COUNT(*) AS sessions, COALESCE(SUM(chips - bought), 0) AS balance, COALESCE(SUM(buyins), 0) AS buyins,
@@ -369,6 +380,7 @@ function settle(t) {
       else if (h.result === 'push') st.pushes++;
       else { st.losses++; s.streak = 0; }
     }
+    recordWin(s, net);
     s.stats.bestWin = Math.max(s.stats.bestWin, net);
     saveSession(s);
     parts.push(`${s.name} ${net > 0 ? '+' : ''}${euro(net)}`);

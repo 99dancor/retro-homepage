@@ -6,6 +6,7 @@ const { db, now, getSetting, UPLOAD_DIR, MEDIA_DIR, APPS_DIR } = require('../db'
 const auth = require('../auth');
 const analytics = require('../analytics');
 const mail = require('../mail');
+const notify = require('../notify');
 const up = require('../uploads');
 const { md } = require('../util');
 const GAMES = require('../games');
@@ -143,6 +144,7 @@ router.post('/guestbook', guestbookOn, auth.rateLimit('gb', 5, 600), (req, res) 
   db.prepare('INSERT INTO guestbook(name, user_id, message, approved, created_at) VALUES (?, ?, ?, ?, ?)')
     .run(name || null, userId, message, moderated ? 0 : 1, now());
   mail.notifyQuietly('Neuer Besucherbuch-Eintrag', `Von: ${name || 'Anonym'}\n\n${message}`);
+  if (!(req.user && req.user.isAdmin)) notify.toAdmins(moderated ? '📖 Besucherbuch-Eintrag wartet auf Freigabe' : '📖 Neuer Eintrag im Besucherbuch', `${name || 'Anonym'}: ${message.slice(0, 120)}`, moderated ? '/admin/guestbook' : '/guestbook', 'admin:guestbook');
   res.redirect('/guestbook?ok=' + (moderated ? 'mod' : '1'));
 });
 
@@ -162,6 +164,7 @@ router.post('/contact', auth.rateLimit('contact', 5, 600), (req, res, next) => {
   db.prepare('INSERT INTO messages(name, email, subject, body, user_id, created_at) VALUES (?, ?, ?, ?, ?, ?)')
     .run(name, email, subject, body, req.user ? req.user.id : null, now());
   mail.notifyQuietly('Neue Nachricht: ' + (subject || '(ohne Betreff)'), `Von: ${name || 'Anonym'} <${email || '-'}>\n\n${body}`);
+  notify.toAdmins('✉️ Neue Kontaktnachricht: ' + (subject || '(ohne Betreff)'), `Von ${name || 'Anonym'}`, '/admin/messages', 'admin:contact');
   res.redirect('/contact?sent=1');
 });
 
@@ -313,13 +316,14 @@ router.post('/register', auth.rateLimit('reg', 5, 3600), (req, res, next) => {
   if (err) return res.render('register', { title: 'Registrieren', err, next: req.body.next || '' });
   const id = auth.createUser(username, password);
   mail.notifyQuietly('Neue Registrierung', `Neuer Nutzer: ${username}`);
+  notify.toAdmins('👤 Neue Registrierung: ' + username, 'Ein neues Mitglied hat sich angemeldet.', '/nutzer/' + encodeURIComponent(username), 'admin:register');
   auth.startSession(req, res, id);
   res.redirect(localPath(req.body.next) || '/');
 });
 
 // Meldungen nach den Profil-Formularen (src/routes/profiles.js), die dorthin zurückleiten
 const ACCOUNT_MSG = {
-  ok: { profil: 'Profil gespeichert.', bild: 'Profilbild gespeichert.', bildweg: 'Profilbild entfernt.' },
+  ok: { profil: 'Profil gespeichert.', bild: 'Profilbild gespeichert.', bildweg: 'Profilbild entfernt.', notify: 'Benachrichtigungen gespeichert.', geraet: 'Gerät abgemeldet.' },
   err: {
     name: 'Der Anzeigename braucht 2 bis 32 Zeichen, ohne < und >.',
     taken: 'Diesen Namen benutzt schon jemand anderes.',
@@ -339,6 +343,7 @@ function renderAccount(req, res, msg, err) {
     title: 'Kontoeinstellungen', msg, err, saves,
     profile: db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id),
     profileVis: profiles.PROFILE_VIS, pmFrom: profiles.PM_FROM, gbFrom: profiles.GB_FROM,
+    notifyKinds: notify.kindsFor(req.user), notifyPrefs: notify.prefs(req.user.id), devices: notify.devices(req.user.id),
   });
 }
 const pick = (map, key) => (typeof key === 'string' && Object.hasOwn(map, key) ? map[key] : null);

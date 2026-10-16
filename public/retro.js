@@ -94,6 +94,8 @@
     var desk;
     try { desk = window.parent.RetroDesk; } catch (e) { desk = null; }
     if (!desk) return;
+    // Die 🔔 fragt neu nach: Diese Seite hat vielleicht gerade etwas als gelesen markiert
+    if (body.dataset.user) window.parent.postMessage('notify:refresh', location.origin);
     // Fehlermeldungen klingen wie bei Windows
     if (document.querySelector('.msg.err, .error-page')) sound('fehler');
     document.addEventListener('click', function (e) {

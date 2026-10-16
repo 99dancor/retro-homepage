@@ -1,0 +1,20 @@
+<%- include('partials/head') %>
+<h1>🔔 Benachrichtigungen</h1>
+<div class="actions" style="margin-top:0">
+  <% if (items.some(n => !n.read)) { %><form method="post" action="/benachrichtigungen/alle-gelesen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small">✔ Alle als gelesen markieren</button></form><% } %>
+  <% if (items.length) { %><form method="post" action="/benachrichtigungen/loeschen" class="inline" data-confirm="Alle Benachrichtigungen löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">🗑 Alle löschen</button></form><% } %>
+  <a class="btn small" href="/account#benachrichtigungen">⚙️ Einstellungen</a>
+</div>
+<% if (!items.length) { %><p class="muted">Noch keine Benachrichtigungen. Was du bekommst, stellst du in den <a href="/account#benachrichtigungen">Kontoeinstellungen</a> ein.</p><% } else { %>
+<div class="notify-page">
+  <% for (const n of items) { %>
+  <div class="notify-row<%= n.read ? '' : ' unread' %>">
+    <a href="/benachrichtigungen/<%= n.id %>"><b><%= n.title %></b><% if (n.count > 1) { %> <span class="tag"><%= n.count %>×</span><% } %><% if (n.body) { %><br><span><%= n.body %></span><% } %></a>
+    <small><%= fmtDate(n.at, true) %></small>
+    <form method="post" action="/benachrichtigungen/loeschen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="id" value="<%= n.id %>"><button class="small" title="Löschen" aria-label="Löschen">✖</button></form>
+  </div>
+  <% } %>
+</div>
+<% } %>
+<p><small class="muted">Gelesene Benachrichtigungen verschwinden nach 30 Tagen, es bleiben höchstens 100.</small></p>
+<%- include('partials/foot') %>

@@ -121,6 +121,13 @@
 <ul>
   <li><b>Besucherbuch:</b> Name (oder dein Benutzername), Text und Zeit, für alle sichtbar. Mit „Anonym eintragen“ wird am Eintrag weder ein Name noch dein Konto gespeichert.</li>
   <li><b>Forum:</b> Text, Zeit und dein Konto. „Anonym veröffentlichen“ versteckt deinen Namen nur vor anderen. Du selbst und der Admin sehen ihn weiterhin.</li>
+  <li><b>Benachrichtigungen</b> (🔔 neben der Uhr): Für dein Konto gespeichert werden Art, Text, Link, Zeit und ob du sie gelesen hast. Gelesene verschwinden nach 30 Tagen, es bleiben höchstens 100. Was du bekommen willst, stellst du in den <a href="/account#benachrichtigungen">Kontoeinstellungen</a> ein.
+  <%- code('notifications', 'Diese Spalten hat eine Benachrichtigung.') %></li>
+  <li><b>Push auf Handy und Browser</b> (nur wenn du es einschaltest): Gespeichert werden die Adresse, die dein Browser beim Push-Dienst seines Herstellers bekommt (z. B. Google, Mozilla oder Apple), die Schlüssel, mit denen die Seite die Nachricht verschlüsselt, ein Gerätename wie „Firefox auf Windows“ und wann zuletzt etwas geschickt wurde. Der Push-Dienst sieht, dass eine Nachricht kommt, aber nicht ihren Inhalt. Abmelden kannst du jedes Gerät in den Kontoeinstellungen.
+  <%- code('pushSubs', 'So sieht ein angemeldetes Gerät in der Datenbank aus.') %>
+  <%- code('pushEncrypt', 'Jede Nachricht wird für genau dein Gerät verschlüsselt, bevor sie den Server verlässt.') %></li>
+  <li><b>Erinnerungen von Mein Haustier:</b> Alle 15 Minuten rechnet der Server mit den Regeln des Spiels nach, wie es deinen Tieren in deinem gespeicherten Spielstand geht. Gespeichert wird dabei nur die Erinnerung selbst.
+  <%- code('petwatch', 'Das wird geprüft.') %></li>
   <li><b>Forenabos:</b> Welche Themen du abonniert hast (beim Schreiben passiert das von selbst, „🔔 Abonnieren“ und „🔕 Abo beenden“ steuern es). Das sehen nur du und die Datenbank.
   <%- code('boardSubs', 'Mehr als Konto, Thema und Zeitpunkt wird nicht gespeichert.') %></li>
   <li><b>Aufrufe im Forum:</b> Am Thema steht nur eine Zahl. Damit Neuladen nicht mitzählt, merkt sich der Server sechs Stunden lang im Arbeitsspeicher, dass dein Konto bzw. deine IP-Adresse das Thema schon gesehen hat. Nach einem Neustart ist das weg.
@@ -203,7 +210,7 @@
 <h2 id="fragen">🗑 Löschen und Fragen</h2>
 <ul>
   <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
-  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Blackjack-Sitzungen, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Benachrichtigungen, Push-Geräte, Blackjack-Sitzungen, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag. Sag Bescheid, wenn auch die weg sollen.</li>
   <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
 </ul>
 <p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>

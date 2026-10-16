@@ -225,6 +225,10 @@ router.get('/p/:slug', (req, res, next) => {
   res.render('page', { title: page.title, page, bodyHtml: md(page.body_md) });
 });
 
+// ---------- Zufallsgenerator (Startmenü) ----------
+// Alles läuft im Browser (public/zufall.js), der Server liefert nur die Seite aus.
+router.get('/zufall', (req, res) => res.render('zufall', { title: 'Zufallsgenerator' }));
+
 // ---------- Changelog (Startmenü) ----------
 // CHANGELOG.md liegt im Image und wird mit jedem Update ergänzt.
 let changelogHtml = null;

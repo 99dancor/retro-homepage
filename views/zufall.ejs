@@ -1,0 +1,51 @@
+<%- include('partials/head') %>
+<%# Zufallsgenerator: läuft komplett im Browser (public/zufall.js), der Server speichert nichts davon %>
+<div class="zufall" id="zufall">
+  <h1>🎲 Zufallsgenerator</h1>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="teams" aria-selected="true">👥 Teams</button><button type="button" role="tab" data-tab="zahl" aria-selected="false">🔢 Zahl</button><button type="button" role="tab" data-tab="wort" aria-selected="false">🔤 Wort</button>
+  </div>
+
+  <div class="tab-page" data-page="teams" role="tabpanel">
+    <div class="zf-cols">
+      <fieldset class="groupbox"><legend>Spieler</legend>
+        <label class="inline">Anzahl: <input type="number" id="zf-players" min="2" max="100" value="6" style="width:5em"></label>
+        <p class="zf-hint">Namen sind freiwillig. Leere Felder heißen „Spieler 1“, „Spieler 2“ …</p>
+        <div class="zf-names" id="zf-player-names"></div>
+      </fieldset>
+      <fieldset class="groupbox"><legend>Teams</legend>
+        <label class="inline">Anzahl: <input type="number" id="zf-teams" min="2" max="20" value="2" style="width:5em"></label>
+        <p class="zf-hint">Teamnamen sind freiwillig.</p>
+        <div class="zf-names" id="zf-team-names"></div>
+      </fieldset>
+    </div>
+    <p><button type="button" class="zf-go" data-go="teams">🎲 Teams auslosen!</button>
+      <button type="button" class="small" data-clear="teams">Namen leeren</button></p>
+    <div class="zf-stage" id="zf-team-stage" aria-live="polite"></div>
+  </div>
+
+  <div class="tab-page" data-page="zahl" role="tabpanel" hidden>
+    <fieldset class="groupbox"><legend>Bereich</legend>
+      <label class="inline">Von: <input type="number" id="zf-min" value="1" style="width:7em"></label>
+      <label class="inline">Bis: <input type="number" id="zf-max" value="100" style="width:7em"></label>
+      <label class="inline">Wie viele: <input type="number" id="zf-count" min="1" max="100" value="1" style="width:5em"></label>
+      <label class="inline"><input type="checkbox" id="zf-unique" checked> ohne Wiederholung</label>
+    </fieldset>
+    <p><button type="button" class="zf-go" data-go="zahl">🎲 Zahl würfeln!</button></p>
+    <div class="zf-stage zf-numbers" id="zf-number-stage" aria-live="polite"></div>
+  </div>
+
+  <div class="tab-page" data-page="wort" role="tabpanel" hidden>
+    <fieldset class="groupbox"><legend>Wörter</legend>
+      <label class="inline"><input type="radio" name="zf-words" value="eigene" checked> Eigene Liste</label>
+      <label class="inline"><input type="radio" name="zf-words" value="eingebaut"> Eingebaute Wörter (Begriffe zum Malen, Raten oder Erklären)</label>
+      <textarea id="zf-wordlist" rows="6" placeholder="Ein Wort pro Zeile (oder durch Komma getrennt)"></textarea>
+      <label class="inline">Wie viele: <input type="number" id="zf-wcount" min="1" max="50" value="1" style="width:5em"></label>
+    </fieldset>
+    <p><button type="button" class="zf-go" data-go="wort">🎲 Wort ziehen!</button></p>
+    <div class="zf-stage zf-words-out" id="zf-word-stage" aria-live="polite"></div>
+  </div>
+  <canvas class="zf-confetti" id="zf-confetti" aria-hidden="true"></canvas>
+</div>
+<script src="<%= asset('zufall.js') %>"></script>
+<%- include('partials/foot') %>

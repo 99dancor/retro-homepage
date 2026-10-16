@@ -76,6 +76,18 @@ async function main() {
       assert.equal((await guest.req('/gibtsnicht')).status, 404);
     });
 
+    await step('Zufallsgenerator im Startmenü und als Fenster', async () => {
+      const desk = await guest.req('/', { top: true });
+      assert.match(desk.text_, /<div class="startmenu"[\s\S]*href="\/zufall"[\s\S]*Zufallsgenerator/);
+      const r = await guest.req('/zufall');
+      assert.equal(r.status, 200);
+      for (const tab of ['teams', 'zahl', 'wort']) assert.match(r.text_, new RegExp(`data-tab="${tab}"`));
+      const js = r.text_.match(/src="(\/static\/zufall\.js\?v=\w+)"/);
+      assert.ok(js, 'zufall.js mit Versionsnummer eingebunden');
+      assert.equal((await guest.req(js[1])).status, 200);
+      assert.match((await guest.req('/static/sound.js')).text_, /wuerfel:[\s\S]*tusch:/);
+    });
+
     await step('Direkt aufgerufen kommt der Desktop mit der Seite als Fenster', async () => {
       const r = await guest.req('/forum', { top: true });
       assert.equal(r.status, 200);

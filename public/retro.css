@@ -452,3 +452,41 @@ button.mp-track:disabled { cursor: default; }
   .mp-vis-pick { display: none; }
   .mp-vol input { width: 50px; }
 }
+
+/* ---------- Zufallsgenerator (/zufall) ---------- */
+.zufall h1 { margin-top: 0; }
+.zufall .tab-page { min-height: 0; }
+.zf-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.zf-cols .groupbox { margin: 6px 0; }
+.zf-hint { font-size: 11px; margin: 2px 0 6px; opacity: .8; }
+.zf-names { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px; max-height: 190px; overflow: auto; }
+.zf-names input { width: 100%; box-sizing: border-box; }
+.zufall textarea { width: 100%; box-sizing: border-box; margin: 4px 0; }
+.zufall textarea[hidden] { display: none; }
+.zf-go { font-weight: bold; padding: 5px 16px; }
+.zf-stage { margin-top: 8px; position: relative; }
+.zf-error { color: var(--danger); font-weight: bold; }
+.zf-pot { background: var(--field); color: var(--field-text); box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); padding: 8px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-height: 40px; }
+.zf-pot-label { width: 100%; font-weight: bold; }
+.zf-pot.shake { animation: zf-shake .14s linear infinite; }
+@keyframes zf-shake { 0%, 100% { transform: translateX(0) } 25% { transform: translateX(-3px) rotate(-.5deg) } 75% { transform: translateX(3px) rotate(.5deg) } }
+.zf-card { display: inline-block; padding: 2px 8px; background: var(--win); color: var(--text); box-shadow: inset 1px 1px var(--hi), inset -1px -1px var(--dark), 2px 2px 0 rgba(0,0,0,.25); transition: transform .12s; white-space: nowrap; }
+.zf-teamgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; }
+.zf-team { background: var(--field); color: var(--field-text); box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); border-top: 4px solid var(--team); }
+.zf-team-head { display: flex; align-items: center; gap: 6px; padding: 4px 6px; background: var(--team); color: #fff; font-weight: bold; }
+.zf-team-icon { font-size: 18px; }
+.zf-team-count { margin-left: auto; font-size: 11px; background: rgba(0,0,0,.25); padding: 0 5px; border-radius: 7px; }
+.zf-team-list { margin: 0; padding: 6px 6px 6px 26px; min-height: 24px; }
+.zf-team-list li { margin: 3px 0; }
+.zf-team-list .zf-card { box-shadow: inset 1px 1px var(--hi), inset -1px -1px var(--dark); }
+.zf-teamgrid.done .zf-team { animation: zf-pop .5s ease; }
+@keyframes zf-pop { 50% { transform: scale(1.05) rotate(-1deg) } }
+.zf-numbers, .zf-words-out { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.zf-number, .zf-word { min-width: 2.2em; text-align: center; font: bold 30px/1.2 'Courier New', monospace; padding: 6px 12px; background: #000; color: #33ff33; box-shadow: inset 2px 2px var(--dark), inset -1px -1px var(--hi); }
+.zf-word { font-size: 24px; }
+.zf-number.hit, .zf-word.hit { color: #ffd700; animation: zf-hit .35s ease; }
+@keyframes zf-hit { 40% { transform: scale(1.25) } }
+.zf-sum { width: 100%; margin: 4px 0 0; }
+.zf-confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+@media (max-width: 560px) { .zf-cols { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .zf-pot.shake, .zf-teamgrid.done .zf-team, .zf-number.hit, .zf-word.hit { animation: none; } }

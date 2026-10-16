@@ -7,6 +7,7 @@ const mail = require('../mail');
 const up = require('../uploads');
 const { md, mdBlocks } = require('../util');
 const { displayName, profileUrl } = require('../profiles');
+const notify = require('../notify');
 
 const router = express.Router();
 const PER_PAGE = 25;
@@ -45,24 +46,58 @@ function loadPost(req, res, next) {
 }
 function requireAdmin(req, res, next) { return req.user && req.user.isAdmin ? next() : res.status(403).end(); }
 
-// ---------- Übersicht ----------
+// ---------- Abos ----------
+const subscribe = (userId, topicId) => db.prepare('INSERT OR IGNORE INTO board_subs(user_id, topic_id, created_at) VALUES (?, ?, ?)').run(userId, topicId, now());
+const isSubscribed = (userId, topicId) => !!db.prepare('SELECT 1 FROM board_subs WHERE user_id = ? AND topic_id = ?').get(userId, topicId);
+
+// ---------- Aufrufe ----------
+// Gezählt wird höchstens einmal in sechs Stunden je Konto bzw. Adresse. Die Liste liegt nur im Arbeitsspeicher.
+const seen = new Map();
+setInterval(() => { const cut = Date.now() - 6 * 3600e3; for (const [k, ts] of seen) if (ts < cut) seen.delete(k); }, 3600e3).unref();
+function countView(req, topicId) {
+  const key = topicId + ':' + (req.user ? 'u' + req.user.id : req.ip);
+  if (seen.has(key)) return;
+  seen.set(key, Date.now());
+  db.prepare('UPDATE board_topics SET views = views + 1 WHERE id = ?').run(topicId);
+}
+
+// ---------- Übersicht mit Suche und Sortierung ----------
+const SORTS = { last: 't.last_post_at', created: 't.created_at', views: 't.views', replies: 'replies' };
 router.get('/', (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
-  const total = db.prepare('SELECT COUNT(*) AS n FROM board_topics').get().n;
+  const q = str(req.query.q, 100);
+  const sort = SORTS[req.query.sort] ? req.query.sort : 'last';
+  const dir = req.query.dir === 'asc' ? 'asc' : 'desc';
+  const mine = !!(req.user && req.query.abos);
+  const where = [], params = [];
+  if (q) {
+    // Jedes Wort muss im Titel oder in einem Beitrag des Themas vorkommen
+    for (const w of q.split(/\s+/).slice(0, 8)) {
+      const like = '%' + w.replace(/[\\%_]/g, c => '\\' + c) + '%';
+      where.push("(t.title LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM board_posts sp WHERE sp.topic_id = t.id AND sp.body_md LIKE ? ESCAPE '\\'))");
+      params.push(like, like);
+    }
+  }
+  if (mine) { where.push('EXISTS (SELECT 1 FROM board_subs s WHERE s.topic_id = t.id AND s.user_id = ?)'); params.push(req.user.id); }
+  const w = where.length ? 'WHERE ' + where.join(' AND ') : '';
+  const total = db.prepare(`SELECT COUNT(*) AS n FROM board_topics t ${w}`).get(...params).n;
+  // Angepinnte Themen stehen nur bei der normalen Reihenfolge oben
+  const order = (sort === 'last' && dir === 'desc' && !q ? 't.pinned DESC, ' : '') + `${SORTS[sort]} ${dir.toUpperCase()}, t.id ${dir.toUpperCase()}`;
   const topics = db.prepare(`
     SELECT t.*, u.username, u.display_name, lu.username AS last_username, lu.display_name AS last_display_name, lp.user_id AS last_user_id, lp.anonymous AS last_anonymous,
       (SELECT COUNT(*) FROM board_posts p WHERE p.topic_id = t.id) - 1 AS replies
+      ${req.user ? ', EXISTS (SELECT 1 FROM board_subs s WHERE s.topic_id = t.id AND s.user_id = ' + Number(req.user.id) + ') AS subscribed' : ''}
     FROM board_topics t LEFT JOIN users u ON u.id = t.user_id
     LEFT JOIN board_posts lp ON lp.id = (SELECT p.id FROM board_posts p WHERE p.topic_id = t.id ORDER BY p.created_at DESC, p.id DESC LIMIT 1)
     LEFT JOIN users lu ON lu.id = lp.user_id
-    ORDER BY t.pinned DESC, t.last_post_at DESC LIMIT ? OFFSET ?`).all(PER_PAGE, (page - 1) * PER_PAGE);
+    ${w} ORDER BY ${order} LIMIT ? OFFSET ?`).all(...params, PER_PAGE, (page - 1) * PER_PAGE);
   for (const t of topics) {
     t.author = byline(req.user, t.username && displayName(t), t.anonymous, t.user_id);
     t.author_url = t.username && !t.anonymous ? profileUrl(t.username) : null;
     t.last_author = byline(req.user, t.last_username && (t.last_display_name || t.last_username), t.last_anonymous, t.last_user_id);
     t.last_url = t.last_username && !t.last_anonymous ? profileUrl(t.last_username) : null;
   }
-  res.render('board-list', { title: 'Forum', topics, page, pages: Math.max(1, Math.ceil(total / PER_PAGE)), total });
+  res.render('board-list', { title: 'Forum', topics, page, pages: Math.max(1, Math.ceil(total / PER_PAGE)), total, q, sort, dir, mine });
 });
 
 // ---------- Neues Thema ----------
@@ -76,9 +111,13 @@ router.post('/new', auth.requireLogin, auth.rateLimit('board', 10, 600), (req, r
   const id = tx(() => {
     const tid = Number(db.prepare('INSERT INTO board_topics(title, user_id, anonymous, created_at, last_post_at) VALUES (?, ?, ?, ?, ?)').run(title, req.user.id, anon, t, t).lastInsertRowid);
     db.prepare('INSERT INTO board_posts(topic_id, user_id, body_md, anonymous, created_at) VALUES (?, ?, ?, ?, ?)').run(tid, req.user.id, body, anon, t);
+    subscribe(req.user.id, tid);
     return tid;
   });
-  if (!req.user.isAdmin) mail.notifyQuietly('Neues Thema im Forum: ' + title, `Von: ${req.user.username}${anon ? ' (anonym)' : ''}\n\n${body}`);
+  if (!req.user.isAdmin) {
+    mail.notifyQuietly('Neues Thema im Forum: ' + title, `Von: ${req.user.username}${anon ? ' (anonym)' : ''}\n\n${body}`);
+    notify.toAdmins('💬 Neues Thema im Forum: ' + title, `Von ${anon ? 'Anonym (' + req.user.username + ')' : displayName(req.user)}`, '/forum/t/' + id);
+  }
   res.redirect('/forum/t/' + id);
 });
 
@@ -91,6 +130,8 @@ router.get('/t/:id', loadTopic, (req, res) => {
   const posts = db.prepare(`SELECT p.*, u.username, u.display_name, u.avatar, u.role FROM board_posts p LEFT JOIN users u ON u.id = p.user_id
                             WHERE p.topic_id = ? ORDER BY p.created_at, p.id LIMIT ? OFFSET ?`).all(t.id, PER_PAGE, (page - 1) * PER_PAGE);
   const firstId = db.prepare('SELECT MIN(id) AS id FROM board_posts WHERE topic_id = ?').get(t.id).id;
+  countView(req, t.id);
+  if (req.user) notify.readKey(req.user.id, 'board:' + t.id);
   for (const p of posts) {
     p.html = md(p.body_md); p.editable = canEdit(req.user, p); p.first = p.id === firstId;
     p.author = byline(req.user, p.username && displayName(p), p.anonymous, p.user_id);
@@ -98,7 +139,8 @@ router.get('/t/:id', loadTopic, (req, res) => {
   }
   // Wer sein Thema anonym begonnen hat, antwortet dort zunächst auch anonym
   const replyAnon = !!(req.user && t.anonymous && t.user_id === req.user.id);
-  res.render('board-topic', { title: t.title, topic: t, posts, page, pages, replyAnon, err: req.query.err || null });
+  const subscribed = !!req.user && isSubscribed(req.user.id, t.id);
+  res.render('board-topic', { title: t.title, topic: t, posts, page, pages, replyAnon, subscribed, err: req.query.err || null });
 });
 router.post('/t/:id/reply', auth.requireLogin, auth.rateLimit('board', 10, 600), loadTopic, (req, res) => {
   const t = req.topic;
@@ -110,8 +152,15 @@ router.post('/t/:id/reply', auth.requireLogin, auth.rateLimit('board', 10, 600),
     const id = db.prepare('INSERT INTO board_posts(topic_id, user_id, body_md, anonymous, created_at) VALUES (?, ?, ?, ?, ?)')
       .run(t.id, req.user.id, body, req.body.anonymous ? 1 : 0, ts).lastInsertRowid;
     db.prepare('UPDATE board_topics SET last_post_at = ? WHERE id = ?').run(ts, t.id);
+    subscribe(req.user.id, t.id);
     return id;
   });
+  // Alle anderen, die das Thema abonniert haben, bekommen Bescheid
+  const who = req.body.anonymous ? 'Anonym' : displayName(req.user);
+  const text = body.replace(/\s+/g, ' ');
+  for (const s of db.prepare('SELECT user_id FROM board_subs WHERE topic_id = ? AND user_id != ?').all(t.id, req.user.id)) {
+    notify.send(s.user_id, 'board', { key: 'board:' + t.id, title: `💬 Neue Antwort in „${t.title}“`, body: `${who}: ${text.length > 120 ? text.slice(0, 120) + '…' : text}`, url: `/forum/t/${t.id}?page=last#b${pid}` });
+  }
   res.redirect(`/forum/t/${t.id}?page=last#b${pid}`);
 });
 
@@ -152,6 +201,12 @@ function pageOf(post) {
     .get(post.topic_id, post.created_at, post.created_at, post.id).n;
   return Math.floor(n / PER_PAGE) + 1;
 }
+
+router.post('/t/:id/sub', auth.requireLogin, loadTopic, (req, res) => {
+  if (req.body.on === '1') subscribe(req.user.id, req.topic.id);
+  else db.prepare('DELETE FROM board_subs WHERE user_id = ? AND topic_id = ?').run(req.user.id, req.topic.id);
+  res.redirect(req.body.back === 'list' ? '/forum?abos=1' : '/forum/t/' + req.topic.id);
+});
 
 // ---------- Moderation ----------
 router.post('/t/:id/pin', requireAdmin, loadTopic, (req, res) => {

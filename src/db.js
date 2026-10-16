@@ -223,6 +223,37 @@ CREATE TABLE IF NOT EXISTS board_posts (
   created_at INTEGER NOT NULL,
   edited_at INTEGER
 );
+-- Abonnierte Forenthemen. Wer ein Thema beginnt oder antwortet, abonniert es von selbst.
+CREATE TABLE IF NOT EXISTS board_subs (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  topic_id INTEGER NOT NULL REFERENCES board_topics(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, topic_id)
+);
+-- Benachrichtigungen (🔔 neben der Uhr, Startseite). key fasst gleiche ungelesene zusammen (count zählt mit).
+CREATE TABLE IF NOT EXISTS notifications (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  key TEXT,
+  title TEXT NOT NULL,
+  body TEXT,
+  url TEXT,
+  count INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL,
+  read_at INTEGER
+);
+-- Geräte für Push-Benachrichtigungen: Adresse beim Push-Dienst des Browsers und dessen Schlüssel
+CREATE TABLE IF NOT EXISTS push_subs (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  label TEXT,
+  created_at INTEGER NOT NULL,
+  last_used INTEGER
+);
 -- Musik: hochgeladene Titel (Admin und Mitglieder), Playlists der Mitglieder
 CREATE TABLE IF NOT EXISTS tracks (
   id INTEGER PRIMARY KEY,
@@ -339,6 +370,8 @@ CREATE INDEX IF NOT EXISTS pm_to ON private_messages(to_id, read_at);
 CREATE INDEX IF NOT EXISTS pm_pair ON private_messages(from_id, to_id, created_at);
 CREATE INDEX IF NOT EXISTS bp_topic ON board_posts(topic_id, created_at);
 CREATE INDEX IF NOT EXISTS bt_order ON board_topics(pinned, last_post_at);
+CREATE INDEX IF NOT EXISTS nt_user ON notifications(user_id, read_at, created_at);
+CREATE INDEX IF NOT EXISTS nt_key ON notifications(user_id, key);
 CREATE INDEX IF NOT EXISTS dl_day ON downloads(day);
 CREATE INDEX IF NOT EXISTS dl_file ON downloads(file_id, day);
 CREATE INDEX IF NOT EXISTS pv_day ON pageviews(day);
@@ -353,6 +386,8 @@ function addColumn(table, column, def) {
 addColumn('media', 'uploader_id', 'INTEGER REFERENCES users(id) ON DELETE SET NULL');
 addColumn('board_topics', 'anonymous', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('board_posts', 'anonymous', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('board_topics', 'views', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('users', 'notify_prefs', 'TEXT');                       // JSON je Art: { site, push }, leer = Vorgaben
 addColumn('users', 'display_name', 'TEXT');
 addColumn('users', 'avatar', 'TEXT');
 addColumn('users', 'about', 'TEXT');

@@ -356,6 +356,17 @@ async function main() {
       assert.equal((await bernd.form(`/forum/p/${ids[0]}/delete`, { _csrf: tk })).status, 404);
       assert.equal((await bernd.form(topic + '/lock', { _csrf: tk })).status, 403, 'nur Admin sperrt');
 
+      // Antworten abonniert das Thema, Abo lässt sich beenden; Suche, Sortierung und Zitieren
+      assert.match(page, /Abo beenden/);
+      assert.match(page, /data-quote="Erster \*\*Beitrag\*\*/);
+      assert.match((await bernd.req('/forum?abos=1')).text_, /Hallo Forum/);
+      assert.equal((await bernd.form(topic + '/sub', { _csrf: tk, on: '0' })).status, 302);
+      assert.match((await bernd.req('/forum?abos=1')).text_, /noch keine Themen abonniert/);
+      assert.match((await guest.req('/forum?q=Antwort+Bernd')).text_, /Hallo Forum/, 'Suche findet Text in Antworten');
+      assert.match((await guest.req('/forum?q=gibtsnicht')).text_, /Nichts gefunden/);
+      assert.match((await guest.req('/forum?q=100%25_')).text_, /Nichts gefunden/, 'Platzhalter werden nicht ausgewertet');
+      assert.match((await guest.req('/forum?sort=views&dir=asc')).text_, /Aufrufe ▲/);
+
       tk = await anna.csrf(topic);
       const del = await anna.form(`/forum/p/${ids[0]}/delete`, { _csrf: tk });
       assert.match(decodeURIComponent(del.headers.get('location')), /schon geantwortet/, 'Thema mit Antworten bleibt');
@@ -702,6 +713,64 @@ async function main() {
       await bernd.form('/nachrichten/anna/loeschen', { _csrf: t });
       assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM private_messages').get().n, 0);
       sql.close();
+    });
+
+    await step('Benachrichtigungen: Freunde, Nachrichten, Forum, Einstellungen, Push', async () => {
+      const { anna, bernd } = members;
+      const api = async b => JSON.parse((await b.req('/api/benachrichtigungen')).text_);
+      let j = await api(anna);
+      assert.ok(j.items.some(n => /bernd hat deine Freundschaftsanfrage angenommen/.test(n.title)), 'Annahme der Anfrage');
+      const pm = j.items.find(n => n.title === '💌 Nachricht von bernd');
+      assert.ok(pm && pm.body === 'Klar!' && pm.read, 'Nachricht, gelesen beim Öffnen des Gesprächs');
+      assert.match((await anna.req('/', { top: true })).text_, /id="notifybtn"[\s\S]*?class="notify-count">\d+</);
+      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /id="notifybtn"/);
+      assert.match((await anna.req('/benachrichtigungen')).text_, /Nachricht von bernd/);
+      let tk = await anna.csrf('/benachrichtigungen');
+      await anna.form('/benachrichtigungen/alle-gelesen', { _csrf: tk });
+      assert.equal((await api(anna)).unread, 0);
+
+      // Antwort in einem abonnierten Thema; Öffnen des Themas markiert sie als gelesen
+      tk = await anna.csrf('/forum/new');
+      const topic = (await anna.form('/forum/new', { _csrf: tk, title: 'Abo-Test', body_md: 'Wer macht mit?', anonymous: '1' })).headers.get('location');
+      const reply = async text => { const t = await bernd.csrf(topic); await bernd.form(topic + '/reply', { _csrf: t, body_md: text, anonymous: '1' }); };
+      await reply('Ich!');
+      await reply('Ich auch nochmal');
+      j = await api(anna);
+      const b = j.items.find(n => n.kind === 'board');
+      assert.equal(j.unread, 1, 'zwei Antworten, eine Benachrichtigung');
+      assert.equal(b.count, 2);
+      assert.equal(b.title, '💬 Neue Antwort in „Abo-Test“');
+      assert.equal(b.body, 'Anonym: Ich auch nochmal', 'anonyme Antworten bleiben anonym');
+      assert.ok(!(await api(bernd)).items.some(n => /Abo-Test/.test(n.title)), 'eigene Antworten melden nichts');
+      await anna.req(topic);
+      assert.equal((await api(anna)).unread, 0);
+      // Startseite: rechts die eigenen Benachrichtigungen, für Gäste Anmelden; links Neues aus dem Forum
+      const home = (await anna.req('/')).text_;
+      assert.match(home, /🔔 Für dich[\s\S]*Neue Antwort in „Abo-Test“/);
+      assert.match(home, /💬 Neu im Forum[\s\S]*Abo-Test/);
+      assert.match((await guest.req('/')).text_, /👋 Mitmachen[\s\S]*href="\/login"/);
+
+      // Einstellungen: Forum aus, dann kommt nichts mehr
+      const acc = (await anna.req('/account')).text_;
+      assert.match(acc, /id="benachrichtigungen"[\s\S]*name="site_board" value="1"[^>]*checked/);
+      assert.doesNotMatch(acc, /name="site_admin"/, 'Admin-Hinweise nur für Admins');
+      tk = await anna.csrf('/account');
+      const off = { _csrf: tk, site_pm: '1', site_friend: '1', push_pm: '1' };
+      assert.match((await anna.form('/account/benachrichtigungen', off)).headers.get('location'), /ok=notify/);
+      await reply('Hallo?');
+      assert.equal((await api(anna)).unread, 0);
+      assert.doesNotMatch((await anna.req('/account')).text_, /name="site_board" value="1"[^>]*checked/);
+
+      // Push: Schlüssel, Service Worker, Manifest; kaputte Abos werden abgelehnt
+      assert.match(JSON.parse((await guest.req('/api/push/key')).text_).key, /^[A-Za-z0-9_-]{87}$/);
+      const sw = await guest.req('/sw.js');
+      assert.equal(sw.headers.get('service-worker-allowed'), '/');
+      assert.match(sw.text_, /showNotification/);
+      assert.equal(JSON.parse((await guest.req('/manifest.webmanifest')).text_).display, 'standalone');
+      tk = await anna.csrf('/account');
+      const bad = await anna.req('/api/push/abo', { method: 'POST', body: JSON.stringify({ subscription: { endpoint: 'http://evil', keys: {} } }), headers: { 'content-type': 'application/json', 'x-csrf-token': tk } });
+      assert.equal(bad.status, 400);
+      assert.equal((await guest.req('/api/push/abo', { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } })).status, 403, 'ohne Token');
     });
 
     await step('Profilbild: versteckte Angaben werden entfernt', async () => {

@@ -29,6 +29,37 @@
   <div class="actions"><button>💾 Speichern</button></div>
 </form>
 </fieldset>
+<fieldset class="groupbox" id="benachrichtigungen"><legend>🔔 Benachrichtigungen</legend>
+<form method="post" action="/account/benachrichtigungen">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <table class="list notify-prefs">
+    <tr><th>Was</th><th>🔔 Anzeigen</th><th>📱 Push</th></tr>
+    <% for (const [k, d] of notifyKinds) { %>
+    <tr><td><%= d.label %></td>
+      <td><input type="checkbox" name="site_<%= k %>" value="1" aria-label="<%= d.label %> anzeigen"<%= notifyPrefs[k].site ? ' checked' : '' %>></td>
+      <td><input type="checkbox" name="push_<%= k %>" value="1" aria-label="<%= d.label %> als Push"<%= notifyPrefs[k].push ? ' checked' : '' %>></td></tr>
+    <% } %>
+  </table>
+  <p><small class="muted">„Anzeigen“ heißt: in der 🔔 neben der Uhr und auf der Startseite. Push kommt nur auf Geräten an, die du unten anmeldest.</small></p>
+  <div class="actions"><button>💾 Speichern</button></div>
+</form>
+<h3>📱 Push auf Handy und Browser</h3>
+<div id="push" data-csrf="<%= csrf %>">
+  <p id="push-state" class="muted">Prüfe, ob dieser Browser Push kann …</p>
+  <div class="actions"><button type="button" class="small" id="push-on" hidden>📱 Push auf diesem Gerät einschalten</button><button type="button" class="small" id="push-off" hidden>Auf diesem Gerät ausschalten</button><button type="button" class="small" id="push-test" hidden>🔔 Test schicken</button></div>
+  <p id="push-ios" class="muted" hidden><small>Auf dem iPhone und iPad geht Push nur, wenn du die Seite über „Teilen → Zum Home-Bildschirm“ hinzufügst und von dort öffnest (ab iOS 16.4).</small></p>
+</div>
+<% if (devices.length) { %>
+<table class="list">
+  <tr><th>Gerät</th><th>Angemeldet</th><th>Zuletzt benachrichtigt</th><th></th></tr>
+  <% for (const d of devices) { %>
+  <tr><td><%= d.label || 'Unbekannt' %></td><td><%= fmtDate(d.created_at) %></td><td><%= d.last_used ? fmtDate(d.last_used, true) : '–' %></td>
+    <td><form method="post" action="/account/geraete/<%= d.id %>/loeschen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Abmelden</button></form></td></tr>
+  <% } %>
+</table>
+<% } %>
+<script src="<%= asset('push.js') %>"></script>
+</fieldset>
 <fieldset class="groupbox"><legend>Passwort ändern</legend>
 <form method="post" action="/account">
   <input type="hidden" name="_csrf" value="<%= csrf %>">

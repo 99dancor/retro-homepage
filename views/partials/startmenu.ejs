@@ -40,12 +40,23 @@
   <div class="tasks" id="tasks"><% if (typeof shellTask !== 'undefined') { %><span class="task"><%= shellTask %></span><% } %></div>
   <div class="tray">
     <% if (user) { %><a class="tray-btn pm-tray" id="pmtray" href="/nachrichten" title="<%= unreadPm ? unreadPm + ' ungelesene Nachrichten' : 'Nachrichten' %>"<%= unreadPm ? '' : ' hidden' %>>💌<span class="pm-count"><%= unreadPm %></span></a><% } %>
+    <% if (user) { %><button type="button" class="tray-btn notify-btn" id="notifybtn" title="Benachrichtigungen" aria-label="Benachrichtigungen" aria-expanded="false" aria-controls="notifypanel">🔔<span class="notify-count"<%= unreadNotify ? '' : ' hidden' %>><%= unreadNotify %></span></button><% } %>
     <button type="button" class="tray-btn" id="displaybtn" title="Darstellung anpassen" aria-label="Darstellung anpassen" aria-expanded="false" aria-controls="displaypanel">🖥️</button>
     <button type="button" class="tray-btn" id="volumebtn" title="Lautstärke" aria-label="Lautstärke" aria-expanded="false" aria-controls="volumepanel">🔊</button>
     <span id="clock"></span>
   </div>
 </div>
 <%- include('display-panel') %>
+<% if (user) { %>
+<%# Benachrichtigungen: öffnet sich über die 🔔 neben der Uhr, Logik in public/notify.js %>
+<div class="window notify-panel" id="notifypanel" role="dialog" aria-label="Benachrichtigungen" hidden data-csrf="<%= csrf %>">
+  <div class="titlebar"><span class="ttl">🔔 Benachrichtigungen</span></div>
+  <div class="body">
+    <div class="notify-list sunken" id="notifylist"><p class="muted">Lade …</p></div>
+    <div class="actions"><button type="button" class="small" data-nact="read">✔ Alle gelesen</button><a class="btn small" href="/benachrichtigungen">Alle anzeigen</a><a class="btn small" href="/account#benachrichtigungen" title="Einstellungen">⚙️</a></div>
+  </div>
+</div>
+<% } %>
 <%# Lautstärke: öffnet sich über den 🔊-Knopf neben der Uhr, Logik in public/sound.js %>
 <div class="window volume-panel" id="volumepanel" role="dialog" aria-label="Lautstärke" hidden>
   <div class="titlebar"><span class="ttl">🔊 Lautstärke</span></div>

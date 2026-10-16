@@ -10,6 +10,7 @@ const analytics = require('./analytics');
 const util = require('./util');
 const themes = require('./themes');
 const profiles = require('./profiles');
+const notify = require('./notify');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -69,6 +70,7 @@ app.use((req, res, next) => {
     displayName: profiles.displayName,
     profileUrl: profiles.profileUrl,
     unreadPm: req.user ? profiles.unreadCount(req.user.id) : 0,
+    unreadNotify: req.user ? notify.unread(req.user.id) : 0,
   });
   const v = auth.visibilitySql(req.user, 'page', 'p');
   res.locals.navPages = db.prepare(`SELECT slug, title FROM pages p WHERE in_nav = 1 AND ${v.sql} ORDER BY position, title`).all(...v.params);
@@ -103,6 +105,7 @@ app.use('/blackjack', require('./routes/blackjack'));
 const paintRoutes = require('./routes/paint');
 app.use('/paint', paintRoutes.router);
 app.use('/galerie', paintRoutes.gallery);
+app.use('/', require('./routes/notify'));
 app.use('/', require('./routes/games'));
 app.use('/', profileRoutes.router);
 app.use('/', require('./routes/public'));
@@ -125,5 +128,9 @@ if (!db.prepare('SELECT 1 FROM users LIMIT 1').get()) {
   if (!process.env.ADMIN_PASSWORD) console.log(`Passwort: ${pw}  (bitte nach dem Login ändern)`);
   console.log('='.repeat(60));
 }
+
+// Haustier-Erinnerungen und alte Benachrichtigungen aufräumen
+require('./petwatch').start();
+setInterval(notify.cleanup, 6 * 3600e3).unref();
 
 app.listen(PORT, () => console.log(`Website läuft auf Port ${PORT}`));

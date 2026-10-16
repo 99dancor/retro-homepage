@@ -227,7 +227,7 @@
   var POS = { 1: [50], 2: [30, 70], 3: [17, 50, 83], 4: [12, 37, 63, 88], 5: [10, 30, 50, 70, 90] };
   function seatHtml(s, i, st) {
     var pos = POS[st.seatCount][i], dy = Math.abs(pos - 50) * 1.3;
-    var style = 'left:' + pos + '%;top:calc(46% - ' + dy + 'px)';
+    var style = 'left:' + pos + '%;top:calc(46% - var(--c) * ' + (dy / 44).toFixed(2) + ')';
     if (!s) {
       return '<div class="bj-seat empty" style="' + style + '">' + (mySeat() ? '<span class="bj-free">frei</span>' : '<button type="button" class="small" data-sit="' + i + '">🪑 Hier hinsetzen</button>') + '</div>';
     }

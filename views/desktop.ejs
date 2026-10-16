@@ -7,6 +7,9 @@
 <link rel="stylesheet" href="<%= asset('retro.css') %>">
 <link rel="stylesheet" href="/theme.css">
 <link rel="icon" href="<%= asset('favicon.svg') %>">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="<%= asset('icon.png') %>">
+<meta name="theme-color" content="#000080">
 <script type="application/json" id="darstellung-daten"><%- themes.clientData %></script>
 <script src="<%= asset('display.js') %>"></script>
 <script src="<%= asset('sound.js') %>"></script>
@@ -44,5 +47,6 @@
 </div>
 <%- include('partials/startmenu') %>
 <script src="<%= asset('retro.js') %>"></script>
+<% if (user) { %><script src="<%= asset('notify.js') %>"></script><% } %>
 </body>
 </html>

@@ -1,10 +1,11 @@
 <div class="startmenu" id="startmenu" data-title="<%= site.title %>">
   <a href="/">🏠 Startseite</a>
-  <% const entries = [['blog','/blog','📝 Blog'],['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['apps','/apps','🎮 Spiele & Apps'],['haustier','/haustier/','🐾 Mein Haustier'],['musik','/musik','🎵 Musik'],['zufall','/zufall','🎲 Zufallsgenerator'],['board','/forum','💬 Forum'],['nutzer','/nutzer','👥 Mitglieder'],['guestbook','/guestbook','📖 Freundebuch'],['contact','/contact','✉️ Kontakt']]; %>
+  <% const entries = [['blog','/blog','📝 Blog'],['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['apps','/apps','🎮 Spiele & Apps'],['haustier','/haustier/','🐾 Mein Haustier'],['musik','/musik','🎵 Musik'],['zufall','/zufall','🎲 Zufallsgenerator'],['blackjack','/blackjack','🃏 Blackjack'],['board','/forum','💬 Forum'],['nutzer','/nutzer','👥 Mitglieder'],['guestbook','/guestbook','📖 Besucherbuch'],['contact','/contact','✉️ Kontakt']]; %>
   <% for (const [key, href, label] of entries) {
        if (navHidden.includes(key)) continue;
        if (key === 'guestbook' && !guestbookEnabled) continue;
        if (key === 'board' && !boardEnabled) continue;
+       if (key === 'blackjack' && !blackjackEnabled) continue;
        if (key === 'contact' && !contactEnabled) continue; %>
     <a href="<%= href %>"><%= label %></a>
   <% } %>

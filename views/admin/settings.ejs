@@ -18,8 +18,8 @@
   </fieldset>
   <fieldset class="groupbox"><legend>🔐 Besucher & Mitmachen</legend>
     <label class="inline"><input type="checkbox" name="registration_open" value="1" <%= s.registration_open === '1' ? 'checked' : '' %>> Jeder darf sich registrieren</label><br>
-    <label class="inline"><input type="checkbox" name="guestbook_enabled" value="1" <%= s.guestbook_enabled === '1' ? 'checked' : '' %>> Freundebuch aktiv</label>
-    <label class="inline"><input type="checkbox" name="guestbook_moderation" value="1" <%= s.guestbook_moderation === '1' ? 'checked' : '' %>> Freundebuch-Einträge erst nach Freischaltung anzeigen</label><br>
+    <label class="inline"><input type="checkbox" name="guestbook_enabled" value="1" <%= s.guestbook_enabled === '1' ? 'checked' : '' %>> Besucherbuch aktiv</label>
+    <label class="inline"><input type="checkbox" name="guestbook_moderation" value="1" <%= s.guestbook_moderation === '1' ? 'checked' : '' %>> Besucherbuch-Einträge erst nach Freischaltung anzeigen</label><br>
     <label class="inline"><input type="checkbox" name="board_enabled" value="1" <%= s.board_enabled === '1' ? 'checked' : '' %>> Forum aktiv (schreiben dürfen angemeldete Nutzer)</label>
     <label class="inline"><input type="checkbox" name="board_members_only" value="1" <%= s.board_members_only === '1' ? 'checked' : '' %>> Forum nur für angemeldete Nutzer lesbar</label><br>
     <label class="inline"><input type="checkbox" name="contact_enabled" value="1" <%= s.contact_enabled === '1' ? 'checked' : '' %>> Kontaktformular aktiv</label>
@@ -37,8 +37,21 @@
     <label class="inline"><input type="checkbox" name="youtube_enabled" value="1" <%= s.youtube_enabled === '1' ? 'checked' : '' %>> YouTube-Lieder in Lobbys erlauben</label>
     <br><small>Ein Titel darf bei Mitgliedern höchstens 50 MB groß sein. Hochgeladene Musik verwaltest du unter <a href="/admin/musik">Musik</a>.</small>
   </fieldset>
+  <fieldset class="groupbox" id="blackjack"><legend>🃏 Blackjack</legend>
+    <label class="inline"><input type="checkbox" name="bj_enabled" value="1" <%= s.bj_enabled === '1' ? 'checked' : '' %>> Blackjack für angemeldete Mitglieder (Spielgeld)</label>
+    <div class="row">
+      <label>Buy-in in € (Start und jeder Nachkauf):<input type="number" name="bj_buyin" value="<%= s.bj_buyin %>" min="1"></label>
+      <label>Nachkaufen erst unter (€):<input type="number" name="bj_rebuy_below" value="<%= s.bj_rebuy_below %>" min="0"></label>
+    </div>
+    <div class="row">
+      <label>Decks im Schlitten (1–8):<input type="number" name="bj_decks" value="<%= s.bj_decks %>" min="1" max="8"></label>
+      <label>Bedenkzeit pro Zug (Sekunden, 5–300):<input type="number" name="bj_turn" value="<%= s.bj_turn %>" min="5" max="300"></label>
+    </div>
+    <label class="inline"><input type="checkbox" name="bj_h17" value="1" <%= s.bj_h17 === '1' ? 'checked' : '' %>> Dealer zieht auf Soft 17 (sonst steht er auf allen 17)</label>
+    <br><small>Änderungen gelten für neue Runden; der Buy-in für das nächste Hinsetzen oder Nachkaufen. Tische legen Mitglieder selbst an.</small>
+  </fieldset>
   <fieldset class="groupbox"><legend>✉️ E-Mail-Benachrichtigung</legend>
-    <p><small>Bei neuen Nachrichten, Freundebuch-Einträgen und Registrierungen bekommst du eine E-Mail. Du brauchst dafür einen SMTP-Zugang – z. B. von deinem Mail-Anbieter (GMX, web.de, Gmail mit App-Passwort, Mailbox.org …).</small></p>
+    <p><small>Bei neuen Nachrichten, Besucherbuch-Einträgen und Registrierungen bekommst du eine E-Mail. Du brauchst dafür einen SMTP-Zugang – z. B. von deinem Mail-Anbieter (GMX, web.de, Gmail mit App-Passwort, Mailbox.org …).</small></p>
     <div class="row">
       <label>Benachrichtigung an:<input type="email" name="notify_email" class="w100" value="<%= s.notify_email %>" placeholder="du@example.de"></label>
       <label>Absender-Adresse:<input type="text" name="smtp_from" class="w100" value="<%= s.smtp_from %>" placeholder="Website &lt;website@example.de&gt;"></label>
@@ -58,6 +71,9 @@
 </form>
 <form method="post" action="/admin/settings/testmail" class="actions">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button>✉️ Test-E-Mail senden</button> <small>(erst speichern, dann testen)</small>
+</form>
+<form method="post" action="/admin/settings/blackjack-reset" class="actions" data-confirm="Die Blackjack-Bestenliste und alle Bilanzen auf null setzen? Laufende Sitzungen an Tischen bleiben.">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🃏 Blackjack-Bestenliste zurücksetzen</button> <small>(löscht alle abgeschlossenen Sitzungen und damit alle Bilanzen)</small>
 </form>
 <script src="<%= asset('admin.js') %>"></script>
 <%- include('../partials/foot') %>

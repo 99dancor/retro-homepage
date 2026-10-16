@@ -48,6 +48,8 @@ const SNIPPETS = {
   profileGuestbook: ['src/db.js', 'CREATE TABLE IF NOT EXISTS profile_guestbook (', 7],
   gameStats: ['src/db.js', 'CREATE TABLE IF NOT EXISTS game_stats (', 8],
   countStart: ['src/profiles.js', 'function countStart(user, app)', 5],
+  bjSessions: ['src/db.js', 'CREATE TABLE IF NOT EXISTS bj_sessions (', 18],
+  bjState: ['src/blackjack.js', 'function state(t) {', 12],
 };
 
 let cache = null;

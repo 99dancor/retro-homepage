@@ -408,7 +408,7 @@
     else if (a === 'lobby-leave') leaveLobby();
     else if (a === 'lobby-link') copyLink();
     else if (a === 'lobby-settings') lobbySettings();
-    else if (a === 'lobby-user') lobbyUser(Number(b.dataset.user));
+    else if (a === 'lobby-user') lobbyUser(Number(b.dataset.user), e);
     else if (a === 'lobby-close') closeLobby();
     else if (a === 'lobby-clear') confirmBox('Warteschlange leeren', 'Alle Lieder aus der Warteschlange nehmen?', 'Leeren').then(function (ok) { if (ok) lobbyCtl('clear'); });
     else if (a === 'yt-add') addYoutube();
@@ -723,20 +723,16 @@
     var inp = dlg.querySelector('[name=link]');
     inp.select();
   }
-  // Klick auf einen Zuhörer: was man mit ihm machen kann
-  function lobbyUser(id) {
+  // Klick auf einen Zuhörer: dasselbe Nutzermenü wie am Blackjack-Tisch (public/usermenu.js), dazu die Player-Rechte
+  function lobbyUser(id, e) {
     var s = lob.state, u = s.listeners.filter(function (x) { return x.id === id; })[0];
-    if (!u) return;
-    var acts = [];
-    if (u.user) acts.push({ label: '👤 Profil ansehen', value: 'profile' });
-    if (lib.me && lib.me.admin) acts.push({ label: '⚙️ In der Systemsteuerung', value: 'account' });
-    if (lobbyIsHost() && !u.host) acts.push(u.control ? { label: '🚫 Player-Rechte entziehen', value: 'revoke' } : { label: '🎶 Player-Rechte geben', value: 'grant' });
-    acts.push({ label: 'Schließen', value: 'cancel' });
-    dialog('👤 ' + u.name, '<p>' + (u.host ? '👑 Gastgeber dieser Lobby.' : u.control ? '🎶 Darf den Player steuern und Lieder hinzufügen.' : '🎧 Hört nur zu.') + '</p>', acts).then(function (r) {
-      if (r === 'profile') openPage(profileUrl(u.user));
-      else if (r === 'account') window.open('/admin/users/' + u.id, '_blank');
-      else if (r === 'grant' || r === 'revoke') lobbyCtl('rights', { user: u.id, allow: r === 'grant' });
-    });
+    if (!u || !u.user) return;
+    var items = [];
+    if (lobbyIsHost() && !u.host) items.push(u.control ? { label: '🚫 Player-Rechte entziehen', run: function () { lobbyCtl('rights', { user: u.id, allow: false }); } }
+      : { label: '🎶 Player-Rechte geben', run: function () { lobbyCtl('rights', { user: u.id, allow: true }); } });
+    var note = u.host ? '👑 Gastgeber dieser Lobby' : u.control ? '🎶 Darf den Player steuern und Lieder hinzufügen' : '🎧 Hört zu';
+    if (window.RetroUserMenu) window.RetroUserMenu.open(e, u.user, { note: note, items: items });
+    else openPage(profileUrl(u.user));
   }
   function lobbySettings() {
     var s = lob.state;

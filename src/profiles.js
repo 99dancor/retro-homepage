@@ -224,7 +224,7 @@ function gameStats(userId, viewer) {
   const game = slug => {
     if (!games.has(slug)) {
       let g;
-      if (Object.hasOwn(GAMES, slug)) g = { title: GAMES[slug].title, url: `/${slug}/` };
+      if (Object.hasOwn(GAMES, slug)) g = { title: GAMES[slug].title, url: GAMES[slug].url || `/${slug}/` };
       else {
         const a = db.prepare('SELECT * FROM apps WHERE slug = ?').get(slug);
         g = a && auth.canSee(viewer, 'app', a) ? { title: a.title, url: `/apps/${a.slug}` } : null;
@@ -242,6 +242,14 @@ function gameStats(userId, viewer) {
     g.last = Math.max(g.last, r.updated_at);
   }
   for (const [slug, def] of Object.entries(GAMES)) {
+    if (def.userStats) {
+      const r = def.userStats(userId);
+      if (!r) continue;
+      const g = game(slug);
+      g.stats.push(...r.stats);
+      g.last = Math.max(g.last, r.last || 0);
+      continue;
+    }
     if (!def.stats) continue;
     const save = db.prepare("SELECT data, updated_at FROM game_saves WHERE user_id = ? AND app_slug = ? AND slot = 'main'").get(userId, slug);
     if (!save) continue;

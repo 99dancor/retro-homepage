@@ -288,6 +288,26 @@ CREATE TABLE IF NOT EXISTS game_stats (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, app_slug, key)
 );
+-- Blackjack: eine Zeile pro Sitzung an einem Tisch (Spielgeld). Bilanz = Chips − eingekauft (Start + Nachkäufe).
+CREATE TABLE IF NOT EXISTS bj_sessions (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  table_name TEXT NOT NULL,
+  chips INTEGER NOT NULL,                   -- Chips beim letzten Speichern (nach jeder Hand) bzw. beim Aufstehen
+  bought INTEGER NOT NULL,                  -- insgesamt eingekauft
+  buyins INTEGER NOT NULL DEFAULT 1,
+  hands INTEGER NOT NULL DEFAULT 0,
+  wins INTEGER NOT NULL DEFAULT 0,
+  losses INTEGER NOT NULL DEFAULT 0,
+  pushes INTEGER NOT NULL DEFAULT 0,
+  blackjacks INTEGER NOT NULL DEFAULT 0,
+  best_win INTEGER NOT NULL DEFAULT 0,      -- höchster Gewinn in einer Runde
+  best_streak INTEGER NOT NULL DEFAULT 0,   -- längste Siegesserie
+  started_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  ended_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS bj_user ON bj_sessions(user_id, started_at);
 CREATE INDEX IF NOT EXISTS pg_profile ON profile_guestbook(profile_id, created_at);
 CREATE INDEX IF NOT EXISTS fr_friend ON friends(friend_id);
 CREATE INDEX IF NOT EXISTS pm_to ON private_messages(to_id, read_at);
@@ -334,7 +354,7 @@ const DEFAULT_SETTINGS = {
   guestbook_moderation: '0',
   guestbook_enabled: '1',
   analytics_retention_days: '365',
-  home_md: '## Willkommen auf meiner Homepage!\n\nSchön, dass du vorbeischaust. Schau dich um und trag dich ins **Freundebuch** ein!',
+  home_md: '## Willkommen auf meiner Homepage!\n\nSchön, dass du vorbeischaust. Schau dich um und trag dich ins **Besucherbuch** ein!',
   // Design
   theme_bg_color: '#008080',
   theme_bg_image: '',
@@ -345,7 +365,7 @@ const DEFAULT_SETTINGS = {
   theme_text_color: '#000000',
   theme_link_color: '#0000ee',
   theme_font: 'tahoma',
-  theme_marquee: 'Herzlich willkommen auf meiner Homepage! *** Trag dich ins Freundebuch ein! ***',
+  theme_marquee: 'Herzlich willkommen auf meiner Homepage! *** Trag dich ins Besucherbuch ein! ***',
   theme_show_counter: '1',
   theme_custom_css: '',
   nav_hidden: '',
@@ -357,6 +377,12 @@ const DEFAULT_SETTINGS = {
   music_quota_mb: '500',        // Speicher für Musik pro Mitglied (Admin unbegrenzt)
   lobby_enabled: '1',           // Musik-Lobbys zum gemeinsamen Hören
   youtube_enabled: '1',         // YouTube-Lieder in Lobbys
+  bj_enabled: '1',              // Blackjack (Spielgeld) für Mitglieder
+  bj_buyin: '1000',             // Start und jeder Nachkauf
+  bj_rebuy_below: '200',        // Nachkaufen erst unter diesem Chipstand
+  bj_decks: '6',
+  bj_h17: '0',                  // Dealer zieht auf Soft 17
+  bj_turn: '30',                // Bedenkzeit pro Zug in Sekunden
   notify_email: '',
   smtp_host: '',
   smtp_port: '587',
@@ -365,6 +391,11 @@ const DEFAULT_SETTINGS = {
   smtp_pass: '',
   smtp_from: '',
 };
+// Das Freundebuch der Seite heißt seit den Profil-Freundebüchern „Besucherbuch“: unveränderte Standardtexte mitziehen
+for (const k of ['home_md', 'theme_marquee']) {
+  const v = getSetting(k);
+  if (v !== null && v === DEFAULT_SETTINGS[k].replace('Besucherbuch', 'Freundebuch')) setSetting(k, DEFAULT_SETTINGS[k]);
+}
 for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {
   if (getSetting(k) === null) setSetting(k, v);
 }

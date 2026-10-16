@@ -284,9 +284,9 @@ router.post('/links/:id/delete', (req, res) => {
   res.redirect('/admin/links');
 });
 
-// ---------- Freundebuch ----------
+// ---------- Besucherbuch ----------
 router.get('/guestbook', (req, res) => res.render('admin/guestbook', {
-  title: 'Freundebuch',
+  title: 'Besucherbuch',
   entries: db.prepare('SELECT g.*, u.username FROM guestbook g LEFT JOIN users u ON u.id = g.user_id ORDER BY approved, created_at DESC').all(),
 }));
 router.post('/guestbook/:id/:action', (req, res) => {
@@ -332,7 +332,7 @@ router.post('/users/create', (req, res) => {
 router.get('/users/:id', (req, res, next) => {
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(req.params.id));
   if (!u) return next();
-  res.render('admin/user-edit', { title: 'Nutzer: ' + u.username, u, userGroups: db.prepare('SELECT group_id FROM user_groups WHERE user_id = ?').all(u.id).map(r => r.group_id), err: req.query.err || null });
+  res.render('admin/user-edit', { title: 'Nutzer: ' + u.username, u, bj: require('../blackjack').userTotals(u.id), userGroups: db.prepare('SELECT group_id FROM user_groups WHERE user_id = ?').all(u.id).map(r => r.group_id), err: req.query.err || null });
 });
 router.post('/users/:id', (req, res) => {
   const id = Number(req.params.id), b = req.body;
@@ -354,6 +354,7 @@ router.post('/users/:id', (req, res) => {
       if (old) profiles.removeAvatar(old.avatar);
       db.prepare('UPDATE users SET avatar = NULL WHERE id = ?').run(id);
     }
+    if (b.reset_blackjack) require('../blackjack').resetStats(id);
     db.prepare('DELETE FROM user_groups WHERE user_id = ?').run(id);
     const ins = db.prepare('INSERT OR IGNORE INTO user_groups(user_id, group_id) VALUES (?, ?)');
     for (const g of asArray(b.groups)) ins.run(id, Number(g));
@@ -466,9 +467,10 @@ router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, 
 });
 
 // ---------- Einstellungen ----------
-const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days', 'music_quota_mb'];
-const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure', 'lobby_enabled', 'youtube_enabled'];
-const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Spiele & Apps', haustier: 'Mein Haustier', musik: 'Musik', zufall: 'Zufallsgenerator', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Freundebuch', contact: 'Kontakt' };
+const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days', 'music_quota_mb',
+  'bj_buyin', 'bj_rebuy_below', 'bj_decks', 'bj_turn'];
+const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure', 'lobby_enabled', 'youtube_enabled', 'bj_enabled', 'bj_h17'];
+const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Spiele & Apps', haustier: 'Mein Haustier', musik: 'Musik', zufall: 'Zufallsgenerator', blackjack: 'Blackjack', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
 router.get('/settings', (req, res) => {
   const s = Object.fromEntries([...SETTING_KEYS, ...SETTING_FLAGS, 'nav_hidden', 'music_upload'].map(k => [k, getSetting(k, '')]));
   s.smtp_pass_set = !!getSetting('smtp_pass');
@@ -484,6 +486,11 @@ router.post('/settings', (req, res) => {
   const shown = asArray(b.nav);
   setSetting('nav_hidden', Object.keys(NAV_ITEMS).filter(k => !shown.includes(k)).join(','));
   res.redirect('/admin/settings?ok=1');
+});
+// Blackjack-Bestenliste leeren. Sitzungen, die gerade an einem Tisch laufen, bleiben stehen.
+router.post('/settings/blackjack-reset', (req, res) => {
+  require('../blackjack').resetStats(null);
+  res.redirect('/admin/settings?ok=1#blackjack');
 });
 router.post('/settings/testmail', async (req, res) => {
   let msg;

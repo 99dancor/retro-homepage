@@ -9,7 +9,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/99dancor/retro-homepage</Support>
   <Project>https://github.com/99dancor/retro-homepage</Project>
-  <Overview>Retro-Homepage im Windows-98-Look: Blog, Downloads, Modlisten, Links, Freundebuch, Kontakt, Spiele und Apps, Admin-Bereich mit Statistik. Alle Daten liegen im Ordner „Daten“.</Overview>
+  <Overview>Retro-Homepage im Windows-98-Look: Blog, Downloads, Modlisten, Links, Besucherbuch, Kontakt, Spiele und Apps, Admin-Bereich mit Statistik. Alle Daten liegen im Ordner „Daten“.</Overview>
   <Category>Productivity: Network:Web</Category>
   <WebUI>http://[IP]:[PORT:3000]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/99dancor/retro-homepage/main/unraid/retro-homepage.xml</TemplateURL>

@@ -1,5 +1,13 @@
 # Changelog
 
+## 16.10.2026 – Zufallsgenerator
+
+- **Zufallsgenerator:** Neu im Startmenü unter 🎲 Zufallsgenerator, mit drei Reitern:
+  - **Teams:** Gib an, wie viele Spieler und Teams es gibt, und trag auf Wunsch Namen für Spieler und Teams ein. Die Namen wirbeln im Lostopf durcheinander, fliegen eins nach dem anderen in ihre Teams, und zum Schluss gibt es Konfetti und einen Tusch. Die Teams werden so gleich groß wie möglich.
+  - **Zahl:** Würfle eine oder mehrere Zahlen in einem frei wählbaren Bereich, auf Wunsch ohne Wiederholung. Die Ziffern rattern wie ein Zählwerk, bis sie stehen bleiben.
+  - **Wort:** Zieh Wörter aus deiner eigenen Liste oder aus den eingebauten Begriffen zum Malen, Raten und Erklären.
+- Ausgelost wird in deinem Browser, die Seite speichert davon nichts. Wer Bewegungen reduziert eingestellt hat, sieht das Ergebnis sofort ohne Animation.
+
 ## 16.10.2026 – Musik, Lobbys und Ton
 
 - **Musik-Player:** Neu im Startmenü unter 🎵 Musik. Hör dir die Musik-Sammlung der Seite an, durchsuche sie, spiele alles der Reihe nach, zufällig oder in Dauerschleife. Läuft weiter, wenn du das Fenster minimierst.

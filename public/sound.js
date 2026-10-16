@@ -67,6 +67,9 @@
     fehler: function (c, t) { chord(c, t, [311, 415], { d: 0.45, type: 'triangle', v: 0.22 }); },
     hinweis: function (c, t) { chord(c, t, [1047, 1568], { d: 0.6, v: 0.16, step: 0.09 }); },
     ding: function (c, t) { tone(c, t, { f: 1319, d: 0.5, v: 0.22 }); tone(c, t, { f: 2637, d: 0.25, v: 0.06 }); },
+    // Zufallsgenerator: Würfel klappern und ein kleiner Tusch zum Ergebnis
+    wuerfel: function (c, t) { noise(c, t, { d: 0.025, f: 1800, q: 4, v: 0.22 }); noise(c, t + 0.035, { d: 0.02, f: 2600, q: 4, v: 0.15 }); },
+    tusch: function (c, t) { chord(c, t, [523, 659, 784], { d: 0.12, type: 'square', v: 0.07, step: 0.09 }); chord(c, t + 0.3, [523, 659, 784, 1047], { d: 0.7, type: 'square', v: 0.06 }); },
     anmelden: function (c, t) { chord(c, t, [392, 523, 659, 784], { d: 0.9, type: 'triangle', v: 0.14, step: 0.11 }); },
   };
 

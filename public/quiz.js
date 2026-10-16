@@ -758,8 +758,8 @@
       case 'new-quiz':
         return dialog('📄 Neues Quiz', '<p>Alle Fragen in diesem Raum verwerfen und neu anfangen? Die Punkte bleiben.</p>', [{ value: 'ok', label: 'Neu anfangen', danger: true }, { value: 'cancel', label: 'Abbrechen' }])
           .then(function (v) { if (v === 'ok') { editKey = ''; act({ action: 'new' }); } });
-      case 'load': fileInput.value = ''; return fileInput.click();
-      case 'save': return saveFile();
+      case 'load': return loadDialog();
+      case 'save': return saveDialog();
       case 'start': return act({ action: 'start' });
       case 'open': return act({ action: 'open' });
       case 'reveal': return act({ action: 'reveal' });
@@ -787,6 +787,56 @@
       case 'goto': return act({ action: 'goto', index: selIndex() });
       case 'sel-cur': selId = curQ() && curQ().id; editKey = ''; return render();
     }
+  }
+  // Gespeicherte Quizze auf dem Server: eigene und von anderen Mitgliedern geteilte
+  function date(t) { return new Date(t * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+  function loadDialog() {
+    return req('GET', '/quiz/sammlung').then(function (j) {
+      var rows = j.quizzes.map(function (q) {
+        return '<tr><td><b>' + esc(q.title) + '</b>' + (q.mine ? (q.shared ? ' <small title="Für andere Mitglieder sichtbar">👥</small>' : '') : '<br><small>von ' + esc(q.owner) + '</small>') + '</td>' +
+          '<td class="num">' + q.questions + '</td><td>' + date(q.updated) + '</td>' +
+          '<td class="qz-libbtns"><button value="load:' + q.id + '" class="small">Laden</button>' + (q.mine ? '<button value="del:' + q.id + '" class="small danger" title="Löschen">🗑</button>' : '') + '</td></tr>';
+      }).join('');
+      var mine = j.quizzes.filter(function (q) { return q.mine; }).length;
+      var html = (rows ? '<div class="qz-lib"><table class="list"><thead><tr><th>Quiz</th><th class="num">Fragen</th><th>Geändert</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+        : '<p>' + (j.member ? 'Du hast noch keine Quizze gespeichert, und geteilt hat auch noch niemand eins. Mit „💾 Speichern“ landen die Fragen dieses Raums hier.' : 'Gespeicherte Quizze gibt es für angemeldete Mitglieder.') + '</p>') +
+        (S.questions.length ? '<p><small>Beim Laden werden die Fragen im Raum ersetzt, die Punkte bleiben.</small></p>' : '');
+      return dialog('📂 Quiz laden', html, [{ value: 'file', label: 'Aus Datei …' }, { value: 'cancel', label: 'Abbrechen' }]).then(function (v) {
+        if (v === 'file') { fileInput.value = ''; return fileInput.click(); }
+        var m = /^(load|del):(\d+)$/.exec(v);
+        if (!m) return;
+        var q = j.quizzes.filter(function (x) { return x.id === Number(m[2]); })[0];
+        if (m[1] === 'load') {
+          editKey = ''; lastCur = null;
+          return req('POST', '/quiz/sammlung/' + q.id + '/laden', { code: code }).then(function () { status('📂 „' + q.title + '“ mit ' + q.questions + (q.questions === 1 ? ' Frage' : ' Fragen') + ' geladen.'); }, oops);
+        }
+        return dialog('🗑 Quiz löschen', '<p>„' + esc(q.title) + '“ endgültig löschen?</p>', [{ value: 'ok', label: 'Löschen', danger: true }, { value: 'cancel', label: 'Abbrechen' }]).then(function (w) {
+          if (w === 'ok') return req('POST', '/quiz/sammlung/' + q.id + '/loeschen', {}).then(loadDialog, oops);
+          return loadDialog();
+        });
+      });
+    }, oops);
+  }
+  function saveDialog() {
+    if (!S.questions.length) return oops(new Error('Im Raum sind noch keine Fragen.'));
+    if (!MEMBER) {
+      return dialog('💾 Speichern', '<p>Auf dem Server speichern können angemeldete Mitglieder. Du kannst das Quiz aber als Datei herunterladen und später wieder laden.</p>',
+        [{ value: 'file', label: 'Als Datei' }, { value: 'cancel', label: 'Abbrechen' }]).then(function (v) { if (v === 'file') saveFile(); });
+    }
+    var own = S.saved && S.saved.mine;
+    var html = '<label class="qz-row"><span>Titel</span><input name="title" maxlength="80" value="' + esc(S.title || S.name) + '"></label>' +
+      '<label class="inline"><input type="checkbox" name="shared"' + (S.saved && S.saved.shared && own ? ' checked' : '') + '> Für andere Mitglieder sichtbar (sie können es laden und sehen die Antworten)</label>' +
+      '<p><small>' + S.questions.length + (S.questions.length === 1 ? ' Frage' : ' Fragen') + (own ? ', ersetzt die gespeicherte Fassung.' : ', wird ein neues Quiz in deiner Sammlung.') + '</small></p>';
+    var btns = [{ value: 'ok', label: own ? 'Speichern' : 'Neu speichern' }];
+    if (own) btns.push({ value: 'copy', label: 'Als Kopie' });
+    btns.push({ value: 'file', label: 'Als Datei' }, { value: 'cancel', label: 'Abbrechen' });
+    return dialog('💾 Quiz speichern', html, btns).then(function (v) {
+      if (v === 'file') return saveFile();
+      if (v !== 'ok' && v !== 'copy') return;
+      var title = field('title');
+      return req('POST', '/quiz/sammlung', { code: code, title: title, shared: field('shared'), copy: v === 'copy' })
+        .then(function () { status('💾 „' + (title || S.name) + '“ gespeichert.'); Sound.play('hinweis'); }, oops);
+    });
   }
   // Datei: dasselbe Format zum Speichern und Laden
   function saveFile() {

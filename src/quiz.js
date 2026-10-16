@@ -116,6 +116,7 @@ function create(who, opts = {}) {
     players: new Map(), kicked: new Set(), clients: new Set(),
     deadline: 0, total: 0, paused: 0, answers: new Map(), marks: new Map(),
     buzz: newBuzz(), result: null, log: [], qstats: [], awards: null,
+    quizId: null, quizOwner: null, quizShared: false,
     timer: null, grace: null, emptySince: Date.now(), created: Date.now(), startedAt: 0, version: 0,
   };
   rooms.set(code, r);
@@ -124,6 +125,8 @@ function create(who, opts = {}) {
 function newBuzz() { return { queue: [], tried: new Set(), answering: null, answerDeadline: 0, answerTotal: 0, mainLeft: 0, since: 0 }; }
 
 function remove(r, why = 'Der Raum wurde geschlossen.') {
+  // Läuft das Quiz noch, zählt der Stand beim Schließen als Endstand (fürs Profil), sobald eine Frage gestellt war
+  if (r.phase !== 'lobby' && r.phase !== 'end' && r.qstats.some(Boolean)) finish(r);
   clearTimeout(r.timer); clearTimeout(r.grace);
   rooms.delete(r.code);
   for (const c of r.clients) { send(c.res, 'closed', { message: why }); c.res.end(); }
@@ -234,6 +237,7 @@ function hostView(r, s) {
     inputs: Object.fromEntries([...r.players.values()].map(p => [p.pid, q && q.type === 'buzzer' ? p.input : r.answers.has(p.pid) ? r.answers.get(p.pid) : null])),
     queueMs: r.buzz.queue.map(x => ({ pid: x.pid, ms: x.ms })), firstMs: r.buzz.firstMs || null,
     marks: Object.fromEntries(r.marks), canUndo: r.log.length > 0,
+    saved: r.quizId ? { id: r.quizId, mine: r.quizOwner === r.hostUserId, shared: r.quizShared } : null,
   });
 }
 function playerView(r, s, pid) {
@@ -467,6 +471,7 @@ function userTotals(userId) {
                         COALESCE(SUM(correct), 0) AS correct, COALESCE(SUM(g.questions), 0) AS asked, MAX(g.ended_at) AS last
                         FROM quiz_results r JOIN quiz_games g ON g.id = r.game_id WHERE r.user_id = ?`).get(userId);
   t.hosted = db.prepare('SELECT COUNT(*) AS n FROM quiz_games WHERE host_user_id = ?').get(userId).n;
+  t.made = db.prepare('SELECT COUNT(*) AS n FROM quizzes WHERE user_id = ?').get(userId).n;
   return t;
 }
 
@@ -522,15 +527,12 @@ function hostAction(r, b) {
     }
     case 'load': {
       // Quiz aus einer Datei (Export dieser Seite): ersetzt die Fragen, laufende Punkte bleiben
-      const qs = Array.isArray(b.questions) ? b.questions.slice(0, MAX_QUESTIONS).map(x => cleanQuestion(x)) : [];
-      if (!qs.length) return 'In der Datei sind keine Fragen.';
-      r.questions = qs; r.title = str(b.title, 80).trim();
-      if (b.defaults) r.defaults = cleanDefaults(b.defaults, r.defaults);
-      if (r.phase !== 'lobby') goTo(r, 0);
-      return null;
+      const err = loadQuestions(r, b);
+      if (!err) r.quizId = r.quizOwner = null;
+      return err;
     }
     case 'new': {
-      r.questions = []; r.title = '';
+      r.questions = []; r.title = ''; r.quizId = r.quizOwner = null;
       if (r.phase !== 'lobby') { r.questions.push(cleanQuestion({ type: 'buzzer' })); goTo(r, 0); }
       return null;
     }
@@ -679,6 +681,60 @@ function hostAction(r, b) {
   }
   return 'Unbekannte Aktion.';
 }
+function loadQuestions(r, d) {
+  const qs = Array.isArray(d.questions) ? d.questions.slice(0, MAX_QUESTIONS).map(x => cleanQuestion(x)) : [];
+  if (!qs.length) return 'In diesem Quiz sind keine Fragen.';
+  r.questions = qs; r.title = str(d.title, 80).trim();
+  if (d.defaults) r.defaults = cleanDefaults(d.defaults, r.defaults);
+  if (r.phase !== 'lobby') goTo(r, 0);
+  return null;
+}
+
+// ---------- Gespeicherte Quizze ----------
+// Mitglieder speichern die Fragen eines Raums im Konto. Andere Mitglieder sehen ein Quiz erst, wenn sein Ersteller
+// es teilt, damit niemand vor dem Spieleabend die Antworten nachlesen kann.
+const MAX_SAVED = 200;
+function library(user) {
+  if (!user) return [];
+  return db.prepare(`SELECT q.id, q.title, q.questions, q.shared, q.updated_at, q.user_id, u.username AS owner
+                     FROM quizzes q JOIN users u ON u.id = q.user_id
+                     WHERE q.user_id = ? OR q.shared = 1 ORDER BY q.user_id <> ?, q.updated_at DESC LIMIT 500`).all(user.id, user.id)
+    .map(q => ({ id: q.id, title: q.title, questions: q.questions, shared: !!q.shared, updated: q.updated_at, owner: q.owner, mine: q.user_id === user.id }));
+}
+function saveQuiz(r, user, b = {}) {
+  if (!user) return { error: 'Zum Speichern musst du angemeldet sein.' };
+  if (!r.questions.length) return { error: 'Im Raum sind noch keine Fragen.' };
+  const title = str(b.title, 80).trim() || r.title || r.name;
+  const data = JSON.stringify({ defaults: r.defaults, questions: r.questions.map(q => { const c = { ...q }; delete c.id; return c; }) });
+  const shared = b.shared ? 1 : 0, ts = now();
+  const own = !b.copy && r.quizId && r.quizOwner === user.id && db.prepare('SELECT 1 FROM quizzes WHERE id = ? AND user_id = ?').get(r.quizId, user.id);
+  if (own) {
+    db.prepare('UPDATE quizzes SET title = ?, data = ?, questions = ?, shared = ?, updated_at = ? WHERE id = ?').run(title, data, r.questions.length, shared, ts, r.quizId);
+  } else {
+    if (db.prepare('SELECT COUNT(*) AS n FROM quizzes WHERE user_id = ?').get(user.id).n >= MAX_SAVED) return { error: `Mehr als ${MAX_SAVED} Quizze gehen nicht. Lösch erst ein altes.` };
+    r.quizId = Number(db.prepare('INSERT INTO quizzes(user_id, title, data, questions, shared, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(user.id, title, data, r.questions.length, shared, ts, ts).lastInsertRowid);
+    r.quizOwner = user.id;
+  }
+  r.title = title; r.quizShared = !!shared;
+  return { id: r.quizId };
+}
+function loadQuiz(r, user, id) {
+  const q = user && db.prepare('SELECT * FROM quizzes WHERE id = ? AND (user_id = ? OR shared = 1)').get(id, user.id);
+  if (!q) return 'Dieses Quiz gibt es nicht (mehr).';
+  const d = JSON.parse(q.data);
+  const err = loadQuestions(r, { title: q.title, defaults: d.defaults, questions: d.questions });
+  if (err) return err;
+  r.quizId = q.id; r.quizOwner = q.user_id; r.quizShared = !!q.shared;
+  return null;
+}
+function deleteQuiz(user, id) {
+  const ok = user && db.prepare('DELETE FROM quizzes WHERE id = ? AND (user_id = ? OR ?)').run(id, user.id, user.isAdmin ? 1 : 0).changes;
+  if (!ok) return 'Dieses Quiz kannst du nicht löschen.';
+  for (const r of rooms.values()) if (r.quizId === id) r.quizId = r.quizOwner = null;
+  return null;
+}
+
 function nextQuestion(r) {
   if (r.phase === 'open') { clearTimeout(r.timer); clearTimeout(r.grace); }
   if (r.cur + 1 >= r.questions.length) {
@@ -692,5 +748,6 @@ function nextQuestion(r) {
 
 module.exports = {
   config, canHost, create, get, list, join, connect, remove, broadcast, playerAction, hostAction, isHost, userTotals,
+  library, saveQuiz, loadQuiz, deleteQuiz,
   cleanQuestion, parseNumber, matches, EMOJIS, COLORS, DEFAULTS, _rooms: rooms,
 };

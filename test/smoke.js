@@ -1056,8 +1056,23 @@ async function main() {
       assert.deepEqual(end.awards.places.map(p => p.place), [1, 2]);
       host.close(); player.close();
       const prof = (await anna.req('/nutzer/bernd')).text_;
-      assert.match(prof, /href="\/quiz"><b>Quiz<\/b>[\s\S]*Mitgespielt<\/td><td class="num">1</);
+      assert.match(prof, /href="\/quiz"><b>Quiz<\/b>[\s\S]*Gespielt<\/td><td class="num">1</);
       assert.match((await admin.req('/admin/quiz')).text_, /<td>Freitagsquiz<\/td>/);
+      // Quiz im Konto speichern, teilen und aus der Liste laden
+      assert.equal((await api(oma, '/quiz/sammlung', { code, title: 'Omas' })).status, 403, 'Gäste speichern nur als Datei');
+      assert.equal((await api(bernd, '/quiz/sammlung', { code, title: 'Geklaut' })).status, 403, 'nur der Spielleiter');
+      const saved = await api(anna, '/quiz/sammlung', { code, title: 'Freitagsquiz 90er' });
+      assert.equal(saved.status, 200);
+      assert.deepEqual((await api(bernd, '/quiz/sammlung', undefined, 'GET')).json.quizzes, [], 'privat');
+      assert.equal((await api(anna, '/quiz/sammlung', { code, title: 'Freitagsquiz 90er', shared: true })).json.id, saved.json.id);
+      const lib = (await api(bernd, '/quiz/sammlung', undefined, 'GET')).json.quizzes;
+      assert.deepEqual(lib.map(q => [q.title, q.questions, q.owner, q.mine]), [['Freitagsquiz 90er', 1, 'anna', false]]);
+      const room2 = (await api(bernd, '/quiz/raeume', { name: 'Berndraum' })).json.code;
+      assert.equal((await api(bernd, `/quiz/sammlung/${saved.json.id}/laden`, { code: room2 })).status, 200);
+      assert.equal((await api(bernd, `/quiz/sammlung/${saved.json.id}/loeschen`, {})).status, 403);
+      assert.match((await anna.req('/nutzer/anna')).text_, /Quizze erstellt<\/td><td class="num">1</);
+      assert.equal((await api(anna, `/quiz/sammlung/${saved.json.id}/loeschen`, {})).status, 200);
+      assert.equal((await api(bernd, `/quiz/${room2}`, { action: 'close' })).status, 200);
       assert.equal((await api(anna, `/quiz/${code}`, { action: 'close' })).status, 200);
       assert.equal((await api(oma, `/quiz/${code}/info`, undefined, 'GET')).status, 404);
     });

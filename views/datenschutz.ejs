@@ -216,12 +216,13 @@
 <ul>
   <li><b>Mitspielen</b> geht mit oder ohne Konto. Mit Konto sehen die anderen im Raum deinen Anzeigenamen und dein Profilbild, ohne Konto den Namen, das Emoji und die Farbe, die du gewählt hast, immer mit „(Gast)“ dahinter.</li>
   <li><b>Während ein Raum offen ist</b>, hält der Server im Arbeitsspeicher, wer dabei ist, die Punkte, deine Antworten auf die aktuelle Frage und wann du gebuzzert hast. Was du in ein Antwortfeld tippst, geht schon beim Tippen an den Spielleiter. Die anderen Spieler sehen es erst bei der Auflösung, außer beim Buzzer: Wer gerade antwortet, dessen Eingabe sehen alle sofort. Schließt der Raum oder startet der Server neu, ist all das weg.</li>
-  <li><b>Fragen</b>, die der Spielleiter anlegt, liegen ebenfalls nur im Arbeitsspeicher des Raums. „Speichern“ lädt sie als Datei auf seinen eigenen Rechner herunter.</li>
-  <li><b>Am Ende eines Quiz</b> speichert die Seite das Ergebnis: Name des Raums, Spielleiter, wie viele Fragen und Spieler es gab, wann gespielt wurde und pro Spieler Name, Punkte, Platz und richtige Antworten. Bei Mitgliedern steht das Konto dabei, damit die Zahlen im Profil erscheinen; bei Gästen nur ihr gewählter Name. Der Admin kann Ergebnisse löschen.</li>
+  <li><b>Fragen</b>, die der Spielleiter anlegt, liegen erst nur im Arbeitsspeicher des Raums. Mit Konto speichert „💾 Speichern“ sie samt Titel in deinem Konto; nur wenn du „Für andere Mitglieder sichtbar“ anhakst, können andere Mitglieder das Quiz mit deinem Benutzernamen sehen und laden. Du kannst deine Quizze jederzeit löschen. „Als Datei“ lädt sie stattdessen auf deinen eigenen Rechner herunter.</li>
+  <li><b>Am Ende eines Quiz</b> (oder wenn der Raum mitten im Quiz schließt) speichert die Seite das Ergebnis: Name des Raums, Spielleiter, wie viele Fragen und Spieler es gab, wann gespielt wurde und pro Spieler Name, Punkte, Platz und richtige Antworten. Bei Mitgliedern steht das Konto dabei, damit die Zahlen im Profil erscheinen; bei Gästen nur ihr gewählter Name. Der Admin kann Ergebnisse löschen.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('quizPlayer', 'Das merkt sich ein Raum über jeden Spieler, solange er offen ist.') %>
   <%- code('quizInput', 'Getippte Antworten gehen nur an den Spielleiter, beim Buzzer die des Antwortenden an alle.') %>
+  <%- code('quizSaved', 'So liegen gespeicherte Quizze im Konto.') %>
   <%- code('quizGames', 'Diese Spalten speichert die Seite zu jedem beendeten Quiz.') %>
   <%- code('quizResults', 'Und diese pro Spieler. Bei Gästen bleibt <code>user_id</code> leer.') %>
 </details>
@@ -229,7 +230,7 @@
 <h2 id="fragen">🗑 Löschen und Fragen</h2>
 <ul>
   <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
-  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Benachrichtigungen, Push-Geräte, Blackjack-Sitzungen, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Benachrichtigungen, Push-Geräte, Blackjack-Sitzungen, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
   <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
 </ul>
 <p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>

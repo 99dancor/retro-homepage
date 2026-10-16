@@ -1042,3 +1042,8 @@ tr.me td { background: #ffffcc; color: #000; }
   .qz-q .text { font-size: 18px; }
   .qz-podium .col { width: 30%; }
 }
+.qz-lib { max-height: 52vh; overflow: auto; margin: 0 0 6px; background: var(--field, #fff); }
+.qz-lib table { width: 100%; }
+.qz-libbtns { white-space: nowrap; text-align: right; }
+.qz-libbtns button + button { margin-left: 3px; }
+#qz-dlg:has(.qz-lib) { width: min(620px, calc(100vw - 20px)); }

@@ -81,6 +81,38 @@ router.post('/raeume', auth.rateLimit('quizroom', 20, 600), (req, res) => {
   res.json({ code: r.code });
 });
 
+// Gespeicherte Quizze: eigene und von anderen Mitgliedern geteilte. Speichern und Laden geht nur als Spielleiter
+// eines offenen Raums, die Fragen kommen dabei direkt aus dem Raum bzw. landen dort.
+router.get('/sammlung', (req, res) => res.json({ member: !!req.user, quizzes: quiz.library(req.user) }));
+function hostRoom(req, res) {
+  const r = CODE.test(String(req.body.code || '').toUpperCase()) ? quiz.get(req.body.code) : null;
+  const me = who(req, res);
+  if (!r || !me || !quiz.isHost(r, me.pid)) { fail(res, 403, 'Das geht nur als Spielleiter eines offenen Raums.'); return null; }
+  return r;
+}
+router.post('/sammlung', auth.rateLimit('quizsave', 60, 600), (req, res) => {
+  if (!req.user) return fail(res, 403, 'Zum Speichern musst du angemeldet sein.', { login: true });
+  const r = hostRoom(req, res);
+  if (!r) return;
+  const out = quiz.saveQuiz(r, req.user, req.body);
+  if (out.error) return fail(res, 400, out.error);
+  quiz.broadcast(r);
+  res.json(out);
+});
+router.post('/sammlung/:id/laden', (req, res) => {
+  const r = hostRoom(req, res);
+  if (!r) return;
+  const err = quiz.loadQuiz(r, req.user, Number(req.params.id));
+  if (err) return fail(res, 404, err);
+  quiz.broadcast(r);
+  res.json({ ok: true });
+});
+router.post('/sammlung/:id/loeschen', (req, res) => {
+  const err = quiz.deleteQuiz(req.user, Number(req.params.id));
+  if (err) return fail(res, 403, err);
+  res.json({ ok: true });
+});
+
 // Bin ich schon drin? Damit weiß die Seite, ob sie gleich verbinden kann oder erst nach Namen und Bild fragt
 router.get('/:code/info', loadRoom, (req, res) => {
   const me = who(req, res), r = req.room;

@@ -1,5 +1,12 @@
 # Changelog
 
+## 16.10.2026 – Quiz: gespeicherte Quizze
+
+- **Quizze im Konto:** „💾 Speichern“ legt die Fragen des Raums mit Titel in deinem Konto ab. Speicherst du ein geladenes Quiz erneut, ersetzt das die alte Fassung, mit „Als Kopie“ entsteht ein neues.
+- **Laden aus der Liste:** „📂 Quiz laden“ zeigt jetzt alle Quizze auf dem Server zur Auswahl, deine eigenen und die, die andere Mitglieder geteilt haben, mit Zahl der Fragen und Datum. Eigene lassen sich dort löschen. Die Datei bleibt als „Aus Datei …“ bzw. „Als Datei“ für Gäste und zum Weitergeben.
+- **Teilen:** Ein Häkchen „Für andere Mitglieder sichtbar“ entscheidet, ob andere es sehen. Ohne Häkchen bleibt es privat, damit niemand vorher die Antworten liest.
+- **Profil:** Die Quiz-Karte zählt gespielte Quizze, Siege, beste Platzierung, richtige Antworten, Punkte, wie oft du Spielleiter warst und wie viele Quizze du erstellt hast. Ein Quiz zählt jetzt auch, wenn der Raum mitten im Spiel geschlossen wird.
+
 ## 16.10.2026 – Quiz
 
 - **Quiz:** Neu im Startmenü unter Spiele und Apps → ❓ Quiz. Zuerst wählst du „Quiz erstellen“ (als Spielleiter) oder „Raum beitreten“ (als Spieler).

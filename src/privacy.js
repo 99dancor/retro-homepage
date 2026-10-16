@@ -69,6 +69,7 @@ const SNIPPETS = {
   quizGuest: ['public/quiz.js', "localStorage.setItem('quiz-gast'", 1],
   quizPlayer: ['src/quiz.js', 'r.players.set(who.pid, {', 8],
   quizInput: ['src/quiz.js', 'function sendInput(r, pid, text) {', 4],
+  quizSaved: ['src/db.js', 'CREATE TABLE IF NOT EXISTS quizzes (', 10],
   quizGames: ['src/db.js', 'CREATE TABLE IF NOT EXISTS quiz_games (', 11],
   quizResults: ['src/db.js', 'CREATE TABLE IF NOT EXISTS quiz_results (', 10],
 };

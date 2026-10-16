@@ -201,6 +201,43 @@ test('Spontane Fragen: „Nächste“ legt eine neue an, Multiple Choice ohne L�
   quiz.remove(r);
 });
 
+test('Gespeicherte Quizze: speichern, überschreiben, teilen, laden und löschen', () => {
+  const { r, host } = room(1);
+  act(r, { action: 'insert', q: { type: 'mc', text: 'Erste?', options: ['a', 'b', '', ''], correct: 0 } });
+  assert.match(quiz.saveQuiz(r, null, {}).error, /angemeldet/);
+  const { id } = quiz.saveQuiz(r, host.user, { title: 'Freitagsquiz' });
+  assert.ok(id);
+  act(r, { action: 'insert', q: { type: 'tf', text: 'Zweite?' } });
+  assert.equal(quiz.saveQuiz(r, host.user, { title: 'Freitagsquiz' }).id, id, 'eigenes Quiz wird überschrieben');
+  const lena = member('Lena');
+  assert.equal(quiz.library(lena.user).length, 0, 'nicht geteilt: andere sehen es nicht');
+  const r2 = quiz.create(lena, { name: 'Lenas Raum' });
+  assert.match(quiz.loadQuiz(r2, lena.user, id), /gibt es nicht/);
+  quiz.saveQuiz(r, host.user, { title: 'Freitagsquiz', shared: true });
+  assert.deepEqual(quiz.library(lena.user).map(q => [q.title, q.questions, q.mine, q.owner]), [['Freitagsquiz', 2, false, host.user.username]]);
+  assert.equal(quiz.loadQuiz(r2, lena.user, id), null);
+  assert.deepEqual(r2.questions.map(q => q.text), ['Erste?', 'Zweite?']);
+  assert.notEqual(quiz.saveQuiz(r2, lena.user, {}).id, id, 'fremdes Quiz wird als eigene Kopie gespeichert');
+  assert.match(quiz.deleteQuiz(lena.user, id), /nicht löschen/);
+  assert.equal(quiz.deleteQuiz(host.user, id), null);
+  assert.equal(r.quizId, null);
+  assert.equal(quiz.userTotals(lena.user.id).made, 1);
+  quiz.remove(r); quiz.remove(r2);
+});
+
+test('Raum schließen mitten im Quiz zählt als gespielt', () => {
+  const { r, ps } = room(1);
+  act(r, { action: 'start' });
+  ask(r, { type: 'tf', text: 'Wahr?', correct: 0 });
+  quiz.playerAction(r, ps[0], { action: 'answer', value: 0 });
+  act(r, { action: 'reveal' });
+  const before = quiz.userTotals(r.players.get(ps[0]).userId).games;
+  quiz.remove(r);
+  const id = Number(ps[0].slice(1));
+  assert.equal(quiz.userTotals(id).games, before + 1);
+  assert.equal(quiz.userTotals(id).wins, 1);
+});
+
 test('QR-Code hat die richtige Größe und Suchmuster', () => {
   const m = qr.matrix('https://dancor.org/quiz/K7QX');
   assert.equal(m.length, 29);

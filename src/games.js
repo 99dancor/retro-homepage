@@ -40,14 +40,14 @@ module.exports = {
     url: '/quiz',
     userStats(userId) {
       const t = require('./quiz').userTotals(userId);
-      if (!t.games && !t.hosted) return null;
+      if (!t.games && !t.hosted && !t.made) return null;
       const out = [
-        { key: 'Mitgespielt', value: t.games },
+        { key: 'Gespielt', value: t.games },
         { key: 'Siege', value: t.wins, text: t.games ? `${t.wins.toLocaleString('de-DE')} (${Math.round(t.wins / t.games * 100)} %)` : '0' },
       ];
       if (t.best) out.push({ key: 'Beste Platzierung', value: t.best, text: t.best + '.' });
       if (t.asked) out.push({ key: 'Richtig beantwortet', value: t.correct, text: `${t.correct.toLocaleString('de-DE')} von ${t.asked.toLocaleString('de-DE')} Fragen` });
-      out.push({ key: 'Punkte gesamt', value: t.points }, { key: 'Als Spielleiter', value: t.hosted });
+      out.push({ key: 'Punkte gesamt', value: t.points }, { key: 'Als Spielleiter', value: t.hosted }, { key: 'Quizze erstellt', value: t.made });
       return { stats: out, last: t.last };
     },
   },

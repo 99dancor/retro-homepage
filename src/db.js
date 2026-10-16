@@ -382,6 +382,18 @@ CREATE TABLE IF NOT EXISTS quiz_results (
   place INTEGER NOT NULL,
   correct INTEGER NOT NULL DEFAULT 0
 );
+-- Gespeicherte Quizze der Mitglieder: Fragen als JSON (wie die Quiz-Datei), shared = für andere Mitglieder sichtbar
+CREATE TABLE IF NOT EXISTS quizzes (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  data TEXT NOT NULL,
+  questions INTEGER NOT NULL,
+  shared INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS qz_user ON quizzes(user_id, updated_at);
 CREATE INDEX IF NOT EXISTS qr_user ON quiz_results(user_id);
 CREATE INDEX IF NOT EXISTS qr_game ON quiz_results(game_id);
 CREATE INDEX IF NOT EXISTS awp_user ON artwork_painters(user_id);

@@ -492,3 +492,47 @@ button.mp-track:disabled { cursor: default; }
 .zf-confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
 @media (max-width: 560px) { .zf-cols { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .zf-pot.shake, .zf-teamgrid.done .zf-team, .zf-number.hit, .zf-word.hit { animation: none; } }
+
+/* Profile, Mitglieder und Privatnachrichten */
+.avatar { display: inline-block; vertical-align: middle; object-fit: cover; flex: none;
+  box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); border: 1px solid var(--lo); background: var(--field); }
+.avatar-letter { display: inline-flex; align-items: center; justify-content: center; color: #fff; font-weight: bold; line-height: 1; text-shadow: 1px 1px #0006; }
+.userlink { color: inherit; text-decoration: none; }
+.userlink:hover { text-decoration: underline; }
+.board-post .head .who, .gb-entry .head .who { display: inline-flex; align-items: center; gap: 4px; }
+.board-post .head .who .userlink, .gb-entry .head .who .userlink { display: inline-flex; align-items: center; gap: 5px; }
+.profile-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 8px; }
+.profile-head h1 { margin: 0; }
+.profile-head p { margin: 2px 0; }
+.profile-head .actions { margin-top: 6px; }
+.about { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.avatar-edit { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+ul.people { list-style: none; margin: 0; padding: 0; }
+ul.people li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 3px 0; }
+ul.people.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 10px; }
+ul.people li > a:first-child { display: inline-flex; align-items: center; gap: 6px; }
+.people-table td, .conv-list td { vertical-align: middle; }
+.people-table td.av, .conv-list td.av { width: 34px; padding: 2px; }
+.searchbar input[type=search], .searchbar input[type=text] { min-width: 180px; }
+.game-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.game-card .game-title { display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+table.kv { border-collapse: collapse; width: 100%; }
+table.kv td { padding: 1px 4px; border-bottom: 1px dotted var(--lo); }
+table.kv td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.conv-list tr.unread td { font-weight: bold; }
+.conv-list td.preview { overflow-wrap: anywhere; }
+.conv-head { display: flex; align-items: center; gap: 10px; }
+.conv-head h1 { margin: 0; }
+.chat { max-height: 55vh; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.chat-day { align-self: center; font-size: 11px; opacity: .7; margin: 4px 0; }
+.bubble { max-width: 80%; padding: 4px 8px; border: 1px solid var(--lo); box-shadow: 1px 1px var(--dark); }
+.bubble .text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.bubble small { display: block; text-align: right; font-size: 10px; opacity: .7; }
+.bubble.mine { align-self: flex-end; background: #ffffe1; color: #000; }
+.bubble.theirs { align-self: flex-start; background: var(--win); color: var(--text); }
+.chat-form textarea { width: 100%; min-height: 60px; }
+.pm-tray { text-decoration: none; color: inherit; position: relative; }
+.pm-tray .pm-count { font-size: 10px; font-weight: bold; margin-left: 1px; }
+.pm-tray:not([hidden]) { animation: pm-blink 1s steps(2) 3; }
+@keyframes pm-blink { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .pm-tray:not([hidden]) { animation: none; } }

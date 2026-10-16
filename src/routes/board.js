@@ -6,6 +6,7 @@ const auth = require('../auth');
 const mail = require('../mail');
 const up = require('../uploads');
 const { md, mdBlocks } = require('../util');
+const { displayName, profileUrl } = require('../profiles');
 
 const router = express.Router();
 const PER_PAGE = 25;
@@ -21,6 +22,7 @@ router.use(boardOn);
 const str = (v, max) => String(v ?? '').trim().slice(0, max);
 const canEdit = (user, post) => !!user && (user.isAdmin || (post.user_id && post.user_id === user.id));
 // Anonyme Beiträge zeigen statt des Namens „Anonym“. Wer es war, sehen nur der Verfasser selbst und der Admin.
+// name ist der Anzeigename (ohne eigenen der Benutzername)
 function byline(viewer, name, anonymous, userId) {
   const shown = name || 'Gelöschter Nutzer';
   if (!anonymous) return shown;
@@ -48,15 +50,17 @@ router.get('/', (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const total = db.prepare('SELECT COUNT(*) AS n FROM board_topics').get().n;
   const topics = db.prepare(`
-    SELECT t.*, u.username, lu.username AS last_user, lp.user_id AS last_user_id, lp.anonymous AS last_anonymous,
+    SELECT t.*, u.username, u.display_name, lu.username AS last_username, lu.display_name AS last_display_name, lp.user_id AS last_user_id, lp.anonymous AS last_anonymous,
       (SELECT COUNT(*) FROM board_posts p WHERE p.topic_id = t.id) - 1 AS replies
     FROM board_topics t LEFT JOIN users u ON u.id = t.user_id
     LEFT JOIN board_posts lp ON lp.id = (SELECT p.id FROM board_posts p WHERE p.topic_id = t.id ORDER BY p.created_at DESC, p.id DESC LIMIT 1)
     LEFT JOIN users lu ON lu.id = lp.user_id
     ORDER BY t.pinned DESC, t.last_post_at DESC LIMIT ? OFFSET ?`).all(PER_PAGE, (page - 1) * PER_PAGE);
   for (const t of topics) {
-    t.author = byline(req.user, t.username, t.anonymous, t.user_id);
-    t.last_author = byline(req.user, t.last_user, t.last_anonymous, t.last_user_id);
+    t.author = byline(req.user, t.username && displayName(t), t.anonymous, t.user_id);
+    t.author_url = t.username && !t.anonymous ? profileUrl(t.username) : null;
+    t.last_author = byline(req.user, t.last_username && (t.last_display_name || t.last_username), t.last_anonymous, t.last_user_id);
+    t.last_url = t.last_username && !t.last_anonymous ? profileUrl(t.last_username) : null;
   }
   res.render('board-list', { title: 'Forum', topics, page, pages: Math.max(1, Math.ceil(total / PER_PAGE)), total });
 });
@@ -84,12 +88,13 @@ router.get('/t/:id', loadTopic, (req, res) => {
   const total = db.prepare('SELECT COUNT(*) AS n FROM board_posts WHERE topic_id = ?').get(t.id).n;
   const pages = Math.max(1, Math.ceil(total / PER_PAGE));
   const page = req.query.page === 'last' ? pages : Math.min(pages, Math.max(1, Number(req.query.page) || 1));
-  const posts = db.prepare(`SELECT p.*, u.username, u.role FROM board_posts p LEFT JOIN users u ON u.id = p.user_id
+  const posts = db.prepare(`SELECT p.*, u.username, u.display_name, u.avatar, u.role FROM board_posts p LEFT JOIN users u ON u.id = p.user_id
                             WHERE p.topic_id = ? ORDER BY p.created_at, p.id LIMIT ? OFFSET ?`).all(t.id, PER_PAGE, (page - 1) * PER_PAGE);
   const firstId = db.prepare('SELECT MIN(id) AS id FROM board_posts WHERE topic_id = ?').get(t.id).id;
   for (const p of posts) {
     p.html = md(p.body_md); p.editable = canEdit(req.user, p); p.first = p.id === firstId;
-    p.author = byline(req.user, p.username, p.anonymous, p.user_id);
+    p.author = byline(req.user, p.username && displayName(p), p.anonymous, p.user_id);
+    p.author_url = p.username && !p.anonymous ? profileUrl(p.username) : null;
   }
   // Wer sein Thema anonym begonnen hat, antwortet dort zunächst auch anonym
   const replyAnon = !!(req.user && t.anonymous && t.user_id === req.user.id);

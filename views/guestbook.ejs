@@ -7,7 +7,7 @@
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
   <% if (user) { %>
-    <p>Du schreibst als <b><%= user.username %></b>.</p>
+    <p>Du schreibst als <b><%= user.name %></b>.</p>
   <% } else { %>
     <label>Name / Nickname (leer = anonym):<input type="text" name="name" maxlength="50"></label>
   <% } %>
@@ -18,7 +18,7 @@
 </fieldset>
 <% for (const e of entries) { %>
   <div class="gb-entry">
-    <div class="head"><span><%= e.username ? '👤 ' + e.username : (e.name || '👻 Anonym') %></span><span><%= fmtDate(e.created_at, true) %></span></div>
+    <div class="head"><span class="who"><% if (e.username) { %><a href="<%= profileUrl(e.username) %>" class="userlink"><%- include('partials/avatar', { u: { id: e.user_id, username: e.username, display_name: e.display_name, avatar: e.avatar }, size: 24 }) %> <%= displayName(e) %></a><% } else { %><%= e.name || '👻 Anonym' %><% } %></span><span><%= fmtDate(e.created_at, true) %></span></div>
     <div class="panel text"><%= e.message %></div>
   </div>
 <% } %>

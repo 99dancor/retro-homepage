@@ -9,6 +9,7 @@ const auth = require('./auth');
 const analytics = require('./analytics');
 const util = require('./util');
 const themes = require('./themes');
+const profiles = require('./profiles');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -62,6 +63,9 @@ app.use((req, res, next) => {
     marquee: getSetting('theme_marquee'),
     showCounter: getSetting('theme_show_counter') === '1',
     hitCounter: Number(getSetting('hit_counter', '0')),
+    displayName: profiles.displayName,
+    profileUrl: profiles.profileUrl,
+    unreadPm: req.user ? profiles.unreadCount(req.user.id) : 0,
   });
   const v = auth.visibilitySql(req.user, 'page', 'p');
   res.locals.navPages = db.prepare(`SELECT slug, title FROM pages p WHERE in_nav = 1 AND ${v.sql} ORDER BY position, title`).all(...v.params);
@@ -87,10 +91,13 @@ app.use((req, res, next) => (req.is('multipart/form-data') ? next() : auth.csrfC
 app.use(analytics.middleware);
 
 app.use('/api/saves', require('./routes/saves'));
+const profileRoutes = require('./routes/profiles');
+app.use('/api/stats', profileRoutes.stats);
 app.use('/admin', require('./routes/admin'));
 app.use('/forum', require('./routes/board'));
 app.use('/musik', require('./routes/music').router);
 app.use('/', require('./routes/games'));
+app.use('/', profileRoutes.router);
 app.use('/', require('./routes/public'));
 
 app.use((req, res) => res.status(404).render('error', { title: 'Nicht gefunden', message: 'Diese Seite gibt es nicht (oder du hast keinen Zugriff).' }));

@@ -11,7 +11,7 @@
 <% } %>
 <% for (const p of posts) { %>
   <div class="board-post" id="b<%= p.id %>">
-    <div class="head"><span><%= p.username && !p.anonymous ? '👤 ' : '👻 ' %><%= p.author %><% if (p.role === 'admin' && !p.anonymous) { %> <span class="badge gray">Admin</span><% } %></span>
+    <div class="head"><span class="who"><% if (p.author_url) { %><a href="<%= p.author_url %>" class="userlink"><%- include('partials/avatar', { u: { id: p.user_id, username: p.username, display_name: p.display_name, avatar: p.avatar }, size: 24 }) %> <%= p.author %></a><% } else { %><%= p.username && !p.anonymous ? '👤 ' : '👻 ' %><%= p.author %><% } %><% if (p.role === 'admin' && !p.anonymous) { %> <span class="badge gray">Admin</span><% } %></span>
       <span><%= fmtDate(p.created_at, true) %><% if (p.edited_at) { %> · bearbeitet<% } %></span></div>
     <div class="panel">
       <div class="content"><%- p.html %></div>

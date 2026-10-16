@@ -12,10 +12,10 @@
   <li>Deine IP-Adresse speichert die Website nicht.</li>
   <li>Für ein Konto reichen Benutzername und Passwort, ohne E-Mail-Adresse.</li>
   <li>Alles liegt auf einem eigenen Server des Betreibers, nicht bei einem Cloud-Anbieter.</li>
-  <li>Was du schreibst, kann der Admin lesen, auch „anonyme“ Forenbeiträge.</li>
+  <li>Was du schreibst, kann der Admin lesen, auch „anonyme“ Forenbeiträge. Privatnachrichten zeigt die Seite ihm nicht an, sie liegen aber unverschlüsselt auf dem Server.</li>
 </ul>
 <p>Springe zu: <a href="#besuch">Besuch</a> · <a href="#cookies">Cookies</a> · <a href="#browser">Im Browser</a> ·
-  <a href="#konto">Konto</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
+  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
 </fieldset>
 
 <h2 id="besuch">👣 Wenn du die Seite besuchst</h2>
@@ -82,15 +82,34 @@
 <ul>
   <li>Gespeichert werden <b>Benutzername, Passwort</b> (nur als Hash), Rolle und Rechte, Gruppen, Datum der Registrierung und der <b>letzte Login</b>.</li>
   <li>Das Passwort wird mit bcrypt unumkehrbar verschlüsselt. Auch der Admin kann es nicht lesen.</li>
-  <li>Keine E-Mail-Adresse, kein echter Name.</li>
+  <li>Keine E-Mail-Adresse, kein echter Name. Anzeigename, Profilbild und „Über mich“ sind freiwillig (siehe <a href="#profil">Profil</a>).</li>
   <li>Wenn du das Passwort änderst, werden alle anderen Geräte abgemeldet.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
-  <%- code('users', 'Das ist die komplette Nutzertabelle. Mehr Spalten gibt es nicht.') %>
+  <%- code('users', 'Das ist die komplette Nutzertabelle. Mehr Spalten gibt es nicht. Die letzten fünf gehören zum Profil.') %>
   <%- code('password', 'Das Passwort wird mit bcrypt (Stufe 12) gehasht, bevor es gespeichert wird.') %>
 </details>
 <details><summary>👁 So sieht es der Admin</summary>
   <div class="shots"><%- shot('admin-nutzer.png', 'Nutzerliste: Name, Rolle, Gruppen, letzter Login') %></div>
+</details>
+
+<h2 id="profil">👥 Profil, Freunde und Nachrichten</h2>
+<ul>
+  <li><b>Profil:</b> Anzeigename, Profilbild und „Über mich“ (die letzten Spalten der <a href="#konto">Nutzertabelle</a>) trägst du freiwillig unter <a href="/account#profil">Mein Konto</a> ein. Anzeigename und Profilbild stehen an deinen Beiträgen und in Lobbys, auch für Gäste, wo diese mitlesen. Anonyme Forenbeiträge bleiben anonym: Sie bekommen weder Namen noch Bild und zählen im Profil nicht mit.</li>
+  <li><b>Wer dein Profil sieht,</b> bestimmst du: alle Besucher, nur angemeldete Mitglieder (Standard) oder nur deine Freunde. Das Profil zeigt, seit wann du dabei bist, deine Freunde, deine Spielstatistik, wie viele Forenbeiträge, Freundebuch-Einträge und Musiktitel von dir sichtbar sind, und deine letzten Forenbeiträge. Den letzten Login zeigt es nicht. Gäste finden unter Mitglieder nur Profile, die für alle sichtbar sind.</li>
+  <li><b>Profilbild:</b> Versteckte Angaben im Bild (EXIF mit Aufnahmeort und Kamera, Textfelder) entfernt die Seite beim Hochladen. Nur die Drehung eines Fotos bleibt. Das Bild kann jeder abrufen, der die Adresse kennt. Ein neues Bild ersetzt das alte, „Entfernen“ löscht die Datei.</li>
+  <li><b>Freunde:</b> Gespeichert werden, wer wen angefragt hat, ob angenommen wurde, und wann. Wer auf deinem Profil ist, sieht deine Freunde. Entfernen oder Ablehnen löscht den Eintrag ganz.</li>
+  <li><b>Privatnachrichten:</b> Absender, Empfänger, Text, Zeit und wann sie gelesen wurde. Der Absender sieht „gelesen“. Die Seite zeigt Nachrichten nur euch beiden, auch dem Admin nicht. Sie liegen aber unverschlüsselt in der Datenbank auf dem Server, wer diesen betreibt, könnte sie also lesen. Schick deshalb keine Passwörter oder ähnliches. „Verlauf löschen“ versteckt das Gespräch für dich; haben es beide gelöscht, verschwindet es ganz aus der Datenbank.</li>
+  <li>Unter Mein Konto stellst du ein, ob dir alle Mitglieder schreiben dürfen oder nur deine Freunde. Wer dir zuerst geschrieben hat, dem kannst du immer antworten.</li>
+  <li>Der Desktop fragt einmal pro Minute beim Server nach, ob du neue Nachrichten hast. Dabei wird nichts gespeichert.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('profileVis', 'Diese Regel entscheidet, wer dein Profil sehen darf. Admin und du selbst sehen es immer.') %>
+  <%- code('profileCounts', 'Die Zahlen im Profil zählen nur Beiträge mit Namen.') %>
+  <%- code('avatarStrip', 'Beim Hochladen eines Profilbilds fallen die Blöcke mit versteckten Angaben weg.') %>
+  <%- code('friends', 'Eine Freundschaft ist eine Zeile: wer angefragt hat, wer angefragt wurde, angenommen oder nicht, und wann.') %>
+  <%- code('pms', 'Diese Spalten speichert die Seite zu jeder Privatnachricht.') %>
+  <%- code('pmDelete', 'Verlauf löschen: erst für dich verstecken, und wenn beide gelöscht haben, endgültig weg.') %>
 </details>
 
 <h2 id="schreiben">✍️ Was du schreibst oder hochlädst</h2>
@@ -98,7 +117,7 @@
   <li><b>Freundebuch:</b> Name (oder dein Benutzername), Text und Zeit, für alle sichtbar. Mit „Anonym eintragen“ wird am Eintrag weder ein Name noch dein Konto gespeichert.</li>
   <li><b>Forum:</b> Text, Zeit und dein Konto. „Anonym veröffentlichen“ versteckt deinen Namen nur vor anderen. Du selbst und der Admin sehen ihn weiterhin.</li>
   <li><b>Kontakt:</b> Name, E-Mail (freiwillig), Betreff, Text und dein Konto, falls angemeldet. Das sieht nur der Admin. Es bleibt, bis er es löscht.</li>
-  <li><b>Bilder und Dateien</b> werden unverändert mit ihrem ursprünglichen Dateinamen gespeichert. Fotos können versteckte Angaben wie den Aufnahmeort enthalten. Entferne sie vorher, wenn du das nicht möchtest. Bilder aus dem Forum kann jeder abrufen, der die Adresse kennt.</li>
+  <li><b>Bilder und Dateien</b> (außer Profilbildern) werden unverändert mit ihrem ursprünglichen Dateinamen gespeichert. Fotos können versteckte Angaben wie den Aufnahmeort enthalten. Entferne sie vorher, wenn du das nicht möchtest. Bilder aus dem Forum kann jeder abrufen, der die Adresse kennt.</li>
   <li><b>E-Mail an den Admin:</b> <% if (mailOn) { %>Ist eingeschaltet. Neue Freundebuch-Einträge, Nachrichten, Forenthemen und Registrierungen gehen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } else { %>Ist gerade ausgeschaltet. Wird sie eingerichtet, gehen neue Freundebuch-Einträge, Nachrichten, Forenthemen und Registrierungen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } %></li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
@@ -114,10 +133,10 @@
 
 <h2 id="musik">🎵 Musik</h2>
 <ul>
-  <li><b>Hochgeladene Musik:</b> Die Datei mit ihrem ursprünglichen Namen, Titel, Interpret und Album (auch aus den Angaben in der Datei, z. B. ID3-Tags), Länge, Größe, Sichtbarkeit, Zeit und dein Konto. Neben Titeln von Mitgliedern steht für alle, die den Titel hören dürfen, dein Benutzername. Die Datei bleibt unverändert, auch eingebettete Angaben wie ein Cover-Bild.</li>
+  <li><b>Hochgeladene Musik:</b> Die Datei mit ihrem ursprünglichen Namen, Titel, Interpret und Album (auch aus den Angaben in der Datei, z. B. ID3-Tags), Länge, Größe, Sichtbarkeit, Zeit und dein Konto. Neben Titeln von Mitgliedern steht für alle, die den Titel hören dürfen, dein Name mit Link zum Profil. Die Datei bleibt unverändert, auch eingebettete Angaben wie ein Cover-Bild.</li>
   <li>Wie oft ein Titel gespielt wurde, wird nur als Zahl gezählt, nicht wer ihn gehört hat.</li>
   <li><b>Playlists:</b> Name, Sichtbarkeit, Titel und dein Konto. Private Playlists sehen nur du und der Admin.</li>
-  <li><b>Lobbys:</b> Wer in einer Lobby ist, sieht die Benutzernamen der anderen Zuhörer, wer davon den Player steuern darf, wer ein Lied hinzugefügt hat und die Warteschlange. Lobbys liegen nur im Arbeitsspeicher des Servers und sind nach einem Neustart oder zehn Minuten ohne Zuhörer weg.</li>
+  <li><b>Lobbys:</b> Wer in einer Lobby ist, sieht die Namen der anderen Zuhörer (mit Link zum Profil), wer davon den Player steuern darf, wer ein Lied hinzugefügt hat und die Warteschlange. Lobbys liegen nur im Arbeitsspeicher des Servers und sind nach einem Neustart oder zehn Minuten ohne Zuhörer weg.</li>
   <li><b>YouTube:</b> Lieder von YouTube spielt der eingebettete Player von youtube-nocookie.com. Den lädt dein Browser erst, wenn du auf „YouTube laden“ klickst. Ab dann bekommt YouTube (Google) deine IP-Adresse und Angaben zu deinem Browser, und es gelten die Datenschutzregeln von Google. Für die Titel fragt der Server selbst bei YouTube nach, dabei geht nichts über dich mit.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
@@ -131,16 +150,19 @@
 <h2 id="spiele">🎮 Spielstände</h2>
 <ul>
   <li>Mit Konto speichern Browser-Spiele ihre Spielstände auf dem Server: Spiel, Speicherplatz, Inhalt und Zeit. Unter <a href="/account">Mein Konto</a> siehst und löschst du sie.</li>
+  <li><b>Spielstatistik:</b> Mit Konto zählt die Seite, wie oft du ein Spiel gestartet hast. Spiele können weitere Zahlen melden, etwa Siege oder Höchstpunktzahlen. Mein Haustier zeigt Werte aus seinem Spielstand (Tiere, höchste Stufe, verdiente Münzen, Besuche). Gespeichert werden nur Spiel, Name der Zahl, Wert und Zeit. Wer dein Profil sehen darf, sieht diese Zahlen.</li>
   <li>Spiele, die der Admin hochlädt, sind fremde Programme. Sie dürfen mit anderen Servern sprechen und selbst Daten in deinem Browser ablegen. Als Adresse eingebundene Spiele sind fremde Seiten mit eigenen Regeln.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('saves', 'Ein Spielstand gehört immer zu genau einem Konto, Spiel und Speicherplatz.') %>
+  <%- code('gameStats', 'Pro Konto, Spiel und Wert eine einzige Zahl, keine Liste einzelner Spiele.') %>
+  <%- code('countStart', 'Beim Start eines Spiels zählt nur der Zähler „Gestartet“ eins hoch, und nur mit Konto.') %>
 </details>
 
 <h2 id="fragen">🗑 Löschen und Fragen</h2>
 <ul>
   <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
-  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists und Spielstände. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Freundebuch bleibt der Name am Eintrag. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Profilbild, Freundschaften und Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern). Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Freundebuch bleibt der Name am Eintrag. Sag Bescheid, wenn auch die weg sollen.</li>
   <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
 </ul>
 <p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>

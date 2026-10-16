@@ -38,6 +38,20 @@
     sel.addEventListener('change', upd); upd();
   });
 
+  // Gespräch mit Privatnachrichten: ans Ende scrollen, Strg+Enter sendet, Neues lädt nach (solange nichts getippt ist)
+  var chat = document.getElementById('chat');
+  if (chat) {
+    chat.scrollTop = chat.scrollHeight;
+    var box = document.querySelector('.chat-form textarea');
+    if (box) box.addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); box.form.requestSubmit(); } });
+    var partner = location.pathname.split('/')[2];
+    setInterval(function () {
+      if (document.hidden || (box && box.value.trim())) return;
+      fetch('/api/nachrichten?von=' + partner, { credentials: 'same-origin' }).then(function (r) { return r.json(); })
+        .then(function (j) { if (j.from) location.reload(); }).catch(function () {});
+    }, 15000);
+  }
+
   // Bereich einer Adresse: erster Pfadteil, "" für die Startseite. Jeder Bereich hat höchstens ein Fenster;
   // eigene Seiten und das Hochladen bekommen jeweils ein eigenes.
   function section(path) { return path.split(/[?#]/)[0].split('/')[1] || ''; }
@@ -47,10 +61,10 @@
     if (p[1] === 'files' && p[2] === 'upload') return 'upload';
     return p[1] || '';
   }
-  // Nur echte Seiten öffnen Fenster, keine Downloads, Bilder oder Spieldateien
+  // Nur echte Seiten öffnen Fenster, keine Downloads, Bilder oder Spieldateien (Benutzernamen dürfen Punkte enthalten)
   function isPage(u) {
     return !/^\/(files\/dl|media|static|uploads|api)\//.test(u.pathname) && !/^\/apps\/[^/]+\/play\//.test(u.pathname) &&
-      !/\.[a-z0-9]{1,5}$/i.test(u.pathname);
+      (!/\.[a-z0-9]{1,5}$/i.test(u.pathname) || /^\/(nutzer|nachrichten)\//.test(u.pathname));
   }
 
   // ---------- Inhalt eines Fensters ----------
@@ -81,7 +95,8 @@
   var deskEl = document.getElementById('desk'), tasks = document.getElementById('tasks');
   var siteTitle = body.dataset.title, me = body.dataset.user;
   var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
-    contact: '✉️', changelog: '📜', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵', zufall: '🎲' };
+    contact: '✉️', changelog: '📜', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵', zufall: '🎲',
+    nutzer: '👥', nachrichten: '💌' };
   var mobile = window.matchMedia('(max-width: 760px)');
   var wins = [], zTop = 10, active = null, reloading = false;
   var template = deskEl.querySelector('.dwin').cloneNode(true);
@@ -168,6 +183,7 @@
     if (t.endsWith(suffix)) t = t.slice(0, -suffix.length);
     setTitle(w, t);
     doc.addEventListener('pointerdown', function () { closeMenu(); if (active !== w) focus(w); });
+    if (section(w.url) === 'nachrichten') pollUnread();
     if (active === w) syncTop();
     save();
   }
@@ -202,7 +218,7 @@
   }
 
   // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Musik-Player brauchen etwas mehr Platz
-  var SIZES = { haustier: [820, 700], musik: [900, 640], zufall: [760, 620] };
+  var SIZES = { haustier: [820, 700], musik: [900, 640], zufall: [760, 620], nachrichten: [640, 620] };
   function place(el, s, url) {
     var n = wins.length % 8, size = SIZES[section(url)] || [820, 580];
     var w = s && s.w || Math.min(size[0], deskEl.clientWidth - 40), h = s && s.h || Math.min(size[1], deskEl.clientHeight - 40);
@@ -273,6 +289,27 @@
     e.preventDefault(); closeMenu();
     open(a.getAttribute('href'), false);
   });
+
+  // 💌 neben der Uhr: ungelesene Privatnachrichten. Der Desktop fragt jede Minute nach und wenn ein Fenster lädt.
+  var pmTray = document.getElementById('pmtray'), pmMenu = document.getElementById('pm-menu'), pmCount = pmTray ? Number(pmTray.textContent.replace(/\D/g, '')) || 0 : 0;
+  function showUnread(n) {
+    if (!pmTray) return;
+    if (n > pmCount) sound('hinweis');
+    pmCount = n;
+    pmTray.hidden = !n;
+    pmTray.querySelector('.pm-count').textContent = n;
+    pmTray.title = n + ' ungelesene Nachrichten';
+    if (pmMenu) pmMenu.textContent = '💌 Nachrichten' + (n ? ' (' + n + ')' : '');
+  }
+  function pollUnread() {
+    if (!pmTray) return;
+    fetch('/api/nachrichten', { credentials: 'same-origin' }).then(function (r) { return r.json(); })
+      .then(function (j) { showUnread(j.unread || 0); }).catch(function () {});
+  }
+  if (pmTray) {
+    pmTray.addEventListener('click', function (e) { e.preventDefault(); open(pmTray.getAttribute('href'), false); });
+    setInterval(function () { if (!document.hidden) pollUnread(); }, 60000);
+  }
 
   // Erstes Fenster kommt vom Server, gespeicherte Fenster wiederherstellen
   var first = deskEl.querySelector('.dwin');

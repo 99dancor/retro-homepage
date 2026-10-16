@@ -10,6 +10,7 @@ const up = require('../uploads');
 const { md } = require('../util');
 const GAMES = require('../games');
 const privacy = require('../privacy');
+const profiles = require('../profiles');
 const { FONTS } = require('../themes');
 
 const router = express.Router();
@@ -125,7 +126,7 @@ router.get('/guestbook', guestbookOn, (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const per = 20;
   const total = db.prepare('SELECT COUNT(*) AS n FROM guestbook WHERE approved = 1').get().n;
-  const entries = db.prepare(`SELECT g.*, u.username FROM guestbook g LEFT JOIN users u ON u.id = g.user_id
+  const entries = db.prepare(`SELECT g.*, u.username, u.display_name, u.avatar FROM guestbook g LEFT JOIN users u ON u.id = g.user_id
                               WHERE approved = 1 ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`).all(per, (page - 1) * per);
   res.render('guestbook', { title: 'Freundebuch', entries, page, pages: Math.max(1, Math.ceil(total / per)), total, msg: req.query.ok ? (req.query.ok === 'mod' ? 'Danke! Dein Eintrag erscheint, sobald er freigeschaltet wurde.' : 'Danke für deinen Eintrag!') : null, err: null });
 });
@@ -179,6 +180,7 @@ function loadApp(req, res, next) {
 router.get('/apps/:slug', loadApp, (req, res) => {
   const a = req.appItem;
   db.prepare('UPDATE apps SET plays = plays + 1 WHERE id = ?').run(a.id);
+  profiles.countStart(req.user, a.slug);   // für die Spielstatistik im Profil
   res.render('app-play', { title: a.title, app: a, src: a.external_url || `/apps/${a.slug}/play/${a.entry}` });
 });
 // Liefert eine vorkomprimierte Fassung (.br/.gz neben der Datei), wenn der Browser sie annimmt.
@@ -315,6 +317,16 @@ router.post('/register', auth.rateLimit('reg', 5, 3600), (req, res, next) => {
   res.redirect(localPath(req.body.next) || '/');
 });
 
+// Meldungen nach den Profil-Formularen (src/routes/profiles.js), die dorthin zurückleiten
+const ACCOUNT_MSG = {
+  ok: { profil: 'Profil gespeichert.', bild: 'Profilbild gespeichert.', bildweg: 'Profilbild entfernt.' },
+  err: {
+    name: 'Der Anzeigename braucht 2 bis 32 Zeichen, ohne < und >.',
+    taken: 'Diesen Namen benutzt schon jemand anderes.',
+    big: 'Das Bild ist zu groß (höchstens 2 MB).',
+    bild: 'Das ist kein Bild, das hier geht (PNG, JPEG, GIF oder WebP).',
+  },
+};
 function renderAccount(req, res, msg, err) {
   const saves = db.prepare(`SELECT s.app_slug, s.slot, s.updated_at, length(CAST(s.data AS BLOB)) AS size, a.title
                             FROM game_saves s LEFT JOIN apps a ON a.slug = s.app_slug
@@ -323,9 +335,14 @@ function renderAccount(req, res, msg, err) {
     if (Object.hasOwn(GAMES, s.app_slug)) { s.title = GAMES[s.app_slug].title; s.url = `/${s.app_slug}/`; }
     else if (s.title) s.url = `/apps/${s.app_slug}`;
   }
-  res.render('account', { title: 'Mein Konto', msg, err, saves });
+  res.render('account', {
+    title: 'Mein Konto', msg, err, saves,
+    profile: db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id),
+    profileVis: profiles.PROFILE_VIS, pmFrom: profiles.PM_FROM,
+  });
 }
-router.get('/account', auth.requireLogin, (req, res) => renderAccount(req, res, null, null));
+const pick = (map, key) => (typeof key === 'string' && Object.hasOwn(map, key) ? map[key] : null);
+router.get('/account', auth.requireLogin, (req, res) => renderAccount(req, res, pick(ACCOUNT_MSG.ok, req.query.ok), pick(ACCOUNT_MSG.err, req.query.err)));
 router.post('/account/saves/delete', auth.requireLogin, (req, res) => {
   db.prepare('DELETE FROM game_saves WHERE user_id = ? AND app_slug = ? AND slot = ?')
     .run(req.user.id, String(req.body.app || ''), String(req.body.slot || ''));

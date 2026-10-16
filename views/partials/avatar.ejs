@@ -1,0 +1,3 @@
+<%# Profilbild oder ein farbiger Anfangsbuchstabe. Parameter: u (Konto mit id, username, display_name, avatar), size in Pixeln %>
+<% const sz = typeof size === 'number' ? size : 32; %>
+<% if (u && u.avatar) { %><img class="avatar" src="/avatar/<%= u.avatar %>" alt="" width="<%= sz %>" height="<%= sz %>" loading="lazy"><% } else { %><span class="avatar avatar-letter" style="width:<%= sz %>px;height:<%= sz %>px;font-size:<%= Math.round(sz * 0.55) %>px;background:hsl(<%= ((u && u.id) || 0) * 47 % 360 %>,45%,42%)" aria-hidden="true"><%= ([...(u ? displayName(u) : '?')][0] || '?').toUpperCase() %></span><% } %>

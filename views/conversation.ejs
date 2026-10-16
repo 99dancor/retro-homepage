@@ -1,0 +1,33 @@
+<%- include('partials/head') %>
+<p><a href="/nachrichten">« Alle Nachrichten</a></p>
+<div class="conv-head">
+  <%- include('partials/avatar', { u, size: 48 }) %>
+  <h1><a href="<%= profileUrl(u.username) %>"><%= displayName(u) %></a></h1>
+</div>
+<% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+<div class="sunken chat" id="chat">
+  <% if (!messages.length) { %><p class="muted">Noch keine Nachrichten. Sag Hallo!</p><% } %>
+  <% let day = ''; for (const m of messages) { const d = fmtDate(m.created_at); %>
+    <% if (d !== day) { day = d; %><div class="chat-day"><%= d %></div><% } %>
+    <div class="bubble <%= m.from_id === user.id ? 'mine' : 'theirs' %>" id="n<%= m.id %>">
+      <div class="text"><%= m.body %></div>
+      <small><%= fmtDate(m.created_at, true).slice(-5) %><% if (m.from_id === user.id) { %> · <%= m.read_at ? '✔✔ gelesen' : '✔ gesendet' %><% } %></small>
+    </div>
+  <% } %>
+  <span id="ende"></span>
+</div>
+<% if (canMessage) { %>
+<form method="post" action="/nachrichten/<%= encodeURIComponent(u.username) %>" class="chat-form">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <textarea name="body" maxlength="<%= maxLength %>" required placeholder="Nachricht an <%= displayName(u) %> …" aria-label="Nachricht" autofocus><%= draft %></textarea>
+  <div class="actions"><button>📨 Senden</button></div>
+</form>
+<% } else { %>
+  <p class="muted">🔒 <%= displayName(u) %> bekommt nur Nachrichten von Freunden.</p>
+<% } %>
+<% if (messages.length) { %>
+<form method="post" action="/nachrichten/<%= encodeURIComponent(u.username) %>/loeschen" class="actions" data-confirm="Den Verlauf für dich löschen? Die Kopie von <%= displayName(u) %> bleibt, bis sie dort auch gelöscht wird.">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">🗑 Verlauf löschen</button>
+</form>
+<% } %>
+<%- include('partials/foot') %>

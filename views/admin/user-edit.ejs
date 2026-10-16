@@ -5,6 +5,16 @@
 <form method="post" action="/admin/users/<%= u.id %>">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <p>Registriert am <%= fmtDate(u.created_at) %> · letzter Login: <%= u.last_login ? fmtDate(u.last_login, true) : 'nie' %></p>
+  <fieldset class="groupbox"><legend>Profil</legend>
+    <div class="avatar-edit"><%- include('../partials/avatar', { u, size: 48 }) %>
+      <div><b><%= displayName(u) %></b> <small>@<%= u.username %></small> · <a href="<%= profileUrl(u.username) %>">Profil ansehen</a><br>
+      <small>Sichtbar für: <%= { public: 'alle Besucher', members: 'angemeldete Mitglieder', friends: 'nur Freunde' }[u.profile_visibility] %></small></div></div>
+    <% if (u.about) { %><p class="about"><small><%= u.about %></small></p><% } %>
+    <p><small>Bei unpassenden Angaben kannst du sie hier zurücksetzen:</small></p>
+    <% if (u.display_name) { %><label class="inline"><input type="checkbox" name="reset_name" value="1"> Anzeigename „<%= u.display_name %>“ entfernen</label><% } %>
+    <% if (u.avatar) { %><label class="inline"><input type="checkbox" name="reset_avatar" value="1"> Profilbild entfernen</label><% } %>
+    <% if (u.about) { %><label class="inline"><input type="checkbox" name="reset_about" value="1"> „Über mich“ leeren</label><% } %>
+  </fieldset>
   <fieldset class="groupbox"><legend>Rechte</legend>
     <label>Rolle:
       <select name="role" <%= self ? 'disabled' : '' %>><option value="user" <%= u.role === 'user' ? 'selected' : '' %>>Nutzer</option><option value="admin" <%= u.role === 'admin' ? 'selected' : '' %>>Admin (darf alles)</option></select>

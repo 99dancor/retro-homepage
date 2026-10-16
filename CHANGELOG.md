@@ -1,5 +1,16 @@
 # Changelog
 
+## 16.10.2026 – Profile, Freunde und Nachrichten
+
+- **Profil:** Jedes Mitglied hat jetzt ein eigenes Profil mit Profilbild, Anzeigename und „Über mich“. Einstellen kannst du das unter 🔑 Mein Konto. Mit dem Benutzernamen meldest du dich weiter an.
+- **Mitglieder finden:** Neu im Startmenü unter 👥 Mitglieder. Durchsuche alle Mitglieder und öffne ihre Profile.
+- **Namen anklicken:** Im Forum, im Freundebuch und in Musik-Lobbys führt ein Klick auf einen Namen zum Profil. In der Lobby steht dafür „👤 Profil ansehen“ im Menü des Zuhörers.
+- **Freunde:** Schick anderen eine Freundschaftsanfrage. Offene Anfragen und deine Freunde stehen oben unter Mitglieder.
+- **Privatnachrichten:** Schreib anderen Mitgliedern direkt, über ihr Profil oder 💌 Nachrichten im Startmenü. Neue Nachrichten zeigt ein 💌 neben der Uhr, und du siehst, ob deine Nachricht gelesen wurde.
+- **Spielstatistik:** Das Profil zeigt, wie oft du welches Spiel gestartet hast, dazu Werte aus Mein Haustier (Tiere, höchste Stufe, verdiente Münzen, Besuche). Spiele können eigene Zahlen wie Siege oder Rekorde melden.
+- **Du entscheidest:** Wer dein Profil sieht (alle, nur Mitglieder oder nur Freunde) und wer dir schreiben darf (alle Mitglieder oder nur Freunde). Anonyme Forenbeiträge bleiben anonym und zählen im Profil nicht mit.
+- Versteckte Angaben in Profilbildern, etwa der Aufnahmeort, entfernt die Seite beim Hochladen. Was sie zu Profil, Freunden und Nachrichten speichert, steht auf der Datenschutzseite.
+
 ## 16.10.2026 – Wer ist in der Lobby?
 
 - **Zuhörer-Liste:** In einer Musik-Lobby siehst du oben alle, die gerade zuhören. 👑 markiert den Gastgeber, 🎶 alle, die den Player steuern dürfen.

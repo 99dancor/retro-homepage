@@ -1,5 +1,17 @@
 # Changelog
 
+## 16.10.2026 – Quiz
+
+- **Quiz:** Neu im Startmenü unter Spiele und Apps → ❓ Quiz. Zuerst wählst du „Quiz erstellen“ (als Spielleiter) oder „Raum beitreten“ (als Spieler).
+- **Beitreten:** über die Liste offener Räume, den vierstelligen Raumcode, den Einladungslink oder den QR-Code im Warteraum. Mitglieder spielen mit Profilbild, Gäste ohne Konto wählen Namen, Emoji und Farbe und stehen mit „(Gast)“ in der Liste. Wer kurz die Verbindung verliert oder neu lädt, kommt mit seinen Punkten zurück.
+- **Fragetypen:** Buzzer, Multiple Choice (A–D), Wahr/Falsch, Schätzen mit Einheit und Freitext. Spieler sehen immer die Frage, den Timer, das passende Eingabefeld und den Punktestand aller mit der letzten Veränderung in Grün oder Rot.
+- **Spielleiter:** Fragen spontan anlegen, einfügen, umsortieren und während des Spiels ändern. Alles, was er tippt, sehen die Spieler live mit, außer er bereitet eine Frage verdeckt vor. Die Antworten der Spieler sieht er Zeichen für Zeichen. Timer anhalten, verlängern, auflösen, überspringen.
+- **Wertung:** Beim Buzzer zählt, wer zuerst gedrückt hat (langsame Verbindungen werden ausgeglichen), der Spielleiter drückt Richtig oder Falsch. Bei Falsch können alle anderen Punkte bekommen, danach ist der Nächste in der Reihe dran oder der Buzzer wieder frei. Multiple Choice und Wahr/Falsch werten sich selbst, Schätzfragen auch: wer am nächsten liegt (alles für den Besten, Top 3 oder nach Abstand). Freitext hakt der Spielleiter ab, passende Antworten sind schon vorgeschlagen.
+- **Extrapunkte:** Der Spielleiter gibt jedem Spieler einzeln oder allen zusammen Punkte (auch Minuspunkte) und kann die letzte Vergabe zurücknehmen.
+- **Endstand:** Siegertreppchen, Plätze und Auszeichnungen (schnellster Buzzer, beste Schätzung, schwerste Frage). Die Ergebnisse von Mitgliedern erscheinen als Karte „Quiz“ im Profil.
+- **Speichern und Laden:** Der Spielleiter speichert die Fragen als Datei und lädt sie beim nächsten Mal wieder, auch ohne Konto.
+- **Für den Admin:** Unter Admin → Quiz schaltest du das Quiz an oder aus, legst fest, wer Räume eröffnen darf und ob Gäste mitspielen, siehst offene Räume und die letzten Ergebnisse. Was das Quiz speichert, steht auf der Datenschutzseite.
+
 ## 16.10.2026 – Benachrichtigungen, Forum und neue Startseite
 
 - **Benachrichtigungen:** Neben der Uhr gibt es jetzt eine 🔔. Sie zählt mit und zeigt Freundschaftsanfragen, Privatnachrichten, Antworten in abonnierten Forenthemen, geknackte Rekorde, Erinnerungen von Mein Haustier und die tägliche Besuchsserie. Admins bekommen außerdem Hinweise zu Freigaben, Kontaktnachrichten, Registrierungen und neuen Forenthemen. Alle Benachrichtigungen stehen auch unter /benachrichtigungen.

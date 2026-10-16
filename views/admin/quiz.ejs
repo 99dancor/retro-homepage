@@ -1,0 +1,61 @@
+<%- include('../partials/head') %>
+<%# Admin → Quiz: Einstellungen, offene Räume und die letzten gespielten Quizze %>
+<% if (ok) { %><div class="msg">✔ Gespeichert.</div><% } %>
+<div class="kpis">
+  <div class="kpi"><b><%= rooms.length %></b>offene Räume</div>
+  <div class="kpi"><b><%= total.games %></b>gespielte Quizze</div>
+  <div class="kpi"><b><%= total.players %></b>Teilnahmen</div>
+</div>
+<form method="post" action="/admin/quiz">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox"><legend>Quiz</legend>
+    <label class="inline"><input type="checkbox" name="quiz_enabled" value="1" <%= s.quiz_enabled === '1' ? 'checked' : '' %>> Quiz im Startmenü (Spiele und Apps)</label><br>
+    <label class="inline"><input type="checkbox" name="quiz_guests" value="1" <%= s.quiz_guests === '1' ? 'checked' : '' %>> Gäste ohne Konto dürfen mitspielen (der Spielleiter kann es pro Raum abschalten)</label>
+    <label>Räume eröffnen dürfen
+      <select name="quiz_hosts" class="w100">
+        <option value="all" <%= s.hosts === 'all' ? 'selected' : '' %>>alle, auch Gäste ohne Konto</option>
+        <option value="members" <%= s.hosts === 'members' ? 'selected' : '' %>>nur Mitglieder</option>
+        <option value="admin" <%= s.hosts === 'admin' ? 'selected' : '' %>>nur Admin</option>
+      </select></label>
+    <label>Höchstens <input type="number" name="quiz_max_rooms" min="1" max="200" value="<%= s.maxRooms %>" style="width:70px"> offene Räume und <input type="number" name="quiz_max_players" min="2" max="200" value="<%= s.maxPlayers %>" style="width:70px"> Spieler pro Raum</label>
+  </fieldset>
+  <div class="actions"><button>Speichern</button> <a href="/quiz" target="_blank">Quiz öffnen</a></div>
+</form>
+<h3>Offene Räume</h3>
+<% if (!rooms.length) { %><p class="muted">Gerade ist kein Raum offen. Räume leben nur im Arbeitsspeicher, nach einem Neustart sind sie weg.</p>
+<% } else { %>
+<table class="list">
+  <tr><th>Code</th><th>Raum</th><th>Spielleiter</th><th>Spieler</th><th>Stand</th><th>Seit</th><th></th></tr>
+  <% for (const r of rooms) { %>
+  <tr>
+    <td><code><%= r.code %></code></td>
+    <td><b><%= r.name %></b><%= r.hidden ? ' (versteckt)' : '' %></td>
+    <td><%= r.host %></td>
+    <td><%= r.players %></td>
+    <td><%= r.phase === 'lobby' ? 'Warteraum' : r.phase === 'end' ? 'Endstand' : 'Frage ' + (r.cur + 1) %></td>
+    <td><%= fmtDate(Math.floor(r.created / 1000), true) %></td>
+    <td class="num"><form method="post" action="/admin/quiz/raum/<%= r.code %>/schliessen" class="inline" data-confirm="Raum „<%= r.name %>“ für alle schließen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Schließen</button></form></td>
+  </tr>
+  <% } %>
+</table>
+<% } %>
+<h3>Zuletzt gespielt</h3>
+<% if (!games.length) { %><p class="muted">Noch kein Quiz zu Ende gespielt.</p>
+<% } else { %>
+<table class="list">
+  <tr><th>Ende</th><th>Raum</th><th>Spielleiter</th><th>Fragen</th><th>Spieler</th><th>Gewonnen</th><th></th></tr>
+  <% for (const g of games) { %>
+  <tr>
+    <td><%= fmtDate(g.ended_at, true) %></td>
+    <td><%= g.room_name %><%= g.quiz_title ? ' · ' + g.quiz_title : '' %></td>
+    <td><%= g.host_name %></td>
+    <td><%= g.questions %></td>
+    <td><%= g.players %></td>
+    <td><%= g.winner || '–' %></td>
+    <td class="num"><form method="post" action="/admin/quiz/spiel/<%= g.id %>/loeschen" class="inline" data-confirm="Dieses Ergebnis aus den Statistiken löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Löschen</button></form></td>
+  </tr>
+  <% } %>
+</table>
+<% } %>
+<script src="<%= asset('admin.js') %>"></script>
+<%- include('../partials/foot') %>

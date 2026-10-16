@@ -360,6 +360,30 @@ CREATE TABLE IF NOT EXISTS artwork_painters (
   strokes INTEGER NOT NULL DEFAULT 0,       -- wie viele Änderungen von ihm im Bild stecken
   PRIMARY KEY (artwork_id, user_id)
 );
+-- Quiz: eine Zeile pro gespieltem Quiz und eine pro Spieler (Gäste nur mit ihrem gewählten Namen, ohne Konto)
+CREATE TABLE IF NOT EXISTS quiz_games (
+  id INTEGER PRIMARY KEY,
+  room_name TEXT NOT NULL,
+  quiz_title TEXT,
+  host_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  host_name TEXT NOT NULL,
+  questions INTEGER NOT NULL,               -- wie viele Fragen gestellt wurden
+  players INTEGER NOT NULL,
+  started_at INTEGER NOT NULL,
+  ended_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS quiz_results (
+  id INTEGER PRIMARY KEY,
+  game_id INTEGER NOT NULL REFERENCES quiz_games(id) ON DELETE CASCADE,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  guest INTEGER NOT NULL DEFAULT 0,
+  points INTEGER NOT NULL,
+  place INTEGER NOT NULL,
+  correct INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS qr_user ON quiz_results(user_id);
+CREATE INDEX IF NOT EXISTS qr_game ON quiz_results(game_id);
 CREATE INDEX IF NOT EXISTS awp_user ON artwork_painters(user_id);
 CREATE INDEX IF NOT EXISTS aw_owner ON artworks(owner_id, updated_at);
 CREATE INDEX IF NOT EXISTS aw_list ON artworks(visibility, approved, updated_at);

@@ -35,6 +35,22 @@ module.exports = {
       return { stats: out, last: t.last };
     },
   },
+  quiz: {
+    title: 'Quiz',
+    url: '/quiz',
+    userStats(userId) {
+      const t = require('./quiz').userTotals(userId);
+      if (!t.games && !t.hosted) return null;
+      const out = [
+        { key: 'Mitgespielt', value: t.games },
+        { key: 'Siege', value: t.wins, text: t.games ? `${t.wins.toLocaleString('de-DE')} (${Math.round(t.wins / t.games * 100)} %)` : '0' },
+      ];
+      if (t.best) out.push({ key: 'Beste Platzierung', value: t.best, text: t.best + '.' });
+      if (t.asked) out.push({ key: 'Richtig beantwortet', value: t.correct, text: `${t.correct.toLocaleString('de-DE')} von ${t.asked.toLocaleString('de-DE')} Fragen` });
+      out.push({ key: 'Punkte gesamt', value: t.points }, { key: 'Als Spielleiter', value: t.hosted });
+      return { stats: out, last: t.last };
+    },
+  },
   haustier: {
     title: 'Mein Haustier',
     stats(data) {

@@ -1,0 +1,19 @@
+<%- include('partials/head') %>
+<%# Quiz: Start, Räume, Spieler- und Spielleiter-Oberfläche laufen in public/quiz.js; Timer und Wertung auf dem Server (src/quiz.js) %>
+<div class="qz" id="qz" data-csrf="<%= csrf %>" data-code="<%= code %>" data-member="<%= user ? '1' : '' %>" data-name="<%= user ? user.name : '' %>"
+     data-emojis="<%= emojis.join(' ') %>" data-colors="<%= colors.join(' ') %>" data-defaults="<%= JSON.stringify(defaults) %>">
+  <nav class="menubar qz-nav" id="qz-nav"></nav>
+  <div class="qz-main" id="qz-main"><p class="qz-empty">Lädt …</p></div>
+  <div class="statusbar"><span id="qz-status">Bereit.</span><span id="qz-keys" style="flex:0 0 auto"></span></div>
+</div>
+<dialog class="window mp-dlg" id="qz-dlg">
+  <div class="titlebar"><span class="ttl" id="qz-dlg-title"></span></div>
+  <form method="dialog" class="body">
+    <div id="qz-dlg-body"></div>
+    <div class="actions" id="qz-dlg-actions"></div>
+  </form>
+</dialog>
+<input type="file" id="qz-file" accept=".json,application/json" hidden>
+<script src="<%= asset('usermenu.js') %>"></script>
+<script src="<%= asset('quiz.js') %>"></script>
+<%- include('partials/foot') %>

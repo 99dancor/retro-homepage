@@ -27,6 +27,8 @@ const SNIPPETS = {
   users: ['src/db.js', 'CREATE TABLE IF NOT EXISTS users (', 16],
   password: ['src/auth.js', 'function hashPassword(pw)', 1],
   guestbook: ['src/routes/public.js', 'const userId = req.user && !anonymous', 6],
+  boardSubs: ['src/db.js', 'CREATE TABLE IF NOT EXISTS board_subs (', 6],
+  boardViews: ['src/routes/board.js', 'function countView(req, topicId) {', 6],
   byline: ['src/routes/board.js', 'function byline(viewer, name, anonymous, userId)', 5],
   contact: ['src/routes/public.js', "db.prepare('INSERT INTO messages(", 3],
   media: ['src/uploads.js', 'function saveMedia(files, uploaderId = null)', 7],

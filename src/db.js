@@ -223,6 +223,13 @@ CREATE TABLE IF NOT EXISTS board_posts (
   created_at INTEGER NOT NULL,
   edited_at INTEGER
 );
+-- Abonnierte Forenthemen. Wer ein Thema beginnt oder antwortet, abonniert es von selbst.
+CREATE TABLE IF NOT EXISTS board_subs (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  topic_id INTEGER NOT NULL REFERENCES board_topics(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, topic_id)
+);
 -- Musik: hochgeladene Titel (Admin und Mitglieder), Playlists der Mitglieder
 CREATE TABLE IF NOT EXISTS tracks (
   id INTEGER PRIMARY KEY,
@@ -353,6 +360,7 @@ function addColumn(table, column, def) {
 addColumn('media', 'uploader_id', 'INTEGER REFERENCES users(id) ON DELETE SET NULL');
 addColumn('board_topics', 'anonymous', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('board_posts', 'anonymous', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('board_topics', 'views', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('users', 'display_name', 'TEXT');
 addColumn('users', 'avatar', 'TEXT');
 addColumn('users', 'about', 'TEXT');

@@ -829,3 +829,9 @@ button.bj-chip:active { transform: translateY(1px); box-shadow: 0 0 0 1px #000; 
 .gal-item small { opacity: .75; }
 .gal-full { text-align: center; background: repeating-conic-gradient(#ddd 0 25%, #fff 0 50%) 0 0 / 16px 16px; padding: 8px; }
 .gal-full img { image-rendering: pixelated; max-width: 100%; height: auto; box-shadow: 2px 2px 0 var(--lo); }
+
+/* Forum: Suche und Sortierung */
+.board-search { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 8px; }
+.board-search input[type=search] { flex: 1 1 200px; min-width: 0; }
+.board th a.sort { color: inherit; text-decoration: none; }
+.board th a.sort.on, .board th a.sort:hover { text-decoration: underline; }

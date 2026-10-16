@@ -356,6 +356,17 @@ async function main() {
       assert.equal((await bernd.form(`/forum/p/${ids[0]}/delete`, { _csrf: tk })).status, 404);
       assert.equal((await bernd.form(topic + '/lock', { _csrf: tk })).status, 403, 'nur Admin sperrt');
 
+      // Antworten abonniert das Thema, Abo lässt sich beenden; Suche, Sortierung und Zitieren
+      assert.match(page, /Abo beenden/);
+      assert.match(page, /data-quote="Erster \*\*Beitrag\*\*/);
+      assert.match((await bernd.req('/forum?abos=1')).text_, /Hallo Forum/);
+      assert.equal((await bernd.form(topic + '/sub', { _csrf: tk, on: '0' })).status, 302);
+      assert.match((await bernd.req('/forum?abos=1')).text_, /noch keine Themen abonniert/);
+      assert.match((await guest.req('/forum?q=Antwort+Bernd')).text_, /Hallo Forum/, 'Suche findet Text in Antworten');
+      assert.match((await guest.req('/forum?q=gibtsnicht')).text_, /Nichts gefunden/);
+      assert.match((await guest.req('/forum?q=100%25_')).text_, /Nichts gefunden/, 'Platzhalter werden nicht ausgewertet');
+      assert.match((await guest.req('/forum?sort=views&dir=asc')).text_, /Aufrufe ▲/);
+
       tk = await anna.csrf(topic);
       const del = await anna.form(`/forum/p/${ids[0]}/delete`, { _csrf: tk });
       assert.match(decodeURIComponent(del.headers.get('location')), /schon geantwortet/, 'Thema mit Antworten bleibt');

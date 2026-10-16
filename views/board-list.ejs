@@ -5,20 +5,34 @@
   <% } else { %><span>Zum Mitschreiben bitte <a href="/login?next=/forum">anmelden</a><%= registrationOpen ? '' : '.' %><% if (registrationOpen) { %> oder <a href="/register">registrieren</a>.<% } %></span><% } %>
   <small><%= total %> <%= total === 1 ? "Thema" : "Themen" %></small>
 </div>
-<% if (!topics.length) { %><p class="muted">Noch keine Themen. Fang doch eins an!</p><% } else { %>
+<%# Suche, Sortierung und Abo-Filter bleiben beim Blättern und Umsortieren erhalten %>
+<% const qs = (o) => '/forum?' + new URLSearchParams(Object.entries(Object.assign({ q, sort, dir, abos: mine ? '1' : '' }, o)).filter(([, v]) => v)).toString();
+   const sortLink = (key, label) => { const on = sort === key; const d = on && dir === 'desc' ? 'asc' : 'desc';
+     return `<a href="${qs({ sort: key, dir: d, page: '' })}" class="sort${on ? ' on' : ''}">${label}${on ? (dir === 'desc' ? ' ▼' : ' ▲') : ''}</a>`; }; %>
+<form method="get" action="/forum" class="board-search">
+  <input type="search" name="q" value="<%= q %>" placeholder="Im Forum suchen …" aria-label="Im Forum suchen">
+  <label>Sortieren: <select name="sort">
+    <% for (const [k, l] of [['last', 'Letzte Antwort'], ['created', 'Erstellt'], ['views', 'Aufrufe'], ['replies', 'Antworten']]) { %><option value="<%= k %>"<%= sort === k ? ' selected' : '' %>><%= l %></option><% } %>
+  </select></label>
+  <select name="dir" aria-label="Richtung"><option value="desc"<%= dir === 'desc' ? ' selected' : '' %>>absteigend</option><option value="asc"<%= dir === 'asc' ? ' selected' : '' %>>aufsteigend</option></select>
+  <% if (user) { %><label class="inline"><input type="checkbox" name="abos" value="1"<%= mine ? ' checked' : '' %>> 🔔 nur Abos</label><% } %>
+  <button class="small">🔍 Suchen</button><% if (q || mine || sort !== 'last' || dir !== 'desc') { %> <a href="/forum" class="btn small">Zurücksetzen</a><% } %>
+</form>
+<% if (!topics.length) { %><p class="muted"><%= q ? 'Nichts gefunden.' : mine ? 'Du hast noch keine Themen abonniert.' : 'Noch keine Themen. Fang doch eins an!' %></p><% } else { %>
 <table class="list board">
-  <tr><th>Thema</th><th class="num">Antworten</th><th>Letzter Beitrag</th></tr>
+  <tr><th><%- sortLink('created', 'Thema') %></th><th class="num"><%- sortLink('replies', 'Antworten') %></th><th class="num"><%- sortLink('views', 'Aufrufe') %></th><th><%- sortLink('last', 'Letzter Beitrag') %></th></tr>
   <% for (const t of topics) { %>
   <tr>
-    <td><%= t.pinned ? '📌 ' : '' %><%= t.locked ? '🔒 ' : '' %><a href="/forum/t/<%= t.id %>"><b><%= t.title %></b></a>
+    <td><%= t.pinned ? '📌 ' : '' %><%= t.locked ? '🔒 ' : '' %><% if (t.subscribed) { %><span title="Abonniert">🔔 </span><% } %><a href="/forum/t/<%= t.id %>"><b><%= t.title %></b></a>
       <br><small>von <% if (t.author_url) { %><a href="<%= t.author_url %>"><%= t.author %></a><% } else { %><%= t.author %><% } %> · <%= fmtDate(t.created_at) %></small></td>
     <td class="num"><%= t.replies %></td>
+    <td class="num"><%= t.views %></td>
     <td><a href="/forum/t/<%= t.id %>?page=last"><%= fmtDate(t.last_post_at, true) %></a><br><small><% if (t.last_url) { %><a href="<%= t.last_url %>"><%= t.last_author %></a><% } else { %><%= t.last_author %><% } %></small></td>
   </tr>
   <% } %>
 </table>
 <% } %>
 <% if (pages > 1) { %>
-  <p class="actions"><% for (let i = 1; i <= pages; i++) { %><a class="btn small" href="/forum?page=<%= i %>"><%= i === page ? '[' + i + ']' : i %></a><% } %></p>
+  <p class="actions"><% for (let i = 1; i <= pages; i++) { %><a class="btn small" href="<%= qs({ page: i > 1 ? String(i) : '' }) %>"><%= i === page ? '[' + i + ']' : i %></a><% } %></p>
 <% } %>
 <%- include('partials/foot') %>

@@ -2,6 +2,11 @@
 <p><a href="/forum">« Zurück zum Forum</a></p>
 <h1><%= topic.pinned ? '📌 ' : '' %><%= topic.locked ? '🔒 ' : '' %><%= topic.title %></h1>
 <% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+<div class="actions" style="margin-top:0">
+  <small class="muted">👁 <%= topic.views %> Aufrufe</small>
+  <% if (user) { %><form method="post" action="/forum/t/<%= topic.id %>/sub" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="on" value="<%= subscribed ? '0' : '1' %>">
+    <button class="small" title="<%= subscribed ? 'Keine Benachrichtigungen mehr zu diesem Thema' : 'Bei neuen Antworten benachrichtigen' %>"><%= subscribed ? '🔕 Abo beenden' : '🔔 Abonnieren' %></button></form><% } %>
+</div>
 <% if (user && user.isAdmin) { %>
 <div class="actions" style="margin-top:0">
   <form method="post" action="/forum/t/<%= topic.id %>/pin" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small"><%= topic.pinned ? 'Nicht mehr anpinnen' : '📌 Anpinnen' %></button></form>
@@ -15,11 +20,15 @@
       <span><%= fmtDate(p.created_at, true) %><% if (p.edited_at) { %> · bearbeitet<% } %></span></div>
     <div class="panel">
       <div class="content"><%- p.html %></div>
-      <% if (p.editable) { %>
+      <% const canReply = user && (!topic.locked || user.isAdmin); %>
+      <% if (p.editable || canReply) { %>
       <div class="actions post-actions">
+        <% if (canReply) { %><button type="button" class="small" data-quote="<%= p.body_md %>" data-quote-who="<%= p.anonymous ? 'Anonym' : p.author %>">❝ Zitieren</button><% } %>
+        <% if (p.editable) { %>
         <a class="btn small" href="/forum/p/<%= p.id %>/edit">✏️ Bearbeiten</a>
         <form method="post" action="/forum/p/<%= p.id %>/delete" class="inline" data-confirm="<%= p.first ? 'Das ganze Thema löschen?' : 'Beitrag löschen?' %>">
           <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">🗑 Löschen</button></form>
+        <% } %>
       </div>
       <% } %>
     </div>
@@ -33,8 +42,8 @@
 <% } else if (topic.locked && !user.isAdmin) { %>
   <p class="muted">🔒 Dieses Thema ist geschlossen.</p>
 <% } else { %>
-<fieldset class="groupbox"><legend>✍️ Antworten</legend>
-<form method="post" action="/forum/t/<%= topic.id %>/reply">
+<fieldset class="groupbox" id="antworten"><legend>✍️ Antworten</legend>
+<form method="post" action="/forum/t/<%= topic.id %>/reply" id="reply-form">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <%- include('partials/md-editor', { name: 'body_md', value: '', uploadUrl: '/forum/media', previewUrl: '/forum/preview', libraryUrl: null, compact: true }) %>
   <%- include('partials/anonymous', { checked: replyAnon }) %>

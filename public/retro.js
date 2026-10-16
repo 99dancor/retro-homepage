@@ -47,6 +47,19 @@
     sel.addEventListener('change', upd); upd();
   });
 
+  // Forum: „Zitieren“ hängt den Beitrag als Zitat an die Antwort an
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-quote]');
+    var ta = b && document.querySelector('#reply-form textarea[name=body_md]');
+    if (!ta) return;
+    var quote = '> **' + b.dataset.quoteWho.replace(/[*_\[\]]/g, '') + '** schrieb:\n' +
+      b.dataset.quote.trim().split('\n').map(function (l) { return '> ' + l; }).join('\n') + '\n\n';
+    ta.value = (ta.value.trim() ? ta.value.replace(/\s*$/, '\n\n') : '') + quote;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('antworten').scrollIntoView({ block: 'nearest' });
+    ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  });
+
   // Gespräch mit Privatnachrichten: ans Ende scrollen, Strg+Enter sendet, Neues lädt nach (solange nichts getippt ist)
   var chat = document.getElementById('chat');
   if (chat) {

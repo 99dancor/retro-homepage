@@ -54,6 +54,10 @@ const SNIPPETS = {
   artworkSee: ['src/paint.js', 'function canSee(user, a) {', 7],
   paintPrefs: ['public/paint.js', "var PREF_KEY = 'paint'", 1],
   wallpaper: ['public/display.js', 'function setWallpaper(img, mode) {', 11],
+  artworkDraft: ['src/db.js', "addColumn('artworks', 'draft'", 1],
+  artworkPainters: ['src/db.js', 'CREATE TABLE IF NOT EXISTS artwork_painters (', 6],
+  paintCursor: ['src/paintlobby.js', 'function cursor(l, user, sid, b) {', 5],
+  paintChat: ['src/paintlobby.js', 'function chat(l, user, text) {', 10],
 };
 
 let cache = null;

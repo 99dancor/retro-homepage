@@ -2,7 +2,7 @@
 <%# Paint: Pixel-Rechnung in public/paint-core.js, Oberfläche in public/paint.js %>
 <% const tools = [['free','Freihandauswahl'],['select','Auswahl'],['eraser','Radierer/Farbradierer'],['fill','Farbfüller'],['pick','Farbe auswählen'],['zoom','Lupe'],['pencil','Stift'],['brush','Pinsel'],['spray','Sprühdose'],['text','Text'],['line','Linie'],['curve','Kurve'],['rect','Rechteck'],['poly','Vieleck'],['ellipse','Ellipse'],['rrect','Abgerundetes Rechteck']]; %>
 <div class="pt" id="paint" data-csrf="<%= csrf %>" data-site="<%= site.title %>" data-user="<%= user ? user.id : '' %>" data-username="<%= user ? user.username : '' %>"
-     data-save="<%= canSave ? '1' : '' %>" data-gallery="<%= galleryOn ? '1' : '' %>" data-maxw="<%= maxW %>" data-maxh="<%= maxH %>">
+     data-save="<%= canSave ? '1' : '' %>" data-gallery="<%= galleryOn ? '1' : '' %>" data-lobbies="<%= lobbiesOn ? '1' : '' %>" data-maxw="<%= maxW %>" data-maxh="<%= maxH %>">
   <div class="pt-menu" role="menubar"><span class="spacer"></span><span class="pt-doc" data-doc></span></div>
   <div class="pt-fontbar window" hidden>
     <div class="titlebar"><span class="ttl">Schriftarten</span></div>
@@ -22,13 +22,24 @@
     <div class="pt-stage" tabindex="0" aria-label="Bild">
       <div class="pt-sheet">
         <canvas id="pt-canvas"></canvas>
+        <canvas id="pt-remote" aria-hidden="true"></canvas>
         <canvas id="pt-overlay" aria-hidden="true"></canvas>
+        <div class="pt-cursors" aria-hidden="true"></div>
         <div class="pt-grid" hidden></div>
         <div class="pt-selframe" hidden><% for (const d of ['nw','n','ne','w','e','sw','s','se']) { %><i class="pt-h" data-dir="<%= d %>"></i><% } %></div>
         <div class="pt-resize" hidden></div>
         <div class="pt-sizer"><% for (const d of ['nw','n','ne','w','e','sw','s','se']) { %><i class="pt-h<%= ['e','s','se'].includes(d) ? '' : ' hollow' %>" data-dir="<%= d %>"<%= ['e','s','se'].includes(d) ? ' data-live' : '' %>></i><% } %></div>
       </div>
     </div>
+    <aside class="pt-side" hidden aria-label="Lobby">
+      <div class="pt-side-head"><b data-lobby="name"></b><small data-lobby="info"></small>
+        <div class="actions"><button type="button" class="small" data-lobby-act="link" title="Einladungslink">🔗 Einladen</button><button type="button" class="small" data-lobby-act="settings" title="Einstellungen der Lobby">⚙️</button><button type="button" class="small" data-lobby-act="leave">Verlassen</button></div></div>
+      <ul class="pt-people" data-lobby="people"></ul>
+      <div class="pt-chat" data-lobby="chat">
+        <div class="pt-chat-log" data-lobby="log" aria-live="polite"></div>
+        <form class="pt-chat-form" data-lobby="chatform"><input type="text" name="text" maxlength="300" placeholder="Nachricht …" aria-label="Nachricht an die Lobby" autocomplete="off"><button type="submit" class="small">Senden</button></form>
+      </div>
+    </aside>
   </div>
   <div class="pt-bottom">
     <button type="button" class="pt-cur" title="Vorder- und Hintergrundfarbe (antippen tauscht sie)"><i class="fg"></i><i class="bg"></i></button>
@@ -60,4 +71,6 @@
 </svg>
 <script src="<%= asset('paint-core.js') %>"></script>
 <script src="<%= asset('paint.js') %>"></script>
+<% if (lobbiesOn && user) { %><script src="<%= asset('usermenu.js') %>"></script>
+<script src="<%= asset('paint-lobby.js') %>"></script><% } %>
 <%- include('partials/foot') %>

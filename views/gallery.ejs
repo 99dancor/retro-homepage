@@ -9,7 +9,7 @@
   <div class="gal-grid">
   <% for (const a of artworks) { %>
     <a class="gal-item" href="/galerie/<%= a.id %>"><img src="/paint/bild/<%= a.id %>/vorschau.png?v=<%= a.updated %>" alt="<%= a.title %>" loading="lazy">
-      <b><%= a.title %></b><small><%= owner ? '' : 'von ' + a.by + ' · ' %><%= a.date %><%= a.visibility === 'members' ? ' · 👥' : a.visibility === 'private' ? ' · 🔒' : '' %><%= a.pending ? ' · wartet auf Freigabe' : '' %></small></a>
+      <b><%= a.title %></b><small><%= owner && owner.username === a.byUser ? '' : 'von ' + a.by + ' · ' %><%= a.with ? 'mit ' + a.with + ' · ' : '' %><%= a.date %><%= a.visibility === 'members' ? ' · 👥' : a.visibility === 'private' ? ' · 🔒' : '' %><%= a.pending ? ' · wartet auf Freigabe' : '' %></small></a>
   <% } %>
   </div>
 <% } %>

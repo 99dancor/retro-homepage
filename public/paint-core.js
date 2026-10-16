@@ -430,6 +430,31 @@
     return (h >>> 0).toString(16) + ':' + b.w + 'x' + b.h;
   }
 
+  // Befehle für das ganze Bild (Bild-Menü, Leinwandgröße). In Lobbys schickt der Browser nur den Befehl,
+  // Server und alle Browser führen ihn auf ihrem Stand aus: so bleibt gleichzeitig Gemaltes erhalten.
+  // Gibt das neue Bild zurück (bei gleicher Größe dasselbe Objekt, geändert) oder null bei unbekanntem Befehl.
+  function run(b, cmd, maxW, maxH) {
+    var n = function (v, lo, hi, d) { v = Math.round(Number(v)); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; };
+    var color = function (v) { return n(v, 0, 0xffffff, 0xffffff); };
+    switch (cmd && cmd.t) {
+      case 'resize': return resize(b, n(cmd.w, 1, maxW, b.w), n(cmd.h, 1, maxH, b.h), color(cmd.bg));
+      case 'flipH': return flipH(b);
+      case 'flipV': return flipV(b);
+      case 'rotate': return [90, 180, 270].indexOf(Number(cmd.deg)) >= 0 ? rotate(b, Number(cmd.deg)) : null;
+      case 'stretch': {
+        var sx = n(cmd.sx, 1, 500, 100), sy = n(cmd.sy, 1, 500, 100), ax = n(cmd.ax, -89, 89, 0), ay = n(cmd.ay, -89, 89, 0);
+        var out = sx !== 100 || sy !== 100 ? scale(b, Math.min(maxW, Math.max(1, Math.round(b.w * sx / 100))), Math.min(maxH, Math.max(1, Math.round(b.h * sy / 100)))) : b;
+        if (ax || ay) out = skew(out, ax, ay, color(cmd.bg));
+        if (out.w > maxW || out.h > maxH) out = crop(out, 0, 0, Math.min(out.w, maxW), Math.min(out.h, maxH));
+        return out === b ? clone(b) : out;
+      }
+      case 'invert': invert(b); return b;
+      case 'mono': monochrome(b); return b;
+      case 'clear': clear(b, color(cmd.bg)); return b;
+      default: return null;
+    }
+  }
+
   // Die 28 Farben der Palette von Windows 98
   var PALETTE = [0x000000, 0x808080, 0x800000, 0x808000, 0x008000, 0x008080, 0x000080, 0x800080, 0x808040, 0x004040, 0x0080ff, 0x004080, 0x8000ff, 0x804000,
     0xffffff, 0xc0c0c0, 0xff0000, 0xffff00, 0x00ff00, 0x00ffff, 0x0000ff, 0xff00ff, 0xffff80, 0x00ff80, 0x80ffff, 0x8080ff, 0xff0080, 0xff8040];
@@ -441,6 +466,6 @@
     flipH: flipH, flipV: flipV, rotate: rotate, scale: scale, skew: skew, invert: invert, resize: resize, monochrome: monochrome,
     polyMask: polyMask, applyMask: applyMask,
     emptyBox: emptyBox, growXY: growXY, merge: merge, clip: clip,
-    encodeBMP: encodeBMP, hash: hash, rng: rng, toHex: toHex, fromHex: fromHex, PALETTE: PALETTE,
+    run: run, encodeBMP: encodeBMP, hash: hash, rng: rng, toHex: toHex, fromHex: fromHex, PALETTE: PALETTE,
   };
 }));

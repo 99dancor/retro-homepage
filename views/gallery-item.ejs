@@ -1,6 +1,6 @@
 <%- include('partials/head') %>
 <h1>🖼️ <%= a.title %></h1>
-<p>von <a href="<%= profileUrl(a.byUser) %>"><%= a.by %></a> · <%= a.date %> · <%= a.w %> × <%= a.h %> Pixel · <%= size %>
+<p>von <a href="<%= profileUrl(a.byUser) %>"><%= a.by %></a><% if (painters.length) { %> mit <% painters.forEach((p, i) => { %><%= i ? ', ' : '' %><a href="<%= profileUrl(p.user) %>"><%= p.name %></a><% }) %><% } %> · <%= a.date %> · <%= a.w %> × <%= a.h %> Pixel · <%= size %>
   · <%= a.visibility === 'public' ? '🌐 öffentlich' : a.visibility === 'members' ? '👥 für Mitglieder' : '🔒 privat' %><%= a.pending ? ' (wartet auf Freigabe)' : '' %></p>
 <div class="panel gal-full"><img src="/paint/bild/<%= a.id %>.png?v=<%= a.updated %>" alt="<%= a.title %>" width="<%= a.w %>" height="<%= a.h %>"></div>
 <div class="actions">

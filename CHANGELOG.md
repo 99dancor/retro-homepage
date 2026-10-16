@@ -1,5 +1,16 @@
 # Changelog
 
+## 16.10.2026 – Gemeinsam malen in Paint
+
+- **Lobbys:** Im neuen Menü „Lobby“ machst du eine Lobby auf, mit leerer Leinwand oder dem Bild, das gerade offen ist. Über Lobbys… siehst du offene Lobbys und gehst hinein, über Einladungslink… kommt man per Link direkt dazu. Bis zu 16 Mitglieder malen gleichzeitig am selben Bild, alle sehen jede Änderung sofort, auch Drehen, Strecken oder Bild löschen.
+- **Live dabei:** Du siehst, wo die anderen gerade mit der Maus sind und was sie malen, noch bevor sie loslassen. Rechts steht, wer in der Lobby ist. Ein Klick auf einen Namen öffnet das Nutzermenü.
+- **Unterhaltung:** Jede Lobby hat einen eigenen Chat.
+- **Rückgängig:** Jeder nimmt nur die eigenen Änderungen zurück, bis zu 10 Schritte, und nur, solange niemand darübergemalt hat.
+- **Gastgeber:** Wer die Lobby aufmacht, ist Gastgeber und kann sie verstecken, den Chat ausschalten, festlegen, dass nur Freigegebene malen dürfen, einzelnen Leuten das Malrecht geben oder nehmen und die Lobby schließen. Geht der Gastgeber, übernimmt der Nächste.
+- **Speichern mit Mitmalern:** Jeder in der Lobby kann das Bild in sein Konto speichern und dabei ankreuzen, wer mitgemalt hat. Mitmaler finden das Bild unter Datei → Öffnen → „Gemeinsam gemalt“, sehen es auch, wenn es privat ist, und stehen in der Galerie und im Profil mit „mit …“ dabei. Wer nicht genannt werden möchte, trägt sich dort aus.
+- **Entwurf:** Jede Minute und beim Schließen speichert die Lobby einen privaten Entwurf bei dem, der sie aufgemacht hat. So geht nichts verloren, wenn alle gehen. Speichert er das Bild, verschwindet der Entwurf.
+- **Für den Admin:** Unter Admin → Paint schaltest du Lobbys an oder aus und siehst und schließt offene Lobbys. Was die Seite zu Lobbys, Entwürfen und Mitmalern speichert, steht auf der Datenschutzseite.
+
 ## 16.10.2026 – Paint
 
 - **Paint:** Neu im Startmenü unter 🎨 Paint, so nah am Paint aus Windows 98 wie möglich. Alle 16 Werkzeuge sind da: Freihand- und Rechteckauswahl, Radierer und Farbradierer, Farbfüller, Pipette, Lupe, Stift, Pinsel in 12 Formen, Sprühdose, Text, Linie, Kurve, Rechteck, Vieleck, Ellipse und abgerundetes Rechteck. Gemalt wird Pixel für Pixel ohne Kantenglättung, wie früher.

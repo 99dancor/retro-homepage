@@ -9,7 +9,7 @@
 
   var CSRF = root.dataset.csrf, SITE = root.dataset.site || '';
   var ME = root.dataset.user ? { id: Number(root.dataset.user), name: root.dataset.username } : null;
-  var CAN_SAVE = root.dataset.save === '1', GALLERY = root.dataset.gallery === '1';
+  var CAN_SAVE = root.dataset.save === '1', GALLERY = root.dataset.gallery === '1', LOBBIES = root.dataset.lobbies === '1';
   var MAX_W = Number(root.dataset.maxw) || 2000, MAX_H = Number(root.dataset.maxh) || 2000;
   var PREF_KEY = 'paint';
   var $ = function (sel, el) { return (el || root).querySelector(sel); };
@@ -52,8 +52,10 @@
   var textBox = null;    // offenes Textfeld
   var multi = null;      // Vieleck oder Kurve in Arbeit
   var seed = (Date.now() & 0xffff) * 7919;
+  var moving = false;    // schwebende Auswahl wird gerade gezogen
+  var lobby = null;      // Anbindung an public/paint-lobby.js, solange man in einer Lobby malt
 
-  var stage = $('.pt-stage'), sheet = $('.pt-sheet'), cv = $('#pt-canvas'), ov = $('#pt-overlay');
+  var stage = $('.pt-stage'), sheet = $('.pt-sheet'), cv = $('#pt-canvas'), ov = $('#pt-overlay'), rv = $('#pt-remote');
   var ctx = cv.getContext('2d'), octx = ov.getContext('2d');
   var frame = $('.pt-selframe'), gridEl = $('.pt-grid'), sizer = $('.pt-sizer');
   var statusText = $('[data-status=text]'), statusPos = $('[data-status=pos]'), statusSize = $('[data-status=size]');
@@ -64,7 +66,7 @@
     img = b;
     committed = P.clone(b);
     imgData = new ImageData(img.d, img.w, img.h);
-    cv.width = ov.width = img.w; cv.height = ov.height = img.h;
+    cv.width = ov.width = rv.width = img.w; cv.height = ov.height = rv.height = img.h;
     if (!keepHistory) { undo = []; redo = []; }
     applyZoom();
     refresh();
@@ -76,8 +78,8 @@
   }
   function applyZoom() {
     var w = img.w * zoom + 'px', h = img.h * zoom + 'px';
-    cv.style.width = ov.style.width = gridEl.style.width = w;
-    cv.style.height = ov.style.height = gridEl.style.height = h;
+    cv.style.width = ov.style.width = rv.style.width = gridEl.style.width = w;
+    cv.style.height = ov.style.height = rv.style.height = gridEl.style.height = h;
     sheet.style.width = w; sheet.style.height = h;
     gridEl.hidden = !(prefs.grid && zoom >= 4);
     gridEl.style.backgroundSize = zoom + 'px ' + zoom + 'px';
@@ -85,6 +87,7 @@
     drawSel();
     if (textBox) placeText();
     statusSize.textContent = sel ? sel.w + ' × ' + sel.h : img.w + ' × ' + img.h;
+    if (lobby) lobby.zoomed();
   }
   function setZoom(z, cx, cy) {
     var old = zoom;
@@ -98,17 +101,21 @@
 
   // ---------- Rückgängig ----------
   // Ein Schritt merkt sich nur das geänderte Rechteck vorher und nachher, bei neuer Größe das ganze Bild
+  // In einer Lobby geht der Schritt stattdessen an den Server (cmd: Befehl für das ganze Bild, siehe P.run)
   function bytes(e) { return e.full ? e.before.d.length + e.after.d.length : e.before.d.length * 2; }
-  function commit(box) {
+  function commit(box, cmd) {
     var r = box && P.clip(box, img);
     if (!r && box !== 'full') return;
     var e;
-    if (box === 'full' || committed.w !== img.w || committed.h !== img.h) e = { full: true, before: committed, after: P.clone(img) };
+    if (box === 'full' || committed.w !== img.w || committed.h !== img.h) e = { full: true, before: committed, after: P.clone(img), cmd: cmd || null };
     else e = { r: r, before: P.crop(committed, r.x, r.y, r.w, r.h), after: P.crop(img, r.x, r.y, r.w, r.h) };
-    undo.push(e);
-    redo = [];
-    var total = 0;
-    for (var i = undo.length - 1; i >= 0; i--) { total += bytes(undo[i]); if (undo.length - i > HISTORY || total > HISTORY_BYTES) { undo.splice(0, i + 1); break; } }
+    if (lobby) lobby.commit(e);
+    else {
+      undo.push(e);
+      redo = [];
+      var total = 0;
+      for (var i = undo.length - 1; i >= 0; i--) { total += bytes(undo[i]); if (undo.length - i > HISTORY || total > HISTORY_BYTES) { undo.splice(0, i + 1); break; } }
+    }
     if (e.full) committed = P.clone(img); else P.blit(committed, e.after, r.x, r.y);
     doc.dirty = true;
     updateTitle();
@@ -126,8 +133,8 @@
     refresh(e.r);
     doc.dirty = true;
   }
-  function doUndo() { if (textBox) return closeText(false); if (multi) return cancelMulti(); if (sel && !sel.lifted) return dropSel(false); step(undo, redo, true); }
-  function doRedo() { step(redo, undo, false); }
+  function doUndo() { if (textBox) return closeText(false); if (multi) return cancelMulti(); if (sel && !sel.lifted) return dropSel(false); if (lobby) { dropSel(true); return lobby.undo(false); } step(undo, redo, true); }
+  function doRedo() { if (lobby) { finishAll(); return lobby.undo(true); } step(redo, undo, false); }
 
   // ---------- Werkzeuge ----------
   var TOOLS = [
@@ -237,7 +244,7 @@
   function updateTitle() {
     var t = (doc.title || 'unbenannt') + ' – Paint';
     document.title = t + (SITE ? ' – ' + SITE : '');
-    $('[data-doc]').textContent = doc.id ? (doc.dirty ? '✱ ungespeichert' : '💾 gespeichert') : '';
+    $('[data-doc]').textContent = lobby ? '👥 Lobby' : doc.id ? (doc.draft ? '📝 Entwurf' : doc.dirty ? '✱ ungespeichert' : '💾 gespeichert') : '';
   }
 
   // ---------- Maus ----------
@@ -275,6 +282,7 @@
     e.preventDefault();
     stage.focus({ preventScroll: true });
     var p = pos(e), c = colors(e);
+    if (lobby && !lobby.canPaint() && tool !== 'pick' && tool !== 'zoom') { hint('Du siehst in dieser Lobby nur zu. Der Gastgeber kann dir Malrechte geben.'); return; }
     if (textBox) { closeText(true); if (tool === 'text') return; }
     // Klick in die schwebende Auswahl verschiebt sie, daneben wird sie abgesetzt
     if (sel && (tool === 'select' || tool === 'free' || sel.pasted)) {
@@ -287,10 +295,12 @@
     if (t === 'pencil' || t === 'brush') {
       var st = t === 'pencil' ? P.stamp('square', 1) : P.stamp(BRUSHES[prefs.opts.brush][0], BRUSHES[prefs.opts.brush][1]);
       busy = { t: t, last: p, box: P.stroke(img, [p], c[0], st), st: st, c: c[0] };
+      busy.pv = t === 'pencil' ? { k: 's', c: c[0], sh: 'square', sz: 1, pts: [p] } : { k: 's', c: c[0], sh: BRUSHES[prefs.opts.brush][0], sz: BRUSHES[prefs.opts.brush][1], pts: [p] };
       refresh(busy.box);
     } else if (t === 'eraser') {
       var only = e.button === 2 ? fg : null;
       busy = { t: t, last: p, size: ERASER[prefs.opts.eraser], only: only };
+      busy.pv = { k: 's', c: bg, sh: 'square', sz: busy.size, pts: [p] };
       busy.box = P.erase(img, [p], busy.size, bg, only);
       refresh(busy.box);
     } else if (t === 'spray') {
@@ -340,14 +350,15 @@
   sheet.addEventListener('pointermove', function (e) {
     var p = pos(e);
     statusPos.textContent = inImg(p) ? p[0] + ', ' + p[1] : '';
+    if (lobby) lobby.moved(p);
     if (!busy) { if (multi && multi.t === 'poly' && multi.pts.length > 1) { multi.pts[multi.pts.length - 1] = e.shiftKey ? constrain(multi.pts[multi.pts.length - 2], p) : p; previewPoly(); } return; }
     var t = busy.t;
     if (t === 'pencil' || t === 'brush') {
       var b = P.stroke(img, [busy.last, p], busy.c, busy.st);
-      P.merge(busy.box, b); refresh(b); busy.last = p;
+      P.merge(busy.box, b); refresh(b); busy.last = p; busy.pv.pts.push(p);
     } else if (t === 'eraser') {
       var eb = P.erase(img, [busy.last, p], busy.size, bg, busy.only);
-      P.merge(busy.box, eb); refresh(eb); busy.last = p;
+      P.merge(busy.box, eb); refresh(eb); busy.last = p; busy.pv.pts.push(p);
     } else if (t === 'spray') busy.p = p;
     else if (t === 'line' || t === 'rect' || t === 'ellipse' || t === 'rrect') { busy.b = p; previewShape(e); }
     else if (t === 'curve') { if (multi.stage === 0) { multi.pts[3] = e.shiftKey ? constrain(multi.pts[0], p) : p; multi.pts[1] = multi.pts[0]; multi.pts[2] = multi.pts[3]; previewCurve(); } else bendCurve(p); }
@@ -404,6 +415,7 @@
     if (b.prev) restore(b.prev);
     var end = e.shiftKey ? constrain(b.a, b.b, b.t !== 'line') : b.b;
     var box = b.t === 'line' ? P.line(img, b.a[0], b.a[1], end[0], end[1], b.c[0], WIDTH()) : P.shape(img, b.t, b.a[0], b.a[1], end[0], end[1], shapeOpts(b.c));
+    b.pv = { k: b.t, a: b.a, b: end, c: b.c[0], w: WIDTH(), o: b.t === 'line' ? null : shapeOpts(b.c) };
     b.prev = { x0: box.x0 - 1, y0: box.y0 - 1, x1: box.x1 + 1, y1: box.y1 + 1 };
     refresh(b.prev);
     statusSize.textContent = (Math.abs(end[0] - b.a[0]) + 1) + ' × ' + (Math.abs(end[1] - b.a[1]) + 1);
@@ -473,10 +485,15 @@
   function lift() {
     if (!sel || sel.lifted) return;
     var s = sel.src;
+    // Frisch ausschneiden: in einer Lobby kann sich die Stelle inzwischen geändert haben
+    sel.bmp = P.crop(img, s.x, s.y, s.w, s.h);
+    if (s.mask) P.applyMask(sel.bmp, s.mask);
     P.fillRect(img, s.x, s.y, s.w, s.h, bg, s.mask);
     P.merge(sel.box, { x0: s.x, y0: s.y, x1: s.x + s.w - 1, y1: s.y + s.h - 1 });
     sel.lifted = true;
     refresh(s);
+    // In einer Lobby sehen die anderen das Loch sofort, das Absetzen kommt als eigener Schritt
+    if (lobby) { commit(sel.box); sel.box = P.emptyBox(); }
   }
   // Bild der Auswahl in ihrer jetzigen Größe, bei „durchsichtig“ ohne die Hintergrundfarbe
   function selBitmap() {
@@ -515,6 +532,7 @@
     if (copy && sel.lifted) stampSel();
     if (!sel.lifted) { if (copy) sel.lifted = true; else lift(); P.merge(sel.box, { x0: sel.src.x, y0: sel.src.y, x1: sel.src.x + sel.src.w - 1, y1: sel.src.y + sel.src.h - 1 }); }
     sheet.setPointerCapture(e.pointerId);
+    moving = true;
     var dx = p[0] - sel.x, dy = p[1] - sel.y;
     var move = function (ev) {
       var q = pos(ev);
@@ -523,7 +541,12 @@
       drawSel();
       statusPos.textContent = sel.x + ', ' + sel.y;
     };
-    var up = function () { sheet.removeEventListener('pointermove', move); sheet.removeEventListener('pointerup', up); sheet.removeEventListener('pointercancel', up); };
+    var up = function () {
+      sheet.removeEventListener('pointermove', move); sheet.removeEventListener('pointerup', up); sheet.removeEventListener('pointercancel', up);
+      moving = false;
+      // Spur (Umschalt) oder liegen gebliebene Kopie (Strg) gleich an die Lobby
+      if (lobby && sel && sel.box.x1 >= sel.box.x0) { commit(sel.box); sel.box = P.emptyBox(); }
+    };
     sheet.addEventListener('pointermove', move);
     sheet.addEventListener('pointerup', up);
     sheet.addEventListener('pointercancel', up);
@@ -568,7 +591,7 @@
     if (b.w > img.w || b.h > img.h) {
       return msgbox('Das eingefügte Bild ist größer als das Bild. Soll das Bild vergrößert werden?', '❓', ['Ja', 'Nein', 'Abbrechen']).then(function (r) {
         if (r === 'Abbrechen') return;
-        if (r === 'Ja') { img = P.resize(img, clamp(Math.max(b.w, img.w), 1, MAX_W), clamp(Math.max(b.h, img.h), 1, MAX_H), bg); setImage(img, true); commit('full'); }
+        if (r === 'Ja') imageCmd({ t: 'resize', w: clamp(Math.max(b.w, img.w), 1, MAX_W), h: clamp(Math.max(b.h, img.h), 1, MAX_H), bg: bg });
         place();
       });
     }
@@ -760,14 +783,20 @@
     h.addEventListener('pointerup', up);
   });
   function resizeTo(w, h) {
-    setImage(P.resize(img, w, h, bg), true);
-    commit('full');
+    imageCmd({ t: 'resize', w: w, h: h, bg: bg });
     prefs.size = [w, h]; savePrefs();
+  }
+  // Befehl für das ganze Bild (P.run): alleine wie jeder Schritt, in einer Lobby geht nur der Befehl an die anderen
+  function imageCmd(cmd) {
+    var out = P.run(img, cmd, MAX_W, MAX_H);
+    if (!out) return;
+    setImage(out, true);
+    commit('full', cmd);
   }
 
   // ---------- Bild-Menü ----------
   // Mit Auswahl wirken die Befehle nur auf die Auswahl, sonst auf das ganze Bild
-  function transform(fn) {
+  function transform(fn, cmd) {
     if (sel) {
       lift();
       var b = fn(selBitmap());
@@ -776,8 +805,7 @@
       return;
     }
     finishAll();
-    setImage(fn(img), true);
-    commit('full');
+    imageCmd(cmd);
   }
   function flipRotate() {
     dialog('Kippen/Drehen', '<fieldset class="groupbox"><legend>Kippen oder drehen</legend>' +
@@ -788,7 +816,7 @@
     ['OK', 'Abbrechen']).then(function (r) {
       if (r.button !== 'OK') return;
       var m = r.form.m.value, a = Number(r.form.a.value);
-      transform(function (b) { return m === 'h' ? P.flipH(b) : m === 'v' ? P.flipV(b) : P.rotate(b, a); });
+      transform(function (b) { return m === 'h' ? P.flipH(b) : m === 'v' ? P.flipV(b) : P.rotate(b, a); }, m === 'h' ? { t: 'flipH' } : m === 'v' ? { t: 'flipV' } : { t: 'rotate', deg: a });
     });
   }
   function stretchSkew() {
@@ -807,14 +835,13 @@
         if (ax || ay) out = P.skew(out, ax, ay, bg);
         if (out.w > MAX_W || out.h > MAX_H) out = P.crop(out, 0, 0, Math.min(out.w, MAX_W), Math.min(out.h, MAX_H));
         return out === b ? P.clone(b) : out;
-      });
+      }, { t: 'stretch', sx: sx, sy: sy, ax: ax, ay: ay, bg: bg });
     });
   }
   function invertColors() {
     if (sel) { lift(); var b = selBitmap(); P.invert(b); sel.bmp = b; drawSel(); return; }
     finishAll();
-    P.invert(img); refresh();
-    commit({ x0: 0, y0: 0, x1: img.w - 1, y1: img.h - 1 });
+    imageCmd({ t: 'invert' });
   }
   function attributes() {
     dialog('Attribute', '<p><small>Gespeichert: ' + (doc.id ? esc(doc.title) : 'noch nicht') + '</small></p>' +
@@ -828,14 +855,13 @@
       var h = r.button === 'Standard' ? 480 : clamp(Number(r.form.h.value) || img.h, 1, MAX_H);
       finishAll();
       if (w !== img.w || h !== img.h) resizeTo(w, h);
-      if (r.form.c.value === 'bw') { P.monochrome(img); refresh(); commit('full'); }
+      if (r.form.c.value === 'bw') imageCmd({ t: 'mono' });
     });
   }
   function clearImage() {
     if (sel) return deleteSel();
     finishAll();
-    P.clear(img, bg); refresh();
-    commit({ x0: 0, y0: 0, x1: img.w - 1, y1: img.h - 1 });
+    imageCmd({ t: 'clear', bg: bg });
   }
   function cropToSel() {
     if (!sel) return;
@@ -999,7 +1025,7 @@
     return fetch(url, { method: opts.method || (opts.body || opts.json ? 'POST' : 'GET'), headers: headers, body: opts.json ? JSON.stringify(opts.json) : opts.body, credentials: 'same-origin' })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || 'Das hat nicht geklappt (' + r.status + ').'); return j; }); });
   }
-  var VIS = { public: '🌐 öffentlich' + (GALLERY ? ' (auch in der Galerie)' : ''), members: '👥 alle angemeldeten Mitglieder', private: '🔒 nur ich' };
+  var VIS = { public: '🌐 öffentlich' + (GALLERY ? ' (auch in der Galerie)' : ''), members: '👥 alle angemeldeten Mitglieder', private: '🔒 nur ich (und wer mitgemalt hat)' };
   function visSelect(v) { return '<select name="vis" class="w100">' + Object.keys(VIS).map(function (k) { return '<option value="' + k + '"' + (k === v ? ' selected' : '') + '>' + VIS[k] + '</option>'; }).join('') + '</select>'; }
   function needLogin(what) {
     return msgbox(what + ' geht nur mit Konto. Melde dich an (das Bild bleibt hier offen, bis du das Fenster schließt) oder speichere es mit „Auf meinem PC speichern“ als Datei.', 'ℹ️', ['Anmelden', 'Auf meinem PC speichern…', 'Abbrechen']).then(function (r) {
@@ -1011,7 +1037,10 @@
     finishAll();
     if (!ME) return needLogin('Speichern');
     if (!CAN_SAVE) return msgbox('Speichern ist für dein Konto nicht freigeschaltet. Du kannst das Bild aber auf deinem PC speichern.', 'ℹ️', ['Auf meinem PC speichern…', 'OK']).then(function (r) { if (r !== 'OK') downloadDialog(); });
-    if (doc.id && doc.mine && !asNew) return upload('/paint/bild/' + doc.id + '/bild', null);
+    if (lobby) return lobby.save(asNew);
+    // Ein Entwurf aus einer Lobby bekommt beim ersten Speichern Titel und Sichtbarkeit und wird ein normales Bild
+    var draft = doc.id && doc.mine && doc.draft && !asNew;
+    if (doc.id && doc.mine && !asNew && !draft) return upload('/paint/bild/' + doc.id + '/bild', null);
     return dialog('Speichern unter', '<label>Titel<input type="text" name="title" maxlength="80" class="w100" value="' + esc(doc.title === 'unbenannt' ? '' : doc.title) + '" required></label>' +
       '<label>Wer darf es sehen?</label>' + visSelect(doc.visibility || 'private') +
       '<p><small>Gespeichert wird es unter „Meine Bilder“ (Datei → Öffnen). Ändern kannst du Titel und Sichtbarkeit dort unter „Eigenschaften“.</small></p>',
@@ -1019,7 +1048,7 @@
       if (r.button === 'Auf meinem PC speichern…') return downloadDialog();
       if (r.button !== 'Speichern') return;
       var title = r.form.title.value.trim() || 'unbenannt';
-      return upload('/paint/bilder', { title: title, visibility: r.form.vis.value });
+      return upload(draft ? '/paint/bild/' + doc.id + '/bild' : '/paint/bilder', { title: title, visibility: r.form.vis.value });
     });
   }
   function upload(url, meta) {
@@ -1036,12 +1065,16 @@
     }).catch(function (e) { hint(); msgbox(e.message, '⚠️'); });
   }
   function openedDoc(a) {
-    doc = { id: a.id, title: a.title, visibility: a.visibility, mine: a.mine, dirty: false };
+    doc = { id: a.id, title: a.title, visibility: a.visibility, mine: a.mine, draft: a.draft, dirty: false };
     updateTitle();
     if (history.replaceState) history.replaceState(null, '', '/paint?bild=' + a.id);
   }
   // Fragt bei ungespeicherten Änderungen nach, wie Paint es tat
   function confirmDiscard() {
+    if (lobby) {
+      return msgbox('Dafür verlässt du die Lobby. Das gemeinsame Bild bleibt für die anderen offen und wird als Entwurf gesichert.', 'ℹ️', ['Lobby verlassen', 'Abbrechen'])
+        .then(function (r) { if (r !== 'Lobby verlassen') return false; lobby.leave(); return true; });
+    }
     if (!doc.dirty || (!undo.length && !doc.id)) return Promise.resolve(true);
     return msgbox('Sollen die Änderungen in „' + (doc.title || 'unbenannt') + '“ gespeichert werden?', '⚠️', ['Ja', 'Nein', 'Abbrechen']).then(function (r) {
       if (r === 'Abbrechen') return false;
@@ -1082,20 +1115,23 @@
   function openDialog(tab) {
     finishAll();
     tab = tab || (ME ? 'mine' : 'gallery');
-    var tabs = (ME ? '<button type="button" class="tab" data-tab="mine">Meine Bilder</button>' : '') + (GALLERY ? '<button type="button" class="tab" data-tab="gallery">Galerie</button>' : '');
+    var tabs = (ME ? '<button type="button" class="tab" data-tab="mine">Meine Bilder</button>' : '') + (ME && LOBBIES ? '<button type="button" class="tab" data-tab="shared">Gemeinsam gemalt</button>' : '') +
+      (GALLERY ? '<button type="button" class="tab" data-tab="gallery">Galerie</button>' : '');
     var dlg = dialog('Öffnen', '<div class="tabs">' + tabs + '</div><div class="tabpane"><div class="pt-files" data-files><p>Lade …</p></div></div>',
       ['Öffnen', 'Vom PC öffnen…', 'Abbrechen'], 'open-dialog');
     var box = dlg.el, list = box.querySelector('[data-files]'), items = [], chosen = null;
     var extra = document.createElement('div');
     extra.className = 'actions pt-file-actions';
     extra.innerHTML = '<button type="button" data-a="png" class="small">⬇ PNG</button><button type="button" data-a="tile" class="small">🖼️ Als Hintergrund</button>' +
-      '<button type="button" data-a="props" class="small" data-mine>Eigenschaften…</button><button type="button" data-a="del" class="small danger" data-mine>Löschen</button><span data-info class="muted"></span>';
+      '<button type="button" data-a="props" class="small" data-mine>Eigenschaften…</button><button type="button" data-a="del" class="small danger" data-mine>Löschen</button>' +
+      '<button type="button" data-a="quit" class="small" data-shared title="Dich als Mitmaler austragen">Austragen</button><span data-info class="muted"></span>';
     list.parentNode.appendChild(extra);
     function pick(a) {
       chosen = a;
       list.querySelectorAll('figure').forEach(function (f) { f.classList.toggle('sel', a && Number(f.dataset.id) === a.id); });
-      extra.querySelectorAll('button').forEach(function (b) { b.disabled = !a || (b.hasAttribute('data-mine') && !a.mine); });
-      extra.querySelector('[data-info]').textContent = a ? a.w + ' × ' + a.h + ' · ' + VIS[a.visibility].split(' (')[0] + (a.pending ? ' · wartet auf Freigabe' : '') : '';
+      extra.querySelectorAll('button').forEach(function (b) { b.disabled = !a || (b.hasAttribute('data-mine') && !a.mine); b.hidden = b.hasAttribute('data-shared') && tab !== 'shared'; });
+      extra.querySelector('[data-info]').textContent = a ? a.w + ' × ' + a.h + ' · ' + VIS[a.visibility].split(' (')[0] + (a.draft ? ' · Entwurf aus einer Lobby' : '') +
+        (a.with ? ' · mit ' + a.with : '') + (a.pending ? ' · wartet auf Freigabe' : '') : '';
     }
     function load(t) {
       tab = t;
@@ -1105,9 +1141,9 @@
         items = j.artworks;
         var quota = j.quota ? '<p class="pt-quota"><small>Belegt: ' + (j.quota.used / 1048576).toFixed(1) + ' MB von ' + Math.round(j.quota.total / 1048576) + ' MB</small></p>' : '';
         list.innerHTML = quota + (items.length ? '<div class="pt-thumbs">' + items.map(function (a) {
-          return '<figure data-id="' + a.id + '" tabindex="0"><img src="/paint/bild/' + a.id + '/vorschau.png?v=' + a.updated + '" alt="" loading="lazy"><b>' + esc(a.title) + '</b>' +
-            '<small>' + (t === 'gallery' ? 'von ' + esc(a.by) + ' · ' : '') + esc(a.date) + '</small></figure>';
-        }).join('') + '</div>' : '<p class="muted">' + (t === 'mine' ? 'Noch keine gespeicherten Bilder. Mal etwas und wähle Datei → Speichern.' : 'Noch keine öffentlichen Bilder.') + '</p>');
+          return '<figure data-id="' + a.id + '" tabindex="0"><img src="/paint/bild/' + a.id + '/vorschau.png?v=' + a.updated + '" alt="" loading="lazy"><b>' + (a.draft ? '📝 ' : '') + esc(a.title) + '</b>' +
+            '<small>' + (t !== 'mine' ? 'von ' + esc(a.by) + ' · ' : '') + esc(a.date) + '</small></figure>';
+        }).join('') + '</div>' : '<p class="muted">' + ({ mine: 'Noch keine gespeicherten Bilder. Mal etwas und wähle Datei → Speichern.', shared: 'Hier stehen Bilder anderer, an denen du in einer Lobby mitgemalt hast.' }[t] || 'Noch keine öffentlichen Bilder.') + '</p>');
         pick(null);
       }).catch(function (e) { list.innerHTML = '<p class="msg err">' + esc(e.message) + '</p>'; });
     }
@@ -1122,6 +1158,9 @@
       if (k === 'png') { var l = document.createElement('a'); l.href = '/paint/bild/' + a.id + '.png?download=1'; l.click(); }
       if (k === 'tile') fetch('/paint/bild/' + a.id + '.png').then(function (r) { return r.blob(); }).then(function (bl) { return blobToDataUrl(bl); }).then(function (u) { wallpaper(u, 'tile'); });
       if (k === 'props') props(a).then(function () { load(tab); });
+      if (k === 'quit') msgbox('Dich aus „' + a.title + '“ austragen? Das Bild bleibt bei ' + a.by + ', du findest es dann nicht mehr hier.', '⚠️', ['Ja', 'Nein']).then(function (r) {
+        if (r === 'Ja') api('/paint/bild/' + a.id + '/austragen', { json: {} }).then(function () { load(tab); }, function (er) { msgbox(er.message, '⚠️'); });
+      });
       if (k === 'del') msgbox('„' + a.title + '“ endgültig löschen?', '⚠️', ['Ja', 'Nein']).then(function (r) {
         if (r !== 'Ja') return;
         api('/paint/bild/' + a.id + '/loeschen', { json: {} }).then(function () {
@@ -1201,7 +1240,9 @@
       '<p><b>Auswahl:</b> Ziehen verschiebt, mit Strg bleibt eine Kopie liegen, mit Umschalt zieht sie eine Spur. Die Anfasser strecken. „Durchsichtig“ lässt die Hintergrundfarbe weg. Pfeiltasten schieben um ein Pixel.</p>' +
       '<p><b>Bilder einfügen:</b> Strg+V, Datei ins Bild ziehen oder Bearbeiten → Einfügen aus Datei.</p>' +
       '<p><b>Tastenkürzel:</b> Strg+Z rückgängig, Strg+Y wiederholen, Strg+A alles markieren, Strg+C/X/V, Entf, Strg+S speichern, Strg+O öffnen, Strg+R kippen/drehen, Strg+I Farben umkehren, Strg+E Attribute, Strg+G Raster, Strg+F Bild anzeigen. Strg+N, Strg+T und Strg+W gehören im Browser dem Browser und gehen hier nicht.</p>' +
-      '<p><b>Speichern:</b> Mit Konto unter Datei → Speichern auf dieser Seite, ohne Konto als Datei auf deinem PC (PNG, BMP oder JPEG).</p></div>', ['OK'], 'help-dialog');
+      '<p><b>Speichern:</b> Mit Konto unter Datei → Speichern auf dieser Seite, ohne Konto als Datei auf deinem PC (PNG, BMP oder JPEG).</p>' +
+      (LOBBIES ? '<p><b>Gemeinsam malen:</b> Unter Lobby → Neue Lobby malst du mit anderen Mitgliedern an einem Bild, Einladen geht per Link. Rückgängig nimmt nur deine eigenen Schritte zurück, solange niemand darübergemalt hat. Speichern legt das gemeinsame Bild bei dir ab, die Mitmaler findest du dabei zum Ankreuzen.</p>' : '') +
+      '</div>', ['OK'], 'help-dialog');
   }
   function zoomDialog() {
     dialog('Benutzerdefinierter Zoom', '<p>Aktueller Zoom: ' + zoom * 100 + ' %</p><fieldset class="groupbox"><legend>Zoom auf</legend>' +
@@ -1236,8 +1277,8 @@
       ['Als Hintergrund (zentriert)', '', function () { setWallpaper('center'); }],
     ]],
     ['Bearbeiten', [
-      ['Rückgängig', 'Strg+Z', doUndo, function () { return !undo.length && !sel && !multi && !textBox; }],
-      ['Wiederholen', 'Strg+Y', doRedo, function () { return !redo.length; }],
+      ['Rückgängig', 'Strg+Z', doUndo, function () { return !lobby && !undo.length && !sel && !multi && !textBox; }],
+      ['Wiederholen', 'Strg+Y', doRedo, function () { return !lobby && !redo.length; }],
       '-',
       ['Ausschneiden', 'Strg+X', function () { copySel(true); }, function () { return !sel; }],
       ['Kopieren', 'Strg+C', function () { copySel(false); }, function () { return !sel; }],
@@ -1285,6 +1326,21 @@
       ['Info über Paint', '', about],
     ]],
   ];
+  // Lobby (neu): gemeinsam malen, siehe public/paint-lobby.js
+  function lobbyAction(k) {
+    if (!ME) return needLogin('Gemeinsam malen');
+    if (window.RetroPaintLobby) window.RetroPaintLobby[k]();
+  }
+  if (LOBBIES) {
+    MENUS.splice(MENUS.length - 1, 0, ['Lobby', [
+      ['Lobbys…', '', function () { lobbyAction('list'); }],
+      ['Neue Lobby…', '', function () { lobbyAction('create'); }],
+      '-',
+      ['Einladungslink…', '', function () { lobbyAction('link'); }, function () { return !lobby; }],
+      ['Einstellungen…', '', function () { lobbyAction('settings'); }, function () { return !lobby || !lobby.isHost(); }],
+      ['Lobby verlassen', '', function () { lobbyAction('leave'); }, function () { return !lobby; }],
+    ]]);
+  }
   var menubar = $('.pt-menu'), openMenu = null;
   MENUS.forEach(function (m, i) {
     var b = document.createElement('button');
@@ -1432,6 +1488,17 @@
       });
     }).catch(function (e) { msgbox(e.message, '⚠️'); });
   }
+  // Für public/paint-lobby.js: attach(hooks) schaltet auf gemeinsames Malen um, attach(null) wieder zurück
+  var internals = {
+    P: P, ME: ME, CSRF: CSRF, CAN_SAVE: CAN_SAVE, MAX_W: MAX_W, MAX_H: MAX_H, VIS: VIS, sheet: sheet, stage: stage, remote: rv,
+    get img() { return img; }, get committed() { return committed; }, get zoom() { return zoom; }, get bg() { return bg; },
+    get size() { return prefs.size; }, get busyPreview() { return busy && busy.pv ? busy.pv : null; },
+    idle: function () { return !busy && !multi && !moving; },
+    setImage: setImage, refresh: refresh, finishAll: finishAll, hint: hint, msgbox: msgbox, dialog: dialog, api: api, esc: esc, clamp: clamp,
+    visSelect: visSelect, toBlob: toBlob, confirmDiscard: confirmDiscard, openedDoc: openedDoc, downloadDialog: downloadDialog,
+    setDoc: function (d) { doc = Object.assign({ id: null, title: 'unbenannt', visibility: 'private', mine: true, dirty: false }, d); updateTitle(); },
+    attach: function (hooks) { lobby = hooks; undo = []; redo = []; updateTitle(); },
+  };
   // Für Tests und den Rauchtest im Browser
-  window.RetroPaint = { get image() { return img; }, P: P, setTool: setTool, commit: commit, refresh: refresh, get doc() { return doc; } };
+  window.RetroPaint = { get image() { return img; }, P: P, setTool: setTool, commit: commit, refresh: refresh, get doc() { return doc; }, internals: internals };
 }());

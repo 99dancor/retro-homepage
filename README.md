@@ -140,7 +140,7 @@ strenger möchte, setzt `TRUST_PROXY` auf die IP des Pi.
 | **Ton** | Knopf 🔊 neben der Uhr: Lautstärke für Musik und Effekte, „Ton aus“. Fenster öffnen/schließen, Startmenü und Fehlermeldungen klingen wie bei Windows (eigene, im Browser erzeugte Klänge), das Haustier-Spiel hat Tierstimmen und Effekte |
 | **Mein Haustier** | Eingebautes Spiel unter `/haustier/` (Startmenü): Haustier aussuchen, täglich versorgen, Münzen verdienen und im Shop ausgeben. Gäste spielen im Browser, mit Konto wird im Konto gespeichert. Details in [`games/haustier/README.md`](games/haustier/README.md) |
 | **Blackjack** | Eingebautes Kartenspiel unter `/blackjack` (Startmenü) für angemeldete Mitglieder: Tische mit bis zu 5 Plätzen und Zuschauern, live per Server-Sent Events; gemischt und gegeben wird auf dem Server. Spielgeld: Start mit 1.000 €, Nachkaufen ohne Limit unter 200 €. Bilanz (Chips minus alles Eingekaufte), Bestenliste und Zahlen im Profil. Buy-in, Nachkauf-Grenze, Decks, Soft-17-Regel und Bedenkzeit unter Einstellungen; Bestenliste oder einzelne Bilanzen zurücksetzbar |
-| **Paint** | Nachbau von Paint aus Windows 98 unter `/paint` (Startmenü): alle 16 Werkzeuge mit ihren Pinselgrößen, 28er-Farbpalette und „Farben bearbeiten“, Auswahl verschieben, strecken und durchsichtig einsetzen, Bilder einfügen (Zwischenablage, Ziehen, Datei), Kippen/Drehen, Strecken/Zerren, Attribute, Zoom mit Raster, Rückgängig. Gäste malen und laden herunter (PNG, BMP, JPG); Mitglieder speichern im Konto (privat, für Mitglieder oder öffentlich) und setzen Bilder als Hintergrund. Öffentliche Bilder stehen in der 🖼️ Galerie und im Profil. Speicher pro Mitglied, Höchstgröße, Gäste, Galerie und Freigabe durch den Admin unter Admin → Paint |
+| **Paint** | Nachbau von Paint aus Windows 98 unter `/paint` (Startmenü): alle 16 Werkzeuge mit ihren Pinselgrößen, 28er-Farbpalette und „Farben bearbeiten“, Auswahl verschieben, strecken und durchsichtig einsetzen, Bilder einfügen (Zwischenablage, Ziehen, Datei), Kippen/Drehen, Strecken/Zerren, Attribute, Zoom mit Raster, Rückgängig. Gäste malen und laden herunter (PNG, BMP, JPG); Mitglieder speichern im Konto (privat, für Mitglieder oder öffentlich) und setzen Bilder als Hintergrund. Öffentliche Bilder stehen in der 🖼️ Galerie und im Profil. Lobbys zum gemeinsamen Malen mit Live-Zeigern, Chat, eigenem Rückgängig, Malrechten vom Gastgeber, Entwurf beim Ersteller und Mitmalern beim Speichern („Gemeinsam gemalt“). Speicher pro Mitglied, Höchstgröße, Gäste, Galerie, Lobbys und Freigabe durch den Admin unter Admin → Paint |
 | **Spiele & Apps** | HTML5-Spiele als ZIP hochladen (Godot, Unity WebGL, Phaser, eigenes JS …) oder externe Dienste einbetten |
 | **Design** | Farben, Hintergrundbild (kacheln/füllen/zentriert), Schrift, Lauftext, Besucherzähler, eigenes CSS, 5 Vorlagen |
 | **Statistik** | Seitenaufrufe & Besucher pro Tag, Top-Seiten, Herkunft, Geräte, aktive Mitglieder – ohne Cookies, ohne gespeicherte IPs |
@@ -190,7 +190,7 @@ Danach „Test-E-Mail senden“.
 ```bash
 npm install
 npm run dev        # http://localhost:3000, Daten landen in ./data
-npm test           # Rauchtest (startet den Server und klickt die wichtigsten Wege durch), Blackjack-Regeln, Paint-Werkzeuge und Tests des Haustier-Spiels
+npm test           # Rauchtest (startet den Server und klickt die wichtigsten Wege durch), Blackjack-Regeln, Paint-Werkzeuge, Paint-Lobbys und Tests des Haustier-Spiels
 ```
 
 Das Haustier-Spiel liegt in `games/haustier/src` (HTML/CSS/JS ohne Build-Schritt) und läuft lokal unter

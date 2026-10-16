@@ -20,6 +20,7 @@ function gate(req, res, next) {
   next();
 }
 router.use(gate);
+router.use(require('./paintlobby'));
 router.use(express.json({ limit: '20kb' }));
 router.use((req, res, next) => { if (req.path !== '/') res.set('Cache-Control', 'no-store'); next(); });
 function needLogin(req, res, next) { return req.user ? next() : fail(res, 401, 'Bitte melde dich an.'); }
@@ -43,10 +44,10 @@ router.get('/', (req, res) => {
   // blob: für eingefügte Bilder und Downloads aus dem Browser
   res.set('Content-Security-Policy', res.get('Content-Security-Policy').replace("img-src 'self' https: data:;", "img-src 'self' https: data: blob:;"));
   const m = paint.maxSize();
-  res.render('paint', { title: 'Paint', canSave: paint.canSave(req.user), galleryOn: paint.galleryOn(), maxW: m.w, maxH: m.h });
+  res.render('paint', { title: 'Paint', canSave: paint.canSave(req.user), galleryOn: paint.galleryOn(), lobbiesOn: paint.lobbiesOn(), maxW: m.w, maxH: m.h });
 });
 
-// Listen für „Datei → Öffnen“: eigene Bilder oder die Galerie
+// Listen für „Datei → Öffnen“: eigene Bilder, gemeinsam gemalte oder die Galerie
 router.get('/bilder', (req, res) => {
   const u = req.user;
   if (req.query.tab === 'gallery') {
@@ -54,14 +55,14 @@ router.get('/bilder', (req, res) => {
     return res.json({ artworks: paint.gallery(u, 300).map(a => paint.row(a, u)) });
   }
   if (!u) return fail(res, 401, 'Bitte melde dich an.');
-  const list = db.prepare(`SELECT a.*, u.username, u.display_name FROM artworks a JOIN users u ON u.id = a.owner_id
-                           WHERE a.owner_id = ? ORDER BY a.updated_at DESC, a.id DESC`).all(u.id);
+  if (req.query.tab === 'shared') return res.json({ artworks: paint.shared(u.id).map(a => paint.row(a, u)) });
+  const list = paint.mine(u.id);
   res.json({ artworks: list.map(a => paint.row(a, u)), quota: paint.canSave(u) && !u.isAdmin ? { used: paint.usedBytes(u.id), total: paint.quotaBytes() } : null });
 });
 router.get('/bilder/:id', (req, res) => {
   const a = paint.get(req.params.id);
   if (!paint.canSee(req.user, a)) return fail(res, 404, 'Dieses Bild gibt es nicht (oder du darfst es nicht sehen).');
-  res.json({ artwork: paint.row(a, req.user) });
+  res.json({ artwork: { ...paint.row(a, req.user), painters: paint.painters(a.id), painter: !!req.user && paint.isPainter(a.id, req.user.id) } });
 });
 
 // Bild und Vorschau ausliefern
@@ -104,10 +105,12 @@ router.post('/bild/:id/bild', needLogin, needSave, auth.csrfCheck, own, files, (
   if (a.owner_id !== u.id) return fail(res, 403, 'Das Bild gehört jemand anderem. Speichere eine eigene Kopie mit „Speichern unter“.');
   const size = f.image.length + f.thumb.length;
   if (!u.isAdmin && paint.usedBytes(u.id) - a.size + size > paint.quotaBytes()) return fail(res, 413, `Dein Speicher für Bilder ist voll (${fmtSize(paint.quotaBytes())}).`);
-  const name = paint.store(f.image, f.thumb);
+  const name = paint.store(f.image, f.thumb), b = req.body || {};
+  // Ein Entwurf aus einer Lobby wird beim Speichern ein normales Bild, auf Wunsch mit neuem Titel und neuer Sichtbarkeit
+  const title = str(b.title) || a.title, vis = paint.VIS.includes(b.visibility) ? b.visibility : a.visibility;
   // Ein geändertes öffentliches Bild muss bei eingeschalteter Freigabe neu freigegeben werden
-  db.prepare('UPDATE artworks SET width = ?, height = ?, stored_name = ?, size = ?, approved = ?, updated_at = ? WHERE id = ?')
-    .run(f.w, f.h, name, size, paint.needsApproval(u, a.visibility) ? 0 : a.approved, now(), a.id);
+  db.prepare('UPDATE artworks SET title = ?, visibility = ?, width = ?, height = ?, stored_name = ?, size = ?, approved = ?, draft = 0, updated_at = ? WHERE id = ?')
+    .run(title, vis, f.w, f.h, name, size, paint.needsApproval(u, vis) ? 0 : vis === a.visibility ? a.approved : 1, now(), a.id);
   paint.removeFiles(a.stored_name);
   const n = paint.get(a.id);
   res.json({ artwork: paint.row(n, u), note: noteFor(n) });
@@ -120,6 +123,11 @@ router.post('/bild/:id', needLogin, own, (req, res) => {
   db.prepare('UPDATE artworks SET title = ?, visibility = ?, approved = ? WHERE id = ?').run(title, vis, approved, a.id);
   const n = paint.get(a.id);
   res.json({ artwork: paint.row(n, req.user), note: noteFor(n) });
+});
+// Mitmaler tragen sich selbst aus einem Bild aus
+router.post('/bild/:id/austragen', needLogin, (req, res) => {
+  const r = db.prepare('DELETE FROM artwork_painters WHERE artwork_id = ? AND user_id = ?').run(Number(req.params.id), req.user.id);
+  return r.changes ? res.json({ ok: true }) : fail(res, 404, 'Du stehst bei diesem Bild nicht als Mitmaler.');
 });
 router.post('/bild/:id/loeschen', needLogin, own, (req, res) => {
   db.prepare('DELETE FROM artworks WHERE id = ?').run(req.art.id);
@@ -142,7 +150,7 @@ gallery.get('/', (req, res) => {
 gallery.get('/:id', (req, res) => {
   const a = paint.get(req.params.id);
   if (!paint.canSee(req.user, a)) return res.status(404).render('error', { title: 'Nicht gefunden', message: 'Dieses Bild gibt es nicht (oder du darfst es nicht sehen).' });
-  res.render('gallery-item', { title: a.title, a: paint.row(a, req.user), size: fmtSize(a.size) });
+  res.render('gallery-item', { title: a.title, a: paint.row(a, req.user), painters: paint.painters(a.id), size: fmtSize(a.size) });
 });
 
 // Für Admin → Paint

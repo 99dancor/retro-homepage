@@ -23,11 +23,11 @@
 <% if (!visible) { %>
   <div class="msg">🔒 <%= u.profile_visibility === 'friends' ? 'Dieses Profil sehen nur Freunde von ' + displayName(u) + '.' : 'Dieses Profil sehen nur angemeldete Mitglieder.' %></div>
 <% } else { %>
-  <% if (me && u.profile_visibility !== 'public') { %><p><small class="muted">🔒 Sichtbar für: <%= u.profile_visibility === 'friends' ? 'nur deine Freunde' : 'angemeldete Mitglieder' %> (änderbar unter <a href="/account#profil">Mein Konto</a>)</small></p><% } %>
+  <% if (me && u.profile_visibility !== 'public') { %><p><small class="muted">🔒 Sichtbar für: <%= u.profile_visibility === 'friends' ? 'nur deine Freunde' : 'angemeldete Mitglieder' %> (änderbar unter <a href="/account#profil">Kontoeinstellungen</a>)</small></p><% } %>
   <% if (u.about) { %><fieldset class="groupbox"><legend>Über mich</legend><p class="about"><%= u.about %></p></fieldset><% } %>
 
   <fieldset class="groupbox"><legend>🎮 Spielstatistik</legend>
-  <% if (!games.length) { %><p class="muted"><%= me ? 'Noch nichts gespielt. Mit Konto zählen' : 'Noch keine Spiele. Mit Konto zählen' %> <a href="/apps">Spiele &amp; Apps</a><% if (!navHidden.includes('haustier')) { %> und <a href="/haustier/">Mein Haustier</a><% } %> hier mit.</p>
+  <% if (!games.length) { %><p class="muted"><%= me ? 'Noch nichts gespielt. Mit Konto zählen' : 'Noch keine Spiele. Mit Konto zählen' %> <a href="/apps">Andere Games</a><% if (!navHidden.includes('haustier')) { %> und <a href="/haustier/">Mein Haustier</a><% } %> hier mit.</p>
   <% } else { %>
     <div class="game-stats">
     <% for (const g of games) { %>

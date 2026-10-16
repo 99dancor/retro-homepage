@@ -509,7 +509,7 @@ router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, 
 const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days', 'music_quota_mb',
   'bj_buyin', 'bj_rebuy_below', 'bj_decks', 'bj_turn'];
 const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure', 'lobby_enabled', 'youtube_enabled', 'bj_enabled', 'bj_h17'];
-const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Spiele & Apps', haustier: 'Mein Haustier', musik: 'Musik', zufall: 'Zufallsgenerator', blackjack: 'Blackjack', paint: 'Paint', galerie: 'Galerie', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
+const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Andere Games', haustier: 'Mein Haustier', musik: 'Musikplayer', zufall: 'Zufallsgenerator', blackjack: 'Blackjack', paint: 'Paint', galerie: 'Galerie', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
 router.get('/settings', (req, res) => {
   const s = Object.fromEntries([...SETTING_KEYS, ...SETTING_FLAGS, 'nav_hidden', 'music_upload'].map(k => [k, getSetting(k, '')]));
   s.smtp_pass_set = !!getSetting('smtp_pass');

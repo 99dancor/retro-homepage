@@ -12,7 +12,7 @@
   var btn = document.getElementById('startbtn'), menu = document.getElementById('startmenu');
   // Klangeffekte aus sound.js (🔊 neben der Uhr); fehlt das Skript, bleibt es still
   function sound(name) { if (window.RetroSound) window.RetroSound.play(name); }
-  function closeMenu() { if (menu) { menu.classList.remove('open'); btn.setAttribute('aria-expanded', false); } }
+  function closeMenu() { if (menu) { menu.classList.remove('open'); btn.setAttribute('aria-expanded', false); menu.querySelectorAll('.sub.open').forEach(function (s) { s.classList.remove('open'); }); } }
   if (btn && menu) {
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
@@ -21,6 +21,15 @@
       if (open) sound('menue');
     });
     document.addEventListener('click', closeMenu);
+    // Untermenüs per Klick/Antippen auf- und zuklappen, immer nur eins offen
+    menu.querySelectorAll('.sub-toggle').forEach(function (t) {
+      t.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var sub = t.parentNode, open = !sub.classList.contains('open');
+        menu.querySelectorAll('.sub.open').forEach(function (s) { s.classList.remove('open'); s.firstElementChild.setAttribute('aria-expanded', false); });
+        sub.classList.toggle('open', open); t.setAttribute('aria-expanded', open);
+      });
+    });
   }
   var clock = document.getElementById('clock');
   function tick() { if (clock) clock.textContent = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }

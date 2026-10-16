@@ -1,25 +1,31 @@
 <div class="startmenu" id="startmenu" data-title="<%= site.title %>">
   <a href="/">🏠 Startseite</a>
-  <% const entries = [['blog','/blog','📝 Blog'],['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['apps','/apps','🎮 Spiele & Apps'],['haustier','/haustier/','🐾 Mein Haustier'],['musik','/musik','🎵 Musik'],['zufall','/zufall','🎲 Zufallsgenerator'],['blackjack','/blackjack','🃏 Blackjack'],['paint','/paint','🎨 Paint'],['galerie','/galerie','🖼️ Galerie'],['board','/forum','💬 Forum'],['nutzer','/nutzer','👥 Mitglieder'],['guestbook','/guestbook','📖 Besucherbuch'],['contact','/contact','✉️ Kontakt']]; %>
-  <% for (const [key, href, label] of entries) {
-       if (navHidden.includes(key)) continue;
-       if (key === 'guestbook' && !guestbookEnabled) continue;
-       if (key === 'board' && !boardEnabled) continue;
-       if (key === 'blackjack' && !blackjackEnabled) continue;
-       if (key === 'paint' && !paintEnabled) continue;
-       if (key === 'galerie' && !galleryEnabled) continue;
-       if (key === 'contact' && !contactEnabled) continue; %>
-    <a href="<%= href %>"><%= label %></a>
-  <% } %>
+  <%# Einträge: [Schlüssel, Adresse, Beschriftung] oder [Gruppe, Beschriftung, [Einträge]] → Untermenü wie bei Windows 98 %>
+  <% const entries = [['blog','/blog','📝 Blog'],
+       ['dokumente','📂 Dokumente',[['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links']]],
+       ['spiele','🎮 Spiele und Apps',[['blackjack','/blackjack','🃏 Blackjack'],['paint','/paint','🎨 Paint'],['zufall','/zufall','🎲 Zufallsgenerator'],['musik','/musik','🎵 Musikplayer'],['apps','/apps','🕹️ Andere Games']]],
+       ['haustier','/haustier/','🐾 Mein Haustier'],['galerie','/galerie','🖼️ Galerie'],['board','/forum','💬 Forum'],['nutzer','/nutzer','👥 Mitglieder'],['guestbook','/guestbook','📖 Besucherbuch'],['contact','/contact','✉️ Kontakt']];
+     const shown = (key) => !(navHidden.includes(key) || (key === 'guestbook' && !guestbookEnabled) || (key === 'board' && !boardEnabled) ||
+       (key === 'blackjack' && !blackjackEnabled) || (key === 'paint' && !paintEnabled) || (key === 'galerie' && !galleryEnabled) || (key === 'contact' && !contactEnabled)); %>
+  <% for (const [key, a, b] of entries) {
+       if (Array.isArray(b)) { const items = b.filter(([k]) => shown(k)); if (!items.length) continue; %>
+    <div class="sub"><button type="button" class="menu-item sub-toggle" aria-expanded="false"><%= a %></button><div class="submenu">
+      <% for (const [, href, label] of items) { %><a href="<%= href %>"><%= label %></a><% } %>
+    </div></div>
+  <% } else if (shown(key)) { %>
+    <a href="<%= a %>"><%= b %></a>
+  <% } } %>
   <% for (const p of navPages) { %><a href="/p/<%= p.slug %>">📄 <%= p.title %></a><% } %>
   <hr>
   <a href="/changelog">📜 Changelog</a>
   <a href="/datenschutz">🔒 Datenschutz</a>
   <% if (user) { %>
     <% if (user.canUpload) { %><a href="/files/upload">📤 Datei hochladen</a><% } %>
-    <a href="<%= profileUrl(user.username) %>">👤 Mein Profil</a>
-    <a href="/nachrichten" id="pm-menu">💌 Nachrichten<% if (unreadPm) { %> (<%= unreadPm %>)<% } %></a>
-    <a href="/account">🔑 Mein Konto</a>
+    <div class="sub"><button type="button" class="menu-item sub-toggle" aria-expanded="false">👤 Mein Konto</button><div class="submenu">
+      <a href="<%= profileUrl(user.username) %>">👤 Mein Profil</a>
+      <a href="/nachrichten" id="pm-menu">💌 Nachrichten<% if (unreadPm) { %> (<%= unreadPm %>)<% } %></a>
+      <a href="/account">🔑 Kontoeinstellungen</a>
+    </div></div>
     <% if (user.isAdmin) { %><a href="/admin">⚙️ Systemsteuerung</a><% } %>
     <hr>
     <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="menu-item">🚪 <%= user.name %> abmelden…</button></form>

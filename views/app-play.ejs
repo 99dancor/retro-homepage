@@ -1,5 +1,5 @@
 <%- include('partials/head', { wide: true }) %>
-<p><a href="/apps">« Alle Spiele & Apps</a> · <a href="<%= src %>" target="_blank" rel="noopener">⛶ Vollbild / neues Fenster</a></p>
+<p><a href="/apps">« Alle anderen Games</a> · <a href="<%= src %>" target="_blank" rel="noopener">⛶ Vollbild / neues Fenster</a></p>
 <h1 style="margin-top:0"><%= app.title %></h1>
 <% if (app.description) { %><p><%= app.description %></p><% } %>
 <iframe class="app-frame" src="<%= src %>" title="<%= app.title %>" allow="fullscreen; gamepad; autoplay" allowfullscreen></iframe>

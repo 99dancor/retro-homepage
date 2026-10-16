@@ -227,7 +227,7 @@
   var POS = { 1: [50], 2: [30, 70], 3: [17, 50, 83], 4: [12, 37, 63, 88], 5: [10, 30, 50, 70, 90] };
   function seatHtml(s, i, st) {
     var pos = POS[st.seatCount][i], dy = Math.abs(pos - 50) * 1.3;
-    var style = 'left:' + pos + '%;top:calc(46% - ' + dy + 'px)';
+    var style = 'left:' + pos + '%;top:calc(46% - var(--c) * ' + (dy / 44).toFixed(2) + ')';
     if (!s) {
       return '<div class="bj-seat empty" style="' + style + '">' + (mySeat() ? '<span class="bj-free">frei</span>' : '<button type="button" class="small" data-sit="' + i + '">🪑 Hier hinsetzen</button>') + '</div>';
     }
@@ -390,7 +390,7 @@
       '<li><b>Verdoppeln</b> mit den ersten zwei Karten: doppelter Einsatz, genau eine Karte. <b>Teilen</b> einmal bei zwei gleichwertigen Karten; geteilte Asse bekommen nur noch je eine Karte.</li>' +
       '<li>Hat der Dealer Blackjack, ist die Runde sofort vorbei. Versicherung gibt es nicht.</li>' +
       '<li>Bedenkzeit pro Zug: ' + r.turn + ' Sekunden, danach hältst du automatisch. Wer das Fenster länger als anderthalb Minuten zu hat, steht nach der Runde auf.</li>' +
-      '<li>Tastatur am Tisch: <b>Z</b>iehen, <b>H</b>alten, <b>V</b>erdoppeln, <b>T</b>eilen.</li></ul></div>';
+      '<li>Tastatur am Tisch: <b>Z</b>iehen, <b>H</b>alten, <b>V</b>erdoppeln, <b>T</b>eilen. Doppelklick aufs Spielfeld hält ebenfalls.</li></ul></div>';
   }
 
   // ---------- Klicks und Tasten ----------
@@ -417,6 +417,12 @@
     else if (a === 'link') invite();
     else if (a === 'close') dialog('Tisch schließen', '<p>Den Tisch für alle schließen? Einsätze der laufenden Hand gehen zurück.</p>', [{ label: 'Schließen', value: 'ok', danger: true }, { label: 'Abbrechen', value: 'cancel' }])
       .then(function (r) { if (r === 'ok') req('POST', '/blackjack/tisch/' + encodeURIComponent(tab.id), { action: 'close' }).catch(oops); });
+  });
+  // Doppelklick aufs Spielfeld (nicht auf Knöpfe oder Namen) hält die Hand
+  main.addEventListener('dblclick', function (e) {
+    if (view !== 'tisch' || !e.target.closest('.bj-felt') || e.target.closest('button, a')) return;
+    var btn = main.querySelector('[data-act=stand]:not([disabled])');
+    if (btn) { e.preventDefault(); btn.click(); }
   });
   document.addEventListener('keydown', function (e) {
     if (view !== 'tisch' || dlg.open || e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;

@@ -1,5 +1,15 @@
 # Changelog
 
+## 16.10.2026 – Benachrichtigungen, Forum und neue Startseite
+
+- **Benachrichtigungen:** Neben der Uhr gibt es jetzt eine 🔔. Sie zählt mit und zeigt Freundschaftsanfragen, Privatnachrichten, Antworten in abonnierten Forenthemen, geknackte Rekorde, Erinnerungen von Mein Haustier und die tägliche Besuchsserie. Admins bekommen außerdem Hinweise zu Freigaben, Kontaktnachrichten, Registrierungen und neuen Forenthemen. Alle Benachrichtigungen stehen auch unter /benachrichtigungen.
+- **Push aufs Handy und in den Browser:** In den Kontoeinstellungen schaltest du Push für jedes Gerät einzeln ein. Auf dem iPhone geht das, sobald die Seite auf dem Home-Bildschirm liegt.
+- **Benachrichtigungscenter:** In den Kontoeinstellungen legst du für jede Art fest, ob sie in der 🔔 erscheint und ob sie als Push kommt.
+- **Startseite:** Links steht das Neueste aus Blog, Forum, Downloads und Besucherbuch, rechts stehen deine Benachrichtigungen. Gäste sehen dort Anmelden und Registrieren. Dazu gibt es einen kurzen Rundgang und einen Link zum Regelkodex (eigene Seite mit der Adresse `regeln`).
+- **Forum:** Du kannst nach Themen suchen und sie nach letzter Antwort, Erstellung, Aufrufen oder Antworten sortieren, auf- oder absteigend. Beiträge lassen sich zitieren und Themen abonnieren. Wer ein Thema beginnt oder antwortet, abonniert es automatisch.
+- **Blackjack:** Karten, Chips und Schrift wachsen mit dem Fenster mit.
+- **Startmenü:** Dokumente, Spiele und Apps sowie Mein Konto klappen wie bei Windows 98 zur Seite auf.
+
 ## 16.10.2026 – Gemeinsam malen in Paint
 
 - **Lobbys:** Im neuen Menü „Lobby“ machst du eine Lobby auf, mit leerer Leinwand oder dem Bild, das gerade offen ist. Über Lobbys… siehst du offene Lobbys und gehst hinein, über Einladungslink… kommt man per Link direkt dazu. Bis zu 16 Mitglieder malen gleichzeitig am selben Bild, alle sehen jede Änderung sofort, auch Drehen, Strecken oder Bild löschen.

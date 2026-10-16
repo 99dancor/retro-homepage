@@ -404,6 +404,7 @@
     else if (a === 'lobby-leave') leaveLobby();
     else if (a === 'lobby-link') copyLink();
     else if (a === 'lobby-settings') lobbySettings();
+    else if (a === 'lobby-user') lobbyUser(Number(b.dataset.user));
     else if (a === 'lobby-close') closeLobby();
     else if (a === 'lobby-clear') confirmBox('Warteschlange leeren', 'Alle Lieder aus der Warteschlange nehmen?', 'Leeren').then(function (ok) { if (ok) lobbyCtl('clear'); });
     else if (a === 'yt-add') addYoutube();
@@ -620,7 +621,14 @@
   }
   function currentLobbyItem() { return lob && lob.state ? lob.state.queue[lob.state.index] || null : null; }
   function lobbyPos() { var s = lob.state; return s.playing ? Math.max(0, (Date.now() + lob.offset - s.startedAt) / 1000) : s.pausedPos; }
-  function lobbyCanControl() { var s = lob && lob.state; return !!s && !!lib.me && (s.open || s.hostId === lib.me.id || lib.me.admin); }
+  function lobbyIsHost() { var s = lob && lob.state; return !!s && !!lib.me && (s.hostId === lib.me.id || lib.me.admin); }
+  function lobbyCanControl() {
+    var s = lob && lob.state;
+    if (!s || !lib.me) return false;
+    if (lobbyIsHost()) return true;
+    var me = s.listeners.filter(function (u) { return u.id === lib.me.id; })[0];
+    return me ? me.control : s.open;
+  }
   function lobbyCtl(action, extra, quiet) {
     if (!lob) return Promise.resolve();
     return post('/musik/lobby/' + encodeURIComponent(lob.id), Object.assign({ action: action }, extra || {})).catch(function (e) { if (!quiet) oops(e); });
@@ -665,9 +673,12 @@
   function lobbyHead() {
     var s = lob && lob.state;
     if (!s) return '<div class="mp-title"><b>🎧 Lobby</b> <small>verbinde …</small></div>';
-    var host = lib.me && (s.hostId === lib.me.id || lib.me.admin);
+    var host = lobbyIsHost();
     var h = '<div class="mp-title"><b>🔴 ' + esc(s.name) + '</b> <small>Gastgeber: ' + esc(s.host) + ' · ' + (s.open ? 'alle dürfen steuern' : 'nur der Gastgeber steuert') +
-      ' · hören zu: ' + s.listeners.map(esc).join(', ') + '</small></div><div class="mp-tools">' +
+      '</small></div><div class="mp-users" title="Auf einen Namen klicken für mehr">👥 ' + s.listeners.length + ': ' + s.listeners.map(function (u) {
+        return '<button type="button" class="small mp-user' + (lib.me && u.id === lib.me.id ? ' me' : '') + '" data-act="lobby-user" data-user="' + u.id + '">' +
+          (u.host ? '👑 ' : u.control ? '🎶 ' : '') + esc(u.name) + '</button>';
+      }).join('') + '</div><div class="mp-tools">' +
       '<button type="button" class="small" data-act="lobby-link">🔗 Einladungslink</button>' +
       (host ? '<button type="button" class="small" data-act="lobby-settings">⚙️ Einstellungen</button>' : '') +
       (lobbyCanControl() ? '<button type="button" class="small" data-act="lobby-clear">🧹 Leeren</button>' : '') +
@@ -707,6 +718,19 @@
     });
     var inp = dlg.querySelector('[name=link]');
     inp.select();
+  }
+  // Klick auf einen Zuhörer: was man mit ihm machen kann
+  function lobbyUser(id) {
+    var s = lob.state, u = s.listeners.filter(function (x) { return x.id === id; })[0];
+    if (!u) return;
+    var acts = [];
+    if (lib.me && lib.me.admin) acts.push({ label: '👤 Konto öffnen', value: 'account' });
+    if (lobbyIsHost() && !u.host) acts.push(u.control ? { label: '🚫 Player-Rechte entziehen', value: 'revoke' } : { label: '🎶 Player-Rechte geben', value: 'grant' });
+    acts.push({ label: 'Schließen', value: 'cancel' });
+    dialog('👤 ' + u.name, '<p>' + (u.host ? '👑 Gastgeber dieser Lobby.' : u.control ? '🎶 Darf den Player steuern und Lieder hinzufügen.' : '🎧 Hört nur zu.') + '</p>', acts).then(function (r) {
+      if (r === 'account') window.open('/admin/users/' + u.id, '_blank');
+      else if (r === 'grant' || r === 'revoke') lobbyCtl('rights', { user: u.id, allow: r === 'grant' });
+    });
   }
   function lobbySettings() {
     var s = lob.state;

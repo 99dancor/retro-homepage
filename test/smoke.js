@@ -545,7 +545,8 @@ async function main() {
         }
       };
       let st = await nextState();
-      assert.deepEqual(st.listeners, ['bernd']);
+      assert.deepEqual(st.listeners.map(u => [u.name, u.host, u.control]), [['bernd', false, false]]);
+      const berndId = st.listeners[0].id;
       assert.equal(st.queue.length, 0);
 
       const tracks = (await lib(anna)).tracks;
@@ -562,6 +563,21 @@ async function main() {
 
       assert.equal((await api(bernd, `/musik/lobby/${id}`, { action: 'pause' })).status, 403, 'nur der Gastgeber steuert');
       assert.equal((await api(bernd, `/musik/lobby/${id}`, { action: 'add', tracks: [pub.id] })).status, 403);
+      // Player-Rechte für einzelne Zuhörer: nur der Gastgeber vergibt sie
+      assert.equal((await api(bernd, `/musik/lobby/${id}`, { action: 'rights', user: berndId, allow: true })).status, 403);
+      assert.equal((await api(anna, `/musik/lobby/${id}`, { action: 'rights', user: berndId, allow: true })).status, 200);
+      st = await nextState();
+      assert.ok(st.listeners[0].control);
+      assert.equal((await api(bernd, `/musik/lobby/${id}`, { action: 'pause' })).status, 200);
+      st = await nextState();
+      assert.ok(!st.playing);
+      assert.equal((await api(bernd, `/musik/lobby/${id}`, { action: 'play' })).status, 200);
+      st = await nextState();
+      assert.ok(st.playing);
+      assert.equal((await api(anna, `/musik/lobby/${id}`, { action: 'rights', user: berndId, allow: false })).status, 200);
+      st = await nextState();
+      assert.ok(!st.listeners[0].control);
+      assert.equal((await api(bernd, `/musik/lobby/${id}`, { action: 'pause' })).status, 403, 'Rechte wieder entzogen');
       assert.equal((await api(anna, `/musik/lobby/${id}`, { action: 'settings', open: true })).status, 200);
       st = await nextState();
       assert.ok(st.open);

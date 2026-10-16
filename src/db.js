@@ -14,7 +14,8 @@ const MEDIA_DIR = path.join(DATA_DIR, 'media');
 const APPS_DIR = path.join(DATA_DIR, 'apps');
 const MUSIC_DIR = path.join(DATA_DIR, 'musik');
 const AVATAR_DIR = path.join(DATA_DIR, 'avatare');
-for (const d of [UPLOAD_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR, AVATAR_DIR]) fs.mkdirSync(d, { recursive: true });
+const PAINT_DIR = path.join(DATA_DIR, 'paint');
+for (const d of [UPLOAD_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR, AVATAR_DIR, PAINT_DIR]) fs.mkdirSync(d, { recursive: true });
 fs.mkdirSync(IMPORT_DIR, { recursive: true });
 try { fs.chmodSync(IMPORT_DIR, 0o777); } catch { /* Netzwerkfreigabe darf hineinkopieren */ }
 
@@ -307,6 +308,22 @@ CREATE TABLE IF NOT EXISTS bj_sessions (
   updated_at INTEGER NOT NULL,
   ended_at INTEGER
 );
+-- Paint: gespeicherte Bilder. Bild und Vorschau liegen als PNG in data/paint (<stored_name>.png, <stored_name>-v.png).
+CREATE TABLE IF NOT EXISTS artworks (
+  id INTEGER PRIMARY KEY,
+  owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  width INTEGER NOT NULL,
+  height INTEGER NOT NULL,
+  stored_name TEXT NOT NULL,
+  size INTEGER NOT NULL,                    -- Bytes von Bild und Vorschau zusammen
+  visibility TEXT NOT NULL DEFAULT 'private',   -- public | members | private
+  approved INTEGER NOT NULL DEFAULT 1,      -- öffentliche Bilder erst nach Freigabe, wenn der Admin das so eingestellt hat
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS aw_owner ON artworks(owner_id, updated_at);
+CREATE INDEX IF NOT EXISTS aw_list ON artworks(visibility, approved, updated_at);
 CREATE INDEX IF NOT EXISTS bj_user ON bj_sessions(user_id, started_at);
 CREATE INDEX IF NOT EXISTS pg_profile ON profile_guestbook(profile_id, created_at);
 CREATE INDEX IF NOT EXISTS fr_friend ON friends(friend_id);
@@ -383,6 +400,14 @@ const DEFAULT_SETTINGS = {
   bj_decks: '6',
   bj_h17: '0',                  // Dealer zieht auf Soft 17
   bj_turn: '30',                // Bedenkzeit pro Zug in Sekunden
+  paint_enabled: '1',           // Paint im Startmenü
+  paint_guests: '1',            // Gäste dürfen malen und herunterladen (Speichern nur mit Konto)
+  paint_save: 'members',        // Bilder speichern: members | upload (nur mit Upload-Recht) | admin
+  paint_quota_mb: '50',         // Speicher für Bilder pro Mitglied (Admin unbegrenzt)
+  paint_max_w: '2000',          // größte Leinwand in Pixeln
+  paint_max_h: '2000',
+  paint_gallery: '1',           // Galerie mit öffentlichen Bildern
+  paint_moderation: '0',        // öffentliche Bilder erst nach Freigabe durch den Admin zeigen
   notify_email: '',
   smtp_host: '',
   smtp_port: '587',
@@ -407,4 +432,4 @@ function tx(fn) {
   catch (e) { db.exec('ROLLBACK'); throw e; }
 }
 
-module.exports = { db, now, getSetting, setSetting, tx, DATA_DIR, UPLOAD_DIR, IMPORT_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR, AVATAR_DIR };
+module.exports = { db, now, getSetting, setSetting, tx, DATA_DIR, UPLOAD_DIR, IMPORT_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR, AVATAR_DIR, PAINT_DIR };

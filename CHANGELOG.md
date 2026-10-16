@@ -1,5 +1,18 @@
 # Changelog
 
+## 16.10.2026 – Paint
+
+- **Paint:** Neu im Startmenü unter 🎨 Paint, so nah am Paint aus Windows 98 wie möglich. Alle 16 Werkzeuge sind da: Freihand- und Rechteckauswahl, Radierer und Farbradierer, Farbfüller, Pipette, Lupe, Stift, Pinsel in 12 Formen, Sprühdose, Text, Linie, Kurve, Rechteck, Vieleck, Ellipse und abgerundetes Rechteck. Gemalt wird Pixel für Pixel ohne Kantenglättung, wie früher.
+- **Farben:** Die 28er-Palette unten, linke Maustaste für die Vordergrundfarbe, rechte für die Hintergrundfarbe. Ein Doppelklick auf ein Farbfeld öffnet „Farben bearbeiten“ mit Farbspektrum und eigenen Farben.
+- **Bilder einfügen:** Mit Strg+V aus der Zwischenablage, per Ziehen ins Fenster oder über Bearbeiten → Einfügen aus. Das eingefügte Bild schwebt als Auswahl, die du frei verschiebst und an den Griffen größer oder kleiner ziehst. „Durchsichtig“ lässt die Hintergrundfarbe weg.
+- **Bild-Menü:** Kippen/Drehen, Strecken/Zerren, Farben umkehren, Attribute (Größe in Pixeln, Schwarzweiß oder Farbe) und Bild löschen. Dazu Zoom bis 800 % mit Raster und „Bild anzeigen“ im Vollbild mit Strg+F. Rückgängig geht 20 Schritte zurück.
+- **Speichern:** Mitglieder speichern Bilder im Konto und öffnen sie später unter Datei → Öffnen wieder. Jedes Bild ist privat, für Mitglieder oder öffentlich. Gäste können malen und herunterladen, aber nicht speichern.
+- **Herunterladen:** Als PNG, als 24-Bit-BMP wie früher oder als JPG.
+- **Als Hintergrund:** Datei → Als Hintergrund (Fläche) oder (zentriert) macht dein Bild zum Desktop-Hintergrund, wie in Windows 98.
+- **Galerie:** Neu im Startmenü unter 🖼️ Galerie. Dort stehen die öffentlichen Bilder, für Mitglieder auch die für Mitglieder freigegebenen. Jedes Profil zeigt die Bilder des Mitglieds unter „Bilder“.
+- **Für den Admin:** Unter Admin → Paint stellst du ein, ob Gäste malen dürfen, wer speichern darf, wie viel Speicher jedes Mitglied hat, wie groß Bilder sein dürfen und ob öffentliche Bilder erst freigegeben werden müssen. Dort löschst du auch Bilder.
+- Versteckte Angaben in gespeicherten Bildern, etwa Texte oder der Aufnahmeort eines eingefügten Fotos, entfernt die Seite beim Speichern. Was sie zu Bildern speichert, steht auf der Datenschutzseite.
+
 ## 16.10.2026 – Blackjack
 
 - **Blackjack:** Neu im Startmenü unter 🃏 Blackjack. Mach einen Tisch auf oder setz dich an einen offenen, mit bis zu fünf Mitgliedern gegen den Dealer. Andere können zusehen, und über 🔗 Einladen kommt man per Link direkt an den Tisch.

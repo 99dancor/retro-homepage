@@ -69,7 +69,7 @@ async function main() {
     const admin = browser();
 
     await step('Öffentliche Seiten laden', async () => {
-      for (const p of ['/', '/blog', '/files', '/mods', '/links', '/guestbook', '/contact', '/apps', '/forum', '/changelog', '/datenschutz', '/login', '/theme.css', '/static/retro.css', '/static/editor.js', '/musik', '/musik/bibliothek', '/static/sound.js', '/static/music.js', '/static/visualizer.js']) {
+      for (const p of ['/', '/blog', '/files', '/mods', '/links', '/guestbook', '/contact', '/apps', '/forum', '/changelog', '/datenschutz', '/login', '/theme.css', '/static/retro.css', '/static/editor.js', '/musik', '/musik/bibliothek', '/static/sound.js', '/static/music.js', '/static/visualizer.js', '/paint', '/galerie', '/static/paint-core.js']) {
         const r = await guest.req(p);
         assert.equal(r.status, 200, p);
       }
@@ -961,6 +961,121 @@ async function main() {
       assert.equal(js.status, 200);
       assert.match(js.text_, /'darstellung'/);
       assert.doesNotMatch(js.text_, /fetch\(|XMLHttpRequest|sendBeacon|WebSocket/, 'Darstellung bleibt im Browser');
+    });
+
+    await step('Paint: malen ohne Konto, speichern mit Konto, Sichtbarkeit und Galerie', async () => {
+      const { png } = require('./png');
+      const desk = (await guest.req('/', { top: true })).text_;
+      assert.match(desk, /<div class="startmenu"[\s\S]*href="\/paint"[\s\S]*href="\/galerie"/);
+      const page = await guest.req('/paint');
+      assert.equal(page.status, 200);
+      assert.match(page.text_, /id="paint"/);
+      assert.match(page.headers.get('content-security-policy'), /img-src [^;]*blob:/);
+      for (const f of ['paint-core.js', 'paint.js']) {
+        const m = page.text_.match(new RegExp(`src="(/static/${f.replace('.', '\\.')}\\?v=\\w+)"`));
+        assert.ok(m, f + ' mit Versionsnummer');
+        assert.equal((await guest.req(m[1])).status, 200);
+      }
+      assert.equal((await guest.req('/paint/bilder')).status, 401, 'Meine Bilder nur mit Konto');
+      assert.equal((await guest.req('/paint/bilder?tab=gallery')).status, 200);
+
+      let t = await admin.csrf('/admin/users');
+      for (const name of ['paula', 'pit']) assert.equal((await admin.form('/admin/users/create', { _csrf: t, username: name, password: 'passwort123' })).status, 302);
+      const paula = browser(), pit = browser();
+      for (const [b, name] of [[paula, 'paula'], [pit, 'pit']]) {
+        // Eigene Adresse: die vielen Anmeldungen im Test sollen nicht an die Sperre für zu viele Versuche stoßen
+        const tk = await b.csrf();
+        const r = await b.req('/login', { method: 'POST', body: new URLSearchParams({ _csrf: tk, username: name, password: 'passwort123' }), headers: { 'content-type': 'application/x-www-form-urlencoded', 'x-forwarded-for': '10.9.0.' + name.length } });
+        assert.equal(r.status, 302);
+      }
+      const send = (b, url, image, fields = {}, token = true) => {
+        const fd = new FormData();
+        for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+        fd.append('image', new Blob([image], { type: 'image/png' }), 'bild.png');
+        fd.append('thumb', new Blob([png(2, 2)], { type: 'image/png' }), 'vorschau.png');
+        return b.req(url, { method: 'POST', body: fd, headers: token ? { 'x-csrf-token': b.jar.get('csrf'), accept: 'application/json' } : { accept: 'application/json' } });
+      };
+      const json = async (b, url, body) => { const r = await b.req(url, { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json', 'x-csrf-token': b.jar.get('csrf') } }); return { status: r.status, json: JSON.parse(r.text_ || 'null') }; };
+      const files = () => fs.readdirSync(path.join(DATA, 'paint')).sort();
+
+      assert.equal((await send(paula, '/paint/bilder', png(8, 6), { title: 'x' }, false)).status, 403, 'ohne Formular-Token');
+      assert.equal((await send(paula, '/paint/bilder', Buffer.from('kein Bild'), { title: 'x' })).status, 400);
+      const made = await send(paula, '/paint/bilder', png(8, 6, 'GPS\0Breite 52,5'), { title: 'Sonne <b>', visibility: 'private' });
+      assert.equal(made.status, 200, made.text_);
+      const art = JSON.parse(made.text_).artwork;
+      assert.equal(art.title, 'Sonne <b>');
+      assert.deepEqual([art.w, art.h, art.visibility, art.mine], [8, 6, 'private', true]);
+      assert.equal(files().length, 2, 'Bild und Vorschau');
+      const own = await paula.req(`/paint/bild/${art.id}.png`);
+      assert.equal(own.status, 200);
+      assert.equal(own.headers.get('content-type'), 'image/png');
+      assert.doesNotMatch(own.text_, /GPS/, 'versteckte Angaben entfernt');
+      assert.equal((await guest.req(`/paint/bild/${art.id}.png`)).status, 404, 'privat');
+      assert.equal((await pit.req(`/paint/bild/${art.id}/vorschau.png`)).status, 404, 'privat');
+      assert.equal((await pit.req(`/paint/bilder/${art.id}`)).status, 404);
+      assert.equal((await json(pit, `/paint/bild/${art.id}`, { title: 'Meins' })).status, 404, 'Fremde dürfen nicht umbenennen');
+      assert.equal((await json(pit, `/paint/bild/${art.id}/loeschen`, {})).status, 404);
+      assert.equal((await send(pit, `/paint/bild/${art.id}/bild`, png(8, 6))).status, 404, 'Fremde dürfen nicht übermalen');
+      const mine = JSON.parse((await paula.req('/paint/bilder')).text_);
+      assert.equal(mine.artworks.length, 1);
+      assert.ok(mine.quota.total > 0);
+
+      assert.equal((await json(paula, `/paint/bild/${art.id}`, { visibility: 'members' })).status, 200);
+      assert.equal((await pit.req(`/paint/bild/${art.id}.png`)).status, 200, 'für Mitglieder');
+      assert.equal((await guest.req(`/paint/bild/${art.id}.png`)).status, 404);
+      const pitGallery = (await pit.req('/galerie')).text_;
+      assert.match(pitGallery, /Sonne &lt;b&gt;/);
+      assert.doesNotMatch((await guest.req('/galerie')).text_, /Sonne/);
+
+      // Freigabe eingeschaltet: öffentlich erst, wenn der Admin es freigibt
+      t = await admin.csrf('/admin/paint');
+      assert.equal((await admin.form('/admin/paint', { _csrf: t, paint_enabled: '1', paint_guests: '1', paint_gallery: '1', paint_moderation: '1', paint_save: 'members', paint_quota_mb: '50', paint_max_w: '2000', paint_max_h: '2000' })).status, 302);
+      const pub = await json(paula, `/paint/bild/${art.id}`, { visibility: 'public' });
+      assert.equal(pub.json.artwork.pending, true);
+      assert.match(pub.json.note, /freigibt/);
+      assert.equal((await guest.req(`/paint/bild/${art.id}.png`)).status, 404, 'wartet auf Freigabe');
+      assert.match((await admin.req('/admin/paint')).text_, /wartet auf Freigabe[\s\S]*Freigeben/);
+      assert.equal((await admin.form(`/admin/paint/${art.id}/freigeben`, { _csrf: t })).status, 302);
+      assert.equal((await guest.req(`/paint/bild/${art.id}.png`)).status, 200);
+      assert.match((await guest.req('/galerie')).text_, /Sonne &lt;b&gt;/);
+      const item = await guest.req(`/galerie/${art.id}`);
+      assert.match(item.text_, /href="\/paint\?bild=\d+"/);
+      assert.match(item.text_, /href="\/nutzer\/paula"/);
+      assert.match((await pit.req('/nutzer/paula')).text_, /id="bilder"[\s\S]*Sonne &lt;b&gt;/, 'Bilder im Profil');
+      assert.match((await guest.req(`/paint/bild/${art.id}.png?download=1`)).headers.get('content-disposition'), /attachment/);
+
+      // Neuer Stand: alte Datei weg, öffentlich muss neu freigegeben werden
+      const before = files();
+      const upd = await send(paula, `/paint/bild/${art.id}/bild`, png(12, 9));
+      assert.equal(upd.status, 200, upd.text_);
+      assert.equal(JSON.parse(upd.text_).artwork.w, 12);
+      assert.equal(JSON.parse(upd.text_).artwork.pending, true);
+      await new Promise(r => setTimeout(r, 100));
+      assert.equal(files().length, 2);
+      assert.notDeepEqual(files(), before);
+
+      // Größte Leinwand gilt auch für den Server
+      assert.equal((await admin.form('/admin/paint', { _csrf: t, paint_enabled: '1', paint_guests: '1', paint_gallery: '1', paint_save: 'members', paint_quota_mb: '50', paint_max_w: '16', paint_max_h: '16' })).status, 302);
+      assert.equal((await send(pit, '/paint/bilder', png(20, 10), { title: 'Zu breit' })).status, 400);
+      const second = await send(pit, '/paint/bilder', png(10, 10), { title: 'Pits Bild', visibility: 'public' });
+      assert.equal(JSON.parse(second.text_).artwork.pending, false, 'ohne Freigabe sofort öffentlich');
+      const pitId = JSON.parse(second.text_).artwork.id;
+      assert.equal((await json(pit, `/paint/bild/${pitId}/loeschen`, {})).status, 200);
+      assert.equal((await guest.req(`/paint/bild/${pitId}.png`)).status, 404);
+
+      // Gäste ausgesperrt
+      assert.equal((await admin.form('/admin/paint', { _csrf: t, paint_enabled: '1', paint_gallery: '1', paint_save: 'members', paint_quota_mb: '50', paint_max_w: '2000', paint_max_h: '2000' })).status, 302);
+      assert.equal((await guest.req('/paint')).status, 302);
+      assert.equal((await pit.req('/paint')).status, 200);
+
+      // Konto weg: Bilder und Dateien weg
+      const id = Number((await admin.req('/admin/users')).text_.match(/href="\/admin\/users\/(\d+)"><b>paula</)[1]);
+      t = await admin.csrf('/admin/users');
+      assert.equal((await admin.form(`/admin/users/${id}/delete`, { _csrf: t })).status, 302);
+      await new Promise(r => setTimeout(r, 100));
+      assert.equal(files().length, 0);
+      assert.equal((await admin.req(`/paint/bild/${art.id}.png`)).status, 404);
+      assert.equal((await admin.form('/admin/paint', { _csrf: t, paint_enabled: '1', paint_guests: '1', paint_gallery: '1', paint_save: 'members', paint_quota_mb: '50', paint_max_w: '2000', paint_max_h: '2000' })).status, 302);
     });
 
     await step('Gelöschtes Konto verliert seine Statistik-Einträge', async () => {

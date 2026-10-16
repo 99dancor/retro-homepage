@@ -1,0 +1,12 @@
+<%- include('partials/head') %>
+<h1>🖼️ <%= a.title %></h1>
+<p>von <a href="<%= profileUrl(a.byUser) %>"><%= a.by %></a> · <%= a.date %> · <%= a.w %> × <%= a.h %> Pixel · <%= size %>
+  · <%= a.visibility === 'public' ? '🌐 öffentlich' : a.visibility === 'members' ? '👥 für Mitglieder' : '🔒 privat' %><%= a.pending ? ' (wartet auf Freigabe)' : '' %></p>
+<div class="panel gal-full"><img src="/paint/bild/<%= a.id %>.png?v=<%= a.updated %>" alt="<%= a.title %>" width="<%= a.w %>" height="<%= a.h %>"></div>
+<div class="actions">
+  <a class="btn" href="/paint?bild=<%= a.id %>">🎨 In Paint öffnen</a>
+  <a class="btn" href="/paint/bild/<%= a.id %>.png?download=1">⬇ Herunterladen (PNG)</a>
+  <a href="/galerie">« Zur Galerie</a>
+</div>
+<% if (!a.mine) { %><p><small class="muted">In Paint malst du an einer Kopie weiter. Speichern legt sie unter deinen eigenen Bildern ab.</small></p><% } %>
+<%- include('partials/foot') %>

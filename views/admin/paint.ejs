@@ -1,0 +1,53 @@
+<%- include('../partials/head') %>
+<%# Admin → Paint: Einstellungen, Freigaben und alle gespeicherten Bilder %>
+<% if (ok) { %><div class="msg">✔ Gespeichert.</div><% } %>
+<div class="kpis">
+  <div class="kpi"><b><%= stats.n %></b>gespeicherte Bilder</div>
+  <div class="kpi"><b><%= stats.users %></b>Mitglieder mit Bildern</div>
+  <div class="kpi"><b><%= stats.pending %></b>warten auf Freigabe</div>
+  <div class="kpi"><b><%= fmtSize(stats.bytes) %></b>belegt in /data/paint</div>
+</div>
+<form method="post" action="/admin/paint">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <div class="row">
+    <fieldset class="groupbox"><legend>Paint</legend>
+      <label class="inline"><input type="checkbox" name="paint_enabled" value="1" <%= s.paint_enabled === '1' ? 'checked' : '' %>> Paint im Startmenü anzeigen</label><br>
+      <label class="inline"><input type="checkbox" name="paint_guests" value="1" <%= s.paint_guests === '1' ? 'checked' : '' %>> Gäste dürfen malen und herunterladen (Speichern nur mit Konto)</label>
+      <label>Speichern dürfen
+        <select name="paint_save" class="w100">
+          <option value="members" <%= s.paint_save === 'members' ? 'selected' : '' %>>alle Mitglieder</option>
+          <option value="upload" <%= s.paint_save === 'upload' ? 'selected' : '' %>>nur Mitglieder mit Upload-Recht</option>
+          <option value="admin" <%= s.paint_save === 'admin' ? 'selected' : '' %>>nur Admin</option>
+        </select></label>
+      <label>Speicherplatz pro Mitglied <input type="number" name="paint_quota_mb" min="1" max="100000" value="<%= s.paint_quota_mb %>" style="width:90px"> MB</label>
+      <label>Größte Leinwand <input type="number" name="paint_max_w" min="16" max="4000" value="<%= s.paint_max_w %>" style="width:80px"> × <input type="number" name="paint_max_h" min="16" max="4000" value="<%= s.paint_max_h %>" style="width:80px"> Pixel</label>
+    </fieldset>
+    <fieldset class="groupbox"><legend>Galerie</legend>
+      <label class="inline"><input type="checkbox" name="paint_gallery" value="1" <%= s.paint_gallery === '1' ? 'checked' : '' %>> Galerie im Startmenü und Bilder in den Profilen</label><br>
+      <label class="inline"><input type="checkbox" name="paint_moderation" value="1" <%= s.paint_moderation === '1' ? 'checked' : '' %>> Öffentliche Bilder erst nach meiner Freigabe zeigen</label>
+      <p><small>Bilder „für Mitglieder“ und private Bilder brauchen keine Freigabe. Ein geändertes öffentliches Bild muss neu freigegeben werden.</small></p>
+    </fieldset>
+  </div>
+  <div class="actions"><button>Speichern</button> <a href="/paint" target="_blank">Paint öffnen</a> · <a href="/galerie" target="_blank">Galerie öffnen</a></div>
+</form>
+<h3>Bilder</h3>
+<table class="list">
+  <tr><th>Bild</th><th>Titel</th><th>Von</th><th>Sichtbar</th><th class="num">Größe</th><th>Geändert</th><th></th></tr>
+  <% for (const a of artworks) { %>
+  <tr>
+    <td><a href="/galerie/<%= a.id %>" target="_blank"><img src="/paint/bild/<%= a.id %>/vorschau.png?v=<%= a.updated_at %>" alt="" style="max-width:80px;max-height:60px;image-rendering:pixelated;background:#fff"></a></td>
+    <td><b><%= a.title %></b><br><small><%= a.width %> × <%= a.height %></small></td>
+    <td><a href="/admin/users/<%= a.owner_id %>"><%= a.display_name || a.username %></a></td>
+    <td><%= a.visibility === 'public' ? '🌐 öffentlich' : a.visibility === 'members' ? '👥 Mitglieder' : '🔒 privat' %><%= a.visibility === 'public' && !a.approved ? ' · wartet auf Freigabe' : '' %></td>
+    <td class="num"><%= fmtSize(a.size) %></td>
+    <td><%= fmtDate(a.updated_at, true) %></td>
+    <td class="num">
+      <% if (a.visibility === 'public' && !a.approved) { %><form method="post" action="/admin/paint/<%= a.id %>/freigeben" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small">Freigeben</button></form><% } %>
+      <form method="post" action="/admin/paint/<%= a.id %>/loeschen" class="inline" data-confirm="Bild „<%= a.title %>“ löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Löschen</button></form>
+    </td>
+  </tr>
+  <% } %>
+  <% if (!artworks.length) { %><tr><td colspan="7">Noch keine Bilder.</td></tr><% } %>
+</table>
+<script src="<%= asset('admin.js') %>"></script>
+<%- include('../partials/foot') %>

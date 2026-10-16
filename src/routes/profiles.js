@@ -7,6 +7,7 @@ const { db, getSetting } = require('../db');
 const auth = require('../auth');
 const p = require('../profiles');
 const GAMES = require('../games');
+const paint = require('../paint');
 
 const router = express.Router();
 const PER_PAGE = 50;
@@ -52,6 +53,8 @@ router.get('/nutzer/:name', (req, res) => {
       guestbook: u.gb_from === 'off' ? null : p.guestbookOf(u.id),
       canSign: p.canSign(me, u), maxGb: p.MAX_GB,
       games: p.gameStats(u.id, me),
+      // Bilder aus Paint, die der Betrachter sehen darf (die neuesten acht)
+      artworks: paint.galleryOn() ? paint.byUser(u.id, me, 9).map(a => paint.row(a, me)) : null,
       counts: {
         // Anonyme Beiträge zählen nicht mit, sonst ließen sie sich zuordnen
         posts: db.prepare('SELECT COUNT(*) AS n FROM board_posts WHERE user_id = ? AND anonymous = 0').get(u.id).n,

@@ -40,6 +40,20 @@
   <% } %>
   </fieldset>
 
+  <% if (artworks && (artworks.length || me)) { %>
+  <fieldset class="groupbox" id="bilder"><legend>🎨 Bilder</legend>
+  <% if (!artworks.length) { %><p class="muted">Noch keine Bilder. Mal eins in <a href="/paint">🎨 Paint</a> und speichere es.</p>
+  <% } else { %>
+    <div class="gal-grid">
+    <% for (const a of artworks.slice(0, 8)) { %>
+      <a class="gal-item" href="/galerie/<%= a.id %>"><img src="/paint/bild/<%= a.id %>/vorschau.png?v=<%= a.updated %>" alt="<%= a.title %>" loading="lazy"><b><%= a.title %></b><small><%= a.date %><%= a.visibility === 'private' ? ' · 🔒 nur du' : a.visibility === 'members' ? ' · 👥' : '' %></small></a>
+    <% } %>
+    </div>
+    <% if (artworks.length > 8) { %><p><a href="/galerie?von=<%= encodeURIComponent(u.username) %>">Alle Bilder von <%= displayName(u) %> »</a></p><% } %>
+  <% } %>
+  </fieldset>
+  <% } %>
+
   <fieldset class="groupbox"><legend>📊 Auf der Seite</legend>
     <table class="kv">
       <% if (boardOpen) { %><tr><td>Forenbeiträge</td><td class="num"><%= num(counts.posts) %></td></tr><tr><td>Forenthemen</td><td class="num"><%= num(counts.topics) %></td></tr><% } %>

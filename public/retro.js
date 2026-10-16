@@ -96,7 +96,7 @@
   var siteTitle = body.dataset.title, me = body.dataset.user;
   var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
     contact: '✉️', changelog: '📜', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵', zufall: '🎲', blackjack: '🃏',
-    nutzer: '👥', nachrichten: '💌' };
+    nutzer: '👥', nachrichten: '💌', paint: '🎨', galerie: '🖼️' };
   var mobile = window.matchMedia('(max-width: 760px)');
   var wins = [], zTop = 10, active = null, reloading = false;
   var template = deskEl.querySelector('.dwin').cloneNode(true);
@@ -182,6 +182,16 @@
     var t = doc.title, suffix = ' – ' + siteTitle;
     if (t.endsWith(suffix)) t = t.slice(0, -suffix.length);
     setTitle(w, t);
+    // Seiten wie Paint ändern ihren Titel (z. B. nach dem Speichern): Fenster und Taskleiste ziehen mit
+    var tEl = doc.querySelector('title');
+    if (tEl && window.MutationObserver) {
+      new MutationObserver(function () {
+        var nt = doc.title;
+        if (nt.endsWith(suffix)) nt = nt.slice(0, -suffix.length);
+        setTitle(w, nt);
+        if (active === w) syncTop();
+      }).observe(tEl, { childList: true, characterData: true, subtree: true });
+    }
     doc.addEventListener('pointerdown', function () { closeMenu(); if (active !== w) focus(w); });
     if (section(w.url) === 'nachrichten') pollUnread();
     if (active === w) syncTop();
@@ -218,7 +228,7 @@
   }
 
   // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Musik-Player brauchen etwas mehr Platz
-  var SIZES = { haustier: [820, 700], musik: [900, 640], zufall: [760, 620], blackjack: [1000, 680], nachrichten: [640, 620] };
+  var SIZES = { haustier: [820, 700], musik: [900, 640], zufall: [760, 620], blackjack: [1000, 680], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640] };
   function place(el, s, url) {
     var n = wins.length % 8, size = SIZES[section(url)] || [820, 580];
     var w = s && s.w || Math.min(size[0], deskEl.clientWidth - 40), h = s && s.h || Math.min(size[1], deskEl.clientHeight - 40);

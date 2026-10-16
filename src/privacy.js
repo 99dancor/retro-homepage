@@ -50,6 +50,10 @@ const SNIPPETS = {
   countStart: ['src/profiles.js', 'function countStart(user, app)', 5],
   bjSessions: ['src/db.js', 'CREATE TABLE IF NOT EXISTS bj_sessions (', 18],
   bjState: ['src/blackjack.js', 'function state(t) {', 12],
+  artworks: ['src/db.js', 'CREATE TABLE IF NOT EXISTS artworks (', 13],
+  artworkSee: ['src/paint.js', 'function canSee(user, a) {', 7],
+  paintPrefs: ['public/paint.js', "var PREF_KEY = 'paint'", 1],
+  wallpaper: ['public/display.js', 'function setWallpaper(img, mode) {', 11],
 };
 
 let cache = null;

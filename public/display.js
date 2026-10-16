@@ -97,7 +97,19 @@
   apply();
   // Eigenes CSS soll auch nach Stylesheets wirken, die erst später im <head> stehen
   document.addEventListener('DOMContentLoaded', function () { var el = document.getElementById('darstellung-css'); if (el) document.head.appendChild(el); apply(); });
-  window.RetroDisplay = { apply: apply };
+  // Paint: „Als Hintergrund“ setzt ein Bild als eigenes Hintergrundbild, nur in diesem Browser
+  function setWallpaper(img, mode) {
+    if (!IMG.test(img)) return false;
+    // Erst das Bild, damit bei vollem Speicher nicht die Einstellung ohne Bild übrig bleibt
+    try { localStorage.setItem(IMG_KEY, img); } catch (e) { return false; }
+    var p = load();
+    p.bg = 'bild';
+    p.bgMode = pick(MODES, mode, 'tile');
+    if (!save(p, img)) return false;
+    apply(p, img);
+    return true;
+  }
+  window.RetroDisplay = { apply: apply, setWallpaper: setWallpaper };
   // Andere Fenster (iframes) übernehmen eine gespeicherte Änderung sofort
   window.addEventListener('storage', function (e) { if (e.key === KEY || e.key === IMG_KEY || e.key === null) apply(); });
 

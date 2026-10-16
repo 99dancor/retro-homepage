@@ -10,6 +10,8 @@ const { slugify, safeUrl, asArray, visibilityFrom, mdBlocks } = require('../util
 const GAMES = require('../games');
 const profiles = require('../profiles');
 const music = require('../music');
+const paint = require('../paint');
+const paintRoutes = require('./paint');
 const { deleteTrack } = require('./music');
 
 const router = express.Router();
@@ -216,6 +218,33 @@ router.post('/musik/:id/delete', (req, res) => {
   res.redirect('/admin/musik');
 });
 
+// ---------- Paint ----------
+const PAINT_FLAGS = ['paint_enabled', 'paint_guests', 'paint_gallery', 'paint_moderation'];
+router.get('/paint', (req, res) => {
+  const s = Object.fromEntries([...PAINT_FLAGS, 'paint_save', 'paint_quota_mb', 'paint_max_w', 'paint_max_h'].map(k => [k, getSetting(k, '')]));
+  const stats = db.prepare(`SELECT COUNT(*) AS n, COUNT(DISTINCT owner_id) AS users, COALESCE(SUM(size), 0) AS bytes,
+                            COALESCE(SUM(visibility = 'public' AND approved = 0), 0) AS pending FROM artworks`).get();
+  res.render('admin/paint', { title: 'Paint', s, stats, artworks: paintRoutes.adminList(), ok: 'ok' in req.query });
+});
+router.post('/paint', (req, res) => {
+  const b = req.body;
+  for (const k of PAINT_FLAGS) setSetting(k, b[k] === '1' ? '1' : '0');
+  setSetting('paint_save', ['members', 'upload', 'admin'].includes(b.paint_save) ? b.paint_save : 'members');
+  const n = (v, d, min, max) => String(Math.max(min, Math.min(max, Math.round(Number(v)) || d)));
+  setSetting('paint_quota_mb', n(b.paint_quota_mb, 50, 1, 100000));
+  setSetting('paint_max_w', n(b.paint_max_w, 2000, 16, 4000));
+  setSetting('paint_max_h', n(b.paint_max_h, 2000, 16, 4000));
+  res.redirect('/admin/paint?ok=1');
+});
+router.post('/paint/:id/freigeben', (req, res) => {
+  db.prepare('UPDATE artworks SET approved = 1 WHERE id = ?').run(Number(req.params.id));
+  res.redirect('/admin/paint');
+});
+router.post('/paint/:id/loeschen', (req, res) => {
+  paintRoutes.adminDelete(req.params.id);
+  res.redirect('/admin/paint');
+});
+
 // ---------- Modlisten ----------
 // Format im Textfeld: eine Mod pro Zeile -> Name | URL | Version | Notiz   (optional mit * am Anfang = optional)
 function parseMods(text) {
@@ -366,12 +395,15 @@ router.post('/users/:id/delete', (req, res) => {
   // Statistik hat keinen Fremdschlüssel: Verbindung lösen, sonst erbte ein neues Konto mit derselben Nummer die Einträge
   // Freunde, Privatnachrichten und Spielstatistiken verschwinden über ihre Fremdschlüssel mit, das Profilbild hier
   const old = db.prepare('SELECT avatar FROM users WHERE id = ?').get(id);
+  // Bilder aus Paint verschwinden mit dem Konto (Fremdschlüssel), ihre Dateien hier
+  const pictures = id !== req.user.id ? paint.filesOf(id) : [];
   if (id !== req.user.id) tx(() => {
     db.prepare('UPDATE pageviews SET user_id = NULL WHERE user_id = ?').run(id);
     db.prepare('UPDATE downloads SET user_id = NULL WHERE user_id = ?').run(id);
     db.prepare('DELETE FROM users WHERE id = ?').run(id);
   });
   if (old && id !== req.user.id) profiles.removeAvatar(old.avatar);
+  paint.removeFiles(pictures);
   res.redirect('/admin/users');
 });
 router.post('/groups/create', (req, res) => {
@@ -470,7 +502,7 @@ router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, 
 const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days', 'music_quota_mb',
   'bj_buyin', 'bj_rebuy_below', 'bj_decks', 'bj_turn'];
 const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure', 'lobby_enabled', 'youtube_enabled', 'bj_enabled', 'bj_h17'];
-const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Spiele & Apps', haustier: 'Mein Haustier', musik: 'Musik', zufall: 'Zufallsgenerator', blackjack: 'Blackjack', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
+const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Spiele & Apps', haustier: 'Mein Haustier', musik: 'Musik', zufall: 'Zufallsgenerator', blackjack: 'Blackjack', paint: 'Paint', galerie: 'Galerie', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
 router.get('/settings', (req, res) => {
   const s = Object.fromEntries([...SETTING_KEYS, ...SETTING_FLAGS, 'nav_hidden', 'music_upload'].map(k => [k, getSetting(k, '')]));
   s.smtp_pass_set = !!getSetting('smtp_pass');

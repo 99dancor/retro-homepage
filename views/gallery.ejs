@@ -1,0 +1,16 @@
+<%- include('partials/head') %>
+<%# Galerie: Bilder aus Paint, die öffentlich (Gäste) oder für Mitglieder freigegeben sind %>
+<h1>🖼️ <%= owner ? 'Bilder von ' + displayName(owner) : 'Galerie' %></h1>
+<p><% if (owner) { %><a href="<%= profileUrl(owner.username) %>">« Zum Profil</a> · <a href="/galerie">Alle Bilder</a> · <% } %>
+  Gemalt mit <a href="/paint">🎨 Paint</a>. <% if (!user) { %><small class="muted">Angemeldete Mitglieder sehen hier auch Bilder, die nur für Mitglieder sind.</small><% } %></p>
+<% if (!artworks.length) { %>
+  <p class="muted">Noch keine Bilder. Mal eins in Paint und speichere es als „öffentlich“<%= user ? ' oder „alle Mitglieder“' : '' %>.</p>
+<% } else { %>
+  <div class="gal-grid">
+  <% for (const a of artworks) { %>
+    <a class="gal-item" href="/galerie/<%= a.id %>"><img src="/paint/bild/<%= a.id %>/vorschau.png?v=<%= a.updated %>" alt="<%= a.title %>" loading="lazy">
+      <b><%= a.title %></b><small><%= owner ? '' : 'von ' + a.by + ' · ' %><%= a.date %><%= a.visibility === 'members' ? ' · 👥' : a.visibility === 'private' ? ' · 🔒' : '' %><%= a.pending ? ' · wartet auf Freigabe' : '' %></small></a>
+  <% } %>
+  </div>
+<% } %>
+<%- include('partials/foot') %>

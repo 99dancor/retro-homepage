@@ -75,5 +75,8 @@
 <form method="post" action="/admin/settings/blackjack-reset" class="actions" data-confirm="Die Blackjack-Bestenliste und alle Bilanzen auf null setzen? Laufende Sitzungen an Tischen bleiben.">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🃏 Blackjack-Bestenliste zurücksetzen</button> <small>(löscht alle abgeschlossenen Sitzungen und damit alle Bilanzen)</small>
 </form>
+<form method="post" action="/admin/settings/minesweeper-reset" class="actions" data-confirm="Alle Minesweeper-Bestzeiten und Statistiken aller Mitglieder löschen?">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">💣 Minesweeper-Bestzeiten zurücksetzen</button> <small>(löscht alle gespeicherten Spiele, auch die Zahlen in den Profilen)</small>
+</form>
 <script src="<%= asset('admin.js') %>"></script>
 <%- include('../partials/foot') %>

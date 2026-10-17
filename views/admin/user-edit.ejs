@@ -15,6 +15,7 @@
     <% if (u.avatar) { %><label class="inline"><input type="checkbox" name="reset_avatar" value="1"> Profilbild entfernen</label><% } %>
     <% if (u.about) { %><label class="inline"><input type="checkbox" name="reset_about" value="1"> „Über mich“ leeren</label><% } %>
     <% if (bj.sessions) { %><label class="inline"><input type="checkbox" name="reset_blackjack" value="1"> Blackjack-Bilanz (<%= bj.balance.toLocaleString('de-DE') %> €, <%= bj.hands %> Hände) auf null setzen</label><% } %>
+    <% if (ms.games) { %><label class="inline"><input type="checkbox" name="reset_minesweeper" value="1"> Minesweeper-Statistik und Bestzeiten (<%= ms.games %> Spiele) löschen</label><% } %>
   </fieldset>
   <fieldset class="groupbox"><legend>Rechte</legend>
     <label>Rolle:

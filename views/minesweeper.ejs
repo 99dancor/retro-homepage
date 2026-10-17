@@ -1,0 +1,18 @@
+<%- include('partials/head') %>
+<%# Minesweeper wie bei Windows 98: Spiel und Grafik in public/minesweeper.js, Profil-Zahlen und Bestzeiten in src/minesweeper.js %>
+<div class="ms" id="ms" data-csrf="<%= csrf %>" data-user="<%= user ? user.id : '' %>" data-site="<%= site.title %>"
+     data-levels="<%= JSON.stringify(levels) %>" data-limits="<%= JSON.stringify(limits) %>">
+  <div class="ms-menu" role="menubar">
+    <button type="button" class="ms-mtop" data-menu="spiel" aria-haspopup="true"><u>S</u>piel</button><button type="button" class="ms-mtop" data-menu="hilfe" aria-haspopup="true">?</button>
+  </div>
+  <div class="ms-stage"><canvas id="ms-canvas" aria-label="Spielfeld"></canvas></div>
+</div>
+<dialog class="window ms-dlg" id="ms-dlg">
+  <div class="titlebar"><span class="ttl" id="ms-dlg-title"></span><button type="button" class="tb-btn" value="cancel" id="ms-dlg-x" aria-label="Schließen">×</button></div>
+  <form method="dialog" class="body">
+    <div id="ms-dlg-body"></div>
+    <div class="actions" id="ms-dlg-actions"></div>
+  </form>
+</dialog>
+<script src="<%= asset('minesweeper.js') %>"></script>
+<%- include('partials/foot') %>

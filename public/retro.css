@@ -190,6 +190,9 @@ button.tb-btn { padding: 0; min-width: 0; border: 0; cursor: pointer; }
 .dwin.min { display: none; }
 .dwin.max { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; }
 .dwin.max .grip { display: none; }
+/* Fenster, die sich ihrem Inhalt anpassen (Minesweeper), sind wie im Original ohne Statusleiste und nicht aufziehbar */
+.dwin.fitted .statusbar, .dwin.fitted .grip { display: none; }
+.dwin.fitted .titlebar { gap: 3px; font-size: 11px; }
 .dwin .grip { position: absolute; right: 3px; bottom: 3px; width: 14px; height: 14px; cursor: nwse-resize; touch-action: none;
   background: linear-gradient(135deg, transparent 0 55%, var(--lo) 55% 62%, transparent 62% 72%, var(--lo) 72% 79%, transparent 79% 89%, var(--lo) 89%); }
 body.dragging iframe { pointer-events: none; }
@@ -1047,3 +1050,49 @@ tr.me td { background: #ffffcc; color: #000; }
 .qz-libbtns { white-space: nowrap; text-align: right; }
 .qz-libbtns button + button { margin-left: 3px; }
 #qz-dlg:has(.qz-lib) { width: min(620px, calc(100vw - 20px)); }
+
+/* Minesweeper: Spielfeld als Pixelgrafik (public/minesweeper.js), Menü und Dialoge wie bei Windows 98 */
+.ms { margin: -10px; height: 100vh; display: flex; flex-direction: column; position: relative; overflow: hidden; background: #c0c0c0;
+  user-select: none; -webkit-user-select: none; }
+.ms-menu { display: flex; flex: 0 0 auto; padding: 1px 2px; background: var(--win); }
+.ms-mtop { min-width: 0; padding: 1px 7px; background: none; box-shadow: none; color: var(--text); }
+.ms-mtop:active { box-shadow: none; }
+.ms-mtop.open, .ms-mtop:focus-visible { background: var(--title-from); color: #fff; outline: 0; }
+.ms-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#ms-canvas { display: block; image-rendering: pixelated; touch-action: none; }
+.ms.mono #ms-canvas { filter: grayscale(1) contrast(1.3); }
+.ms-dd { position: absolute; z-index: 20; background: var(--win); min-width: 190px; padding: 2px; display: flex; flex-direction: column;
+  box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--lo), 2px 2px 0 rgba(0,0,0,.35); }
+.ms-mi { display: flex; padding: 3px 16px 3px 22px; position: relative; white-space: nowrap; background: none; box-shadow: none; text-align: left; min-width: 0; color: var(--text); }
+.ms-mi:active { box-shadow: none; }
+.ms-mi span:last-child { margin-left: auto; padding-left: 24px; }
+.ms-mi:hover, .ms-mi:focus-visible { background: var(--title-from); color: #fff; outline: 0; }
+.ms-mi.chk::before { content: '✓'; position: absolute; left: 7px; }
+.ms-dd hr { margin: 3px 1px; }
+.ms-dlg { width: min(330px, calc(100vw - 20px)); padding: 3px; border: 0; color: var(--text); }
+.ms-dlg.wide { width: min(420px, calc(100vw - 20px)); }
+.ms-dlg::backdrop { background: transparent; }
+.ms-dlg .titlebar .tb-btn { margin-left: auto; }
+.ms-dlg .body { padding: 10px; }
+.ms-dlg .actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+.ms-dlg .actions button { min-width: 75px; }
+.ms-dlg-body p { margin: 0 0 8px; }
+.ms-dlg-body ul { padding-left: 18px; margin: 0 0 8px; }
+.ms-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 6px; }
+.ms-field input { width: 70px; }
+.ms-times td { padding: 1px 6px 1px 0; white-space: nowrap; }
+.ms-times td.num, .ms-board .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ms-sum { margin: 6px 0 0 !important; font-size: 12px; }
+.ms-tabs { display: flex; gap: 2px; margin-bottom: 4px; }
+.ms-tabs button { min-width: 0; padding: 2px 8px; }
+.ms-tabs button[aria-selected="true"] { box-shadow: inset 1px 1px var(--dark), inset -1px -1px var(--hi); font-weight: bold; }
+.ms-board { margin: 0; padding-left: 26px; max-height: 210px; overflow: auto; background: var(--field); color: var(--field-text);
+  box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); padding-top: 3px; padding-bottom: 3px; }
+.ms-board[hidden] { display: none; }
+.ms-board li { padding: 1px 4px 1px 0; }
+.ms-board li.me { font-weight: bold; }
+.ms-board li.empty { list-style: none; margin-left: -20px; opacity: .7; }
+.ms-board .num { display: inline-block; min-width: 42px; }
+.ms-board a { color: var(--field-link); }
+.ms-about { display: flex; gap: 12px; align-items: flex-start; }
+.ms-about-icon { font-size: 32px; line-height: 1; }

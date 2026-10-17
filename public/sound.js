@@ -74,6 +74,10 @@
     chips: function (c, t) { [0, 0.045, 0.085].forEach(function (o, i) { tone(c, t + o, { f: 2900 + i * 350, d: 0.05, type: 'triangle', v: 0.09 }); }); },
     // Tusch: Zufallsgenerator und Blackjack
     tusch: function (c, t) { chord(c, t, [523, 659, 784], { d: 0.12, type: 'square', v: 0.07, step: 0.09 }); chord(c, t + 0.3, [523, 659, 784, 1047], { d: 0.7, type: 'square', v: 0.06 }); },
+    // Minesweeper: Uhr tickt, Mine explodiert, gewonnen
+    'ms-tick': function (c, t) { tone(c, t, { f: 1400, d: 0.03, type: 'square', v: 0.05 }); },
+    'ms-boom': function (c, t) { noise(c, t, { d: 0.6, f: 400, q: 0.7, filter: 'lowpass', v: 0.6 }); tone(c, t, { f: 120, to: 40, d: 0.5, type: 'sawtooth', v: 0.15 }); },
+    'ms-sieg': function (c, t) { chord(c, t, [523, 659, 784, 1047], { d: 0.16, type: 'square', v: 0.07, step: 0.11 }); },
     anmelden: function (c, t) { chord(c, t, [392, 523, 659, 784], { d: 0.9, type: 'triangle', v: 0.14, step: 0.11 }); },
   };
 

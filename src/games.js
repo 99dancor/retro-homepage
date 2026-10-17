@@ -51,6 +51,22 @@ module.exports = {
       return { stats: out, last: t.last };
     },
   },
+  minesweeper: {
+    title: 'Minesweeper',
+    url: '/minesweeper',
+    userStats(userId) {
+      const ms = require('./minesweeper');
+      const t = ms.userTotals(userId);
+      if (!t.games) return null;
+      const out = [
+        { key: 'Gespielt', value: t.games },
+        { key: 'Gewonnen', value: t.wins, text: `${t.wins.toLocaleString('de-DE')} (${Math.round(t.wins / t.games * 100)} %)` },
+      ];
+      for (const [k, l] of Object.entries(ms.LEVELS)) if (t.best[k] != null) out.push({ key: 'Bestzeit ' + l.name, value: t.best[k], text: t.best[k] + ' s' });
+      out.push({ key: 'Längste Siegesserie', value: t.best_streak });
+      return { stats: out, last: t.last };
+    },
+  },
   haustier: {
     title: 'Mein Haustier',
     stats(data) {

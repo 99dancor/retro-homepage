@@ -119,7 +119,7 @@
   var deskEl = document.getElementById('desk'), tasks = document.getElementById('tasks');
   var siteTitle = body.dataset.title, me = body.dataset.user;
   var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
-    contact: '✉️', changelog: '📜', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵', zufall: '🎲', blackjack: '🃏', quiz: '❓',
+    contact: '✉️', changelog: '📜', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵', zufall: '🎲', blackjack: '🃏', quiz: '❓', minesweeper: '💣',
     nutzer: '👥', nachrichten: '💌', paint: '🎨', galerie: '🖼️' };
   var mobile = window.matchMedia('(max-width: 760px)');
   var wins = [], zTop = 10, active = null, reloading = false;
@@ -252,7 +252,7 @@
   }
 
   // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Musik-Player brauchen etwas mehr Platz
-  var SIZES = { haustier: [820, 700], musik: [900, 640], zufall: [760, 620], blackjack: [1000, 680], quiz: [1040, 700], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640] };
+  var SIZES = { haustier: [820, 700], musik: [900, 640], zufall: [760, 620], blackjack: [1000, 680], quiz: [1040, 700], minesweeper: [180, 300], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640] };
   function place(el, s, url) {
     var n = wins.length % 8, size = SIZES[section(url)] || [820, 580];
     var w = s && s.w || Math.min(size[0], deskEl.clientWidth - 40), h = s && s.h || Math.min(size[1], deskEl.clientHeight - 40);
@@ -313,6 +313,24 @@
     leaving: function (win) {
       wins.forEach(function (w) { if (w.iframe.contentWindow === win && isAuthWin(w)) w.drop = true; });
       save(); reloading = true;
+    },
+    // Ein Fenster passt sich seinem Inhalt an (Minesweeper je nach Spielfeld), außer es ist maximiert oder auf dem Handy
+    fit: function (win, width, height) {
+      var w = wins.filter(function (o) { return o.iframe.contentWindow === win; })[0];
+      if (!w) return;
+      w.el.classList.add('fitted');
+      if (mobile.matches || w.el.classList.contains('max')) return;
+      var nw = Math.min(width + w.el.offsetWidth - w.iframe.clientWidth, deskEl.clientWidth);
+      var nh = Math.min(height + w.el.offsetHeight - w.iframe.clientHeight, deskEl.clientHeight);
+      w.el.style.width = nw + 'px'; w.el.style.height = nh + 'px';
+      w.el.style.left = Math.max(0, Math.min(w.el.offsetLeft, deskEl.clientWidth - nw)) + 'px';
+      w.el.style.top = Math.max(0, Math.min(w.el.offsetTop, deskEl.clientHeight - nh)) + 'px';
+      save();
+    },
+    // „Beenden“ im Menü eines Fensters
+    close: function (win) {
+      var w = wins.filter(function (o) { return o.iframe.contentWindow === win; })[0];
+      if (w) close(w);
     },
   };
 

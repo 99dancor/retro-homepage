@@ -1,5 +1,14 @@
 # Changelog
 
+## 17.10.2026 – Minesweeper
+
+- **Minesweeper:** Neu im Startmenü unter Spiele und Apps → 💣 Minesweeper, so nah wie möglich am Original aus Windows 98: Pixelgrafik mit roten Ziffern-Zählern, Smiley-Knopf (staunt beim Klicken, trägt Sonnenbrille beim Sieg), Fahnen und Fragezeichen, Doppelklick mit beiden Maustasten (oder der mittleren) auf eine Zahl. Der erste Klick trifft nie eine Mine.
+- **Menü wie damals:** Spiel → Neu (F2), Anfänger, Fortgeschrittene, Profis, Benutzerdefiniert…, Marken (?), Farbe, Sound, Bestzeiten…, Beenden und ? → Inhalt (F1), Info. Das Fenster passt seine Größe dem Spielfeld an; zieht man es größer, wachsen die Felder pixelgenau mit.
+- **Am Handy:** Tippen deckt auf, lange drücken setzt eine Fahne, Tippen auf eine Zahl deckt die Nachbarn auf.
+- **Bestzeiten:** Ohne Konto bleiben sie wie früher „auf diesem Computer“ mit eingetragenem Namen. Mit Konto zählt jedes Spiel: Die Bestzeiten zeigen deine Zeiten, deine Serie und eine Bestenliste der Seite für jede Stufe. Knackt jemand deinen Rekord, kommt eine Benachrichtigung.
+- **Profil:** Neue Karte „Minesweeper“ mit Spielen, Siegen, Bestzeit je Stufe und längster Siegesserie.
+- **Für den Admin:** Unter Einstellungen lassen sich alle Bestzeiten zurücksetzen, beim Nutzer einzeln seine Minesweeper-Zahlen.
+
 ## 16.10.2026 – Quiz: gespeicherte Quizze
 
 - **Quizze im Konto:** „💾 Speichern“ legt die Fragen des Raums mit Titel in deinem Konto ab. Speicherst du ein geladenes Quiz erneut, ersetzt das die alte Fassung, mit „Als Kopie“ entsteht ein neues.

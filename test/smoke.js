@@ -985,6 +985,42 @@ async function main() {
       assert.ok(sql.prepare("SELECT s.ended_at FROM bj_sessions s JOIN users u ON u.id = s.user_id WHERE u.username = 'anna'").get().ended_at);
     });
 
+    await step('Minesweeper: Fenster, Start und Ende auf dem Server, Bestzeiten und Profil', async () => {
+      const { anna, bernd } = members;
+      const home = (await guest.req('/', { top: true })).text_;
+      assert.match(home, /<div class="startmenu"[\s\S]*href="\/minesweeper">💣 Minesweeper/);
+      const page = (await guest.req('/minesweeper')).text_;
+      assert.match(page, /src="\/static\/minesweeper\.js\?v=\w+"/, 'auch Gäste spielen');
+      assert.match(page, /data-levels="[^"]*Fortgeschrittene/);
+      assert.match((await guest.req('/minesweeper', { top: true })).text_, /class="window dwin/, 'direkt aufgerufen kommt der Desktop');
+      assert.equal((await api(guest, '/minesweeper/start', { w: 9, h: 9, m: 10 })).status, 401);
+      // Ende ohne Start zählt nicht, kaputte Spielfelder auch nicht
+      assert.equal((await api(anna, '/minesweeper/ergebnis', { won: true, seconds: 1 })).status, 409);
+      assert.equal((await api(anna, '/minesweeper/start', { w: 9, h: 9, m: 81 })).status, 400);
+      assert.equal((await api(bernd, '/minesweeper/start', { w: 9, h: 9, m: 10 })).status, 200);
+      let r = await api(bernd, '/minesweeper/ergebnis', { won: true, seconds: 12 });
+      assert.equal(r.status, 200);
+      assert.deepEqual([r.json.level, r.json.seconds, r.json.personal, r.json.record], ['beginner', 12, true, true]);
+      await api(anna, '/minesweeper/start', { w: 16, h: 16, m: 40 });
+      assert.equal((await api(anna, '/minesweeper/ergebnis', { won: false, seconds: 3 })).json.personal, false);
+      // Anna ist schneller: Rekord der Seite, Bernd bekommt Bescheid
+      await api(anna, '/minesweeper/start', { w: 9, h: 9, m: 10 });
+      r = await api(anna, '/minesweeper/ergebnis', { won: true, seconds: 7 });
+      assert.equal(r.json.record, true);
+      const note = JSON.parse((await bernd.req('/api/benachrichtigungen')).text_);
+      assert.ok(JSON.stringify(note).includes('Rekord in Minesweeper'), 'Benachrichtigung über den geknackten Rekord');
+      const best = await api(anna, '/minesweeper/bestzeiten', undefined, 'GET');
+      assert.deepEqual(best.json.levels.beginner.map(e => e.seconds), [7, 12]);
+      assert.equal(best.json.levels.beginner[0].me, true);
+      assert.deepEqual([best.json.mine.games, best.json.mine.wins, best.json.mine.best.beginner], [2, 1, 7]);
+      assert.equal((await api(guest, '/minesweeper/bestzeiten', undefined, 'GET')).json.mine, null);
+      // Browser dürfen keine eigenen Zahlen melden, das Profil zeigt die vom Server
+      assert.equal((await api(anna, '/api/stats/minesweeper', { add: { Gewonnen: 100 } }, 'PATCH')).status, 404);
+      const prof = (await bernd.req('/nutzer/anna')).text_;
+      assert.match(prof, /href="\/minesweeper"><b>Minesweeper<\/b>[\s\S]*?Gewonnen<\/td><td class="num">1 \(50 %\)[\s\S]*?Bestzeit Anfänger<\/td><td class="num">7 s/);
+      assert.match((await guest.req('/static/retro.js')).text_, /fit: function \(win, width, height\)/);
+    });
+
     await step('Quiz: Raum, Gast mit Namen, Live-Verbindung, Wertung, Profil und Admin', async () => {
       const { anna, bernd } = members;
       const home = (await guest.req('/', { top: true })).text_;

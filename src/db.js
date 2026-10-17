@@ -393,6 +393,20 @@ CREATE TABLE IF NOT EXISTS quizzes (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
+-- Minesweeper: eine Zeile pro beendetem Spiel eines Mitglieds (level: beginner | intermediate | expert | custom)
+CREATE TABLE IF NOT EXISTS ms_games (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  level TEXT NOT NULL,
+  width INTEGER NOT NULL,
+  height INTEGER NOT NULL,
+  mines INTEGER NOT NULL,
+  won INTEGER NOT NULL,
+  seconds INTEGER NOT NULL,
+  played_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ms_user ON ms_games(user_id, played_at);
+CREATE INDEX IF NOT EXISTS ms_best ON ms_games(level, won, seconds);
 CREATE INDEX IF NOT EXISTS qz_user ON quizzes(user_id, updated_at);
 CREATE INDEX IF NOT EXISTS qr_user ON quiz_results(user_id);
 CREATE INDEX IF NOT EXISTS qr_game ON quiz_results(game_id);

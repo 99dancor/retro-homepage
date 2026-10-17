@@ -407,6 +407,26 @@ CREATE TABLE IF NOT EXISTS ms_games (
 );
 CREATE INDEX IF NOT EXISTS ms_user ON ms_games(user_id, played_at);
 CREATE INDEX IF NOT EXISTS ms_best ON ms_games(level, won, seconds);
+-- Kreuzworträtsel: ein Rätsel pro Tag (für alle gleich) und der Stand jedes Mitglieds an diesem Tag
+CREATE TABLE IF NOT EXISTS cw_puzzles (
+  day TEXT PRIMARY KEY,
+  data TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS cw_progress (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  day TEXT NOT NULL,
+  letters TEXT NOT NULL DEFAULT '',
+  seconds INTEGER NOT NULL DEFAULT 0,
+  checks INTEGER NOT NULL DEFAULT 0,
+  reveals INTEGER NOT NULL DEFAULT 0,
+  gave_up INTEGER NOT NULL DEFAULT 0,
+  started_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  solved_at INTEGER,
+  PRIMARY KEY (user_id, day)
+);
+CREATE INDEX IF NOT EXISTS cw_day ON cw_progress(day, solved_at);
 CREATE INDEX IF NOT EXISTS qz_user ON quizzes(user_id, updated_at);
 CREATE INDEX IF NOT EXISTS qr_user ON quiz_results(user_id);
 CREATE INDEX IF NOT EXISTS qr_game ON quiz_results(game_id);

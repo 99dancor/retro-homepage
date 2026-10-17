@@ -3,7 +3,7 @@
   <%# Einträge: [Schlüssel, Adresse, Beschriftung] oder [Gruppe, Beschriftung, [Einträge]] → Untermenü wie bei Windows 98 %>
   <% const entries = [['blog','/blog','📝 Blog'],
        ['dokumente','📂 Dokumente',[['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links']]],
-       ['spiele','🎮 Spiele und Apps',[['blackjack','/blackjack','🃏 Blackjack'],['quiz','/quiz','❓ Quiz'],['minesweeper','/minesweeper','💣 Minesweeper'],['paint','/paint','🎨 Paint'],['zufall','/zufall','🎲 Zufallsgenerator'],['musik','/musik','🎵 Musikplayer'],['apps','/apps','🕹️ Andere Games']]],
+       ['spiele','🎮 Spiele und Apps',[['blackjack','/blackjack','🃏 Blackjack'],['quiz','/quiz','❓ Quiz'],['minesweeper','/minesweeper','💣 Minesweeper'],['kreuzwortraetsel','/kreuzwortraetsel','📰 Kreuzworträtsel'],['paint','/paint','🎨 Paint'],['zufall','/zufall','🎲 Zufallsgenerator'],['musik','/musik','🎵 Musikplayer'],['apps','/apps','🕹️ Andere Games']]],
        ['haustier','/haustier/','🐾 Mein Haustier'],['galerie','/galerie','🖼️ Galerie'],['board','/forum','💬 Forum'],['nutzer','/nutzer','👥 Mitglieder'],['guestbook','/guestbook','📖 Besucherbuch'],['contact','/contact','✉️ Kontakt']];
      const shown = (key) => !(navHidden.includes(key) || (key === 'guestbook' && !guestbookEnabled) || (key === 'board' && !boardEnabled) ||
        (key === 'blackjack' && !blackjackEnabled) || (key === 'paint' && !paintEnabled) || (key === 'quiz' && !quizEnabled) || (key === 'galerie' && !galleryEnabled) || (key === 'contact' && !contactEnabled)); %>

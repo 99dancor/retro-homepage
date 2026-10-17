@@ -1,0 +1,26 @@
+<%- include('partials/head') %>
+<%# Tägliches Kreuzworträtsel: Gitter und Bedienung in public/crossword.js, Rätsel, Lösung und Statistik in src/crossword.js.
+    Menüs und Dialoge benutzen dieselben Klassen wie Minesweeper. %>
+<div class="cw" id="cw" data-csrf="<%= csrf %>" data-user="<%= user ? user.id : '' %>" data-site="<%= site.title %>">
+  <script type="application/json" id="cw-data"><%- JSON.stringify(data).replace(/</g, '\\u003c') %></script>
+  <div class="ms-menu cw-menu" role="menubar">
+    <button type="button" class="ms-mtop" data-menu="raetsel" aria-haspopup="true"><u>R</u>ätsel</button><button type="button" class="ms-mtop" data-menu="pruefen" aria-haspopup="true"><u>P</u>rüfen</button><button type="button" class="ms-mtop" data-menu="aufdecken" aria-haspopup="true"><u>A</u>ufdecken</button><button type="button" class="ms-mtop" data-menu="hilfe" aria-haspopup="true">?</button>
+  </div>
+  <div class="cw-head">
+    <span class="cw-date" id="cw-date"></span>
+    <span class="cw-time" id="cw-time" title="Zeit (hält an, wenn das Fenster nicht zu sehen ist)">⏱ 0:00</span>
+  </div>
+  <div class="cw-clue" id="cw-clue" aria-live="polite"></div>
+  <div class="cw-main">
+    <div class="cw-board sunken" id="cw-board">
+      <div class="cw-grid" id="cw-grid" role="grid" aria-label="Kreuzworträtsel"></div>
+      <input type="text" id="cw-input" class="cw-input" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" aria-label="Buchstabe eingeben">
+    </div>
+    <div class="cw-lists">
+      <fieldset class="groupbox"><legend>Waagerecht</legend><ol class="cw-list" id="cw-across"></ol></fieldset>
+      <fieldset class="groupbox"><legend>Senkrecht</legend><ol class="cw-list" id="cw-down"></ol></fieldset>
+    </div>
+  </div>
+</div>
+<script src="<%= asset('crossword.js') %>"></script>
+<%- include('partials/foot') %>

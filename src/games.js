@@ -67,6 +67,24 @@ module.exports = {
       return { stats: out, last: t.last };
     },
   },
+  kreuzwortraetsel: {
+    title: 'Kreuzworträtsel',
+    url: '/kreuzwortraetsel',
+    userStats(userId) {
+      const t = require('./crossword').userTotals(userId);
+      if (!t.solved) return null;
+      const clock = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+      const out = [
+        { key: 'Gelöst', value: t.solved },
+        { key: 'Ohne Hilfe', value: t.clean, text: `${t.clean.toLocaleString('de-DE')} (${Math.round(t.clean / t.solved * 100)} %)` },
+        { key: 'Aktuelle Serie', value: t.streak, text: t.streak === 1 ? '1 Tag' : `${t.streak} Tage` },
+        { key: 'Längste Serie', value: t.best_streak, text: t.best_streak === 1 ? '1 Tag' : `${t.best_streak} Tage` },
+      ];
+      if (t.best != null) out.push({ key: 'Bestzeit ohne Hilfe', value: t.best, text: clock(t.best) });
+      out.push({ key: 'Durchschnittliche Zeit', value: t.avg, text: clock(t.avg) });
+      return { stats: out, last: t.last };
+    },
+  },
   haustier: {
     title: 'Mein Haustier',
     stats(data) {

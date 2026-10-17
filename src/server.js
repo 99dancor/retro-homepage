@@ -105,6 +105,7 @@ app.use('/musik', require('./routes/music').router);
 app.use('/blackjack', require('./routes/blackjack'));
 app.use('/quiz', require('./routes/quiz'));
 app.use('/minesweeper', require('./routes/minesweeper'));
+app.use('/kreuzwortraetsel', require('./routes/crossword'));
 const paintRoutes = require('./routes/paint');
 app.use('/paint', paintRoutes.router);
 app.use('/galerie', paintRoutes.gallery);

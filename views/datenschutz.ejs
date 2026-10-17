@@ -15,7 +15,7 @@
   <li>Was du schreibst, kann der Admin lesen, auch „anonyme“ Forenbeiträge. Privatnachrichten zeigt die Seite ihm nicht an, sie liegen aber unverschlüsselt auf dem Server.</li>
 </ul>
 <p>Springe zu: <a href="#besuch">Besuch</a> · <a href="#cookies">Cookies</a> · <a href="#browser">Im Browser</a> ·
-  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
+  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
 </fieldset>
 
 <h2 id="besuch">👣 Wenn du die Seite besuchst</h2>
@@ -69,6 +69,7 @@
   <li>Mein Haustier: ohne Konto der ganze Spielstand, mit Konto eine Kopie, damit bei Verbindungsproblemen nichts verloren geht.</li>
   <li>Paint: deine Palette, eigene Farben, welche Leisten du siehst und die Einstellungen der Werkzeuge. Was du malst, bleibt im Browser, bis du es speicherst. „Als Hintergrund“ legt das Bild als eigenes Hintergrundbild der Darstellung ab, ebenfalls nur im Browser.</li>
   <li>Minesweeper: Stufe, Marken, Farbe und Sound, ohne Konto auch deine Bestzeiten mit dem eingetragenen Namen.</li>
+  <li>Kreuzworträtsel: welche Buchstaben aufgedeckt wurden, ohne Konto auch deine Eintragungen, Zeit und Hilfen der letzten 40 Tage.</li>
   <li>Quiz ohne Konto: der zuletzt gewählte Name, das Bild und die Farbe, damit du sie beim nächsten Mal nicht neu eingeben musst.</li>
   <li>Die Lautstärke für Musik und Effekte (🔊 neben der Uhr), die gewählte Visualisierung im Musik-Player, Zufall und Wiederholen, und ob du „YouTube laden“ für diesen Browser merken wolltest.</li>
 </ul>
@@ -207,6 +208,19 @@
   <%- code('msPrefs', 'Ohne Konto liegen Einstellungen und Bestzeiten unter <code>minesweeper</code> im Browser.') %>
 </details>
 
+<h2 id="kreuzwortraetsel">📰 Kreuzworträtsel</h2>
+<ul>
+  <li>Rätseln geht ohne Konto. Dann bleiben deine Buchstaben, die Zeit und wie oft du Hilfe genutzt hast nur in deinem Browser. Zum Prüfen, Aufdecken und wenn alle Kästchen voll sind, schickt die Seite deine Buchstaben an den Server, weil nur er die Lösung kennt. Ohne Konto merkt er sich davon nichts.</li>
+  <li><b>Mit Konto</b> speichert der Server pro Tag: dein Konto, deine eingetragenen Buchstaben, die Zeit, wie oft du geprüft und aufgedeckt hast, ob du aufgelöst hast, wann du angefangen und zuletzt etwas geändert hast und wann du fertig warst.</li>
+  <li>Daraus entstehen die Zahlen im Profil (gelöste Rätsel, ohne Hilfe, Serie, Bestzeit; sieht, wer dein Profil sehen darf) und die <b>Bestenliste</b> jedes Tages. Dort steht dein Name nur für Besucher, die dein Profil sehen dürfen, für alle anderen „Anonym“.</li>
+  <li>Der Admin kann deinen Stand oder alle Stände löschen. Löschst du dein Konto, verschwindet dein Stand mit.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('cwProgress', 'Eine Zeile pro Mitglied und Tag.') %>
+  <%- code('cwSave', 'Ohne Konto (keine userId) prüft der Server nur, ob das Rätsel gelöst ist, und speichert nichts.') %>
+  <%- code('cwLocal', 'Im Browser liegt alles unter <code>kreuzwortraetsel</code>.') %>
+</details>
+
 <h2 id="paint">🎨 Paint und Galerie</h2>
 <ul>
   <li>Malen und als Datei auf deinem PC speichern geht ohne Konto. Dabei geht nichts an den Server, auch eingefügte Bilder nicht.</li>
@@ -244,7 +258,7 @@
 <h2 id="fragen">🗑 Löschen und Fragen</h2>
 <ul>
   <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
-  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Benachrichtigungen, Push-Geräte, Blackjack-Sitzungen, Minesweeper-Spiele, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Benachrichtigungen, Push-Geräte, Blackjack-Sitzungen, Minesweeper-Spiele, Kreuzworträtsel-Stände, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
   <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
 </ul>
 <p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>

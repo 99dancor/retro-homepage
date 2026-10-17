@@ -1,5 +1,14 @@
 # Changelog
 
+## 17.10.2026 – Tägliches Kreuzworträtsel
+
+- **Kreuzworträtsel:** Neu im Startmenü unter Spiele und Apps → 📰 Kreuzworträtsel. Jeden Tag um Mitternacht gibt es ein neues Rätsel, für alle Besucher dasselbe. Die Seite setzt es selbst aus rund 600 deutschen Wörtern mit Hinweisen zusammen und nimmt dabei keine Wörter der letzten Tage.
+- **Bedienung:** Kästchen oder Hinweis anklicken und lostippen. Zweiter Klick oder Leertaste wechselt die Richtung, Pfeiltasten, Tab und Rücktaste wie gewohnt. Umlaute werden wie in Rätseln üblich ausgeschrieben (ä → AE). Am Handy geht die Tastatur auf, die Hinweise stehen unter dem Gitter.
+- **Hilfe:** Prüfen (Buchstabe, Wort, ganzes Rätsel) markiert Falsches rot, Aufdecken verrät Buchstaben in Blau. Die Lösung kennt nur der Server.
+- **Archiv und Bestenliste:** Die Rätsel der letzten 30 Tage lassen sich nachspielen. Die Bestenliste zeigt pro Tag die schnellsten Löser, wer ohne Hilfe gelöst hat, steht vorne.
+- **Profil:** Neue Karte „Kreuzworträtsel“ mit gelösten Rätseln, davon ohne Hilfe, aktueller und längster Serie (Tage hintereinander, jeweils am selben Tag gelöst), Bestzeit und Durchschnitt.
+- **Für den Admin:** Unter Einstellungen → Kreuzworträtsel lassen sich eigene Wörter mit Hinweisen ergänzen und alle Stände zurücksetzen, beim Nutzer einzeln seiner.
+
 ## 17.10.2026 – Minesweeper
 
 - **Minesweeper:** Neu im Startmenü unter Spiele und Apps → 💣 Minesweeper, so nah wie möglich am Original aus Windows 98: Pixelgrafik mit roten Ziffern-Zählern, Smiley-Knopf (staunt beim Klicken, trägt Sonnenbrille beim Sieg), Fahnen und Fragezeichen, Doppelklick mit beiden Maustasten (oder der mittleren) auf eine Zahl. Der erste Klick trifft nie eine Mine.

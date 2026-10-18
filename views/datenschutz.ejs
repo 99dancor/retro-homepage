@@ -15,7 +15,7 @@
   <li>Was du schreibst, kann der Admin lesen, auch „anonyme“ Forenbeiträge. Privatnachrichten zeigt die Seite ihm nicht an, sie liegen aber unverschlüsselt auf dem Server.</li>
 </ul>
 <p>Springe zu: <a href="#besuch">Besuch</a> · <a href="#cookies">Cookies</a> · <a href="#browser">Im Browser</a> ·
-  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#poker">Poker</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
+  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
 </fieldset>
 
 <h2 id="besuch">👣 Wenn du die Seite besuchst</h2>
@@ -207,6 +207,18 @@
   <%- code('pkState', 'Jeder Browser bekommt seinen eigenen Stand: fremde Karten sind darin leer (<code>null</code>), außer im Showdown.') %>
 </details>
 
+<h2 id="durak">🎴 Durak</h2>
+<ul>
+  <li>Durak läuft <b>ohne Geld</b>. Gespeichert wird nur das <b>Ergebnis jedes Spiels</b>: dein Konto, der Name des Tisches, wie viele mitgespielt haben, dein Platz, ob du der Durak warst oder mitten im Spiel aufgestanden bist, wie viele Angriffe das Spiel hatte und wann es zu Ende war. Einzelne Karten und Züge werden nicht gespeichert.</li>
+  <li>Daraus entstehen die Zahlen im Profil und die <b>Bestenliste</b>. Dort erscheinst du nur für Mitglieder, die dein Profil sehen dürfen.</li>
+  <li>Am Tisch sehen alle, die dort sitzen oder zusehen, deinen Namen, wie viele Karten du hast und was du auf den Tisch legst. Deine Handkarten bekommt nur dein Browser. Tische leben nur im Arbeitsspeicher und sind nach einem Neustart weg.</li>
+  <li>Der Admin kann deine Durak-Zahlen oder die ganze Bestenliste löschen. Löschst du dein Konto, verschwinden deine Ergebnisse mit.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('dkResults', 'Eine Zeile pro Spieler und beendetem Spiel.') %>
+  <%- code('dkState', 'Jeder Browser bekommt seinen eigenen Stand: die eigenen Karten, von allen anderen nur die Anzahl.') %>
+</details>
+
 <h2 id="minesweeper">💣 Minesweeper</h2>
 <ul>
   <li>Spielen geht ohne Konto. Dann bleiben deine Einstellungen und Bestzeiten samt dem eingetragenen Namen nur in deinem Browser, wie früher „auf diesem Computer“.</li>
@@ -270,7 +282,7 @@
 <h2 id="fragen">🗑 Löschen und Fragen</h2>
 <ul>
   <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
-  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Benachrichtigungen, Push-Geräte, Blackjack- und Poker-Sitzungen, Minesweeper-Spiele, Kreuzworträtsel-Stände, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Benachrichtigungen, Push-Geräte, Blackjack- und Poker-Sitzungen, Durak-Ergebnisse, Minesweeper-Spiele, Kreuzworträtsel-Stände, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
   <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
 </ul>
 <p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>

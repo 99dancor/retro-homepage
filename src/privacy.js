@@ -65,6 +65,8 @@ const SNIPPETS = {
   bjState: ['src/blackjack.js', 'function state(t) {', 12],
   pkSessions: ['src/db.js', 'CREATE TABLE IF NOT EXISTS pk_sessions (', 16],
   pkState: ['src/poker.js', 'function state(t, viewerId) {', 16],
+  dkResults: ['src/db.js', 'CREATE TABLE IF NOT EXISTS dk_results (', 11],
+  dkState: ['src/durak.js', 'function state(t, viewerId) {', 15],
   artworks: ['src/db.js', 'CREATE TABLE IF NOT EXISTS artworks (', 13],
   artworkSee: ['src/paint.js', 'function canSee(user, a) {', 7],
   paintPrefs: ['public/paint.js', "var PREF_KEY = 'paint'", 1],

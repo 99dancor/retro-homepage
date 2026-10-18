@@ -16,6 +16,7 @@
     <% if (u.about) { %><label class="inline"><input type="checkbox" name="reset_about" value="1"> „Über mich“ leeren</label><% } %>
     <% if (bj.sessions) { %><label class="inline"><input type="checkbox" name="reset_blackjack" value="1"> Blackjack-Bilanz (<%= bj.balance.toLocaleString('de-DE') %> €, <%= bj.hands %> Hände) auf null setzen</label><% } %>
     <% if (pk.sessions) { %><label class="inline"><input type="checkbox" name="reset_poker" value="1"> Poker-Bilanz (<%= pk.balance.toLocaleString('de-DE') %> €, <%= pk.hands %> Hände) auf null setzen</label><% } %>
+    <% if (dk.games) { %><label class="inline"><input type="checkbox" name="reset_durak" value="1"> Durak-Statistik (<%= dk.games %> Spiele, <%= dk.duraks %>× Durak) löschen</label><% } %>
     <% if (cw.solved || cw.streak) { %><label class="inline"><input type="checkbox" name="reset_crossword" value="1"> Kreuzworträtsel-Stand und Serie (<%= cw.solved %> gelöst) löschen</label><% } %>
     <% if (ms.games) { %><label class="inline"><input type="checkbox" name="reset_minesweeper" value="1"> Minesweeper-Statistik und Bestzeiten (<%= ms.games %> Spiele) löschen</label><% } %>
   </fieldset>

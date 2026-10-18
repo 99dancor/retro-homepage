@@ -1046,6 +1046,66 @@ async function main() {
       assert.equal((await api(anna, `/poker/tisch/${id}`, { action: 'sit' })).status, 404);
     });
 
+    await step('Durak: Tisch, Bereit, eigene Karten, Aufstehen macht zum Durak, Profil', async () => {
+      const { anna, bernd } = members;
+      const home = (await guest.req('/', { top: true })).text_;
+      assert.match(home, /<div class="startmenu"[\s\S]*href="\/durak">🎴 Durak/);
+      const page = (await guest.req('/durak')).text_;
+      assert.match(page, /Anmelden/);
+      assert.doesNotMatch(page, /durak\.js/, 'Gäste bekommen kein Spiel');
+      assert.match((await anna.req('/durak')).text_, /usermenu\.js[\s\S]*durak\.js/);
+      assert.equal((await api(guest, '/durak/tische', undefined, 'GET')).status, 401);
+      assert.equal((await api(anna, '/api/stats/durak', { add: { Gespielt: 99 } }, 'PATCH')).status, 404);
+
+      const made = await api(anna, '/durak/tische', { name: 'Durakrunde', seats: 3 });
+      assert.equal(made.status, 200);
+      const id = made.json.id;
+      const list = await api(bernd, '/durak/tische', undefined, 'GET');
+      assert.deepEqual(list.json.tables.map(t => [t.name, t.seats]), [['Durakrunde', 3]]);
+
+      const ctrl = new AbortController();
+      const res = await fetch(`${BASE}/durak/tisch/${id}/events`, { headers: { cookie: [...anna.jar].map(([k, v]) => `${k}=${v}`).join('; '), 'user-agent': UA }, signal: ctrl.signal });
+      assert.match(res.headers.get('content-type'), /text\/event-stream/);
+      const reader = res.body.getReader();
+      let buf = '';
+      const nextState = async () => {
+        for (;;) {
+          const i = buf.indexOf('\n\n');
+          if (i >= 0) { const ev = buf.slice(0, i); buf = buf.slice(i + 2); const m = ev.match(/^event: state\ndata: (.*)$/m); if (m) return JSON.parse(m[1]); continue; }
+          const { value, done } = await reader.read();
+          if (done) throw new Error('Verbindung zu');
+          buf += Buffer.from(value).toString();
+        }
+      };
+      let st = await nextState();
+      assert.equal(st.seatCount, 3);
+      for (const m of [anna, bernd]) assert.equal((await api(m, `/durak/tisch/${id}`, { action: 'sit' })).status, 200);
+      for (const m of [anna, bernd]) assert.equal((await api(m, `/durak/tisch/${id}`, { action: 'ready' })).status, 200);
+      while (st.phase !== 'playing') st = await nextState();
+      assert.equal(st.hand.length, 6, 'eigene Karten');
+      assert.equal(st.seats.find(x => x && x.user === 'bernd').cards, 6);
+      assert.ok(!JSON.stringify(st.seats).includes('"hand"'), 'fremde Karten nicht');
+      assert.equal(st.deck, 24);
+      assert.ok(st.trump && st.trump.s);
+      // Wer nicht angreift, darf nicht anfangen
+      const attacker = st.seats[st.attacker].user === 'anna' ? anna : bernd;
+      const other = attacker === anna ? bernd : anna;
+      assert.equal((await api(other, `/durak/tisch/${id}`, { action: 'attack', card: 'A♠' })).status, 400);
+      assert.equal((await api(anna, `/durak/tisch/${id}`, { action: 'leave' })).status, 200);
+      while (st.phase !== 'result') st = await nextState();
+      assert.equal(st.result.durak, st.result.order.find(o => o.user === 'anna').name);
+      ctrl.abort();
+
+      const stats = await api(bernd, '/durak/statistik', undefined, 'GET');
+      assert.deepEqual([stats.json.me.games, stats.json.me.wins, stats.json.me.duraks], [1, 1, 0]);
+      assert.equal(stats.json.games[0].table, 'Durakrunde');
+      const prof = (await bernd.req('/nutzer/anna')).text_;
+      assert.match(prof, /href="\/durak"><b>Durak<\/b>[\s\S]*Durak geworden<\/td><td class="num[^"]*">1 \(100 %\)/);
+
+      assert.equal((await api(anna, `/durak/tisch/${id}`, { action: 'close' })).status, 200);
+      assert.equal((await api(anna, `/durak/tisch/${id}`, { action: 'sit' })).status, 404);
+    });
+
     await step('Minesweeper: Fenster, Start und Ende auf dem Server, Bestzeiten und Profil', async () => {
       const { anna, bernd } = members;
       const home = (await guest.req('/', { top: true })).text_;

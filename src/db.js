@@ -356,6 +356,19 @@ CREATE TABLE IF NOT EXISTS pk_sessions (
   updated_at INTEGER NOT NULL,
   ended_at INTEGER
 );
+-- Durak: eine Zeile pro Spieler und beendetem Spiel. place 1 = als Erster keine Karten mehr, durak 1 = mit Karten übrig geblieben
+-- (oder mitten im Spiel aufgestanden). Bei Unentschieden (die Letzten werden gleichzeitig fertig) gibt es keinen Durak.
+CREATE TABLE IF NOT EXISTS dk_results (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  table_name TEXT NOT NULL,
+  players INTEGER NOT NULL,                 -- Mitspieler in diesem Spiel
+  place INTEGER NOT NULL,
+  durak INTEGER NOT NULL DEFAULT 0,
+  quit INTEGER NOT NULL DEFAULT 0,          -- mitten im Spiel aufgestanden (zählt als Durak)
+  bouts INTEGER NOT NULL DEFAULT 0,         -- Angriffe im ganzen Spiel
+  ended_at INTEGER NOT NULL
+);
 -- Paint: gespeicherte Bilder. Bild und Vorschau liegen als PNG in data/paint (<stored_name>.png, <stored_name>-v.png).
 CREATE TABLE IF NOT EXISTS artworks (
   id INTEGER PRIMARY KEY,
@@ -452,6 +465,7 @@ CREATE INDEX IF NOT EXISTS aw_owner ON artworks(owner_id, updated_at);
 CREATE INDEX IF NOT EXISTS aw_list ON artworks(visibility, approved, updated_at);
 CREATE INDEX IF NOT EXISTS bj_user ON bj_sessions(user_id, started_at);
 CREATE INDEX IF NOT EXISTS pk_user ON pk_sessions(user_id, started_at);
+CREATE INDEX IF NOT EXISTS dk_user ON dk_results(user_id, ended_at);
 CREATE INDEX IF NOT EXISTS pg_profile ON profile_guestbook(profile_id, created_at);
 CREATE INDEX IF NOT EXISTS fr_friend ON friends(friend_id);
 CREATE INDEX IF NOT EXISTS pm_to ON private_messages(to_id, read_at);
@@ -536,6 +550,8 @@ const DEFAULT_SETTINGS = {
   pk_buyin: '1000',             // Start und jeder Nachkauf
   pk_rebuy_below: '200',        // Nachkaufen erst unter diesem Chipstand
   pk_turn: '30',                // Bedenkzeit pro Zug in Sekunden
+  dk_enabled: '1',              // Durak (Kartenspiel ohne Geld) für Mitglieder
+  dk_turn: '30',                // Bedenkzeit zum Angreifen und Verteidigen in Sekunden
   paint_enabled: '1',           // Paint im Startmenü
   paint_guests: '1',            // Gäste dürfen malen und herunterladen (Speichern nur mit Konto)
   paint_save: 'members',        // Bilder speichern: members | upload (nur mit Upload-Recht) | admin

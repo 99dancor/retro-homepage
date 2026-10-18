@@ -54,6 +54,24 @@ module.exports = {
       return { stats: out, last: t.last };
     },
   },
+  durak: {
+    title: 'Durak',
+    url: '/durak',
+    userStats(userId) {
+      const t = require('./durak').userTotals(userId);
+      if (!t.games) return null;
+      const pct = n => `${n.toLocaleString('de-DE')} (${Math.round(n / t.games * 100)} %)`;
+      return {
+        stats: [
+          { key: 'Gespielt', value: t.games },
+          { key: 'Als Erster raus', value: t.wins, text: pct(t.wins) },
+          { key: 'Durak geworden', value: t.duraks, text: pct(t.duraks) },
+          { key: 'Nicht Durak', value: t.games - t.duraks, text: pct(t.games - t.duraks) },
+        ],
+        last: t.last,
+      };
+    },
+  },
   quiz: {
     title: 'Quiz',
     url: '/quiz',

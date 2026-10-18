@@ -1,5 +1,14 @@
 # Changelog
 
+## 18.10.2026 – Kartenspiele in einem Fenster
+
+- **Ein Programm für alle Kartenspiele:** Im Startmenü steht unter Spiele und Apps nur noch 🂡 **Kartenspiele**. Dort siehst du die offenen Spieltische mit dem gewählten Spiel, Gastgeber und Plätzen und kannst dich hinsetzen oder zusehen.
+- **Spieltisch statt Spiel:** Du eröffnest einen Spieltisch, trefft euch dort, und der Gastgeber wählt oben in der Leiste das Spiel: Blackjack, Poker, Durak, UNO, Flip 7 oder Pilli Pilli. Zwischen zwei Runden lässt sich das Spiel wechseln, ohne dass der Tisch zugeht; wer sitzt, bleibt auf seinem Platz. Mitten in einer Runde wird nicht gewechselt.
+- **Gemeinsame Kasse:** Für Blackjack und Poker hat jedes Mitglied jetzt eine Kasse. Wer sich an den Tisch setzt, bringt seinen Kontostand als Chips mit, nach jeder Hand geht der Stand zurück. Wechselt der Tisch das Spiel, bleibt dein Geld bei dir. Startgeld 1.000 €, Nachkaufen unter 200 € wie bisher; unter 💰 Kasse siehst du Kontostand, Bilanz und die Bestenliste.
+- **Tisch gestalten:** Der Gastgeber wählt Farbe des Tisches und Kartenrücken (z. B. Blau, Rot, Schwarz, Schwarz-Gold, kariert, Retro); alle am Tisch sehen es sofort.
+- **Statistik:** Jedes Spiel behält seine Bestenliste und Statistik (unter 📊 Bestenlisten und Regeln). Im Profil gibt es die Karte „Kartenspiele“ mit Kontostand und Bilanz; bei Blackjack und Poker steht dort jetzt, was du im Spiel gewonnen oder verloren hast.
+- **Für den Admin:** Unter Einstellungen → Kasse stellst du Startgeld und Nachkauf-Grenze für alle Kartenspiele ein (vorher pro Spiel). Die Kasse lässt sich für einzelne Mitglieder oder alle zurücksetzen. Alte Links wie /blackjack führen jetzt zu den Kartenspielen.
+
 ## 18.10.2026 – UNO, Flip 7, Pilli Pilli und ein Kartenspiele-Menü
 
 - **Kartenspiele:** Im Startmenü gibt es unter Spiele und Apps jetzt das Untermenü 🂡 **Kartenspiele** mit Blackjack, Poker, Durak und den drei neuen Spielen. Die **Galerie** steht jetzt unter Dokumente.

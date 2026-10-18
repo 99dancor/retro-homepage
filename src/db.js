@@ -386,6 +386,17 @@ CREATE TABLE IF NOT EXISTS cg_results (
   quit INTEGER NOT NULL DEFAULT 0,          -- mitten im Spiel aufgestanden
   ended_at INTEGER NOT NULL
 );
+-- Kartenspiele (src/kasse.js): ein Geldbeutel pro Mitglied für alle Kartenspiele mit Geld (Blackjack, Poker).
+-- Bilanz = balance − bought; der Start zählt als erster Buy-in. Sitzt jemand an einem Geldtisch, liegt das Geld als Chips dort
+-- und balance ist der Stand nach der letzten Hand.
+CREATE TABLE IF NOT EXISTS ks_wallets (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  balance INTEGER NOT NULL,
+  bought INTEGER NOT NULL,                  -- insgesamt eingekauft (Start + Nachkäufe)
+  buyins INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
 -- Paint: gespeicherte Bilder. Bild und Vorschau liegen als PNG in data/paint (<stored_name>.png, <stored_name>-v.png).
 CREATE TABLE IF NOT EXISTS artworks (
   id INTEGER PRIMARY KEY,
@@ -558,15 +569,13 @@ const DEFAULT_SETTINGS = {
   music_quota_mb: '500',        // Speicher für Musik pro Mitglied (Admin unbegrenzt)
   lobby_enabled: '1',           // Musik-Lobbys zum gemeinsamen Hören
   youtube_enabled: '1',         // YouTube-Lieder in Lobbys
+  ks_buyin: '1000',             // Kartenspiele-Kasse: Startgeld und jeder Nachkauf
+  ks_rebuy_below: '200',        // Nachkaufen erst unter diesem Stand
   bj_enabled: '1',              // Blackjack (Spielgeld) für Mitglieder
-  bj_buyin: '1000',             // Start und jeder Nachkauf
-  bj_rebuy_below: '200',        // Nachkaufen erst unter diesem Chipstand
   bj_decks: '6',
   bj_h17: '0',                  // Dealer zieht auf Soft 17
   bj_turn: '30',                // Bedenkzeit pro Zug in Sekunden
   pk_enabled: '1',              // Poker (Texas Hold'em, Spielgeld) für Mitglieder
-  pk_buyin: '1000',             // Start und jeder Nachkauf
-  pk_rebuy_below: '200',        // Nachkaufen erst unter diesem Chipstand
   pk_turn: '30',                // Bedenkzeit pro Zug in Sekunden
   dk_enabled: '1',              // Durak (Kartenspiel ohne Geld) für Mitglieder
   dk_turn: '30',                // Bedenkzeit zum Angreifen und Verteidigen in Sekunden
@@ -597,6 +606,10 @@ const DEFAULT_SETTINGS = {
 for (const k of ['home_md', 'theme_marquee']) {
   const v = getSetting(k);
   if (v !== null && v === DEFAULT_SETTINGS[k].replace('Besucherbuch', 'Freundebuch')) setSetting(k, DEFAULT_SETTINGS[k]);
+}
+// Seit der gemeinsamen Kasse gilt ein Buy-in für alle Kartenspiele: den bisherigen Blackjack-Wert übernehmen
+for (const k of ['buyin', 'rebuy_below']) {
+  if (getSetting('ks_' + k) === null && getSetting('bj_' + k) !== null) setSetting('ks_' + k, getSetting('bj_' + k));
 }
 for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {
   if (getSetting(k) === null) setSetting(k, v);

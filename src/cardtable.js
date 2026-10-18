@@ -94,7 +94,7 @@ function createGame(rules) {
     };
   }
   function list(user) {
-    return [...tables.values()].filter(t => !t.hidden || t.hostId === user.id || user.isAdmin || seatOf(t, user.id))
+    return [...tables.values()].filter(t => !t.spieltisch && (!t.hidden || t.hostId === user.id || user.isAdmin || seatOf(t, user.id)))
       .map(summary).sort((a, b) => b.players - a.players || a.name.localeCompare(b.name, 'de'));
   }
 

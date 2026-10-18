@@ -20,13 +20,12 @@ router.use((req, res, next) => {
 function gate(req, res, next) { return req.user ? next() : fail(res, 401, 'Für Durak musst du angemeldet sein.'); }
 function loadTable(req, res, next) {
   req.table = dk.get(req.params.id);
-  return req.table ? next() : fail(res, 404, 'Diesen Tisch gibt es nicht mehr.');
+  // Tische eines Spieltisches laufen über /kartenspiele (src/routes/kartenspiele.js)
+  return req.table && !req.table.spieltisch ? next() : fail(res, 404, 'Diesen Tisch gibt es nicht mehr.');
 }
 
-router.get('/', (req, res) => {
-  if (req.user) profiles.countStart(req.user, 'durak');
-  res.render('durak', { title: 'Durak' });
-});
+// Gespielt wird im gemeinsamen Fenster Kartenspiele
+router.get('/', (req, res) => res.redirect('/kartenspiele'));
 
 router.get('/tische', gate, (req, res) => {
   const mine = dk.tableOf(req.user.id);

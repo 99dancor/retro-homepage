@@ -14,6 +14,7 @@
     <% if (u.display_name) { %><label class="inline"><input type="checkbox" name="reset_name" value="1"> Anzeigename „<%= u.display_name %>“ entfernen</label><% } %>
     <% if (u.avatar) { %><label class="inline"><input type="checkbox" name="reset_avatar" value="1"> Profilbild entfernen</label><% } %>
     <% if (u.about) { %><label class="inline"><input type="checkbox" name="reset_about" value="1"> „Über mich“ leeren</label><% } %>
+    <% if (ks) { %><label class="inline"><input type="checkbox" name="reset_kasse" value="1"> Kasse der Kartenspiele (Kontostand <%= ks.balance.toLocaleString('de-DE') %> €, Bilanz <%= (ks.balance - ks.bought).toLocaleString('de-DE') %> €) zurücksetzen</label><% } %>
     <% if (bj.sessions) { %><label class="inline"><input type="checkbox" name="reset_blackjack" value="1"> Blackjack-Bilanz (<%= bj.balance.toLocaleString('de-DE') %> €, <%= bj.hands %> Hände) auf null setzen</label><% } %>
     <% if (pk.sessions) { %><label class="inline"><input type="checkbox" name="reset_poker" value="1"> Poker-Bilanz (<%= pk.balance.toLocaleString('de-DE') %> €, <%= pk.hands %> Hände) auf null setzen</label><% } %>
     <% if (dk.games) { %><label class="inline"><input type="checkbox" name="reset_durak" value="1"> Durak-Statistik (<%= dk.games %> Spiele, <%= dk.duraks %>× Durak) löschen</label><% } %>

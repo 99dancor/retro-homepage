@@ -37,27 +37,28 @@
     <label class="inline"><input type="checkbox" name="youtube_enabled" value="1" <%= s.youtube_enabled === '1' ? 'checked' : '' %>> YouTube-Lieder in Lobbys erlauben</label>
     <br><small>Ein Titel darf bei Mitgliedern höchstens 50 MB groß sein. Hochgeladene Musik verwaltest du unter <a href="/admin/musik">Musik</a>.</small>
   </fieldset>
+  <fieldset class="groupbox" id="kasse"><legend>💰 Kartenspiele: Kasse</legend>
+    <div class="row">
+      <label>Buy-in in € (Startgeld und jeder Nachkauf):<input type="number" name="ks_buyin" value="<%= s.ks_buyin %>" min="1"></label>
+      <label>Nachkaufen erst unter (€):<input type="number" name="ks_rebuy_below" value="<%= s.ks_rebuy_below %>" min="0"></label>
+    </div>
+    <small>Alle Kartenspiele mit Geld (Blackjack, Poker) teilen sich eine Kasse pro Mitglied. Das Startgeld zählt als erster Buy-in; Bilanz = Kontostand − alles Eingekaufte.</small>
+  </fieldset>
   <fieldset class="groupbox" id="blackjack"><legend>🃏 Blackjack</legend>
     <label class="inline"><input type="checkbox" name="bj_enabled" value="1" <%= s.bj_enabled === '1' ? 'checked' : '' %>> Blackjack für angemeldete Mitglieder (Spielgeld)</label>
-    <div class="row">
-      <label>Buy-in in € (Start und jeder Nachkauf):<input type="number" name="bj_buyin" value="<%= s.bj_buyin %>" min="1"></label>
-      <label>Nachkaufen erst unter (€):<input type="number" name="bj_rebuy_below" value="<%= s.bj_rebuy_below %>" min="0"></label>
-    </div>
     <div class="row">
       <label>Decks im Schlitten (1–8):<input type="number" name="bj_decks" value="<%= s.bj_decks %>" min="1" max="8"></label>
       <label>Bedenkzeit pro Zug (Sekunden, 5–300):<input type="number" name="bj_turn" value="<%= s.bj_turn %>" min="5" max="300"></label>
     </div>
     <label class="inline"><input type="checkbox" name="bj_h17" value="1" <%= s.bj_h17 === '1' ? 'checked' : '' %>> Dealer zieht auf Soft 17 (sonst steht er auf allen 17)</label>
-    <br><small>Änderungen gelten für neue Runden; der Buy-in für das nächste Hinsetzen oder Nachkaufen. Tische legen Mitglieder selbst an.</small>
+    <br><small>Änderungen gelten für neue Runden. Spieltische legen Mitglieder unter Kartenspiele selbst an.</small>
   </fieldset>
   <fieldset class="groupbox" id="poker"><legend>♠️ Poker</legend>
     <label class="inline"><input type="checkbox" name="pk_enabled" value="1" <%= s.pk_enabled === '1' ? 'checked' : '' %>> Poker (Texas Hold'em) für angemeldete Mitglieder (Spielgeld)</label>
     <div class="row">
-      <label>Buy-in in € (Start und jeder Nachkauf):<input type="number" name="pk_buyin" value="<%= s.pk_buyin %>" min="1"></label>
-      <label>Nachkaufen erst unter (€):<input type="number" name="pk_rebuy_below" value="<%= s.pk_rebuy_below %>" min="0"></label>
       <label>Bedenkzeit pro Zug (Sekunden, 5–300):<input type="number" name="pk_turn" value="<%= s.pk_turn %>" min="5" max="300"></label>
     </div>
-    <small>Wie bei Blackjack zählt der Start als erster Buy-in. Die Blinds wählt der Gastgeber pro Tisch.</small>
+    <small>Das Geld kommt aus der Kasse. Die Blinds wählt der Gastgeber pro Tisch.</small>
   </fieldset>
   <fieldset class="groupbox" id="durak"><legend>🎴 Durak</legend>
     <label class="inline"><input type="checkbox" name="dk_enabled" value="1" <%= s.dk_enabled === '1' ? 'checked' : '' %>> Durak (Kartenspiel ohne Geld) für angemeldete Mitglieder</label>
@@ -100,6 +101,9 @@
 </form>
 <form method="post" action="/admin/settings/testmail" class="actions">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button>✉️ Test-E-Mail senden</button> <small>(erst speichern, dann testen)</small>
+</form>
+<form method="post" action="/admin/settings/kasse-reset" class="actions" data-confirm="Die Kasse aller Mitglieder zurücksetzen? Jeder startet wieder mit dem Startgeld. Wer gerade an einem Geldtisch sitzt, behält dort seine Chips.">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">💰 Kasse aller Mitglieder zurücksetzen</button> <small>(Kontostand und Bilanz; die Zahlen der einzelnen Spiele bleiben)</small>
 </form>
 <form method="post" action="/admin/settings/blackjack-reset" class="actions" data-confirm="Die Blackjack-Bestenliste und alle Bilanzen auf null setzen? Laufende Sitzungen an Tischen bleiben.">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🃏 Blackjack-Bestenliste zurücksetzen</button> <small>(löscht alle abgeschlossenen Sitzungen und damit alle Bilanzen)</small>

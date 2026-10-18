@@ -21,13 +21,12 @@ module.exports = function cardGameRouter(cg) {
   const gate = (req, res, next) => (req.user ? next() : fail(res, 401, `Für ${cg.title} musst du angemeldet sein.`));
   function loadTable(req, res, next) {
     req.table = cg.get(req.params.id);
-    return req.table ? next() : fail(res, 404, 'Diesen Tisch gibt es nicht mehr.');
+    // Tische eines Spieltisches laufen über /kartenspiele (src/routes/kartenspiele.js)
+    return req.table && !req.table.spieltisch ? next() : fail(res, 404, 'Diesen Tisch gibt es nicht mehr.');
   }
 
-  router.get('/', (req, res) => {
-    if (req.user) profiles.countStart(req.user, cg.id);
-    res.render('cardgame', { title: cg.title, game: { id: cg.id, ...cg.info, minSeats: cg.minSeats, maxSeats: cg.maxSeats } });
-  });
+  // Gespielt wird im gemeinsamen Fenster Kartenspiele
+  router.get('/', (req, res) => res.redirect('/kartenspiele'));
 
   router.get('/tische', gate, (req, res) => {
     const mine = cg.tableOf(req.user.id);

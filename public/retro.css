@@ -589,7 +589,7 @@ html.scheme-nacht .neg, html.scheme-kontrast .neg { color: #ff8a8a; }
 /* Das Spielfeld ist ein Container: Karten, Chips und Schrift wachsen mit dem Fenster (--c = Kartenbreite) */
 .bj-felt { flex: 1; position: relative; min-width: 0; min-height: 380px; overflow: hidden; color: #fff; container-type: size; user-select: none; -webkit-user-select: none;
   --c: clamp(30px, min(8cqw, 16cqh - 20px), 150px); font-size: clamp(12px, calc(var(--c) * .22), 18px);
-  background: radial-gradient(ellipse at 50% 25%, #1f7a3a, #0d4d22 75%);
+  background: radial-gradient(ellipse at 50% 25%, var(--felt-hi, #1f7a3a), var(--felt-lo, #0d4d22) 75%);
   box-shadow: inset 1px 1px var(--lo), inset 2px 2px var(--dark), inset -1px -1px var(--hi); }
 .bj-dealer { position: absolute; left: 0; right: 0; top: 10px; text-align: center; }
 .bj-label { font-weight: bold; letter-spacing: 2px; opacity: .8; font-size: 1em; margin-bottom: 4px; }
@@ -600,7 +600,7 @@ html.scheme-nacht .neg, html.scheme-kontrast .neg { color: #ff8a8a; }
 .bj-card .r { position: absolute; left: 8%; top: 4%; text-align: center; }
 .bj-card .s { position: absolute; right: 8%; bottom: 2%; font-size: 1.6em; }
 .bj-card.red { color: #c00000; }
-.bj-card.back { background: repeating-linear-gradient(45deg, var(--title-from) 0 4px, var(--title-to) 4px 8px); border: 3px solid #fff; outline: 1px solid #333; }
+.bj-card.back { background: var(--back, repeating-linear-gradient(45deg, var(--title-from) 0 4px, var(--title-to) 4px 8px)); border: 3px solid #fff; outline: 1px solid #333; }
 @keyframes bj-deal { from { transform: translateY(-14px) rotate(-6deg); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .bj-card { animation: none; } }
 .bj-badge { display: inline-block; background: #000; color: #ff0; font: bold .9em var(--font); padding: 1px 6px; border-radius: 9px; vertical-align: middle; white-space: nowrap; }
@@ -655,7 +655,7 @@ button.bj-chip:active { transform: translateY(1px); box-shadow: 0 0 0 1px #000; 
 /* Poker (views/poker.ejs, public/poker.js): baut auf den Blackjack-Klassen auf (Karten, Chips, Filz, Seitenleiste) */
 .pk-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .pk-felt { --c: clamp(24px, min(5.2cqw, 9.5cqh), 76px); font-size: clamp(11px, calc(var(--c) * .26), 16px);
-  background: radial-gradient(ellipse 46% 40% at 50% 47%, #1f7a3a, #0d4d22 92%, #5a3414 93%, #3d230d 100%), #2a1a0a; }
+  background: radial-gradient(ellipse 46% 40% at 50% 47%, var(--felt-hi, #1f7a3a), var(--felt-lo, #0d4d22) 92%, var(--rim-hi, #5a3414) 93%, var(--rim-lo, #3d230d) 100%), var(--rim-bg, #2a1a0a); }
 .pk-motto { top: 47%; transform: translateY(calc(var(--c) * 1.25)); opacity: .45; }
 .pk-center { position: absolute; left: 50%; top: 47%; transform: translate(-50%, -62%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 60%; }
 .pk-board { min-height: calc(var(--c) * 1.41); }
@@ -1285,3 +1285,29 @@ tr.me td { background: #ffffcc; color: #000; }
 .cw.narrow .cw-main { flex-direction: column; }
 .cw.narrow .cw-clue { position: sticky; top: 0; z-index: 2; }
 .cw.narrow .cw-lists { flex: none; overflow: visible; }
+
+/* Kartenspiele (views/kartenspiele.ejs, public/kartenspiele.js): Spieltische, Kasse und die Leiste über dem Tisch.
+   Filz und Kartenrücken wählt der Gastgeber; die Klassen hängen am Spiel und setzen nur Farben (--felt-*, --rim-*, --back). */
+.bj[hidden] { display: none; }
+.ks-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 2px 4px; }
+.ks-bar select { max-width: 180px; }
+.ks-bar .spacer { flex: 1; }
+.ks-games { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 6px 0 10px; }
+.ks-games button { padding: 10px 6px; font-size: 14px; }
+.ks-swatch { display: inline-block; width: 26px; height: 18px; vertical-align: middle; margin-left: 4px; box-shadow: 0 0 0 1px #000; }
+.ks-swatch.bj-felt { min-height: 0; background-size: 100% 100%; }
+.ks-swatch.bj-card { width: 14px; height: 20px; margin: 0 0 0 4px; animation: none; border-width: 2px; }
+.ks-preview { display: flex; gap: 10px; align-items: center; margin: 4px 0 8px; }
+.ks-preview .bj-felt { flex: none; width: 150px; min-height: 0; height: 70px; display: flex; align-items: center; justify-content: center; border-radius: 35px; --c: 30px; }
+.ks-preview .bj-card { margin: 0 2px; animation: none; }
+.ks-felt-blau { --felt-hi: #2058a8; --felt-lo: #0c2b62; }
+.ks-felt-rot { --felt-hi: #a8242e; --felt-lo: #5e0c14; }
+.ks-felt-lila { --felt-hi: #6e2c92; --felt-lo: #3a1052; }
+.ks-felt-schwarz { --felt-hi: #3c3c3c; --felt-lo: #121212; --rim-hi: #2a2a2a; --rim-lo: #050505; --rim-bg: #000; }
+.ks-felt-petrol { --felt-hi: #1d8080; --felt-lo: #0b4646; --rim-hi: #8a8a8a; --rim-lo: #4a4a4a; --rim-bg: #2a2a2a; }
+.ks-back-rot { --back: repeating-linear-gradient(45deg, #a00000 0 4px, #e03030 4px 8px); }
+.ks-back-blau { --back: repeating-linear-gradient(45deg, #002a66 0 4px, #3366cc 4px 8px); }
+.ks-back-gruen { --back: repeating-linear-gradient(-45deg, #05502a 0 4px, #2a9a5a 4px 8px); }
+.ks-back-gold { --back: radial-gradient(circle, #ffd700 0 22%, transparent 24%) 50% 50% / 100% 100% no-repeat, repeating-linear-gradient(45deg, #151515 0 5px, #3a2a00 5px 10px); }
+.ks-back-karo { --back: conic-gradient(#c00000 25%, #fff 0 50%, #c00000 0 75%, #fff 0) 0 0 / 8px 8px; }
+.ks-back-retro { --back: radial-gradient(circle, #fff 0 18%, transparent 20%) 0 0 / 7px 7px, #00007f; }

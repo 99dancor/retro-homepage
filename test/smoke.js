@@ -911,259 +911,196 @@ async function main() {
       assert.equal((await api(bernd, '/api/nutzer/anna', undefined, 'GET')).json.relation, rel);
     });
 
-    await step('Blackjack: Tisch, Live-Verbindung, Runde, Bilanz im Profil', async () => {
-      const { anna, bernd } = members;
-      const home = (await guest.req('/', { top: true })).text_;
-      assert.match(home, /<div class="startmenu"[\s\S]*href="\/blackjack">🃏 Blackjack/);
-      assert.match(home, /href="\/guestbook">📖 Besucherbuch/);
-      const page = (await guest.req('/blackjack')).text_;
-      assert.match(page, /Anmelden/);
-      assert.doesNotMatch(page, /blackjack\.js/, 'Gäste bekommen kein Spiel');
-      assert.match((await anna.req('/blackjack')).text_, /usermenu\.js[\s\S]*blackjack\.js/);
-      assert.equal((await api(guest, '/blackjack/tische', undefined, 'GET')).status, 401);
-      // Zahlen zählt der Server selbst: Browser dürfen für Blackjack nichts melden
-      assert.equal((await api(anna, '/api/stats/blackjack', { add: { Bilanz: 1e6 } }, 'PATCH')).status, 404);
-
-      const made = await api(anna, '/blackjack/tische', { name: 'Freitagsrunde', minBet: 10, maxBet: 500, seats: 3 });
-      assert.equal(made.status, 200);
-      const id = made.json.id;
-      const list = await api(bernd, '/blackjack/tische', undefined, 'GET');
-      assert.deepEqual(list.json.tables.map(t => [t.name, t.seats]), [['Freitagsrunde', 3]]);
-      assert.equal(list.json.me.balance, 0);
-
+    // Live-Verbindung zum Spieltisch: liefert die Zustände des gerade gewählten Spiels und meldet einen Spielwechsel
+    let cardTable = null;
+    function cardStream(m) {
       const ctrl = new AbortController();
-      const res = await fetch(`${BASE}/blackjack/tisch/${id}/events`, { headers: { cookie: [...anna.jar].map(([k, v]) => `${k}=${v}`).join('; '), 'user-agent': UA }, signal: ctrl.signal });
-      assert.match(res.headers.get('content-type'), /text\/event-stream/);
-      const reader = res.body.getReader();
-      let buf = '';
-      const nextState = async () => {
+      const ready = fetch(`${BASE}/kartenspiele/tisch/${cardTable}/events`, { headers: { cookie: [...m.jar].map(([k, v]) => `${k}=${v}`).join('; '), 'user-agent': UA }, signal: ctrl.signal });
+      let reader = null, buf = '';
+      async function next(want) {
+        if (!reader) { const res = await ready; assert.match(res.headers.get('content-type'), /text\/event-stream/); reader = res.body.getReader(); }
         for (;;) {
           const i = buf.indexOf('\n\n');
-          if (i >= 0) { const ev = buf.slice(0, i); buf = buf.slice(i + 2); const m = ev.match(/^event: state\ndata: (.*)$/m); if (m) return JSON.parse(m[1]); continue; }
+          if (i >= 0) {
+            const ev = buf.slice(0, i); buf = buf.slice(i + 2);
+            const m = ev.match(/^event: (\w+)\ndata: (.*)$/m);
+            if (m && (m[1] === want || m[1] === 'switch')) return { event: m[1], data: JSON.parse(m[2]) };
+            continue;
+          }
           const { value, done } = await reader.read();
           if (done) throw new Error('Verbindung zu');
           buf += Buffer.from(value).toString();
         }
+      }
+      return {
+        state: async () => { const e = await next('state'); assert.equal(e.event, 'state', 'kein Spielwechsel erwartet'); return e.data; },
+        salon: async () => (await next('salon')).data,
+        switched: async () => { for (;;) { const e = await next('switch'); if (e.event === 'switch') return e.data; } },
+        close: () => ctrl.abort(),
       };
-      let st = await nextState();
+    }
+    const at = (m, body) => api(m, `/kartenspiele/tisch/${cardTable}`, body);
+
+    await step('Kartenspiele: Startmenü, Fenster, Spieltisch eröffnen, Kasse', async () => {
+      const { anna, bernd } = members;
+      const home = (await guest.req('/', { top: true })).text_;
+      // Ein Eintrag für alle Kartenspiele in Spiele und Apps, die einzelnen Spiele führen dorthin
+      assert.match(home, /🎮 Spiele und Apps<\/button><div class="submenu">\s*<a href="\/kartenspiele">🂡 Kartenspiele<\/a>\s*<a href="\/quiz"/);
+      assert.match(home, /href="\/guestbook">📖 Besucherbuch/);
+      for (const g of ['blackjack', 'poker', 'durak', 'uno', 'flip7', 'pilli']) {
+        assert.doesNotMatch(home, new RegExp(`href="/${g}"`));
+        const r = await anna.req('/' + g);
+        assert.equal(r.status, 302, g);
+        assert.equal(r.headers.get('location'), '/kartenspiele');
+        // Zahlen zählt der Server selbst: Browser dürfen für die Kartenspiele nichts melden
+        assert.equal((await api(anna, `/api/stats/${g}`, { add: { Gespielt: 99 } }, 'PATCH')).status, 404, g);
+      }
+      const page = (await guest.req('/kartenspiele')).text_;
+      assert.match(page, /Anmelden/);
+      assert.doesNotMatch(page, /kartenspiele\.js/, 'Gäste bekommen kein Spiel');
+      assert.match((await anna.req('/kartenspiele')).text_, /usermenu\.js[\s\S]*blackjack\.js[\s\S]*poker\.js[\s\S]*durak\.js[\s\S]*cardtable\.js[\s\S]*uno\.js[\s\S]*flip7\.js[\s\S]*pilli\.js[\s\S]*kartenspiele\.js/);
+      assert.equal((await api(guest, '/kartenspiele/tische', undefined, 'GET')).status, 401);
+
+      const k = await api(anna, '/kartenspiele/kasse', undefined, 'GET');
+      assert.deepEqual([k.json.kasse.balance, k.json.kasse.net, k.json.kasse.buyins], [1000, 0, 1]);
+      assert.match((await api(anna, '/kartenspiele/kasse', { action: 'rebuy' })).json.error, /weniger als 200 €/);
+
+      const made = await api(anna, '/kartenspiele/tische', { name: 'Freitagsrunde', game: 'blackjack', seats: 3, felt: 'blau', back: 'gold' });
+      assert.equal(made.status, 200);
+      cardTable = made.json.id;
+      const list = await api(bernd, '/kartenspiele/tische', undefined, 'GET');
+      assert.deepEqual(list.json.tables.map(t => [t.name, t.game, t.seats]), [['Freitagsrunde', 'blackjack', 3]]);
+      const meta = await api(bernd, `/kartenspiele/tisch/${cardTable}`, undefined, 'GET');
+      assert.deepEqual([meta.json.game, meta.json.felt, meta.json.back, meta.json.money], ['blackjack', 'blau', 'gold', true]);
+    });
+
+
+    await step('Kartenspiele: Blackjack am Spieltisch, Geld aus der Kasse, Bilanz im Profil', async () => {
+      const { anna, bernd } = members;
+      const live = cardStream(anna);
+      assert.equal((await live.salon()).felt, 'blau');
+      let st = await live.state();
       assert.equal(st.seatCount, 3);
-      assert.equal((await api(anna, `/blackjack/tisch/${id}`, { action: 'sit' })).status, 200);
-      st = await nextState();
+      assert.equal((await at(anna, { action: 'sit' })).status, 200);
+      st = await live.state();
       assert.equal(st.seats[0].user, 'anna');
-      assert.deepEqual([st.seats[0].chips, st.seats[0].buyins, st.seats[0].balance], [1000, 1, 0]);
-      const rebuy = await api(anna, `/blackjack/tisch/${id}`, { action: 'rebuy' });
+      assert.deepEqual([st.seats[0].chips, st.seats[0].balance], [1000, 0]);
+      const rebuy = await at(anna, { action: 'rebuy' });
       assert.equal(rebuy.status, 400);
       assert.match(rebuy.json.error, /weniger als 200 €/);
-      assert.equal((await api(bernd, `/blackjack/tisch/${id}`, { action: 'kick', user: st.seats[0].id })).status, 400, 'nur der Gastgeber');
+      assert.equal((await at(bernd, { action: 'kick', user: st.seats[0].id })).status, 400, 'nur der Gastgeber');
+      assert.equal((await at(bernd, { action: 'game', game: 'poker' })).status, 400, 'nur der Gastgeber wählt das Spiel');
+      assert.equal((await at(bernd, { action: 'design', felt: 'rot' })).status, 400);
 
       // Eine Runde: setzen, bestätigen, beim eigenen Zug halten, Ergebnis abwarten
-      assert.equal((await api(anna, `/blackjack/tisch/${id}`, { action: 'bet', amount: 100 })).status, 200);
-      assert.equal((await api(anna, `/blackjack/tisch/${id}`, { action: 'confirm' })).status, 200);
+      assert.equal((await at(anna, { action: 'bet', amount: 100 })).status, 200);
+      assert.equal((await at(anna, { action: 'confirm' })).status, 200);
       for (;;) {
-        st = await nextState();
+        st = await live.state();
         if (st.phase === 'playing') assert.ok(st.dealer[1] === null, 'Lochkarte verdeckt');
-        if (st.phase === 'playing' && st.turn && st.turn.seat === 0) await api(anna, `/blackjack/tisch/${id}`, { action: 'stand' });
+        if (st.phase === 'playing' && st.turn && st.turn.seat === 0) await at(anna, { action: 'stand' });
         if (st.phase === 'result') break;
       }
       const balance = st.seats[0].balance;
       assert.equal(balance, st.seats[0].chips - 1000);
       assert.ok(['win', 'blackjack', 'push', 'lose', 'bust'].includes(st.seats[0].hands[0].result));
-      ctrl.abort();
+      live.close();
+
+      // Die Kasse zieht nach der Hand mit; solange das Geld am Tisch liegt, kauft man dort nach
+      const k = await api(anna, '/kartenspiele/kasse', undefined, 'GET');
+      assert.deepEqual([k.json.kasse.balance, k.json.kasse.net, k.json.kasse.atTable], [1000 + balance, balance, 'Freitagsrunde']);
+      assert.match((await api(anna, '/kartenspiele/kasse', { action: 'rebuy' })).json.error, /am Spieltisch „Freitagsrunde“/);
+      assert.equal(k.json.board.find(u => u.user === 'anna').net, balance);
 
       const stats = await api(anna, '/blackjack/statistik', undefined, 'GET');
       assert.equal(stats.json.me.hands, 1);
       assert.equal(stats.json.me.balance, balance);
       assert.equal(stats.json.sessions[0].table, 'Freitagsrunde');
-      assert.equal(stats.json.board[0].user, 'anna');
       const prof = (await bernd.req('/nutzer/anna')).text_;
-      assert.match(prof, /href="\/blackjack"><b>Blackjack<\/b>[\s\S]*Bilanz<\/td><td class="num[^"]*">[−+±][\d.]+ €/);
+      assert.match(prof, /href="\/kartenspiele"><b>Kartenspiele<\/b>[\s\S]*Kontostand<\/td><td class="num">[\d.]+ €[\s\S]*Bilanz<\/td><td class="num[^"]*">[−+±][\d.]+ €/);
+      assert.match(prof, /href="\/kartenspiele"><b>Blackjack<\/b>[\s\S]*Gewonnen\/verloren<\/td><td class="num[^"]*">[−+±][\d.]+ €/);
       assert.match(prof, /Hände<\/td><td class="num">1</);
-
-      // Aufstehen schließt die Sitzung ab, Gastgeber schließt den Tisch
-      assert.equal((await api(anna, `/blackjack/tisch/${id}`, { action: 'close' })).status, 200);
-      assert.equal((await api(anna, `/blackjack/tisch/${id}`, { action: 'sit' })).status, 404);
-      const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'));
-      assert.ok(sql.prepare("SELECT s.ended_at FROM bj_sessions s JOIN users u ON u.id = s.user_id WHERE u.username = 'anna'").get().ended_at);
     });
 
-    await step('Poker: Tisch, eigene Karten, eine Hand, Bilanz im Profil', async () => {
+    await step('Kartenspiele: Spiel wechseln zu Poker, alle bleiben sitzen, Geld kommt mit', async () => {
       const { anna, bernd } = members;
-      const home = (await guest.req('/', { top: true })).text_;
-      assert.match(home, /<div class="startmenu"[\s\S]*href="\/poker">♠️ Poker/);
-      const page = (await guest.req('/poker')).text_;
-      assert.match(page, /Anmelden/);
-      assert.doesNotMatch(page, /poker\.js/, 'Gäste bekommen kein Spiel');
-      assert.match((await anna.req('/poker')).text_, /usermenu\.js[\s\S]*poker\.js/);
-      assert.equal((await api(guest, '/poker/tische', undefined, 'GET')).status, 401);
-      assert.equal((await api(anna, '/api/stats/poker', { add: { Bilanz: 1e6 } }, 'PATCH')).status, 404);
+      assert.equal((await at(bernd, { action: 'sit' })).status, 200);
+      const live = cardStream(anna);
+      await live.state();
+      assert.equal((await at(anna, { action: 'game', game: 'poker' })).status, 200);
+      assert.equal((await live.switched()).game, 'poker');
+      live.close();
+      const list = await api(bernd, '/kartenspiele/tische', undefined, 'GET');
+      assert.deepEqual(list.json.tables.map(t => [t.name, t.game]), [['Freitagsrunde', 'poker']]);
+      const wallet = (await api(anna, '/kartenspiele/kasse', undefined, 'GET')).json.kasse.balance;
 
-      const made = await api(anna, '/poker/tische', { name: 'Pokerabend', sb: 5, seats: 4 });
-      assert.equal(made.status, 200);
-      const id = made.json.id;
-      const list = await api(bernd, '/poker/tische', undefined, 'GET');
-      assert.deepEqual(list.json.tables.map(t => [t.name, t.seats, t.bb]), [['Pokerabend', 4, 10]]);
-
-      const ctrl = new AbortController();
-      const res = await fetch(`${BASE}/poker/tisch/${id}/events`, { headers: { cookie: [...anna.jar].map(([k, v]) => `${k}=${v}`).join('; '), 'user-agent': UA }, signal: ctrl.signal });
-      assert.match(res.headers.get('content-type'), /text\/event-stream/);
-      const reader = res.body.getReader();
-      let buf = '';
-      const nextState = async () => {
-        for (;;) {
-          const i = buf.indexOf('\n\n');
-          if (i >= 0) { const ev = buf.slice(0, i); buf = buf.slice(i + 2); const m = ev.match(/^event: state\ndata: (.*)$/m); if (m) return JSON.parse(m[1]); continue; }
-          const { value, done } = await reader.read();
-          if (done) throw new Error('Verbindung zu');
-          buf += Buffer.from(value).toString();
-        }
-      };
-      let st = await nextState();
-      assert.equal(st.seatCount, 4);
-      assert.equal((await api(anna, `/poker/tisch/${id}`, { action: 'sit' })).status, 200);
-      assert.equal((await api(bernd, `/poker/tisch/${id}`, { action: 'sit' })).status, 200);
-      while (st.phase !== 'playing') st = await nextState();
+      const p = cardStream(anna);
+      let st = await p.state();
       const mine = st.seats.find(x => x && x.user === 'anna'), his = st.seats.find(x => x && x.user === 'bernd');
-      assert.ok(mine.cards[0] && mine.cards[0].r, 'eigene Karten sichtbar');
-      assert.deepEqual(his.cards, [null, null], 'fremde Karten nicht');
+      assert.equal(mine.chips, wallet, 'Chips aus der Kasse');
+      assert.equal(his.chips, 1000);
+      assert.match(st.log.join(' '), /hat Poker gewählt/);
+      while (st.phase !== 'playing') st = await p.state();
+      assert.ok(st.seats.find(x => x && x.user === 'anna').cards[0].r, 'eigene Karten sichtbar');
+      assert.deepEqual(st.seats.find(x => x && x.user === 'bernd').cards, [null, null], 'fremde Karten nicht');
       assert.equal(st.pot, 15);
-      // Wer dran ist, steigt aus
+      // Mitten in der Hand wird nicht gewechselt
+      assert.match((await at(anna, { action: 'game', game: 'durak' })).json.error, /Runde/);
       const who = st.seats[st.turn.seat].user === 'anna' ? anna : bernd;
-      assert.equal((await api(who === anna ? bernd : anna, `/poker/tisch/${id}`, { action: 'fold' })).status, 400, 'nicht dran');
-      assert.equal((await api(who, `/poker/tisch/${id}`, { action: 'fold' })).status, 200);
-      while (st.phase !== 'showdown') st = await nextState();
-      const balance = st.seats.find(x => x && x.user === 'anna').balance;
-      assert.equal(Math.abs(balance), 5, 'Small Blind verloren oder gewonnen');
-      ctrl.abort();
-
+      assert.equal((await at(who === anna ? bernd : anna, { action: 'fold' })).status, 400, 'nicht dran');
+      assert.equal((await at(who, { action: 'fold' })).status, 200);
+      while (st.phase !== 'showdown') st = await p.state();
+      const net = st.seats.find(x => x && x.user === 'anna').balance;
+      assert.equal(Math.abs(net), 5, 'Small Blind verloren oder gewonnen');
+      p.close();
+      assert.equal((await api(anna, '/kartenspiele/kasse', undefined, 'GET')).json.kasse.balance, wallet + net);
       const stats = await api(anna, '/poker/statistik', undefined, 'GET');
       assert.equal(stats.json.me.hands, 1);
-      assert.equal(stats.json.me.balance, balance);
-      assert.equal(stats.json.sessions[0].table, 'Pokerabend');
-      const prof = (await bernd.req('/nutzer/anna')).text_;
-      assert.match(prof, /href="\/poker"><b>Poker<\/b>[\s\S]*Bilanz<\/td><td class="num[^"]*">[−+±][\d.]+ €/);
-
-      assert.equal((await api(anna, `/poker/tisch/${id}`, { action: 'close' })).status, 200);
-      assert.equal((await api(anna, `/poker/tisch/${id}`, { action: 'sit' })).status, 404);
+      assert.equal(stats.json.sessions[0].table, 'Freitagsrunde');
     });
 
-    await step('Durak: Tisch, Bereit, eigene Karten, Aufstehen macht zum Durak, Profil', async () => {
+    await step('Kartenspiele: Durak, UNO, Flip 7, Pilli Pilli am selben Tisch, Statistik und Profil', async () => {
       const { anna, bernd } = members;
-      const home = (await guest.req('/', { top: true })).text_;
-      assert.match(home, /<div class="startmenu"[\s\S]*href="\/durak">🎴 Durak/);
-      const page = (await guest.req('/durak')).text_;
-      assert.match(page, /Anmelden/);
-      assert.doesNotMatch(page, /durak\.js/, 'Gäste bekommen kein Spiel');
-      assert.match((await anna.req('/durak')).text_, /usermenu\.js[\s\S]*durak\.js/);
-      assert.equal((await api(guest, '/durak/tische', undefined, 'GET')).status, 401);
-      assert.equal((await api(anna, '/api/stats/durak', { add: { Gespielt: 99 } }, 'PATCH')).status, 404);
-
-      const made = await api(anna, '/durak/tische', { name: 'Durakrunde', seats: 3 });
-      assert.equal(made.status, 200);
-      const id = made.json.id;
-      const list = await api(bernd, '/durak/tische', undefined, 'GET');
-      assert.deepEqual(list.json.tables.map(t => [t.name, t.seats]), [['Durakrunde', 3]]);
-
-      const ctrl = new AbortController();
-      const res = await fetch(`${BASE}/durak/tisch/${id}/events`, { headers: { cookie: [...anna.jar].map(([k, v]) => `${k}=${v}`).join('; '), 'user-agent': UA }, signal: ctrl.signal });
-      assert.match(res.headers.get('content-type'), /text\/event-stream/);
-      const reader = res.body.getReader();
-      let buf = '';
-      const nextState = async () => {
-        for (;;) {
-          const i = buf.indexOf('\n\n');
-          if (i >= 0) { const ev = buf.slice(0, i); buf = buf.slice(i + 2); const m = ev.match(/^event: state\ndata: (.*)$/m); if (m) return JSON.parse(m[1]); continue; }
-          const { value, done } = await reader.read();
-          if (done) throw new Error('Verbindung zu');
-          buf += Buffer.from(value).toString();
-        }
-      };
-      let st = await nextState();
-      assert.equal(st.seatCount, 3);
-      for (const m of [anna, bernd]) assert.equal((await api(m, `/durak/tisch/${id}`, { action: 'sit' })).status, 200);
-      for (const m of [anna, bernd]) assert.equal((await api(m, `/durak/tisch/${id}`, { action: 'ready' })).status, 200);
-      while (st.phase !== 'playing') st = await nextState();
-      assert.equal(st.hand.length, 6, 'eigene Karten');
-      assert.equal(st.seats.find(x => x && x.user === 'bernd').cards, 6);
-      assert.ok(!JSON.stringify(st.seats).includes('"hand"'), 'fremde Karten nicht');
-      assert.equal(st.deck, 24);
-      assert.ok(st.trump && st.trump.s);
-      // Wer nicht angreift, darf nicht anfangen
-      const attacker = st.seats[st.attacker].user === 'anna' ? anna : bernd;
-      const other = attacker === anna ? bernd : anna;
-      assert.equal((await api(other, `/durak/tisch/${id}`, { action: 'attack', card: 'A♠' })).status, 400);
-      assert.equal((await api(anna, `/durak/tisch/${id}`, { action: 'leave' })).status, 200);
-      while (st.phase !== 'result') st = await nextState();
-      assert.equal(st.result.durak, st.result.order.find(o => o.user === 'anna').name);
-      ctrl.abort();
-
-      const stats = await api(bernd, '/durak/statistik', undefined, 'GET');
-      assert.deepEqual([stats.json.me.games, stats.json.me.wins, stats.json.me.duraks], [1, 1, 0]);
-      assert.equal(stats.json.games[0].table, 'Durakrunde');
-      const prof = (await bernd.req('/nutzer/anna')).text_;
-      assert.match(prof, /href="\/durak"><b>Durak<\/b>[\s\S]*Durak geworden<\/td><td class="num[^"]*">1 \(100 %\)/);
-
-      assert.equal((await api(anna, `/durak/tisch/${id}`, { action: 'close' })).status, 200);
-      assert.equal((await api(anna, `/durak/tisch/${id}`, { action: 'sit' })).status, 404);
-    });
-
-    await step('UNO, Flip 7, Pilli Pilli: Kartenspiele-Untermenü, Tisch, eigene Karten, Aufstehen, Profil', async () => {
-      const { anna, bernd } = members;
-      const home = (await guest.req('/', { top: true })).text_;
-      // Kartenspiele ist ein Untermenü in Spiele und Apps
-      assert.match(home, /🎮 Spiele und Apps<\/button><div class="submenu">\s*<div class="sub"><button[^>]*>🂡 Kartenspiele<\/button><div class="submenu">[\s\S]*href="\/blackjack"[\s\S]*href="\/durak"[\s\S]*href="\/uno">🟥 UNO[\s\S]*href="\/flip7">7️⃣ Flip 7[\s\S]*href="\/pilli">🌶️ Pilli Pilli<\/a>\s*<\/div><\/div>[\s\S]*href="\/quiz"/);
-      for (const [game, title, hand] of [['uno', 'UNO', 7], ['flip7', 'Flip 7', null], ['pilli', 'Pilli Pilli', 5]]) {
-        const page = (await guest.req('/' + game)).text_;
-        assert.match(page, /Anmelden/);
-        assert.doesNotMatch(page, /cardtable\.js/, 'Gäste bekommen kein Spiel');
-        assert.match((await anna.req('/' + game)).text_, new RegExp(`usermenu\\.js[\\s\\S]*cardtable\\.js[\\s\\S]*${game}\\.js`));
-        assert.equal((await api(guest, `/${game}/tische`, undefined, 'GET')).status, 401);
-        assert.equal((await api(anna, `/api/stats/${game}`, { add: { Gespielt: 99 } }, 'PATCH')).status, 404);
-
-        const made = await api(anna, `/${game}/tische`, { name: title + 'runde', seats: 3, target: 100 });
-        assert.equal(made.status, 200);
-        const id = made.json.id;
-        const list = await api(bernd, `/${game}/tische`, undefined, 'GET');
-        assert.deepEqual(list.json.tables.map(t => [t.name, t.seats]), [[title + 'runde', 3]]);
-
-        const ctrl = new AbortController();
-        const res = await fetch(`${BASE}/${game}/tisch/${id}/events`, { headers: { cookie: [...anna.jar].map(([k, v]) => `${k}=${v}`).join('; '), 'user-agent': UA }, signal: ctrl.signal });
-        assert.match(res.headers.get('content-type'), /text\/event-stream/);
-        const reader = res.body.getReader();
-        let buf = '';
-        const nextState = async () => {
-          for (;;) {
-            const i = buf.indexOf('\n\n');
-            if (i >= 0) { const ev = buf.slice(0, i); buf = buf.slice(i + 2); const m = ev.match(/^event: state\ndata: (.*)$/m); if (m) return JSON.parse(m[1]); continue; }
-            const { value, done } = await reader.read();
-            if (done) throw new Error('Verbindung zu');
-            buf += Buffer.from(value).toString();
-          }
-        };
-        let st = await nextState();
-        assert.equal(st.seatCount, 3);
-        for (const m of [anna, bernd]) assert.equal((await api(m, `/${game}/tisch/${id}`, { action: 'sit' })).status, 200);
-        for (const m of [anna, bernd]) assert.equal((await api(m, `/${game}/tisch/${id}`, { action: 'ready' })).status, 200);
-        while (st.phase !== 'playing') st = await nextState();
+      for (const [game, title, hand] of [['durak', 'Durak', 6], ['uno', 'UNO', 7], ['flip7', 'Flip 7', null], ['pilli', 'Pilli Pilli', 5]]) {
+        const before = cardStream(anna);
+        await before.state();
+        assert.equal((await at(anna, { action: 'game', game })).status, 200, game);
+        await before.switched();
+        before.close();
+        const live = cardStream(anna);
+        let st = await live.state();
+        assert.deepEqual(st.seats.filter(Boolean).map(x => x.user).sort(), ['anna', 'bernd'], game + ': alle sitzen noch');
+        if (game === 'uno') assert.equal((await at(anna, { action: 'settings', target: 100 })).status, 200);
+        for (const m of [anna, bernd]) assert.equal((await at(m, { action: 'ready' })).status, 200);
+        while (st.phase !== 'playing') st = await live.state();
         if (hand) {
-          assert.equal(st.hand.length, hand, 'eigene Karten');
+          assert.equal(st.hand.length, hand, game + ': eigene Karten');
           assert.ok(!JSON.stringify(st.seats).includes('"hand"'), 'fremde Karten nicht');
         } else assert.ok(st.f7 && st.f7.deck < 94, 'Flip 7: es wird offen gegeben');
-        assert.equal((await api(anna, `/${game}/tisch/${id}`, { action: 'quatsch' })).status, 400);
-        assert.equal((await api(anna, `/${game}/tisch/${id}`, { action: 'leave' })).status, 200);
-        while (st.phase !== 'result') st = await nextState();
-        assert.deepEqual(st.result.order.filter(o => o.won).map(o => o.user), ['bernd'], 'wer sitzen bleibt, gewinnt');
-        assert.ok(st.result.order.find(o => o.user === 'anna').quit);
-        ctrl.abort();
+        assert.equal((await at(anna, { action: 'quatsch' })).status, 400);
+        assert.equal((await at(anna, { action: 'leave' })).status, 200);
+        while (st.phase !== 'result') st = await live.state();
+        if (game === 'durak') assert.equal(st.result.durak, st.result.order.find(o => o.user === 'anna').name);
+        else assert.deepEqual(st.result.order.filter(o => o.won).map(o => o.user), ['bernd'], 'wer sitzen bleibt, gewinnt');
+        live.close();
+        assert.equal((await at(anna, { action: 'sit' })).status, 200);
 
         const stats = await api(bernd, `/${game}/statistik`, undefined, 'GET');
-        assert.deepEqual([stats.json.me.games, stats.json.me.wins], [1, 1]);
-        assert.equal(stats.json.games[0].table, title + 'runde');
+        assert.deepEqual([stats.json.me.games, stats.json.me.wins], [1, 1], game);
+        assert.equal(stats.json.games[0].table, 'Freitagsrunde');
         const prof = (await anna.req('/nutzer/bernd')).text_;
-        assert.match(prof, new RegExp(`href="/${game}"><b>${title}</b>[\\s\\S]*Gewonnen</td><td class="num[^"]*">1 \\(100 %\\)`));
-
-        assert.equal((await api(anna, `/${game}/tisch/${id}`, { action: 'close' })).status, 200);
-        assert.equal((await api(anna, `/${game}/tisch/${id}`, { action: 'sit' })).status, 404);
+        assert.match(prof, new RegExp(`href="/kartenspiele"><b>${title}</b>`));
       }
+      // Zurück in die Lobby, umgestalten, Tisch schließen
+      assert.equal((await at(anna, { action: 'game', game: 'lobby' })).status, 200);
+      assert.match((await at(anna, { action: 'ready' })).json.error, /wählt der Gastgeber/);
+      assert.equal((await at(anna, { action: 'design', felt: 'rot', back: 'karo', name: 'Samstagsrunde' })).status, 200);
+      assert.deepEqual((await api(bernd, '/kartenspiele/tische', undefined, 'GET')).json.tables.map(t => [t.name, t.game]), [['Samstagsrunde', 'lobby']]);
+      assert.equal((await at(bernd, { action: 'close' })).status, 403);
+      assert.equal((await at(anna, { action: 'close' })).status, 200);
+      assert.equal((await at(anna, { action: 'sit' })).status, 404);
+      const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'));
+      assert.ok(sql.prepare("SELECT s.ended_at FROM bj_sessions s JOIN users u ON u.id = s.user_id WHERE u.username = 'anna'").get().ended_at);
     });
 
     await step('Minesweeper: Fenster, Start und Ende auf dem Server, Bestzeiten und Profil', async () => {

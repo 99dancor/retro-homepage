@@ -7,8 +7,12 @@
 // Geld (Start-Buy-in plus alle Nachkäufe). Bilanz eines Kontos = Summe aus (Chips − eingekauft) über alle Sitzungen.
 // Beispiel: 1.000 € Start, drei Nachkäufe zu 1.000 €, mit 500 € aufgehört → 500 − 4.000 = −3.500 €.
 // Der Stand wird nach jeder Hand gespeichert; ein Neustart des Servers kostet höchstens die laufende Hand.
+// Gehört der Tisch zu einem Spieltisch (src/kartenspiele.js), hängt t.bank (src/kasse.js) daran: Dann bringt jeder seinen
+// Kontostand als Chips mit, bought ist dieser Startstand (die Sitzung zählt nur Gewinn und Verlust) und jede Speicherung
+// schreibt die Chips auch in die Kasse.
 const crypto = require('node:crypto');
 const { db, now, getSetting } = require('./db');
+const kasse = require('./kasse');
 
 const MAX_TABLES = 30;
 const MAX_SEATS = 5;
@@ -26,8 +30,7 @@ const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 const int = (v, d, min, max) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n >= min && n <= max ? n : d; };
 function config() {
   return {
-    buyin: int(getSetting('bj_buyin'), 1000, 1, 1e9),
-    rebuyBelow: int(getSetting('bj_rebuy_below'), 200, 0, 1e9),
+    ...kasse.config(),
     decks: int(getSetting('bj_decks'), 6, 1, 8),
     h17: getSetting('bj_h17') === '1',
     turn: int(getSetting('bj_turn'), 30, 5, 300),
@@ -62,6 +65,7 @@ function openSession(t, seat) {
 }
 function saveSession(seat, end = false) {
   const s = seat.stats;
+  if (seat.bank) seat.bank.save(seat.userId, seat.chips);
   db.prepare(`UPDATE bj_sessions SET chips = ?, bought = ?, buyins = ?, hands = ?, wins = ?, losses = ?, pushes = ?, blackjacks = ?,
               best_win = ?, best_streak = ?, updated_at = ?${end ? ', ended_at = ?' : ''} WHERE id = ?`)
     .run(...[seat.chips, seat.bought, seat.buyins, s.hands, s.wins, s.losses, s.pushes, s.blackjacks, s.bestWin, s.bestStreak, now()], ...(end ? [now()] : []), seat.sessionId);
@@ -74,7 +78,7 @@ function recordWin(seat, net) {
   if (!prev || prev.user_id === seat.userId || net <= prev.best_win) return;
   require('./notify').send(prev.user_id, 'highscore', {
     title: `🏆 ${seat.name} hat deinen Blackjack-Rekord geknackt`,
-    body: `Größter Gewinn in einer Runde: +${net.toLocaleString('de-DE')} € (dein Rekord: +${prev.best_win.toLocaleString('de-DE')} €)`, url: '/blackjack#statistik',
+    body: `Größter Gewinn in einer Runde: +${net.toLocaleString('de-DE')} € (dein Rekord: +${prev.best_win.toLocaleString('de-DE')} €)`, url: '/kartenspiele?statistik=blackjack',
   });
 }
 
@@ -154,7 +158,7 @@ function summary(t) {
   };
 }
 function list(user) {
-  return [...tables.values()].filter(t => !t.hidden || t.hostId === user.id || user.isAdmin || seatOf(t, user.id))
+  return [...tables.values()].filter(t => !t.spieltisch && (!t.hidden || t.hostId === user.id || user.isAdmin || seatOf(t, user.id)))
     .map(summary).sort((a, b) => b.players - a.players || a.name.localeCompare(b.name, 'de'));
 }
 
@@ -202,15 +206,16 @@ function sit(t, user, index) {
   if (other) return `Du sitzt schon am Tisch „${other.name}“. Steh dort erst auf.`;
   let i = Number.isInteger(index) && index >= 0 && index < t.seatCount && !t.seats[index] ? index : t.seats.slice(0, t.seatCount).findIndex(s => !s);
   if (i < 0) return 'Alle Plätze sind besetzt.';
-  const cfg = config();
+  // Am Spieltisch kommt das Geld aus der Kasse (src/kasse.js), sonst gibt es den Buy-in
+  const chips = t.bank ? t.bank.take(user.id) : config().buyin;
   const seat = {
-    userId: user.id, name: user.name, username: user.username, chips: cfg.buyin, bought: cfg.buyin, buyins: 1,
+    userId: user.id, name: user.name, username: user.username, chips, bought: chips, buyins: t.bank ? 0 : 1, bank: t.bank || null,
     bet: 0, ready: false, lastBet: 0, hands: [], leaving: false, awaySince: 0, streak: 0,
     stats: { hands: 0, wins: 0, losses: 0, pushes: 0, blackjacks: 0, bestWin: 0, bestStreak: 0 },
   };
   openSession(t, seat);
   t.seats[i] = seat;
-  log(t, `${user.name} setzt sich mit ${euro(cfg.buyin)}.`);
+  log(t, `${user.name} setzt sich mit ${euro(chips)}.`);
   return null;
 }
 const inHand = s => s.hands.some(h => !h.result);
@@ -218,9 +223,10 @@ function rebuy(t, seat) {
   const cfg = config();
   if (inHand(seat)) return 'Nachkaufen geht erst nach dieser Hand.';
   if (seat.chips >= cfg.rebuyBelow) return `Nachkaufen geht erst, wenn du weniger als ${euro(cfg.rebuyBelow)} hast.`;
+  if (seat.bank) seat.bank.rebuy(seat.userId, seat.chips);
   seat.chips += cfg.buyin; seat.bought += cfg.buyin; seat.buyins++;
   saveSession(seat);
-  log(t, `${seat.name} kauft für ${euro(cfg.buyin)} nach (${seat.buyins}. Buy-in).`);
+  log(t, `${seat.name} kauft für ${euro(cfg.buyin)} nach` + (seat.bank ? '.' : ` (${seat.buyins}. Buy-in).`));
   return null;
 }
 // Aufstehen: mitten in einer Hand erst, wenn sie entschieden ist

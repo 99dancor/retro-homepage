@@ -14,6 +14,7 @@
   }
 
   window.CardTable({
+    id: 'pilli',
     tableWord: 'Pilli-Pilli-Tisch',
     motto: 'PILLI PILLI · 55 KARTEN + JOKER',
     blurb: 'Pilli Pilli (Pili Pili) in der Grundversion, 2 bis 8 Spieler, je 5 Karten, bis jemand 7 Pilis hat.',

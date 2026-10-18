@@ -402,7 +402,7 @@ router.post('/users/create', (req, res) => {
 router.get('/users/:id', (req, res, next) => {
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(req.params.id));
   if (!u) return next();
-  res.render('admin/user-edit', { title: 'Nutzer: ' + u.username, u, bj: require('../blackjack').userTotals(u.id), pk: require('../poker').userTotals(u.id), dk: require('../durak').userTotals(u.id), cg: CARD_GAMES.map(([id, title]) => ({ id, title, t: require('../' + id).userTotals(u.id) })), ms: require('../minesweeper').userTotals(u.id), cw: require('../crossword').userTotals(u.id), userGroups: db.prepare('SELECT group_id FROM user_groups WHERE user_id = ?').all(u.id).map(r => r.group_id), err: req.query.err || null });
+  res.render('admin/user-edit', { title: 'Nutzer: ' + u.username, u, ks: require('../kasse').peek(u.id), bj: require('../blackjack').userTotals(u.id), pk: require('../poker').userTotals(u.id), dk: require('../durak').userTotals(u.id), cg: CARD_GAMES.map(([id, title]) => ({ id, title, t: require('../' + id).userTotals(u.id) })), ms: require('../minesweeper').userTotals(u.id), cw: require('../crossword').userTotals(u.id), userGroups: db.prepare('SELECT group_id FROM user_groups WHERE user_id = ?').all(u.id).map(r => r.group_id), err: req.query.err || null });
 });
 router.post('/users/:id', (req, res) => {
   const id = Number(req.params.id), b = req.body;
@@ -424,6 +424,7 @@ router.post('/users/:id', (req, res) => {
       if (old) profiles.removeAvatar(old.avatar);
       db.prepare('UPDATE users SET avatar = NULL WHERE id = ?').run(id);
     }
+    if (b.reset_kasse) require('../kasse').reset(id);
     if (b.reset_blackjack) require('../blackjack').resetStats(id);
     if (b.reset_poker) require('../poker').resetStats(id);
     if (b.reset_durak) require('../durak').resetStats(id);
@@ -548,9 +549,9 @@ router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, 
 
 // ---------- Einstellungen ----------
 const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days', 'music_quota_mb',
-  'bj_buyin', 'bj_rebuy_below', 'bj_decks', 'bj_turn', 'pk_buyin', 'pk_rebuy_below', 'pk_turn', 'dk_turn', 'uno_turn', 'f7_turn', 'pp_turn', 'cw_words'];
+  'ks_buyin', 'ks_rebuy_below', 'bj_decks', 'bj_turn', 'pk_turn', 'dk_turn', 'uno_turn', 'f7_turn', 'pp_turn', 'cw_words'];
 const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure', 'lobby_enabled', 'youtube_enabled', 'bj_enabled', 'bj_h17', 'pk_enabled', 'dk_enabled', 'uno_enabled', 'f7_enabled', 'pp_enabled'];
-const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Andere Games', haustier: 'Mein Haustier', musik: 'Musikplayer', zufall: 'Zufallsgenerator', blackjack: 'Blackjack', poker: 'Poker', durak: 'Durak', uno: 'UNO', flip7: 'Flip 7', pilli: 'Pilli Pilli', quiz: 'Quiz', minesweeper: 'Minesweeper', kreuzwortraetsel: 'Kreuzworträtsel', paint: 'Paint', galerie: 'Galerie', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
+const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Andere Games', haustier: 'Mein Haustier', musik: 'Musikplayer', zufall: 'Zufallsgenerator', kartenspiele: 'Kartenspiele', quiz: 'Quiz', minesweeper: 'Minesweeper', kreuzwortraetsel: 'Kreuzworträtsel', paint: 'Paint', galerie: 'Galerie', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
 router.get('/settings', (req, res) => {
   const s = Object.fromEntries([...SETTING_KEYS, ...SETTING_FLAGS, 'nav_hidden', 'music_upload'].map(k => [k, getSetting(k, '')]));
   s.smtp_pass_set = !!getSetting('smtp_pass');
@@ -566,6 +567,11 @@ router.post('/settings', (req, res) => {
   const shown = asArray(b.nav);
   setSetting('nav_hidden', Object.keys(NAV_ITEMS).filter(k => !shown.includes(k)).join(','));
   res.redirect('/admin/settings?ok=1');
+});
+// Kasse der Kartenspiele leeren: beim nächsten Hinsetzen gibt es wieder Startgeld
+router.post('/settings/kasse-reset', (req, res) => {
+  require('../kasse').reset(null);
+  res.redirect('/admin/settings?ok=1#kasse');
 });
 // Blackjack-Bestenliste leeren. Sitzungen, die gerade an einem Tisch laufen, bleiben stehen.
 router.post('/settings/blackjack-reset', (req, res) => {

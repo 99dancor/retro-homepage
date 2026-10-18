@@ -20,6 +20,7 @@
   }
 
   window.CardTable({
+    id: 'uno',
     tableWord: 'UNO-Tisch',
     motto: 'UNO · 108 KARTEN',
     blurb: 'UNO nach den offiziellen Regeln, 2 bis 8 Spieler, bis 500 Punkte oder eine Runde.',

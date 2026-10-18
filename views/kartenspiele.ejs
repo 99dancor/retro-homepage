@@ -1,0 +1,38 @@
+<%- include('partials/head') %>
+<%# Kartenspiele: Spieltische, Kasse und Bestenlisten laufen in public/kartenspiele.js; am Tisch baut es das Skript des gewählten Spiels auf (public/blackjack.js, poker.js, durak.js, cardtable.js mit uno.js, flip7.js, pilli.js) %>
+<div class="bj ks" id="ks" data-csrf="<%= csrf %>" data-user="<%= user ? user.id : '' %>" data-games="<%= JSON.stringify(games) %>" data-felts="<%= felts.join(',') %>" data-backs="<%= backs.join(',') %>">
+  <nav class="menubar bj-nav" role="tablist">
+    <a href="#tische" data-view="tische">🂡 Spieltische</a><a href="#kasse" data-view="kasse">💰 Kasse</a><a href="#statistik" data-view="statistik">📊 Bestenlisten und Regeln</a>
+    <span class="spacer"></span><span class="bj-me" id="ks-me"></span>
+  </nav>
+  <div class="bj-main" id="ks-main">
+    <% if (!user) { %>
+      <div class="bj-guest">
+        <p class="bj-big">🂡 Kartenspiele</p>
+        <p>Mach einen Spieltisch auf, triff dich dort mit anderen Mitgliedern und spielt <%= games.filter(g => g.id !== 'lobby').map(g => g.title).join(', ') %>. Das Spiel wechselt ihr am Tisch, ohne aufzustehen. Für Blackjack und Poker hat jeder eine Kasse mit <b><%= kasse.buyin.toLocaleString('de-DE') %> €</b> Spielgeld.</p>
+        <p><a class="btn" href="/login?next=/kartenspiele">Anmelden</a><% if (registrationOpen) { %> <a class="btn" href="/register?next=/kartenspiele">Registrieren</a><% } %></p>
+      </div>
+    <% } %>
+  </div>
+  <div class="statusbar"><span id="ks-status">Spielgeld, kein echtes Geld.</span></div>
+</div>
+<div id="ks-game" hidden></div>
+<dialog class="window mp-dlg" id="ks-dlg">
+  <div class="titlebar"><span class="ttl" id="ks-dlg-title"></span></div>
+  <form method="dialog" class="body">
+    <div id="ks-dlg-body"></div>
+    <div class="actions" id="ks-dlg-actions"></div>
+  </form>
+</dialog>
+<% if (user) { %>
+<script src="<%= asset('usermenu.js') %>"></script>
+<script src="<%= asset('blackjack.js') %>"></script>
+<script src="<%= asset('poker.js') %>"></script>
+<script src="<%= asset('durak.js') %>"></script>
+<script src="<%= asset('cardtable.js') %>"></script>
+<script src="<%= asset('uno.js') %>"></script>
+<script src="<%= asset('flip7.js') %>"></script>
+<script src="<%= asset('pilli.js') %>"></script>
+<script src="<%= asset('kartenspiele.js') %>"></script>
+<% } %>
+<%- include('partials/foot') %>

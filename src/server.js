@@ -60,12 +60,7 @@ app.use((req, res, next) => {
     registrationOpen: getSetting('registration_open') === '1',
     contactEnabled: getSetting('contact_enabled') === '1',
     boardEnabled: getSetting('board_enabled') === '1',
-    blackjackEnabled: getSetting('bj_enabled', '1') === '1',
-    pokerEnabled: getSetting('pk_enabled', '1') === '1',
-    durakEnabled: getSetting('dk_enabled', '1') === '1',
-    unoEnabled: getSetting('uno_enabled', '1') === '1',
-    flip7Enabled: getSetting('f7_enabled', '1') === '1',
-    pilliEnabled: getSetting('pp_enabled', '1') === '1',
+    cardsEnabled: ['bj', 'pk', 'dk', 'uno', 'f7', 'pp'].some(p => getSetting(p + '_enabled', '1') === '1'),
     paintEnabled: getSetting('paint_enabled', '1') === '1',
     quizEnabled: getSetting('quiz_enabled', '1') === '1',
     galleryEnabled: getSetting('paint_enabled', '1') === '1' && getSetting('paint_gallery', '1') === '1',
@@ -107,6 +102,7 @@ app.use('/api/stats', profileRoutes.stats);
 app.use('/admin', require('./routes/admin'));
 app.use('/forum', require('./routes/board'));
 app.use('/musik', require('./routes/music').router);
+app.use('/kartenspiele', require('./routes/kartenspiele'));
 app.use('/blackjack', require('./routes/blackjack'));
 app.use('/poker', require('./routes/poker'));
 app.use('/durak', require('./routes/durak'));

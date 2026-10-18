@@ -55,6 +55,8 @@ const SNIPPETS = {
   profileGuestbook: ['src/db.js', 'CREATE TABLE IF NOT EXISTS profile_guestbook (', 7],
   gameStats: ['src/db.js', 'CREATE TABLE IF NOT EXISTS game_stats (', 8],
   countStart: ['src/profiles.js', 'function countStart(user, app)', 5],
+  ksWallets: ['src/db.js', 'CREATE TABLE IF NOT EXISTS ks_wallets (', 8],
+  ksMeta: ['src/kartenspiele.js', 'function meta(s) {', 8],
   bjSessions: ['src/db.js', 'CREATE TABLE IF NOT EXISTS bj_sessions (', 18],
   msGames: ['src/db.js', 'CREATE TABLE IF NOT EXISTS ms_games (', 11],
   msRunning: ['src/minesweeper.js', 'function start(userId, b) {', 6],

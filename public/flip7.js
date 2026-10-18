@@ -18,6 +18,7 @@
   }
 
   window.CardTable({
+    id: 'flip7',
     tableWord: 'Flip-7-Tisch',
     motto: 'FLIP 7 · 94 KARTEN',
     blurb: 'Flip 7 nach den Originalregeln, 2 bis 8 Spieler, bis 200 Punkte.',

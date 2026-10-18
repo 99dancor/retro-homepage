@@ -18,15 +18,32 @@ const pct = (n, of) => `${n.toLocaleString('de-DE')} (${Math.round(n / of * 100)
 const euro = n => (n < 0 ? '−' : n > 0 ? '+' : '±') + Math.abs(n).toLocaleString('de-DE') + ' €';
 
 module.exports = {
+  // Gemeinsame Kasse aller Kartenspiele mit Geld (src/kasse.js); die einzelnen Spiele zeigen, was dort gewonnen oder verloren wurde
+  kartenspiele: {
+    title: 'Kartenspiele',
+    url: '/kartenspiele',
+    userStats(userId) {
+      const w = require('./kasse').peek(userId);
+      if (!w) return null;
+      const net = w.balance - w.bought;
+      return {
+        stats: [
+          { key: 'Kontostand', value: w.balance, text: w.balance.toLocaleString('de-DE') + ' €' },
+          { key: 'Bilanz', value: net, text: euro(net), cls: net < 0 ? 'neg' : net > 0 ? 'pos' : '' },
+          { key: 'Buy-ins', value: w.buyins, text: `${w.buyins.toLocaleString('de-DE')} (${w.bought.toLocaleString('de-DE')} €)` },
+        ],
+        last: w.updated_at,
+      };
+    },
+  },
   blackjack: {
     title: 'Blackjack',
-    url: '/blackjack',
+    url: '/kartenspiele',
     userStats(userId) {
       const t = require('./blackjack').userTotals(userId);
       if (!t.sessions) return null;
       const out = [
-        { key: 'Bilanz', value: t.balance, text: euro(t.balance), cls: t.balance < 0 ? 'neg' : t.balance > 0 ? 'pos' : '' },
-        { key: 'Buy-ins', value: t.buyins, text: `${t.buyins.toLocaleString('de-DE')} (${t.bought.toLocaleString('de-DE')} €)` },
+        { key: 'Gewonnen/verloren', value: t.balance, text: euro(t.balance), cls: t.balance < 0 ? 'neg' : t.balance > 0 ? 'pos' : '' },
         { key: 'Hände', value: t.hands },
         { key: 'Gewonnen', value: t.wins, text: t.hands ? `${t.wins.toLocaleString('de-DE')} (${Math.round(t.wins / t.hands * 100)} %)` : '0' },
         { key: 'Blackjacks', value: t.blackjacks },
@@ -38,14 +55,13 @@ module.exports = {
   },
   poker: {
     title: 'Poker',
-    url: '/poker',
+    url: '/kartenspiele',
     userStats(userId) {
       const pk = require('./poker');
       const t = pk.userTotals(userId);
       if (!t.sessions) return null;
       const out = [
-        { key: 'Bilanz', value: t.balance, text: euro(t.balance), cls: t.balance < 0 ? 'neg' : t.balance > 0 ? 'pos' : '' },
-        { key: 'Buy-ins', value: t.buyins, text: `${t.buyins.toLocaleString('de-DE')} (${t.bought.toLocaleString('de-DE')} €)` },
+        { key: 'Gewonnen/verloren', value: t.balance, text: euro(t.balance), cls: t.balance < 0 ? 'neg' : t.balance > 0 ? 'pos' : '' },
         { key: 'Hände', value: t.hands },
         { key: 'Gewonnen', value: t.wins, text: t.hands ? `${t.wins.toLocaleString('de-DE')} (${Math.round(t.wins / t.hands * 100)} %)` : '0' },
         { key: 'Showdowns', value: t.showdowns },
@@ -57,7 +73,7 @@ module.exports = {
   },
   durak: {
     title: 'Durak',
-    url: '/durak',
+    url: '/kartenspiele',
     userStats(userId) {
       const t = require('./durak').userTotals(userId);
       if (!t.games) return null;
@@ -75,7 +91,7 @@ module.exports = {
   },
   uno: {
     title: 'UNO',
-    url: '/uno',
+    url: '/kartenspiele',
     userStats(userId) {
       const t = require('./uno').userTotals(userId);
       if (!t.games) return null;
@@ -92,7 +108,7 @@ module.exports = {
   },
   flip7: {
     title: 'Flip 7',
-    url: '/flip7',
+    url: '/kartenspiele',
     userStats(userId) {
       const t = require('./flip7').userTotals(userId);
       if (!t.games) return null;
@@ -109,7 +125,7 @@ module.exports = {
   },
   pilli: {
     title: 'Pilli Pilli',
-    url: '/pilli',
+    url: '/kartenspiele',
     userStats(userId) {
       const t = require('./pilli').userTotals(userId);
       if (!t.games) return null;

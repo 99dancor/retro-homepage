@@ -4,7 +4,7 @@ import { registerVisit, dayKey, newState } from './state.js';
 import {
   SPECIES, STATS, ACTIONS, CUDDLE_LOVE, CUDDLE_LEVEL, SLOT_LEVEL, tickAll, tickPet, tickOpts, mood, canDo, doAction,
   adopt, activePet, isUnlocked, unlockText, petSlots, nextSlotHint, cleanName, level, levelProgress,
-  availableActions, usableItems, walkLabel,
+  availableActions, usableItems, walkLabel, walkGear,
 } from './pets.js';
 import { ITEMS, ITEM_LIST, CATEGORIES, usableBy, isFav, isDurable, owned } from './items.js';
 import {
@@ -18,6 +18,11 @@ import { createScene } from './scene.js';
 import { TOYS } from './behavior.js';
 import { api, createLive } from './live.js';
 import { VISITOR_PRIVACY, privacyOf, STICKERS, giftable, applyVisits, visitText, visitReward, playdate } from './visits.js';
+import {
+  SKILLS, TALENT, DOUBLE_JUMP_LEVEL, PLACES, OBSTACLES, PICKUPS, CONTEST_COINS, PRIZES, TROPHY, skillLevel, skillProgress,
+  placeOpen, course, contestCourse, canTrip, canContest, finishTrip, finishContest, claimPrize,
+} from './trip.js';
+import { createRun } from './run.js';
 
 // Adressen der Homepage. Der Server schreibt sie als data-Attribute in <body> (data-login, data-register,
 // data-forum); ein leerer Wert heißt: gibt es gerade nicht (z. B. Registrierung geschlossen, Forum aus).
@@ -62,7 +67,7 @@ const STAT_NAME = Object.fromEntries(STATS.map((s) => [s.key, s]));
 const LEVEL_UNLOCKS = { [CUDDLE_LEVEL]: 'Ihr könnt jetzt kuscheln.', [SLOT_LEVEL]: 'Ein zweiter Tierplatz und der Puzzle-Futterball sind frei.', 8: 'Die Krone gibt es jetzt im Shop.' };
 
 let state = newState();
-let view = 'room';        // 'room' | 'adopt' | 'shop' | 'inventory' | 'tasks' | 'visit'
+let view = 'room';        // 'room' | 'adopt' | 'shop' | 'inventory' | 'tasks' | 'trip' | 'visit'
 const tab = { shop: 'food', inventory: 'food' };
 let picked = null;        // Tierart auf dem Adoptionsbildschirm
 let bubble = null;        // Sprechblase oben im Zimmer: { text, until }
@@ -74,6 +79,10 @@ let visit = null;
 let neighbours = null;    // Liste fürs Besuchen (null = wird geladen), oder { error }
 let visitBook = [];       // wer zuletzt bei mir war
 const foreignCooldown = {};
+
+// Ausflug oder Wettbewerbslauf, der gerade läuft: { mode: 'walk' | 'contest', pet, course, runner }
+let trip = null;
+let contest = null;       // Tageswettbewerb vom Server: { day, place, top, mine, yesterday } oder { error }
 
 // Live-Zimmer: das eigene, solange man zu Hause ist, sonst das des Gastgebers
 const live = createLive({
@@ -189,10 +198,12 @@ function render() {
     b.disabled = !state.pets.length && b.dataset.view !== 'room';
   });
   if (view !== 'room' && scene.toy) scene.putAway();
+  // Während eines Laufs bleibt die Strecke stehen
+  if (view === 'trip' && trip && $('run-host')) { updateNotice(); return; }
   const roomKey = visit ? `v:${visit.host.user}:${visit.data.room}` : state.room;
   if (view === 'room' && shownRoom === roomKey && $('room')) updateRoom();
   else {
-    const html = { adopt: adoptHtml, shop: shopHtml, inventory: inventoryHtml, tasks: tasksHtml, visit: neighboursHtml }[view] || roomHtml;
+    const html = { adopt: adoptHtml, shop: shopHtml, inventory: inventoryHtml, tasks: tasksHtml, trip: tripHtml, visit: neighboursHtml }[view] || roomHtml;
     $('screen').innerHTML = html();
     shownRoom = view === 'room' ? roomKey : null;
     if (shownRoom) scene.mount($('room'));
@@ -214,9 +225,9 @@ function updateRoom() {
 function petTabs() {
   const free = state.pets.length < petSlots(state);
   const cur = activePet(state);
-  const tabs = state.pets.map((p) => `<button type="button" class="tab${view === 'room' && p === cur ? ' active' : ''}" data-pet="${p.id}">
+  const tabs = state.pets.map((p) => `<button type="button" class="tab${(view === 'room' || view === 'trip') && p === cur ? ' active' : ''}" data-pet="${p.id}">
       ${SPECIES[p.species].icon} ${esc(p.name)}</button>`).join('');
-  const add = free && state.pets.length
+  const add = free && state.pets.length && view !== 'trip'
     ? `<button type="button" class="tab${view === 'adopt' ? ' active' : ''}" data-goto="adopt">➕ Adoptieren</button>` : '';
   if (state.pets.length < 2 && !add) return '';
   return `<div class="tabs" role="tablist">${tabs}${add}</div>`;
@@ -240,7 +251,7 @@ function actionButtons(pet) {
     const c = canDo(pet, a, state);
     const locked = a === 'cuddle' && level(pet) < CUDDLE_LEVEL;
     const label = a === 'walk' ? walkLabel(pet.species) : ACTIONS[a].label;
-    const icon = a === 'walk' && walkLabel(pet.species) === 'Ausflug' ? '🔵' : ACTIONS[a].icon;
+    const icon = a === 'walk' && walkLabel(pet.species) === 'Ausflug' ? '🌳' : ACTIONS[a].icon;
     return `<button type="button" class="act${c.ok ? '' : ' unavailable'}" data-act="${a}" title="${esc(c.ok ? label : c.reason)}">
       <span class="act-icon" aria-hidden="true">${locked ? '🔒' : icon}</span>${label}${a === 'feed' ? ' …' : ''}</button>`;
   }).join('');
@@ -478,6 +489,176 @@ async function fetchInbox(announce = true) {
   }
 }
 
+// ---------- Ausflüge und Tageswettbewerb ----------
+const skillLevels = (pet) => Object.fromEntries(SKILLS.map((s) => [s.key, skillLevel(pet, s.key)]));
+
+function skillsHtml(pet) {
+  return SKILLS.map((s) => {
+    const l = skillLevel(pet, s.key), pr = skillProgress(pet, s.key);
+    const talent = TALENT[pet.species] === s.key ? ' <small class="talent" title="Talent: lernt 25 % schneller">⭐ Talent</small>' : '';
+    return `<div class="skill"><div class="stat"><span class="stat-label">${s.icon} ${s.label} ${l}</span>
+        <span class="bar xp"><i style="width:${pr.need ? Math.round((100 * pr.have) / pr.need) : 100}%"></i></span>
+        <span class="stat-val small-val">${pr.need ? `${pr.have}/${pr.need}` : 'max'}</span></div>
+      <small>${esc(pet.name)} ${s.text}.${talent}</small></div>`;
+  }).join('');
+}
+
+// Warum gerade kein Ausflug geht (oder null)
+function tripBlocker(pet) {
+  if (!canTrip(state, pet)) {
+    const gear = walkGear(pet.species);
+    return `Für Ausflüge braucht ${esc(pet.name)}: ${ITEMS[gear].icon} <b>${ITEMS[gear].name}</b>. <button type="button" class="small" data-goto="shop">🛒 Zum Shop</button>`;
+  }
+  const c = canDo(pet, 'walk', state);
+  return c.ok ? null : esc(c.reason);
+}
+
+function contestHtml(pet) {
+  if (store.mode !== 'account') return '<p>Beim Tageswettbewerb laufen alle Mitglieder dieselbe Strecke um die Wette. Mit einem Konto kannst du mitmachen.</p>';
+  if (!contest) return '<p>Wird geladen …</p>';
+  if (contest.error) return `<p>⚠️ ${esc(contest.error)}</p>`;
+  const p = PLACES[contest.place];
+  const mine = state.contest && state.contest.day === contest.day ? state.contest : null;
+  const c = canContest(state, pet);
+  const rows = contest.top.length ? contest.top.map((e) => `<tr class="${e.me ? 'me' : ''}"><td>${e.place <= 3 ? TROPHY[e.place - 1] : e.place + '.'}</td>
+      <td>${SPECIES[e.pet.species] ? SPECIES[e.pet.species].icon : '🐾'} <b>${esc(e.pet.name)}</b> <small>· <a href="${esc(e.url)}">${esc(e.name)}</a></small></td>
+      <td class="num">${e.score.toLocaleString('de-DE')}</td></tr>`).join('')
+    : '<tr><td colspan="3"><small>Heute ist noch niemand gelaufen. Sei die oder der Erste!</small></td></tr>';
+  const meRow = contest.mine && !contest.top.some((e) => e.me)
+    ? `<tr class="me"><td>${contest.mine.place}.</td><td><b>${esc(contest.mine.pet)}</b> <small>· du</small></td><td class="num">${contest.mine.score.toLocaleString('de-DE')}</td></tr>` : '';
+  const y = contest.yesterday && contest.yesterday.top.length
+    ? `<p><small>Gestern: ${contest.yesterday.top.map((e) => `${TROPHY[e.place - 1]} ${esc(e.pet.name)} (${esc(e.name)})`).join(' · ')}</small></p>` : '';
+  const cups = (state.trophies || []).length
+    ? `<p class="trophies" title="Deine Pokale"><small>Deine Pokale:</small> ${state.trophies.slice(-12).map((t) => `<span title="${esc(t.day)}: Platz ${t.place} mit ${esc(t.pet)}">${TROPHY[t.place - 1]}</span>`).join('')}</p>` : '';
+  return `<p>Heute: <b>${p.icon} ${p.name}</b>. Alle laufen dieselbe Strecke, die beste Runde zählt. Fürs erste Mitmachen gibt es ${coins(CONTEST_COINS)},
+      morgen für die ersten drei Plätze ${PRIZES.map((n) => coins(n)).join(' / ')}.</p>
+    <div class="contest-go"><button type="button" data-contest ${c.ok ? '' : 'disabled'} title="${esc(c.ok ? 'Kostet etwas Ruhe, Nahrung und Wasser' : c.reason)}">🏁 Mitlaufen mit ${esc(pet.name)}</button>
+      ${mine ? `<small>Deine Bestleistung heute: <b>${mine.best}</b> (${mine.runs} ${mine.runs === 1 ? 'Lauf' : 'Läufe'})</small>` : ''}
+      ${c.ok ? '' : `<small>${esc(c.reason)}</small>`}</div>
+    <table class="board"><tbody>${rows}${meRow}</tbody></table>${y}${cups}`;
+}
+
+function tripHtml() {
+  if (trip) return '<div id="run-host" class="run-host"></div>';
+  const pet = activePet(state);
+  const block = tripBlocker(pet);
+  const places = Object.entries(PLACES).map(([id, p]) => {
+    const open = placeOpen(pet, id);
+    return `<button type="button" class="place${open ? '' : ' locked'}" data-trip="${id}" ${open && !block ? '' : 'disabled'}
+        title="${open ? `Mit ${esc(pet.name)} in den ${p.name}` : `Ab Zuneigungsstufe ${p.level}`}" style="--sky1:${p.sky[0]};--ground:${p.ground}">
+      <span class="place-icon">${open ? p.icon : '🔒'}</span><b>${p.name}</b><small>${open ? `${p.obstacles.map((o) => OBSTACLES[o].icon).join(' ')}` : `ab Stufe ${p.level}`}</small></button>`;
+  }).join('');
+  return `${petTabs()}<h1>🌳 Ausflüge</h1>
+    <div class="trip-layout"><div class="trip-main">
+      <fieldset class="groupbox"><legend>Wohin geht es mit ${esc(pet.name)}?</legend>
+        <div class="places">${places}</div>
+        <p class="trip-note">${block || `Tippe oder drück die Leertaste, damit ${esc(pet.name)} springt. Sammle 🦴 Leckerli, 🪙 Münzen und ✨ Schnüffelstellen ein.`}</p>
+      </fieldset>
+      <fieldset class="groupbox"><legend>🏆 Tageswettbewerb</legend>${contestHtml(pet)}</fieldset>
+    </div><div class="side">
+      <fieldset class="groupbox"><legend>Fähigkeiten von ${esc(pet.name)}</legend>${skillsHtml(pet)}</fieldset>
+      <fieldset class="groupbox"><legend>So wird ${esc(pet.name)} besser</legend>
+        <small>Jeder Lauf bringt Erfahrung: übersprungene Hindernisse für die Sprungkraft, Einsammeln für die Spürnase, ein Lauf ohne Stolpern fürs Tempo.
+        Ausflüge gehen alle ${Math.round(ACTIONS.walk.wait / 3600000)} Stunden, im Wettbewerb kannst du so oft laufen, wie ${esc(pet.name)} Puste hat.</small></fieldset>
+    </div></div>`;
+}
+
+async function loadContest() {
+  if (store.mode !== 'account') return;
+  try { contest = await api.contest(); } catch (e) { contest = { error: e.message }; }
+  // Preis für gestern abholen
+  const y = contest.yesterday;
+  if (y && y.mine && y.mine.place <= PRIZES.length) {
+    const won = claimPrize(state, y.day, y.mine.place, y.mine.pet);
+    if (won) {
+      store.save(state);
+      sfx('fanfare');
+      await ok('Pokal!', `<p>${TROPHY[y.mine.place - 1]} Beim Wettbewerb gestern hat <b>${esc(y.mine.pet)}</b> Platz ${y.mine.place} gemacht. Dafür gibt es ${coins(won)}.</p>`);
+    }
+  }
+  if (view === 'trip' && !trip) render();
+}
+
+function startTrip(mode, placeId) {
+  const pet = activePet(state);
+  tickPet(pet, Date.now(), tickOpts(state));
+  let c;
+  if (mode === 'contest') {
+    const can = canContest(state, pet);
+    if (!can.ok || !contest || contest.error) { sfx('nein'); return ok('Wettbewerb', `<p>${esc(can.ok ? 'Der Wettbewerb ist gerade nicht erreichbar.' : can.reason)}</p>`); }
+    c = contestCourse(contest.day);
+  } else {
+    const block = tripBlocker(pet);
+    if (block || !placeOpen(pet, placeId)) { sfx('nein'); return render(); }
+    c = course(placeId, Date.now());
+  }
+  const p = PLACES[c.place];
+  trip = { mode, pet, course: c, runner: null };
+  render();
+  trip.runner = createRun($('run-host'), {
+    pet, course: c, levels: skillLevels(pet), sound: sfx,
+    title: mode === 'contest' ? `🏆 Wettbewerb · ${p.icon} ${p.name}` : `${p.icon} ${p.name} mit ${esc(pet.name)}`,
+    onEnd: (r) => endTrip(r),
+  });
+}
+
+async function endTrip(r) {
+  const t = trip;
+  trip = null;
+  if (!r) { render(); say(`${t.pet.name} läuft lieber ein anderes Mal.`, 3000); return; }
+  const pet = t.pet, now = Date.now();
+  tickPet(pet, now, tickOpts(state));
+  const lines = [];
+  let gained = 0, levelUp = null, ups, gains;
+  const counts = `${PICKUPS.treat.icon} ${r.treat} · ${PICKUPS.coin.icon} ${r.coin} · ${PICKUPS.sniff.icon} ${r.sniff} · übersprungen ${r.cleared}${r.hits ? ` · gestolpert ${r.hits}` : ''}`;
+  if (t.mode === 'contest') {
+    const res = finishContest(state, pet, r, t.course, now);
+    ups = res.ups; gains = res.gains; gained = res.coins;
+    lines.push(`<p class="big-score">${res.score.toLocaleString('de-DE')} Punkte${res.newBest ? ' · neue Bestleistung!' : ''}</p>`, `<p>${counts}</p>`);
+    if (res.coins) lines.push(`<p>Fürs Mitmachen: ${coins(res.coins)}</p>`);
+    if (res.newBest) {
+      try {
+        const s = await api.submit({ day: contest.day, score: res.score, pet: { name: pet.name, species: pet.species, color: pet.color } });
+        lines.push(`<p>🏆 Du bist heute auf <b>Platz ${s.place}</b>.</p>`);
+      } catch (e) { lines.push(`<p>⚠️ ${esc(e.message)}</p>`); }
+      loadContest();
+    }
+  } else {
+    const res = finishTrip(state, pet, r, t.course, now);
+    if (!res.ok) { store.save(state); render(); return ok('Ausflug', `<p>${esc(res.action.text)}</p>`); }
+    ups = res.ups; gains = res.gains; levelUp = res.action.levelUp;
+    gained = actionCoins(state, 'walk', 1) + res.coins + res.finds.reduce((n, f) => n + (f.coins || 0), 0);
+    lines.push(`<p>${esc(res.action.text)}</p>`, `<p>${counts} · ${res.score} Punkte</p>`);
+    if (res.coins) lines.push(`<p>Eingesammelt: ${coins(res.coins)}</p>`);
+    if (res.action.found && res.action.found.coins) { gained += addCoins(state, res.action.found.coins); res.finds.push(res.action.found); }
+    else if (res.action.found && res.action.found.item) res.finds.push(res.action.found);
+    if (res.finds.length) lines.push(`<p>Gefunden: ${res.finds.map((f) => (f.coins ? `🪙 ${f.coins}` : `${ITEMS[f.item].icon} ${ITEMS[f.item].name}`)).join(', ')}</p>`);
+    lines.push(`<p><small>${effectText(res.action.delta)}</small></p>`);
+    for (const x of track(state, 'walk')) lines.push(`<p>✅ Aufgabe erledigt: ${esc(x.text)} (+${x.reward} Münzen)</p>`);
+  }
+  lines.push(`<p><small>Erfahrung: ${SKILLS.map((s) => `${s.icon} ${s.label} +${Math.round(gains[s.key] * (TALENT[pet.species] === s.key ? 1.25 : 1))}`).join(' · ')}</small></p>`);
+  for (const u of ups) { const s = SKILLS.find((x) => x.key === u.key); lines.push(`<p>⬆️ <b>${s.icon} ${s.label} ${u.level}!</b> ${u.key === 'jump' && u.level === DOUBLE_JUMP_LEVEL ? `${esc(pet.name)} kann jetzt in der Luft ein zweites Mal springen.` : ''}</p>`); }
+  store.save(state);
+  render();
+  sfx(ups.length ? 'fanfare' : 'freude');
+  if (gained) setTimeout(() => sfx('muenze'), 400);
+  await dialog(t.mode === 'contest' ? 'Wettbewerb' : `Zurück vom ${PLACES[t.course.place].name}`, lines.join(''), [{ label: 'Prima', value: 'ok' }]);
+  if (levelUp) {
+    const bonus = levelReward(state, levelUp);
+    store.save(state);
+    render();
+    sfx('fanfare');
+    await dialog('Neue Zuneigungsstufe!', `<p>🎉 <b>${esc(pet.name)}</b> ist jetzt auf <b>Stufe ${levelUp}</b>. Dafür gibt es ${coins(bonus)}.</p>
+      ${LEVEL_UNLOCKS[levelUp] ? `<p>${LEVEL_UNLOCKS[levelUp]}</p>` : ''}`, [{ label: 'Juhu!', value: 'ok' }]);
+  }
+}
+
+function abortTrip() {
+  if (!trip) return;
+  if (trip.runner) trip.runner.stop();
+  trip = null;
+}
+
 function adoptHtml() {
   const first = state.pets.length === 0;
   const full = state.pets.length >= petSlots(state);
@@ -669,6 +850,8 @@ async function act(action, itemId = null) {
   const pet = activePet(state);
   if (!pet) return;
   if (action === 'play' && !pet.sleeping) return takeToy(itemId);
+  // Gassi und Ausflüge haben ihre eigene Szene
+  if (action === 'walk') { view = 'trip'; loadContest(); return render(); }
   const key = pet.id + ':' + action;
   const now = Date.now();
   if (lastAction[key] && now - lastAction[key] < ACTIONS[action].cooldown) return;
@@ -818,10 +1001,12 @@ function wire() {
     const b = e.target.closest('[data-view]');
     if (!b || !state.pets.length) return;
     sfx('klick');
+    abortTrip();
     if (visit && b.dataset.view !== 'room') endVisit();
     else if (visit) return endVisit();
     view = b.dataset.view; picked = null;
     if (view === 'visit' && store.mode === 'account') loadNeighbours();
+    if (view === 'trip') loadContest();
     render();
   });
 
@@ -840,7 +1025,7 @@ function wire() {
     if (d.wear) { wear(state, activePet(state), d.wear); store.save(state); return render(); }
     if (d.room) { setRoom(state, d.room); store.save(state); return render(); }
     if (d.tab) { const [w, c] = d.tab.split(':'); tab[w] = c; return render(); }
-    if (d.pet) { state.activePet = d.pet; view = 'room'; picked = null; bubble = null; store.save(state); return render(); }
+    if (d.pet) { state.activePet = d.pet; if (view !== 'trip') view = 'room'; picked = null; bubble = null; store.save(state); return render(); }
     if (d.goto) { view = d.goto; picked = null; return render(); }
     if (d.species) {
       if (!isUnlocked(d.species, state)) return ok('Noch gesperrt', `<p>🔒 ${SPECIES[d.species].name}: ${unlockText(d.species)} freigeschaltet. Schau jeden Tag vorbei!</p>`);
@@ -855,6 +1040,8 @@ function wire() {
     if (d.bring !== undefined) return bringPet(d.bring);
     if ('gift' in d) return giveGift();
     if (d.sticker) return leaveSticker(d.sticker);
+    if (d.trip) return startTrip('walk', d.trip);
+    if ('contest' in d) return startTrip('contest');
   });
   screen.addEventListener('change', (e) => {
     if (e.target.name !== 'privacy' || !VISITOR_PRIVACY[e.target.value]) return;
@@ -891,6 +1078,8 @@ function wire() {
      <li><b>Streicheln</b> geht auch, indem du mit der Maus oder dem Finger über ein Tier streichst.</li>
      <li><b>Spielen:</b> Hol ein Spielzeug aus der <b>Spielzeugkiste</b> unter dem Zimmer. Bälle wirfst du, indem du sie ziehst und loslässt,
        Federangel und Laserpointer folgen deiner Maus, Seifenblasen pustest du mit einem Tipp ins Zimmer. Jedes Tier, das gerade Lust hat, macht mit.</li>
+     <li><b>Ausflüge:</b> Unter 🌳 Ausflug (oder mit „Gassi gehen“) läuft dein Tier durch Park, Wald, Strand oder Berge. Tippe oder drück die Leertaste zum Springen,
+       sammle Leckerli, Münzen und Schnüffelstellen ein. Dabei werden <b>Tempo, Sprungkraft und Spürnase</b> besser. Im <b>Tageswettbewerb</b> laufen alle dieselbe Strecke um die Wette.</li>
      <li>Jede Pflege bringt <b>Zuneigung</b>. Ab Stufe ${CUDDLE_LEVEL} und ${CUDDLE_LOVE} Liebe könnt ihr <b>kuscheln</b>,
        ab Stufe ${SLOT_LEVEL} gibt es einen zweiten Tierplatz.</li>
      <li>Pflege bringt <b>Münzen</b> (bis ${DAILY_CAP} am Tag), dazu kommen Login-Bonus und Tagesaufgaben.</li>

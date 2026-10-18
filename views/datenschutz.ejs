@@ -182,16 +182,18 @@
   <%- code('countStart', 'Beim Start eines Spiels zählt nur der Zähler „Gestartet“ eins hoch, und nur mit Konto.') %>
 </details>
 
-<h2 id="pixelpfoten">🐾 Pixelpfoten-Besuche</h2>
+<h2 id="pixelpfoten">🐾 Pixelpfoten: Besuche und Wettbewerb</h2>
 <ul>
   <li>Mit Konto können andere Mitglieder deine Pixelpfoten besuchen. Sie sehen dann dein Zimmer, Namen, Aussehen, Stufe und Laune deiner Tiere sowie die letzten Einträge in deinem Besuchsbuch. Münzen, Inventar und alles andere aus deinem Spielstand sehen sie nicht.</li>
   <li>Wer dich besuchen darf, stellst du im Spiel unter „Besuchen“ ein: alle Mitglieder (Voreinstellung), nur Freunde oder niemand. Die Einstellung steht in deinem Spielstand.</li>
   <li><b>Besuchsbuch:</b> Was Besucher bei dir tun (vorbeischauen, streicheln, spielen, Futter dalassen, Gruß), wird mit Gastgeber, Besucher, Art, Tier, Gruß oder Futter und Zeit gespeichert, damit dein Spiel es beim nächsten Öffnen einrechnen kann. Nach 30 Tagen werden die Einträge gelöscht, mit deinem Konto auch sofort.</li>
+  <li><b>Tageswettbewerb:</b> Läufst du beim Wettbewerb mit, speichert die Seite deine beste Runde des Tages: Tag, dein Konto, Name, Art und Farbe des Tieres, Punkte, Anzahl der Läufe und Zeit. Die Bestenliste mit deinem Namen und dem deines Tieres sehen alle Mitglieder. Nach 30 Tagen werden die Einträge gelöscht. Ausflüge ohne Wettbewerb bleiben in deinem Spielstand.</li>
   <li><b>Live-Zimmer:</b> Wer gerade gleichzeitig im selben Zimmer ist, sieht die Tiere der anderen herumlaufen. Dafür schickt das Spiel Position, Aussehen und Gesichtsausdruck der eigenen Tiere an den Server, der sie nur weiterreicht und im Arbeitsspeicher hält, bis du das Zimmer verlässt.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('ppVisits', 'Ein Eintrag im Besuchsbuch: bei wem, von wem, was, welches Tier, Gruß oder Futter, Tag und Zeit, und ob dein Spiel ihn schon abgeholt hat.') %>
   <%- code('ppAllowed', 'Diese Regel entscheidet, wer deine Tiere besuchen darf.') %>
+  <%- code('ppContest', 'Eine Zeile je Mitglied und Tag: die beste Runde im Wettbewerb mit Tier, Punkten und Zahl der Läufe.') %>
   <%- code('ppLive', 'Live-Stände werden geprüft, im Arbeitsspeicher gehalten und an die anderen im Zimmer weitergereicht. In die Datenbank kommen sie nicht.') %>
 </details>
 

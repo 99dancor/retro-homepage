@@ -18,6 +18,7 @@ function rules() {
     state: require('../games/haustier/src/js/state.js'),
     pets: require('../games/haustier/src/js/pets.js'),
     visits: require('../games/haustier/src/js/visits.js'),
+    trip: require('../games/haustier/src/js/trip.js'),
   };
   return game;
 }
@@ -151,6 +152,64 @@ function book(hostId, limit = 12) {
 
 function cleanup() {
   db.prepare('DELETE FROM pp_visits WHERE created_at < ?').run(now() - KEEP_DAYS * 86400);
+  db.prepare('DELETE FROM pp_contest WHERE updated_at < ?').run(now() - KEEP_DAYS * 86400);
+}
+
+// ---------- Tageswettbewerb ----------
+// Alle laufen an einem Tag dieselbe Strecke (trip.contestCourse). Gespeichert wird die beste Runde je Mitglied;
+// mehr Punkte, als die Strecke hergibt, nimmt der Server nicht an.
+const BOARD_SIZE = 10;
+
+function boardOf(viewer, d, limit) {
+  const rows = db.prepare(`SELECT c.user_id, c.pet_name, c.species, c.color, c.score, u.username, u.display_name FROM pp_contest c
+                           JOIN users u ON u.id = c.user_id WHERE c.day = ? AND u.disabled = 0
+                           ORDER BY c.score DESC, c.updated_at ASC LIMIT ?`).all(d, limit);
+  return rows.map((r, i) => ({
+    place: i + 1, user: r.username, name: nameOf(r), url: profiles.profileUrl(r.username), me: r.user_id === viewer.id,
+    pet: { name: r.pet_name, species: r.species, color: r.color }, score: r.score,
+  }));
+}
+
+// Platz eines Mitglieds an einem Tag oder null
+function placeOf(userId, d) {
+  const mine = db.prepare('SELECT score, updated_at, pet_name FROM pp_contest WHERE day = ? AND user_id = ?').get(d, userId);
+  if (!mine) return null;
+  const better = db.prepare(`SELECT COUNT(*) AS n FROM pp_contest c JOIN users u ON u.id = c.user_id WHERE c.day = ? AND u.disabled = 0
+                             AND (c.score > ? OR (c.score = ? AND c.updated_at < ?))`).get(d, mine.score, mine.score, mine.updated_at).n;
+  return { place: better + 1, score: mine.score, pet: mine.pet_name };
+}
+
+function contest(viewer) {
+  const today = day(), yesterday = day(Date.now() - 86400000);
+  return {
+    day: today, place: rules().trip.contestCourse(today).place,
+    top: boardOf(viewer, today, BOARD_SIZE), mine: placeOf(viewer.id, today),
+    yesterday: { day: yesterday, top: boardOf(viewer, yesterday, 3), mine: placeOf(viewer.id, yesterday) },
+  };
+}
+
+// Ergebnis eintragen. b: { day, score, pet: { name, species, color } }. Gibt { ok, place, best } oder { error } zurück.
+function submit(viewer, b) {
+  const { trip, pets } = rules();
+  const today = day();
+  if (b.day !== today) return { error: 'Dieser Wettbewerb ist schon vorbei. Lade das Spiel neu für den von heute.' };
+  const score = b.score;
+  if (!Number.isInteger(score) || score < 0 || score > trip.maxScore(trip.contestCourse(today))) return { error: 'Dieses Ergebnis kann nicht stimmen.' };
+  const p = b.pet || {};
+  const sp = pets.SPECIES[p.species];
+  if (!sp) return { error: 'Unbekanntes Tier.' };
+  const name = pets.cleanName(p.name) || sp.names[0];
+  const color = sp.colors.some(c => c.id === p.color) ? p.color : sp.colors[0].id;
+  db.prepare(`INSERT INTO pp_contest(day, user_id, pet_name, species, color, score, runs, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+              ON CONFLICT(day, user_id) DO UPDATE SET runs = runs + 1,
+                pet_name = CASE WHEN excluded.score > score THEN excluded.pet_name ELSE pet_name END,
+                species = CASE WHEN excluded.score > score THEN excluded.species ELSE species END,
+                color = CASE WHEN excluded.score > score THEN excluded.color ELSE color END,
+                updated_at = CASE WHEN excluded.score > score THEN excluded.updated_at ELSE updated_at END,
+                score = MAX(score, excluded.score)`).run(today, viewer.id, name, p.species, color, score, now());
+  if (Math.random() < 0.05) cleanup();
+  const mine = placeOf(viewer.id, today);
+  return { ok: true, place: mine.place, best: mine.score };
 }
 
 // ---------- Live-Zimmer ----------
@@ -198,4 +257,4 @@ function update(viewer, username, b) {
   return { ok: true };
 }
 
-module.exports = { neighbours, room, act, inbox, markApplied, book, join, update, isLive, cleanup, KEEP_DAYS };
+module.exports = { neighbours, room, act, inbox, markApplied, book, join, update, isLive, cleanup, contest, submit, KEEP_DAYS };

@@ -55,6 +55,8 @@ const list = [
   { id: 'care_soap', cat: 'care', name: 'Seife', icon: '🧼', price: 15, consumable: true, note: 'Für „Baden“, wird verbraucht.' },
   { id: 'care_leash', cat: 'care', name: 'Leine', icon: '🦮', price: 60, for: ['dog', 'fox'], note: 'Schaltet „Gassi“ frei.' },
   { id: 'care_runball', cat: 'care', name: 'Laufball', icon: '🔵', price: 60, for: ['hamster', 'rat'], note: 'Schaltet „Ausflug“ frei.' },
+  { id: 'care_harness', cat: 'care', name: 'Geschirr', icon: '🎽', price: 60, for: ['cat', 'rabbit'], note: 'Schaltet „Ausflug“ frei.' },
+  { id: 'care_travelglass', cat: 'care', name: 'Reiseglas', icon: '🫙', price: 60, for: ['axolotl'], note: 'Schaltet „Ausflug“ frei.' },
   { id: 'care_bed', cat: 'care', name: 'Körbchen', icon: '🧺', price: 120, note: 'Ruhe sinkt 20 % langsamer.' },
   { id: 'extra_slot', cat: 'care', name: 'Weiterer Tierplatz', icon: '🏡', price: 2000, note: 'Platz für ein drittes Tier.' },
 

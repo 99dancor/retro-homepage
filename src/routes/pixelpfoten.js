@@ -7,6 +7,8 @@
 //   POST /zimmer/<name>         <- { kind, pet, detail }   Handlung im Besuchsbuch eintragen
 //   GET  /post                  -> { entries, book }       noch nicht eingerechnete Besuche bei mir
 //   POST /post                  <- { upTo }                eingerechnet bis id
+//   GET  /wettbewerb            -> { day, place, top, mine, yesterday }   Tageswettbewerb
+//   POST /wettbewerb            <- { day, score, pet }    beste Runde eintragen
 //   GET  /live/<name>           Server-Sent Events: hello, join, state, leave, post
 //   POST /live/<name>           <- { sid, pets, toy }      Stand der eigenen Tiere
 const express = require('express');
@@ -36,6 +38,12 @@ router.post('/zimmer/:name', auth.rateLimit('ppact', 120, 60), small, (req, res)
 
 router.get('/post', (req, res) => res.json({ entries: pp.inbox(req.user.id), book: pp.book(req.user.id) }));
 router.post('/post', small, (req, res) => { pp.markApplied(req.user.id, (req.body || {}).upTo); res.json({ ok: true }); });
+
+router.get('/wettbewerb', (req, res) => res.json(pp.contest(req.user)));
+router.post('/wettbewerb', auth.rateLimit('ppcontest', 60, 60), small, (req, res) => {
+  const r = pp.submit(req.user, req.body || {});
+  return r.error ? fail(res, 400, r.error) : res.json(r);
+});
 
 // X-Accel-Buffering sagt Nginx (Proxy Manager), dass er nichts zurückhalten soll
 router.get('/live/:name', (req, res) => {

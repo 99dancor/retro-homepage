@@ -198,6 +198,7 @@ module.exports = {
       const out = [{ key: 'Tiere', value: pets.length }];
       if (pets.length) out.push({ key: 'Höchste Stufe', value: Math.max(...pets.map(p => petLevel(num(p.xp)))) });
       out.push({ key: 'Münzen verdient', value: num(s.earned) });
+      if (Array.isArray(s.trophies) && s.trophies.length) out.push({ key: 'Pokale', value: s.trophies.length });
       if (s.visits) out.push({ key: 'Besuche', value: num(s.visits.total) }, { key: 'Längste Besuchsserie', value: num(s.visits.best) });
       return out;
     },

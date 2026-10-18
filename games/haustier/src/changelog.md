@@ -1,5 +1,13 @@
 # Changelog
 
+## 18.10.2026 – Pixelpfoten: Ausflüge und Wettbewerb
+
+- **Ab nach draußen:** Unter 🌳 Ausflug (oder mit „Gassi gehen“) läuft dein Tier durch den Park. Ab Zuneigungsstufe 3 geht es in den Wald, ab 5 an den Strand, ab 7 in die Berge.
+- **Springen und sammeln:** Tippe oder drück die Leertaste, damit dein Tier über Hindernisse springt. Sammle 🦴 Leckerli, 🪙 Münzen und ✨ Schnüffelstellen ein, an denen es etwas findet. Wer stolpert, wird kurz langsamer.
+- **Fähigkeiten:** 💨 Tempo, 🦘 Sprungkraft und 👃 Spürnase werden mit jedem Lauf besser. Ab Sprungkraft 4 kann dein Tier in der Luft ein zweites Mal springen. Jede Tierart hat ein Talent, das sie schneller lernt.
+- **Tageswettbewerb:** Jeden Tag eine Strecke für alle. Lauf so oft du willst, die beste Runde kommt in die Bestenliste. Fürs erste Mitmachen gibt es 15 Münzen, für Platz 1 bis 3 am nächsten Tag 100, 60 oder 40 Münzen und einen Pokal.
+- **Ausrüstung für alle:** Katzen und Kaninchen gehen mit 🎽 Geschirr, Axolotl im 🫙 Reiseglas, Drachen fliegen einfach los.
+
 ## 18.10.2026 – Pixelpfoten: Besuche
 
 - **Zu Besuch:** Unter 🏘️ Besuchen findest du die Zimmer anderer Mitglieder, Freunde und wer gerade live da ist zuerst. Schau vorbei und streichel ihre Tiere, oder hol ein Spielzeug aus deiner Kiste und spiel mit ihnen.

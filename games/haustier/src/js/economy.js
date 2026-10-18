@@ -2,7 +2,7 @@
 // Reine Funktionen, unter Node testbar.
 import { dayKey } from './state.js';
 import { ITEMS, ITEM_LIST, isDurable, owned, usableBy } from './items.js';
-import { level, maxLevel, usableItems } from './pets.js';
+import { level, maxLevel, usableItems, walkItem } from './pets.js';
 
 // Münzen pro Aktion; Aktionen bringen höchstens DAILY_CAP Münzen am Tag, damit Dauerklicken nichts bringt
 export const ACTION_COINS = { pet: 1, cuddle: 3, feed: 2, water: 1, sleep: 2, play: 3, brush: 2, bath: 3, walk: 5 };
@@ -43,7 +43,7 @@ const TASKS = [
     eligible: (s) => s.pets.some((p) => level(p) >= 3) },
   { id: 'brush1', text: 'Bürste ein Tier', goal: 1, reward: 20, count: 'brush', eligible: (s) => owned(s, 'care_brush') },
   { id: 'walk1', text: 'Geh mit einem Tier Gassi oder auf Ausflug', goal: 1, reward: 25, count: 'walk',
-    eligible: (s) => s.pets.some((p) => ['care_leash', 'care_runball'].some((i) => owned(s, i) && usableBy(ITEMS[i], p.species))) },
+    eligible: (s) => s.pets.some((p) => walkItem(s, p.species)) },
   { id: 'buy1', text: 'Kaufe etwas im Shop', goal: 1, reward: 15, count: 'buy' },
   { id: 'joy80', text: 'Bring die Erfüllung eines Tieres auf 80', goal: 80, reward: 30,
     check: (s) => Math.round(Math.max(0, ...s.pets.map((p) => p.stats.joy))) },

@@ -93,6 +93,9 @@ const SOUNDS = {
   herz: (c, t) => notes(c, t, [1319, 1760], { d: 0.4, v: 0.1, step: 0.09 }),
   fanfare: (c, t) => { notes(c, t, [523, 659, 784], { d: 0.16, type: 'square', v: 0.07, step: 0.12, filter: { f: 2500 } }); notes(c, t + 0.38, [523, 659, 784, 1047], { d: 0.7, type: 'triangle', v: 0.1, step: 0 }); },
   kaufen: (c, t) => { noise(c, t, { d: 0.05, f: 3000, q: 2, v: 0.2 }); notes(c, t + 0.06, [1568, 2093], { d: 0.45, v: 0.12, step: 0.05 }); },
+  sprung: (c, t) => tone(c, t, { f: 260, to: 720, d: 0.13, type: 'triangle', v: 0.14 }),
+  stolpern: (c, t) => { noise(c, t, { d: 0.12, f: 400, type: 'lowpass', v: 0.35 }); tone(c, t + 0.05, { f: 180, to: 90, d: 0.18, type: 'square', v: 0.06, filter: { f: 700 } }); },
+  ziel: (c, t) => notes(c, t, [784, 988, 1175, 1568], { d: 0.3, type: 'triangle', v: 0.12, step: 0.1 }),
   freude: (c, t) => notes(c, t, [659, 784, 988, 1319], { d: 0.35, v: 0.1, step: 0.09 }),
 };
 

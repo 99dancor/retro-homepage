@@ -223,7 +223,7 @@ async function main() {
       assert.match(game.text_, /<body class="embed" data-user="" data-login="\/login\?next=\/haustier\/"/);
       assert.match(game.text_, /data-forum="\/forum\/new"/);
       assert.match(game.headers.get('cache-control'), /no-cache/);
-      for (const [file, type] of [['js/main.js', /javascript/], ['js/pets.js', /javascript/], ['js/scene.js', /javascript/], ['css/game.css', /css/], ['changelog.md', /markdown/]]) {
+      for (const [file, type] of [['js/main.js', /javascript/], ['js/pets.js', /javascript/], ['js/scene.js', /javascript/], ['js/trip.js', /javascript/], ['js/run.js', /javascript/], ['css/game.css', /css/], ['changelog.md', /markdown/]]) {
         const r = await guest.req('/haustier/' + file);
         assert.equal(r.status, 200, file);
         assert.match(r.headers.get('content-type'), type, file);
@@ -1024,6 +1024,33 @@ async function main() {
       const g = sse(bernd, '/api/pixelpfoten/live/anna');
       await assert.rejects(g.ready);
       g.close();
+    });
+
+    await step('Pixelpfoten-Tageswettbewerb: Bestenliste, beste Runde zählt, unmögliche Ergebnisse abgelehnt', async () => {
+      const { anna, bernd } = members;
+      const { contestCourse, maxScore, PLACES } = require('../games/haustier/src/js/trip.js');
+      assert.equal((await api(guest, '/api/pixelpfoten/wettbewerb', undefined, 'GET')).status, 401);
+      const c = await api(anna, '/api/pixelpfoten/wettbewerb', undefined, 'GET');
+      assert.equal(c.status, 200);
+      assert.ok(PLACES[c.json.place]);
+      assert.equal(c.json.place, contestCourse(c.json.day).place);
+      assert.deepEqual(c.json.top, []);
+      assert.equal(c.json.mine, null);
+      const max = maxScore(contestCourse(c.json.day));
+      const send = (b, score, extra = {}) => api(b, '/api/pixelpfoten/wettbewerb', { day: c.json.day, score, pet: { name: 'Balu<b>', species: 'dog', color: 'golden' }, ...extra });
+      assert.equal((await send(anna, max + 1)).status, 400, 'mehr als möglich');
+      assert.equal((await send(anna, 12.5)).status, 400);
+      assert.equal((await send(anna, 10, { day: '2000-01-01' })).status, 400, 'alter Wettbewerb');
+      assert.equal((await send(anna, 10, { pet: { name: 'X', species: 'drache' } })).status, 400);
+      assert.equal((await bernd.req('/api/pixelpfoten/wettbewerb', { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } })).status, 403, 'ohne CSRF-Token');
+      assert.deepEqual((await send(anna, 120)).json, { ok: true, place: 1, best: 120 });
+      assert.deepEqual((await send(bernd, 150, { pet: { name: 'Hoppel', species: 'rabbit', color: 'lila' } })).json, { ok: true, place: 1, best: 150 });
+      assert.deepEqual((await send(anna, 90)).json, { ok: true, place: 2, best: 120 }, 'schlechtere Runde ändert nichts');
+      const board = (await api(anna, '/api/pixelpfoten/wettbewerb', undefined, 'GET')).json;
+      assert.deepEqual(board.top.map(e => [e.place, e.user, e.pet.name, e.score, e.me]), [[1, 'bernd', 'Hoppel', 150, false], [2, 'anna', 'Balub', 120, true]]);
+      assert.equal(board.top[0].pet.color, 'white', 'unbekannte Farbe wird ersetzt');
+      assert.deepEqual(board.mine, { place: 2, score: 120, pet: 'Balub' });
+      assert.deepEqual(board.yesterday.top, []);
     });
 
     // Live-Verbindung zum Spieltisch: liefert die Zustände des gerade gewählten Spiels und meldet einen Spielwechsel

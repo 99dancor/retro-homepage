@@ -1,6 +1,7 @@
-# 🐾 Mein Haustier
+# 🐾 Pixelpfoten
 
-Eingebautes Haustier-Spiel der Homepage unter `/haustier/` (Startmenü → 🐾 Mein Haustier):
+Eingebautes Haustier-Spiel der Homepage unter `/haustier/` (Startmenü → 🐾 Pixelpfoten, bis Oktober 2026 „Mein Haustier“;
+Ordner, Adresse und Spielstand-Schlüssel heißen weiter `haustier`):
 Haustier aussuchen, jeden Tag versorgen, Münzen sammeln und im Shop gegen Futter, Spielzeug und
 Accessoires tauschen.
 
@@ -37,8 +38,18 @@ Grundlage ist das Konzept in der Projektablage (`haustier/konzept.md`), als „M
   (zusammen mit 70 Liebe), Stufe 5 den zweiten Tierplatz und den Puzzle-Futterball, Stufe 8 die Krone.
   Jede neue Stufe bringt Stufe × 50 Münzen.
 - **Tierplätze:** ein Tier zu Beginn, der zweite Platz ab Zuneigungsstufe 5, der dritte für 2.000 Münzen im Shop.
+- **Zimmer:** Alle Tiere sind gemeinsam im Zimmer und laufen frei herum (`src/js/scene.js`, Entscheidungen in
+  `src/js/behavior.js`): Sie wandern, sitzen, dösen bei wenig Ruhe, besuchen sich (Herzchen) und spielen Fangen.
+  Schlafende Tiere gehen ins Körbchen, wenn es eins gibt. Antippen wählt ein Tier aus. Die Bewegung ist nur Anzeige,
+  gespeichert werden Positionen nicht. Bei „Bewegung reduzieren“ im System bleiben die Tiere sitzen.
+- **Spielzeugkiste** unter dem Zimmer, je nach Spielzeug (`TOYS` in `behavior.js`): **Werfen** (Ball, Wollknäuel,
+  Quietsche-Ente, Frisbee, Plüschtier, Puzzle-Futterball: ziehen und loslassen; Hund und Fuchs bringen es zurück),
+  **Locken** (Federangel, Laserpointer, Knabberstab folgen dem Zeiger), **Seifenblasen** (Tippen pustet sie, sie sinken
+  langsam) und **Stationen** (Laufrad, Tunnel, Kletterseil: antippen). Jedes Tier, das das Spielzeug benutzen kann und
+  nicht zu müde ist, macht mit. Fängt oder benutzt ein Tier das Spielzeug, zählt das als „Spielen“ mit diesem
+  Spielzeug (höchstens alle 2,5 s je Tier); hat es genug davon, verliert es eine Weile das Interesse.
 - **Pflege:** Streicheln (auch durch Streichen über das Tier), Kuscheln, Füttern (verbraucht Futter aus dem
-  Inventar), Wasser geben (gratis), Spielen (mit einem Spielzeug), Bürsten (Bürste, alle 2 Std), Baden (Seife,
+  Inventar), Wasser geben (gratis), Spielen (mit Spielzeug aus der Kiste), Bürsten (Bürste, alle 2 Std), Baden (Seife,
   einmal am Tag), Gassi/Ausflug (Leine für Hund und Fuchs, Laufball für Hamster und Ratte, alle 4 Std, mit Chance
   auf ein Fundstück), Schlafen legen und Aufwecken. Wer dasselbe oft hintereinander macht, bewirkt immer
   weniger; das erholt sich mit der Zeit. Jedes Spielzeug ermüdet für sich.
@@ -109,7 +120,9 @@ src/js/state.js     Spielstand (reine Funktionen)
 src/js/pets.js      Tierarten, Werte, Zeit und Pflege (reine Funktionen)
 src/js/items.js     alle Gegenstände (Futter, Spielzeug, Pflege, Accessoires, Räume)
 src/js/economy.js   Münzen, Login-Bonus, Tagesaufgaben, Shop
-src/js/art.js       Vektorgrafiken der Tiere, Accessoires und Räume
+src/js/art.js       Vektorgrafiken der Tiere (mit Gruppen für Augen, Ohren, Kopf, Pfoten, Schwanz), Accessoires und Räume
+src/js/behavior.js  Verhalten im Zimmer und Spielzeugarten (reine Funktionen)
+src/js/scene.js     Zimmer-Szene: Tiere, Spielzeug, Napf, Animationen
 src/js/storage.js   Laden/Speichern für Gäste und Konten
 src/js/main.js      Ablauf und Oberfläche
 test/               Tests (node --test)

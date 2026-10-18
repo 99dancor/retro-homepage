@@ -10,7 +10,7 @@ const KINDS = {
   pm: { label: '💌 Privatnachrichten', site: true, push: true },
   board: { label: '💬 Antworten in abonnierten Forenthemen', site: true, push: true },
   highscore: { label: '🏆 Geknackte Rekorde', site: true, push: true },
-  pet: { label: '🐾 Mein Haustier braucht dich', site: true, push: true },
+  pet: { label: '🐾 Deine Pixelpfoten brauchen dich', site: true, push: true },
   daily: { label: '📅 Tägliche Aktionen (Besuchsserie, Tagesfrage)', site: true, push: false },
   admin: { label: '⚙️ Admin-Hinweise (Freigaben, Kontakt, Registrierungen)', site: true, push: true, admin: true },
 };

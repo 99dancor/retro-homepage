@@ -66,7 +66,7 @@
   <li>Welche Fenster offen sind und wo sie liegen (bis du den Tab schließt).</li>
   <li>Deine Darstellung über den 🖥️-Knopf neben der Uhr: Farben, Schrift, Hintergrund, Lauftext und eigenes CSS. Auch ein eigenes Hintergrundbild bleibt im Browser und wird nicht hochgeladen.</li>
   <li>Die gewählte Ansicht im Texteditor.</li>
-  <li>Mein Haustier: ohne Konto der ganze Spielstand, mit Konto eine Kopie, damit bei Verbindungsproblemen nichts verloren geht.</li>
+  <li>Pixelpfoten: ohne Konto der ganze Spielstand, mit Konto eine Kopie, damit bei Verbindungsproblemen nichts verloren geht.</li>
   <li>Paint: deine Palette, eigene Farben, welche Leisten du siehst und die Einstellungen der Werkzeuge. Was du malst, bleibt im Browser, bis du es speicherst. „Als Hintergrund“ legt das Bild als eigenes Hintergrundbild der Darstellung ab, ebenfalls nur im Browser.</li>
   <li>Minesweeper: Stufe, Marken, Farbe und Sound, ohne Konto auch deine Bestzeiten mit dem eingetragenen Namen.</li>
   <li>Kreuzworträtsel: welche Buchstaben aufgedeckt wurden, ohne Konto auch deine Eintragungen, Zeit und Hilfen der letzten 40 Tage.</li>
@@ -133,7 +133,7 @@
   <li><b>Push auf Handy und Browser</b> (nur wenn du es einschaltest): Gespeichert werden die Adresse, die dein Browser beim Push-Dienst seines Herstellers bekommt (z. B. Google, Mozilla oder Apple), die Schlüssel, mit denen die Seite die Nachricht verschlüsselt, ein Gerätename wie „Firefox auf Windows“ und wann zuletzt etwas geschickt wurde. Der Push-Dienst sieht, dass eine Nachricht kommt, aber nicht ihren Inhalt. Abmelden kannst du jedes Gerät in den Kontoeinstellungen.
   <%- code('pushSubs', 'So sieht ein angemeldetes Gerät in der Datenbank aus.') %>
   <%- code('pushEncrypt', 'Jede Nachricht wird für genau dein Gerät verschlüsselt, bevor sie den Server verlässt.') %></li>
-  <li><b>Erinnerungen von Mein Haustier:</b> Alle 15 Minuten rechnet der Server mit den Regeln des Spiels nach, wie es deinen Tieren in deinem gespeicherten Spielstand geht. Gespeichert wird dabei nur die Erinnerung selbst.
+  <li><b>Erinnerungen von Pixelpfoten:</b> Alle 15 Minuten rechnet der Server mit den Regeln des Spiels nach, wie es deinen Tieren in deinem gespeicherten Spielstand geht. Gespeichert wird dabei nur die Erinnerung selbst.
   <%- code('petwatch', 'Das wird geprüft.') %></li>
   <li><b>Forenabos:</b> Welche Themen du abonniert hast (beim Schreiben passiert das von selbst, „🔔 Abonnieren“ und „🔕 Abo beenden“ steuern es). Das sehen nur du und die Datenbank.
   <%- code('boardSubs', 'Mehr als Konto, Thema und Zeitpunkt wird nicht gespeichert.') %></li>
@@ -173,7 +173,7 @@
 <h2 id="spiele">🎮 Spielstände</h2>
 <ul>
   <li>Mit Konto speichern Browser-Spiele ihre Spielstände auf dem Server: Spiel, Speicherplatz, Inhalt und Zeit. Unter <a href="/account">Kontoeinstellungen</a> siehst und löschst du sie.</li>
-  <li><b>Spielstatistik:</b> Mit Konto zählt die Seite, wie oft du ein Spiel gestartet hast. Spiele können weitere Zahlen melden, etwa Siege oder Höchstpunktzahlen. Mein Haustier zeigt Werte aus seinem Spielstand (Tiere, höchste Stufe, verdiente Münzen, Besuche). Gespeichert werden nur Spiel, Name der Zahl, Wert und Zeit. Wer dein Profil sehen darf, sieht diese Zahlen.</li>
+  <li><b>Spielstatistik:</b> Mit Konto zählt die Seite, wie oft du ein Spiel gestartet hast. Spiele können weitere Zahlen melden, etwa Siege oder Höchstpunktzahlen. Pixelpfoten zeigt Werte aus seinem Spielstand (Tiere, höchste Stufe, verdiente Münzen, Besuche). Gespeichert werden nur Spiel, Name der Zahl, Wert und Zeit. Wer dein Profil sehen darf, sieht diese Zahlen.</li>
   <li>Spiele, die der Admin hochlädt, sind fremde Programme. Sie dürfen mit anderen Servern sprechen und selbst Daten in deinem Browser ablegen. Als Adresse eingebundene Spiele sind fremde Seiten mit eigenen Regeln.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>

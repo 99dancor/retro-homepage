@@ -27,7 +27,7 @@
   <% if (u.about) { %><fieldset class="groupbox"><legend>Über mich</legend><p class="about"><%= u.about %></p></fieldset><% } %>
 
   <fieldset class="groupbox"><legend>🎮 Spielstatistik</legend>
-  <% if (!games.length) { %><p class="muted"><%= me ? 'Noch nichts gespielt. Mit Konto zählen' : 'Noch keine Spiele. Mit Konto zählen' %> <a href="/apps">Andere Games</a><% if (!navHidden.includes('haustier')) { %> und <a href="/haustier/">Mein Haustier</a><% } %> hier mit.</p>
+  <% if (!games.length) { %><p class="muted"><%= me ? 'Noch nichts gespielt. Mit Konto zählen' : 'Noch keine Spiele. Mit Konto zählen' %> <a href="/apps">Andere Games</a><% if (!navHidden.includes('haustier')) { %> und <a href="/haustier/">Pixelpfoten</a><% } %> hier mit.</p>
   <% } else { %>
     <div class="game-stats">
     <% for (const g of games) { %>

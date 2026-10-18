@@ -1,5 +1,5 @@
 'use strict';
-// Fest eingebaute Spiele, z. B. „Mein Haustier“ unter /haustier/.
+// Fest eingebaute Spiele, z. B. „Pixelpfoten“ unter /haustier/.
 // Direkt aufgerufen kommt wie bei jeder Seite der Desktop mit dem Spiel als Fenster, im Fenster das Spiel selbst.
 // index.html bekommt Anmeldung und Adressen der Homepage als data-Attribute mit, denn Skripte im HTML
 // verbietet die Sicherheitsrichtlinie.

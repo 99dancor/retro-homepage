@@ -1,5 +1,12 @@
 # Changelog
 
+## 18.10.2026 – Pixelpfoten
+
+- **Neuer Name:** Das Haustier-Spiel heißt jetzt 🐾 **Pixelpfoten**. Adresse und Spielstände bleiben gleich.
+- **Leben im Zimmer:** Alle deine Tiere sind gemeinsam im Zimmer, laufen frei herum, besuchen sich und spielen miteinander.
+- **Spielzeug zum Anfassen:** Bälle werfen, mit Federangel und Laserpointer locken, Seifenblasen pusten, Laufrad und Tunnel antippen. Statt einen Knopf zu drücken, spielst du jetzt wirklich mit deinen Tieren.
+- **Neue Grafik und Animationen:** Schattierte Tiere, die blinzeln, wedeln und beim Laufen tapsen; Futter- und Wassernapf, Gassi durch die Tür.
+
 ## 18.10.2026 – Kartenspiele in einem Fenster
 
 - **Ein Programm für alle Kartenspiele:** Im Startmenü steht unter Spiele und Apps nur noch 🂡 **Kartenspiele**. Dort siehst du die offenen Spieltische mit dem gewählten Spiel, Gastgeber und Plätzen und kannst dich hinsetzen oder zusehen.

@@ -22,8 +22,9 @@ function eyes(face, c, y, dx = 16) {
   const brows = face === 'sad'
     ? `<path d="M${xl - 8},${y - 9} L${xl + 6},${y - 14}" stroke-width="2.5" stroke-linecap="round"/><path d="M${xr + 8},${y - 9} L${xr - 6},${y - 14}" stroke-width="2.5" stroke-linecap="round"/>`
     : '';
-  return `${brows}<circle cx="${xl}" cy="${y}" r="7" fill="${eye}" stroke-width="1.5"/><circle cx="${xr}" cy="${y}" r="7" fill="${eye}" stroke-width="1.5"/>${pupil}
-    <circle cx="${xl + 2.5}" cy="${y - 2.5}" r="2.2" fill="#fff" stroke="none"/><circle cx="${xr + 2.5}" cy="${y - 2.5}" r="2.2" fill="#fff" stroke="none"/>`;
+  return `${brows}<g class="eyes"><circle cx="${xl}" cy="${y}" r="7.5" fill="${eye}" stroke-width="1.5"/><circle cx="${xr}" cy="${y}" r="7.5" fill="${eye}" stroke-width="1.5"/>${pupil}
+    <circle cx="${xl + 2.5}" cy="${y - 2.8}" r="2.8" fill="#fff" stroke="none"/><circle cx="${xr + 2.5}" cy="${y - 2.8}" r="2.8" fill="#fff" stroke="none"/>
+    <circle cx="${xl - 2.6}" cy="${y + 2.8}" r="1.2" fill="#fff" stroke="none" opacity=".8"/><circle cx="${xr - 2.6}" cy="${y + 2.8}" r="1.2" fill="#fff" stroke="none" opacity=".8"/></g>`;
 }
 
 function mouth(face, y) {
@@ -45,18 +46,22 @@ const zzz = (face) => (face === 'sleep'
   ? `<g class="zzz" stroke="none" fill="#334" font-family="Tahoma, sans-serif" font-weight="bold"><text x="150" y="40" font-size="20">Z</text><text x="166" y="24" font-size="14">z</text><text x="178" y="12" font-size="10">z</text></g>`
   : '');
 
+// Vorderpfoten, einzeln animierbar (Laufen)
+const paws = (fill, y, dx = 22, rx = 14, ry = 8) => `<g class="paws"><ellipse class="paw paw-l" cx="${100 - dx}" cy="${y}" rx="${rx}" ry="${ry}" fill="${fill}"/>
+  <ellipse class="paw paw-r" cx="${100 + dx}" cy="${y}" rx="${rx}" ry="${ry}" fill="${fill}"/></g>`;
+
 // Standard-Körper: sitzend, Bauch, Pfoten
 function body(c, { cy = 145, rx = 48, ry = 40 } = {}) {
   return `<ellipse cx="100" cy="${cy}" rx="${rx}" ry="${ry}" fill="${c.main}"/>
     <ellipse cx="100" cy="${cy + 8}" rx="${rx * 0.62}" ry="${ry * 0.66}" fill="${c.belly}" stroke="none"/>
-    <ellipse cx="78" cy="${cy + ry - 3}" rx="14" ry="8" fill="${c.main}"/><ellipse cx="122" cy="${cy + ry - 3}" rx="14" ry="8" fill="${c.main}"/>`;
+    ${paws(c.main, cy + ry - 3)}`;
 }
 
 // Jede Art: back (ganz hinten), ears (hinter dem Kopf), body, head, front (vor dem Kopf), face
 const PARTS = {
   cat(c, face) {
     return {
-      back: `<path class="tail" d="M140,170 C178,168 182,120 168,104" fill="none" stroke="${LINE}" stroke-width="16" stroke-linecap="round"/>
+      back: `<path class="tail" d="M140,170 C178,168 182,120 168,104" fill="none" stroke="${c.ink}" stroke-width="16" stroke-linecap="round"/>
              <path class="tail" d="M140,170 C178,168 182,120 168,104" fill="none" stroke="${c.main}" stroke-width="11" stroke-linecap="round"/>`,
       body: body(c),
       head: `<circle cx="100" cy="85" r="42" fill="${c.main}"/>`,
@@ -67,7 +72,7 @@ const PARTS = {
   },
   dog(c, face) {
     return {
-      back: `<path class="tail wag" d="M142,160 Q172,150 170,124" fill="none" stroke="${LINE}" stroke-width="15" stroke-linecap="round"/>
+      back: `<path class="tail wag" d="M142,160 Q172,150 170,124" fill="none" stroke="${c.ink}" stroke-width="15" stroke-linecap="round"/>
              <path class="tail wag" d="M142,160 Q172,150 170,124" fill="none" stroke="${c.main}" stroke-width="10" stroke-linecap="round"/>`,
       body: body(c) + (c.id === 'spotted' ? `<ellipse cx="128" cy="132" rx="12" ry="9" fill="${c.accent}" stroke="none"/>` : ''),
       head: `<circle cx="100" cy="85" r="42" fill="${c.main}"/>` + (c.id === 'spotted' ? `<ellipse cx="117" cy="76" rx="15" ry="13" fill="${c.accent}" stroke="none"/>` : ''),
@@ -80,7 +85,7 @@ const PARTS = {
   },
   rabbit(c, face) {
     return {
-      back: `<circle cx="148" cy="168" r="13" fill="#fff"/>`,
+      back: `<circle class="tail" cx="148" cy="168" r="13" fill="#fff"/>`,
       body: body(c),
       head: `<circle cx="100" cy="88" r="40" fill="${c.main}"/>`,
       ears: both(`<ellipse cx="80" cy="32" rx="12" ry="34" fill="${c.main}" ${rot(-10, 80, 32)}/><ellipse cx="80" cy="34" rx="6" ry="25" fill="${c.accent}" stroke="none" ${rot(-10, 80, 34)}/>`),
@@ -91,13 +96,14 @@ const PARTS = {
   },
   hamster(c, face) {
     return {
-      back: '',
+      // Ohren hinter dem runden Körper
+      back: both(`<circle cx="60" cy="74" r="14" fill="${c.main}"/><circle cx="60" cy="74" r="8" fill="${c.accent}" stroke="none"/>`),
       body: `<ellipse cx="100" cy="128" rx="64" ry="60" fill="${c.main}"/>
              <ellipse cx="100" cy="146" rx="40" ry="36" fill="${c.belly}" stroke="none"/>
-             <ellipse cx="80" cy="185" rx="13" ry="7" fill="${c.accent}"/><ellipse cx="120" cy="185" rx="13" ry="7" fill="${c.accent}"/>
+             ${paws(c.accent, 185, 20, 13, 7)}
              <ellipse cx="82" cy="150" rx="9" ry="6" fill="${c.accent}"/><ellipse cx="118" cy="150" rx="9" ry="6" fill="${c.accent}"/>`,
       head: '',
-      ears: both(`<circle cx="60" cy="74" r="14" fill="${c.main}"/><circle cx="60" cy="74" r="8" fill="${c.accent}" stroke="none"/>`),
+      ears: '',
       face: `${both(`<ellipse cx="66" cy="118" rx="18" ry="14" fill="${c.belly}" stroke="none"/>`)}
              ${eyes(face, c, 100, 18)}<ellipse cx="100" cy="112" rx="5" ry="3.5" fill="${c.accent}" stroke-width="1.5"/>${mouth(face, 117)}
              ${blush(face, 118, 34)}`,
@@ -105,8 +111,8 @@ const PARTS = {
   },
   rat(c, face) {
     return {
-      back: `<path d="M140,172 C185,175 190,135 172,120" fill="none" stroke="${LINE}" stroke-width="8" stroke-linecap="round"/>
-             <path d="M140,172 C185,175 190,135 172,120" fill="none" stroke="${c.accent}" stroke-width="4.5" stroke-linecap="round"/>`,
+      back: `<g class="tail"><path d="M140,172 C185,175 190,135 172,120" fill="none" stroke="${c.ink}" stroke-width="8" stroke-linecap="round"/>
+             <path d="M140,172 C185,175 190,135 172,120" fill="none" stroke="${c.accent}" stroke-width="4.5" stroke-linecap="round"/></g>`,
       body: body(c, { cy: 148, rx: 44, ry: 38 }),
       head: `<ellipse cx="100" cy="88" rx="38" ry="36" fill="${c.main}"/><ellipse cx="100" cy="108" rx="20" ry="14" fill="${c.main}"/>`,
       ears: both(`<circle cx="64" cy="58" r="20" fill="${c.main}"/><circle cx="64" cy="58" r="12" fill="${c.accent}" stroke="none"/>`),
@@ -116,8 +122,8 @@ const PARTS = {
   },
   fox(c, face) {
     return {
-      back: `<ellipse cx="156" cy="140" rx="22" ry="44" fill="${c.main}" ${rot(35, 156, 140)}/>
-             <ellipse cx="176" cy="112" rx="11" ry="15" fill="#fff" ${rot(35, 176, 112)}/>`,
+      back: `<g class="tail wag"><ellipse cx="156" cy="140" rx="22" ry="44" fill="${c.main}" ${rot(35, 156, 140)}/>
+             <ellipse cx="176" cy="112" rx="11" ry="15" fill="#fff" ${rot(35, 176, 112)}/></g>`,
       body: body(c),
       head: `<circle cx="100" cy="86" r="42" fill="${c.main}"/><path d="M60,96 Q100,74 140,96 Q130,124 100,128 Q70,124 60,96 Z" fill="${c.belly}" stroke="none"/>`,
       ears: both(`<path d="M62,66 L60,18 L98,46 Z" fill="${c.main}"/><path d="M61,30 L60,18 L72,27 Z" fill="${c.accent}" stroke="none"/>`),
@@ -138,7 +144,7 @@ const PARTS = {
   dragon(c, face) {
     return {
       back: `${both(`<path d="M62,120 C30,92 14,104 18,130 C30,124 38,130 40,140 C48,132 56,136 62,146 Z" fill="${c.belly}"/>`)}
-             <path d="M140,170 C178,172 186,140 176,118" fill="none" stroke="${LINE}" stroke-width="16" stroke-linecap="round"/>
+             <path d="M140,170 C178,172 186,140 176,118" fill="none" stroke="${c.ink}" stroke-width="16" stroke-linecap="round"/>
              <path d="M140,170 C178,172 186,140 176,118" fill="none" stroke="${c.main}" stroke-width="11" stroke-linecap="round"/>
              <path d="M168,110 L186,104 L180,122 Z" fill="${c.main}"/>`,
       body: body(c) + `<path d="M84,128 h32 M82,142 h36 M84,156 h32" stroke-width="1.5" opacity=".5"/>`,
@@ -217,19 +223,39 @@ function backAcc(id, a, layer) {
   return '';
 }
 
-export function petSvg(speciesId, colorId, face = 'ok', { title = '', acc = {}, shine = false } = {}) {
+// Farbe aufhellen (to = '#ffffff') oder abdunkeln (to = '#000000'), t von 0 bis 1
+export function mix(hex, to, t) {
+  const n = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const a = n(hex), b = n(to);
+  return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+
+// Verläufe brauchen je Bild eigene ids, sonst greift bei mehreren Tieren auf einer Seite der erste
+let uid = 0;
+
+//   opts.shadow: Schatten unter dem Tier (die Szene zeichnet ihn selbst, damit er beim Springen am Boden bleibt)
+export function petSvg(speciesId, colorId, face = 'ok', { title = '', acc = {}, shine = false, shadow = true } = {}) {
   const sp = SPECIES[speciesId];
-  const c = sp.colors.find((x) => x.id === colorId) || sp.colors[0];
+  const base = sp.colors.find((x) => x.id === colorId) || sp.colors[0];
+  const id = 'pv' + (uid++).toString(36);
+  // Umrisse in einem dunklen Ton der Fellfarbe wirken weicher als Schwarz
+  const ink = base.ink || mix(base.main, '#000000', 0.6);
+  const c = { ...base, ink, main: `url(#${id}m)`, belly: `url(#${id}b)` };
   const p = PARTS[speciesId](c, face);
   const a = ANCHOR[speciesId];
   const back = acc.back ? backAcc(acc.back, a, 'behind') : '';
   const over = acc.back ? backAcc(acc.back, a, 'over') : '';
   const sparkle = shine ? '<g class="sparkle" stroke="none" fill="#fff8b0"><path d="M40,60 l4,10 l10,4 l-10,4 l-4,10 l-4,-10 l-10,-4 l10,-4z"/><path d="M160,120 l3,7 l7,3 l-7,3 l-3,7 l-3,-7 l-7,-3 l7,-3z"/><path d="M150,40 l2,5 l5,2 l-5,2 l-2,5 l-2,-5 l-5,-2 l5,-2z"/></g>' : '';
+  const grad = (gid, col) => `<radialGradient id="${gid}" cx=".36" cy=".28" r=".85"><stop offset="0" stop-color="${mix(col, '#ffffff', 0.38)}"/>
+    <stop offset=".55" stop-color="${col}"/><stop offset="1" stop-color="${mix(col, '#000000', 0.16)}"/></radialGradient>`;
   return `<svg class="pet-svg species-${speciesId} face-${face}" viewBox="0 0 200 200" role="img" aria-label="${title || sp.name}" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="100" cy="190" rx="58" ry="7" fill="rgba(0,0,0,.15)"/>
-    <g stroke="${LINE}" stroke-width="2.5" stroke-linejoin="round">
-      ${p.back}${back}${p.ears}${p.body}${over}${p.head}${p.front || ''}<g class="face" stroke="${c.faceLine || LINE}">${p.face}${tear(face, 82)}</g>
-      ${acc.neck ? neckAcc(acc.neck, a) : ''}${acc.head ? headAcc(acc.head, a) : ''}
+    <defs>${grad(id + 'm', base.main)}${grad(id + 'b', base.belly)}</defs>
+    ${shadow ? '<ellipse cx="100" cy="190" rx="58" ry="7" fill="rgba(0,0,0,.15)"/>' : ''}
+    <g stroke="${ink}" stroke-width="2.5" stroke-linejoin="round">
+      ${p.back}${back}<g class="torso">${p.body}${over}</g>
+      <g class="head">${p.ears ? `<g class="ears">${p.ears}</g>` : ''}${p.head}${p.front || ''}<g class="face" stroke="${base.faceLine || ink}">${p.face}${tear(face, 82)}</g>
+        <g stroke="${LINE}">${acc.head ? headAcc(acc.head, a) : ''}</g></g>
+      <g stroke="${LINE}">${acc.neck ? neckAcc(acc.neck, a) : ''}</g>
     </g>${sparkle}${zzz(face)}</svg>`;
 }
 
@@ -252,7 +278,11 @@ const ROOMS = {
     <path d="M0,215 H400 M0,250 H400 M0,285 H400" stroke="#c4a274" stroke-width="2"/>
     <rect x="30" y="34" width="80" height="70" fill="#bfe6ff" stroke="#8a6a40" stroke-width="6"/><path d="M70,34 V104 M30,69 H110" stroke="#8a6a40" stroke-width="4"/>
     <rect x="290" y="46" width="70" height="50" fill="#f6d06a" stroke="#8a6a40" stroke-width="5"/><circle cx="325" cy="71" r="12" fill="#e07050"/>
-    <ellipse cx="200" cy="262" rx="130" ry="24" fill="#c0504d" opacity=".55"/>`,
+    <ellipse cx="200" cy="262" rx="130" ry="24" fill="#c0504d" opacity=".55"/><ellipse cx="200" cy="262" rx="112" ry="18" fill="none" stroke="#e8c0a0" stroke-width="2" stroke-dasharray="6 5" opacity=".7"/>
+    <rect y="178" width="400" height="9" fill="#efe2c4" stroke="#c4a274" stroke-width="1.5"/>
+    <path d="M30,34 h80 v70 h-80z" fill="url(#lvsun)" opacity=".5"/><defs><linearGradient id="lvsun" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+    <g stroke="#2a2a2a" stroke-width="1.5" transform="translate(-232 0)"><path d="M372,186 l-6,-28 h28 l-6,28z" fill="#c8643c"/>
+      <path d="M380,158 q-18,-22 -6,-44 M380,158 q2,-30 16,-40 M380,158 q-4,-20 -20,-26" fill="none" stroke="#3f8a3a" stroke-width="5" stroke-linecap="round"/></g>`,
   room_garden: `<rect width="400" height="186" fill="#bfe6ff"/><circle cx="340" cy="50" r="26" fill="#ffd84a"/>
     <g fill="#fff"><ellipse cx="90" cy="50" rx="34" ry="14"/><ellipse cx="115" cy="42" rx="22" ry="14"/><ellipse cx="230" cy="76" rx="26" ry="10"/></g>
     <g fill="#fff" stroke="#c8c8c8" stroke-width="2">${[20, 70, 120, 270, 320, 370].map((x) => `<path d="M${x - 10},186 V140 L${x},128 L${x + 10},140 V186 Z"/>`).join('')}</g>

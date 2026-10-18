@@ -652,6 +652,44 @@ button.bj-chip:active { transform: translateY(1px); box-shadow: 0 0 0 1px #000; 
   .bj-seat { width: 20%; min-width: 0; }
 }
 
+/* Poker (views/poker.ejs, public/poker.js): baut auf den Blackjack-Klassen auf (Karten, Chips, Filz, Seitenleiste) */
+.pk-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pk-felt { --c: clamp(24px, min(5.2cqw, 9.5cqh), 76px); font-size: clamp(11px, calc(var(--c) * .26), 16px);
+  background: radial-gradient(ellipse 46% 40% at 50% 47%, #1f7a3a, #0d4d22 92%, #5a3414 93%, #3d230d 100%), #2a1a0a; }
+.pk-motto { top: 47%; transform: translateY(calc(var(--c) * 1.25)); opacity: .45; }
+.pk-center { position: absolute; left: 50%; top: 47%; transform: translate(-50%, -62%); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 60%; }
+.pk-board { min-height: calc(var(--c) * 1.41); }
+.pk-board .bj-card { margin-right: calc(var(--c) * .1); }
+.pk-board .bj-cards { padding-right: 0; }
+.pk-pot { background: rgba(0,0,0,.45); padding: 1px 10px; border-radius: 9px; }
+.pk-result { text-shadow: 1px 1px #000; font-weight: bold; color: #ffd700; }
+.pk-seat { position: absolute; transform: translate(-50%, -50%); width: 17%; min-width: 96px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 3px 2px; border-radius: 8px; background: rgba(0,0,0,.28); }
+.pk-seat.empty { background: none; opacity: .8; }
+.pk-seat.turn { outline: 2px dashed #ff0; outline-offset: 1px; }
+.pk-seat.turn .bj-name { background: #ff0; color: #000; }
+.pk-seat.mine .bj-name { text-decoration: underline; }
+.pk-seat.folded .pk-hole, .pk-seat.out .pk-hole { opacity: .35; }
+.pk-seat.won { box-shadow: 0 0 0 2px #ffd700, 0 0 12px #ffd700; }
+.pk-hole { min-height: calc(var(--c) * 1.41); }
+.pk-act { min-height: 1.2em; font-size: .9em; opacity: .9; text-shadow: 1px 1px #000; }
+.pk-best { font-size: .85em; background: #000; color: #ff0; padding: 0 6px; border-radius: 9px; }
+.pk-bet { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; text-shadow: 1px 1px #000; font-weight: bold; }
+.pk-bet .bj-chip { width: calc(var(--c) * .5); height: calc(var(--c) * .5); font-size: calc(var(--c) * .17); border-width: 2px; }
+.pk-button { position: absolute; transform: translate(-50%, -50%); width: calc(var(--c) * .45); height: calc(var(--c) * .45); min-width: 18px; min-height: 18px; border-radius: 50%;
+  background: #fff; color: #000; font: bold calc(var(--c) * .25) var(--font); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px #000, 1px 2px 0 rgba(0,0,0,.4); }
+.pk-button.inline { position: static; transform: none; width: 18px; height: 18px; font-size: 11px; vertical-align: middle; }
+.pk-bar { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; min-height: 44px; justify-content: center; text-align: center; }
+.pk-raise input[type=range] { width: min(260px, 40vw); }
+.pk-raise input[type=number] { width: 90px; }
+.pk-hands td { vertical-align: middle; }
+.pk-mini { font: bold 14px Georgia, serif; white-space: nowrap; }
+.pk-mini .red { color: #c00000; }
+@media (max-width: 760px) {
+  .pk-felt { --c: clamp(22px, min(7cqw, 9cqh), 60px); }
+  .pk-seat { width: 24%; min-width: 0; }
+}
+
 /* Paint (views/paint.ejs, public/paint.js) */
 .pt { margin: -10px; height: 100vh; min-height: 360px; display: flex; flex-direction: column; position: relative; user-select: none; -webkit-user-select: none; }
 .pt-menu { display: flex; align-items: center; padding: 1px 2px; border-bottom: 1px solid var(--lo); box-shadow: 0 1px var(--hi); flex-wrap: wrap; }

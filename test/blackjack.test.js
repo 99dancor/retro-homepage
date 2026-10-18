@@ -72,6 +72,34 @@ test('Nur ein Tisch gleichzeitig, Einsatz in den Grenzen', () => {
   bj.remove(a); bj.remove(b);
 });
 
+test('Einsatz: Chips legen gibt noch nicht, erst Bestätigen', async () => {
+  const u = user('fritz'), v = user('gina');
+  const t = bj.create(u, { name: 'Bestätigen' });
+  bj.control(t, u, { action: 'sit' });
+  bj.control(t, v, { action: 'sit' });
+  const s = seat(t, u);
+  assert.match(bj.control(t, u, { action: 'confirm' }), /erst Chips/);
+  assert.equal(bj.control(t, u, { action: 'bet', amount: 25 }), null);
+  assert.equal(bj.control(t, u, { action: 'bet', amount: 35 }), null, 'mehrere Chips nacheinander');
+  await new Promise(r => setTimeout(r, 1200));
+  assert.equal(t.phase, 'betting', 'ohne Bestätigung wird nicht gegeben');
+  assert.equal(t.betDeadline, 0, 'und die Zeit läuft noch nicht');
+  assert.equal(bj.control(t, u, { action: 'confirm' }), null);
+  assert.ok(s.ready && t.betDeadline > 0);
+  assert.equal(bj.control(t, u, { action: 'bet', amount: 45 }), null);
+  assert.equal(s.ready, false, 'neuer Chip hebt die Bestätigung auf');
+  assert.equal(bj.control(t, u, { action: 'confirm' }), null);
+  // Gina legt Chips, bestätigt aber nicht. Sie hat kein Fenster offen, also wartet der Tisch nicht auf sie.
+  rig(t, ['10♠', '10♥', '9♣', '7♦']);
+  bj.control(t, v, { action: 'bet', amount: 10 });
+  assert.equal(t.phase, 'betting');
+  await wait(t, 'playing');
+  assert.equal(s.hands[0].bet, 45);
+  assert.equal(seat(t, v).hands.length, 0, 'nicht bestätigt spielt nicht mit');
+  assert.equal(seat(t, v).chips, 1000);
+  bj.remove(t);
+});
+
 test('Runde: gewinnen, Blackjack zahlt 3 zu 2, Dealerkarte bleibt verdeckt', async () => {
   const u = user('carla');
   const t = bj.create(u, { name: 'Runde' });
@@ -79,6 +107,7 @@ test('Runde: gewinnen, Blackjack zahlt 3 zu 2, Dealerkarte bleibt verdeckt', asy
   // Spieler 10 + 9, Dealer 10 + 7 (verdeckt)
   rig(t, ['10♠', '10♥', '9♣', '7♦']);
   assert.equal(bj.control(t, u, { action: 'bet', amount: 100 }), null);
+  assert.equal(bj.control(t, u, { action: 'confirm' }), null);
   await wait(t, 'playing');
   const st = bj.state(t);
   assert.equal(st.dealer[1], null, 'Lochkarte geht nicht an den Browser');
@@ -95,6 +124,7 @@ test('Runde: gewinnen, Blackjack zahlt 3 zu 2, Dealerkarte bleibt verdeckt', asy
   // Spieler Ass + König, Dealer 9 + 7: Blackjack ohne Zug
   rig(t, ['A♠', '9♥', 'K♣', '7♦']);
   bj.control(t, u, { action: 'bet', amount: 100 });
+  assert.equal(bj.control(t, u, { action: 'confirm' }), null);
   await wait(t, 'result');
   assert.equal(s.hands[0].result, 'blackjack');
   assert.equal(s.chips, 1100 + 150);
@@ -111,6 +141,7 @@ test('Verdoppeln, Teilen und Überkaufen', async () => {
   // die erste verdoppelt mit einer 10 auf 21, die zweite hält, der Dealer zieht 10 und überkauft
   rig(t, ['8♠', '10♥', '8♣', '6♦', '10♣', '3♠', '10♦', '10♠']);
   bj.control(t, u, { action: 'bet', amount: 100 });
+  assert.equal(bj.control(t, u, { action: 'confirm' }), null);
   await wait(t, 'playing');
   assert.equal(bj.control(t, u, { action: 'split' }), null);
   const s = seat(t, u);
@@ -128,6 +159,7 @@ test('Verdoppeln, Teilen und Überkaufen', async () => {
   // Spieler 10 + 6, Dealer 10 + 7, Spieler zieht König
   rig(t, ['10♠', '10♥', '6♣', '7♦', 'K♠']);
   bj.control(t, u, { action: 'bet', amount: 50 });
+  assert.equal(bj.control(t, u, { action: 'confirm' }), null);
   await wait(t, 'playing');
   bj.control(t, u, { action: 'hit' });
   await wait(t, 'result');
@@ -142,6 +174,7 @@ test('Tisch schließen gibt laufende Einsätze zurück und beendet die Sitzung',
   bj.control(t, u, { action: 'sit' });
   rig(t, ['10♠', '10♥', '6♣', '7♦']);
   bj.control(t, u, { action: 'bet', amount: 300 });
+  assert.equal(bj.control(t, u, { action: 'confirm' }), null);
   await wait(t, 'playing');
   assert.equal(seat(t, u).chips, 700);
   bj.remove(t);

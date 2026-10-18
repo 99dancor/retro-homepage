@@ -35,6 +35,25 @@ module.exports = {
       return { stats: out, last: t.last };
     },
   },
+  poker: {
+    title: 'Poker',
+    url: '/poker',
+    userStats(userId) {
+      const pk = require('./poker');
+      const t = pk.userTotals(userId);
+      if (!t.sessions) return null;
+      const out = [
+        { key: 'Bilanz', value: t.balance, text: euro(t.balance), cls: t.balance < 0 ? 'neg' : t.balance > 0 ? 'pos' : '' },
+        { key: 'Buy-ins', value: t.buyins, text: `${t.buyins.toLocaleString('de-DE')} (${t.bought.toLocaleString('de-DE')} €)` },
+        { key: 'Hände', value: t.hands },
+        { key: 'Gewonnen', value: t.wins, text: t.hands ? `${t.wins.toLocaleString('de-DE')} (${Math.round(t.wins / t.hands * 100)} %)` : '0' },
+        { key: 'Showdowns', value: t.showdowns },
+        { key: 'Größter Gewinn', value: t.best_win, text: euro(t.best_win) },
+      ];
+      if (t.best_hand >= 0) out.push({ key: 'Bestes Blatt', value: t.best_hand, text: pk.HANDS[t.best_hand] });
+      return { stats: out, last: t.last };
+    },
+  },
   quiz: {
     title: 'Quiz',
     url: '/quiz',

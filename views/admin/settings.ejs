@@ -50,6 +50,15 @@
     <label class="inline"><input type="checkbox" name="bj_h17" value="1" <%= s.bj_h17 === '1' ? 'checked' : '' %>> Dealer zieht auf Soft 17 (sonst steht er auf allen 17)</label>
     <br><small>Änderungen gelten für neue Runden; der Buy-in für das nächste Hinsetzen oder Nachkaufen. Tische legen Mitglieder selbst an.</small>
   </fieldset>
+  <fieldset class="groupbox" id="poker"><legend>♠️ Poker</legend>
+    <label class="inline"><input type="checkbox" name="pk_enabled" value="1" <%= s.pk_enabled === '1' ? 'checked' : '' %>> Poker (Texas Hold'em) für angemeldete Mitglieder (Spielgeld)</label>
+    <div class="row">
+      <label>Buy-in in € (Start und jeder Nachkauf):<input type="number" name="pk_buyin" value="<%= s.pk_buyin %>" min="1"></label>
+      <label>Nachkaufen erst unter (€):<input type="number" name="pk_rebuy_below" value="<%= s.pk_rebuy_below %>" min="0"></label>
+      <label>Bedenkzeit pro Zug (Sekunden, 5–300):<input type="number" name="pk_turn" value="<%= s.pk_turn %>" min="5" max="300"></label>
+    </div>
+    <small>Wie bei Blackjack zählt der Start als erster Buy-in. Die Blinds wählt der Gastgeber pro Tisch.</small>
+  </fieldset>
   <fieldset class="groupbox" id="kreuzwortraetsel"><legend>📰 Kreuzworträtsel</legend>
     <label>Eigene Wörter (eine Zeile pro Wort: <code>Wort=Hinweis</code>):
       <textarea name="cw_words" rows="6" class="w100" placeholder="Unraid=Server-Betriebssystem mit Docker&#10;Pinball=Flipper auf Englisch"><%= s.cw_words %></textarea></label>
@@ -79,6 +88,9 @@
 </form>
 <form method="post" action="/admin/settings/blackjack-reset" class="actions" data-confirm="Die Blackjack-Bestenliste und alle Bilanzen auf null setzen? Laufende Sitzungen an Tischen bleiben.">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🃏 Blackjack-Bestenliste zurücksetzen</button> <small>(löscht alle abgeschlossenen Sitzungen und damit alle Bilanzen)</small>
+</form>
+<form method="post" action="/admin/settings/poker-reset" class="actions" data-confirm="Die Poker-Bestenliste und alle Bilanzen auf null setzen? Laufende Sitzungen an Tischen bleiben.">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">♠️ Poker-Bestenliste zurücksetzen</button> <small>(löscht alle abgeschlossenen Sitzungen und damit alle Bilanzen)</small>
 </form>
 <form method="post" action="/admin/settings/minesweeper-reset" class="actions" data-confirm="Alle Minesweeper-Bestzeiten und Statistiken aller Mitglieder löschen?">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">💣 Minesweeper-Bestzeiten zurücksetzen</button> <small>(löscht alle gespeicherten Spiele, auch die Zahlen in den Profilen)</small>

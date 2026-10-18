@@ -1,5 +1,14 @@
 # Changelog
 
+## 18.10.2026 – Poker und Blackjack-Einsatz bestätigen
+
+- **Poker:** Neu im Startmenü unter Spiele und Apps → ♠️ Poker. Texas Hold'em ohne Limit mit Spielgeld an Tischen für 2 bis 6 Mitglieder. Mach einen Tisch auf, wähl die Blinds und lade andere per Link ein, oder setz dich an einen offenen. Andere können zusehen.
+- **Am Tisch:** Dein Platz ist immer unten. Aussteigen, Checken, Mitgehen oder Erhöhen mit Regler, Betrag und Knöpfen für Min, ½ Pot, Pot und All-in; erhöht wird erst mit „Erhöhen auf …“. Deine Karten siehst nur du, die anderen sehen sie erst im Showdown. Unter deinen Karten steht, was du gerade hast. Bei All-in gibt es Nebenpots, bei Gleichstand wird geteilt.
+- **Bilanz wie bei Blackjack:** Jeder startet mit 1.000 €, das zählt als erster Buy-in. Unter 200 € kaufst du zwischen zwei Händen nach. Mit ⏸ Aussetzen bleibst du sitzen, bekommst aber keine Karten.
+- **Statistik:** Bestenliste mit Bilanz, Händen, größtem Gewinn und bestem Blatt, dazu deine letzten Sitzungen. Im Profil gibt es eine neue Karte „Poker“.
+- **Blackjack:** Chips legen gibt nicht mehr sofort. Du klickst so viele Chips, wie du setzen willst, und gibst mit **✔ Einsatz bestätigen** (oder Enter) frei. Gegeben wird, wenn alle bestätigt haben, spätestens 15 Sekunden nach der ersten Bestätigung.
+- **Für den Admin:** Unter Einstellungen → Poker schaltest du Poker an oder aus und stellst Buy-in, Nachkauf-Grenze und Bedenkzeit ein. Bestenliste und Bilanz einzelner Nutzer lassen sich zurücksetzen. Was Poker speichert, steht auf der Datenschutzseite.
+
 ## 17.10.2026 – Tägliches Kreuzworträtsel
 
 - **Kreuzworträtsel:** Neu im Startmenü unter Spiele und Apps → 📰 Kreuzworträtsel. Jeden Tag um Mitternacht gibt es ein neues Rätsel, für alle Besucher dasselbe. Die Seite setzt es selbst aus rund 600 deutschen Wörtern mit Hinweisen zusammen und nimmt dabei keine Wörter der letzten Tage.

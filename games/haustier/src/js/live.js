@@ -1,4 +1,5 @@
-// Verbindung zum Server für Besuche: Nachbarn, fremde Zimmer, Besuchsbuch und Live-Zimmer (src/routes/pixelpfoten.js).
+// Verbindung zum Server für Besuche (Nachbarn, fremde Zimmer, Besuchsbuch, Live-Zimmer) und den Tageswettbewerb
+// (src/routes/pixelpfoten.js).
 const BASE = '/api/pixelpfoten';
 const csrf = () => document.body.dataset.csrf || '';
 
@@ -18,6 +19,8 @@ export const api = {
   act: (name, body) => call('/zimmer/' + encodeURIComponent(name), body),
   inbox: () => call('/post'),
   done: (upTo) => call('/post', { upTo }),
+  contest: () => call('/wettbewerb'),
+  submit: (body) => call('/wettbewerb', body),
 };
 
 // Live-Zimmer eines Gastgebers. Hält die anderen Anwesenden mit ihren Tieren in members (sid -> Mitglied).

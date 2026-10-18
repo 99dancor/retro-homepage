@@ -81,6 +81,7 @@ const SNIPPETS = {
   ppVisits: ['src/db.js', 'CREATE TABLE IF NOT EXISTS pp_visits (', 11],
   ppAllowed: ['src/pixelpfoten.js', 'function allowed(viewer, host, s) {', 8],
   ppLive: ['src/pixelpfoten.js', 'function update(viewer, username, b) {', 10],
+  ppContest: ['src/db.js', 'CREATE TABLE IF NOT EXISTS pp_contest (', 11],
   paintCursor: ['src/paintlobby.js', 'function cursor(l, user, sid, b) {', 5],
   paintChat: ['src/paintlobby.js', 'function chat(l, user, text) {', 10],
   quizCookie: ['src/routes/quiz.js', "res.cookie('quiz', t", 1],

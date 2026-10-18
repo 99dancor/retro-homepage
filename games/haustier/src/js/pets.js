@@ -256,11 +256,16 @@ export const ACTIONS = {
   wake: { label: 'Aufwecken', icon: '⏰', cooldown: 1000, effect: {} },
 };
 
-// Gassi mit Leine (Hund, Fuchs), Ausflug im Laufball (Hamster, Ratte)
+// Gassi mit Leine (Hund, Fuchs), Ausflug im Laufball (Hamster, Ratte), mit Geschirr (Katze, Kaninchen) oder im
+// Reiseglas (Axolotl). Drachen fliegen ohne Ausrüstung los ('wings').
+export const WALK_ITEMS = ['care_leash', 'care_runball', 'care_harness', 'care_travelglass'];
 export function walkItem(state, species) {
-  return ['care_leash', 'care_runball'].find((id) => owned(state, id) && usableBy(ITEMS[id], species)) || null;
+  if (species === 'dragon') return 'wings';
+  return WALK_ITEMS.find((id) => owned(state, id) && usableBy(ITEMS[id], species)) || null;
 }
-export const walkLabel = (species) => (['hamster', 'rat'].includes(species) ? 'Ausflug' : 'Gassi gehen');
+// Ausrüstung im Shop, die dieser Art Ausflüge erlaubt (null bei Drachen)
+export const walkGear = (species) => WALK_ITEMS.find((id) => usableBy(ITEMS[id], species)) || null;
+export const walkLabel = (species) => (['dog', 'fox'].includes(species) ? 'Gassi gehen' : 'Ausflug');
 
 // Welche Aktionen das Tier überhaupt anbietet (ohne passende Ausrüstung bleiben Bürsten, Baden und Gassi weg)
 export function availableActions(pet, state) {
@@ -313,7 +318,7 @@ export function canDo(pet, action, state, itemId = null, now = Date.now()) {
     case 'water': return s.water < 95 ? { ok: true } : { ok: false, reason: `${n} hat keinen Durst.` };
     case 'play': return s.rest >= 15 ? { ok: true } : { ok: false, reason: `${n} ist zu müde zum Spielen.` };
     case 'walk':
-      if (!walkItem(state, pet.species)) return { ok: false, reason: `Dafür brauchst du eine Leine oder einen Laufball.` };
+      if (!walkItem(state, pet.species)) return { ok: false, reason: `Dafür brauchst du: ${ITEMS[walkGear(pet.species)].name} (im Shop).` };
       return s.rest >= 20 ? { ok: true } : { ok: false, reason: `${n} ist zu müde für einen Ausflug.` };
     case 'sleep': return s.rest < 80 ? { ok: true } : { ok: false, reason: `${n} ist noch gar nicht müde.` };
     default: return { ok: true };

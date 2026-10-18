@@ -480,6 +480,19 @@ CREATE TABLE IF NOT EXISTS pp_visits (
 );
 CREATE INDEX IF NOT EXISTS pp_visits_host ON pp_visits(host_id, applied, id);
 CREATE INDEX IF NOT EXISTS pp_visits_day ON pp_visits(host_id, visitor_id, day, kind);
+-- Pixelpfoten-Tageswettbewerb: beste Runde je Mitglied und Tag (Tier nur mit Name, Art und Farbe)
+CREATE TABLE IF NOT EXISTS pp_contest (
+  day TEXT NOT NULL,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pet_name TEXT NOT NULL,
+  species TEXT NOT NULL,
+  color TEXT NOT NULL,
+  score INTEGER NOT NULL,
+  runs INTEGER NOT NULL DEFAULT 1,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (day, user_id)
+);
+CREATE INDEX IF NOT EXISTS pp_contest_board ON pp_contest(day, score DESC, updated_at);
 -- Kreuzworträtsel: ein Rätsel pro Tag (für alle gleich) und der Stand jedes Mitglieds an diesem Tag
 CREATE TABLE IF NOT EXISTS cw_puzzles (
   day TEXT PRIMARY KEY,

@@ -1,5 +1,12 @@
 # Changelog
 
+## 18.10.2026 – Pixelpfoten: Ausflüge und Wettbewerb
+
+- **Ausflüge als Minispiel:** „Gassi gehen“ und Ausflüge haben jetzt eine eigene Szene. Dein Tier läuft durch Park, Wald, Strand oder Berge, du lässt es per Tipp oder Leertaste über Pfützen, Baumstämme und Sandburgen springen und sammelst Leckerli, Münzen und Schnüffelstellen mit Fundstücken ein.
+- **Fähigkeiten:** Jedes Tier hat Tempo, Sprungkraft und Spürnase (Stufe 1 bis 10), die mit jedem Lauf besser werden. Jede Tierart hat ein Talent, das sie schneller lernt.
+- **Tageswettbewerb:** Jeden Tag laufen alle Mitglieder dieselbe Strecke um die Wette, die beste Runde zählt. Die ersten drei bekommen am nächsten Tag Münzen und einen Pokal, der Pokale-Zähler steht im Profil.
+- **Für alle Tiere:** Neu im Shop sind Geschirr (Katze, Kaninchen) und Reiseglas (Axolotl). Drachen fliegen ohne Ausrüstung los.
+
 ## 18.10.2026 – Pixelpfoten
 
 - **Besuche:** Unter 🏘️ Besuchen siehst du die Zimmer anderer Mitglieder und kannst vorbeischauen, allein oder mit einem deiner Tiere. Streichel ihre Tiere, spiel mit ihnen, lass Futter oder einen Gruß im Besuchsbuch da. Für die ersten drei Besuche am Tag gibt es Münzen.

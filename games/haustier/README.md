@@ -50,8 +50,8 @@ Grundlage ist das Konzept in der Projektablage (`haustier/konzept.md`), als „M
   Spielzeug (höchstens alle 2,5 s je Tier); hat es genug davon, verliert es eine Weile das Interesse.
 - **Pflege:** Streicheln (auch durch Streichen über das Tier), Kuscheln, Füttern (verbraucht Futter aus dem
   Inventar), Wasser geben (gratis), Spielen (mit Spielzeug aus der Kiste), Bürsten (Bürste, alle 2 Std), Baden (Seife,
-  einmal am Tag), Gassi/Ausflug (Leine für Hund und Fuchs, Laufball für Hamster und Ratte, alle 4 Std, mit Chance
-  auf ein Fundstück), Schlafen legen und Aufwecken. Wer dasselbe oft hintereinander macht, bewirkt immer
+  einmal am Tag), Gassi/Ausflug (mit passender Ausrüstung, alle 4 Std, mit Chance
+  auf ein Fundstück; läuft als Minispiel, siehe unten), Schlafen legen und Aufwecken. Wer dasselbe oft hintereinander macht, bewirkt immer
   weniger; das erholt sich mit der Zeit. Jedes Spielzeug ermüdet für sich.
 - **Lieblingssachen** (❤️) wirken 50 % stärker, z. B. Thunfisch für Katzen oder der Ball für Hunde.
 - **Start:** ein Ball und 5 × Trockenfutter.
@@ -76,6 +76,28 @@ Regeln in `src/js/visits.js` (vom Spiel und vom Server genutzt), Server-Teil in 
 - Ist der Gastgeber nicht live, laufen seine Tiere als Simulation im Zimmer und spielen mit dem Spielzeug des
   Besuchers; im Live-Zimmer laufen sie so, wie sie beim Gastgeber gerade laufen.
 - Ist der Gastgeber nicht im Spiel, bekommt er einmal am Tag je Besucher eine Benachrichtigung (`besuch`).
+
+## Ausflüge, Fähigkeiten und Wettbewerb
+
+Regeln in `src/js/trip.js` (vom Spiel und vom Server genutzt), Bild und Eingabe in `src/js/run.js`, Menü 🌳 Ausflug.
+
+- **Lauf:** Das Tier läuft von selbst, Tippen oder Leertaste lässt es springen. Die Strecke (`course`) entsteht aus
+  einem Startwert; `stepRun` rechnet die Bewegung in festen Schritten (1/120 s), damit ein Lauf überall gleich ist.
+  Punkte: Leckerli 10, Münze 5, Schnüffelstelle 15, übersprungenes Hindernis 5, Stolpern −10, im Ziel Zeitpunkte.
+- **Ziele:** Park, Wald (Zuneigungsstufe 3), Strand (5), Berge (7), je mit eigenen Hindernissen, Tempo und Dichte.
+- **Ausflug:** wirkt wie „Gassi gehen“ (Werte, 4 Stunden Wartezeit, Zuneigung, Zufallsfund), dazu 2 Münzen je
+  eingesammelter Münze (höchstens 30), Leckerli füllen Nahrung auf, bis zu 3 Schnüffelstellen bringen Münzen oder Futter.
+- **Ausrüstung:** Leine (Hund, Fuchs), Laufball (Hamster, Ratte), Geschirr (Katze, Kaninchen), Reiseglas (Axolotl);
+  Drachen brauchen keine (`walkItem` in `pets.js`).
+- **Fähigkeiten** je Tier (`pet.skills`, Erfahrung, Stufen 1–10): Tempo (schneller, erholt sich schneller vom
+  Stolpern), Sprungkraft (höher, ab Stufe 4 Doppelsprung), Spürnase (größerer Sammelradius). Erfahrung aus jedem Lauf
+  (`runGains`), das Talent der Art (`TALENT`) zählt 25 % mehr.
+- **Tageswettbewerb:** Jeden Tag ein Ziel und eine Strecke für alle (`contestCourse(Tag)`, der Tag kommt vom
+  Server). Beliebig viele Läufe, solange das Tier genug Ruhe hat (jeder kostet Ruhe, Nahrung und Wasser, Fähigkeiten
+  lernen halb so schnell). Die beste Runde geht an `POST /api/pixelpfoten/wettbewerb`; der Server nimmt nur ganze
+  Punktzahlen bis `maxScore` der Strecke an und speichert sie in `pp_contest` (30 Tage). Erstes Mitmachen am Tag:
+  15 Münzen. Platz 1–3 holt sich am nächsten Tag beim Öffnen der Ausflüge 100/60/40 Münzen und einen Pokal
+  (`state.trophies`, im Profil als „Pokale“).
 
 ## Wie war dein Tag?
 
@@ -145,6 +167,8 @@ src/js/art.js       Vektorgrafiken der Tiere (mit Gruppen für Augen, Ohren, Kop
 src/js/behavior.js  Verhalten im Zimmer und Spielzeugarten (reine Funktionen)
 src/js/scene.js     Zimmer-Szene: Tiere, Spielzeug, Napf, Animationen, Tiere anderer Mitglieder
 src/js/visits.js    Regeln für Besuche (reine Funktionen, auch vom Server genutzt)
+src/js/trip.js      Ausflüge, Fähigkeiten, Wettbewerb (reine Funktionen, auch vom Server genutzt)
+src/js/run.js       Lauf-Minispiel: Strecke, Tier, Eingabe
 src/js/live.js      Verbindung zum Server: Nachbarn, Besuchsbuch, Live-Zimmer
 src/js/storage.js   Laden/Speichern für Gäste und Konten
 src/js/main.js      Ablauf und Oberfläche

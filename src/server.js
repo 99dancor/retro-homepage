@@ -62,6 +62,7 @@ app.use((req, res, next) => {
     boardEnabled: getSetting('board_enabled') === '1',
     blackjackEnabled: getSetting('bj_enabled', '1') === '1',
     pokerEnabled: getSetting('pk_enabled', '1') === '1',
+    durakEnabled: getSetting('dk_enabled', '1') === '1',
     paintEnabled: getSetting('paint_enabled', '1') === '1',
     quizEnabled: getSetting('quiz_enabled', '1') === '1',
     galleryEnabled: getSetting('paint_enabled', '1') === '1' && getSetting('paint_gallery', '1') === '1',
@@ -105,6 +106,7 @@ app.use('/forum', require('./routes/board'));
 app.use('/musik', require('./routes/music').router);
 app.use('/blackjack', require('./routes/blackjack'));
 app.use('/poker', require('./routes/poker'));
+app.use('/durak', require('./routes/durak'));
 app.use('/quiz', require('./routes/quiz'));
 app.use('/minesweeper', require('./routes/minesweeper'));
 app.use('/kreuzwortraetsel', require('./routes/crossword'));

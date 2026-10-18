@@ -59,6 +59,13 @@
     </div>
     <small>Wie bei Blackjack zählt der Start als erster Buy-in. Die Blinds wählt der Gastgeber pro Tisch.</small>
   </fieldset>
+  <fieldset class="groupbox" id="durak"><legend>🎴 Durak</legend>
+    <label class="inline"><input type="checkbox" name="dk_enabled" value="1" <%= s.dk_enabled === '1' ? 'checked' : '' %>> Durak (Kartenspiel ohne Geld) für angemeldete Mitglieder</label>
+    <div class="row">
+      <label>Bedenkzeit zum Angreifen und Verteidigen (Sekunden, 5–300):<input type="number" name="dk_turn" value="<%= s.dk_turn %>" min="5" max="300"></label>
+    </div>
+    <small>Zum Zuwerfen gibt es die halbe Zeit. Wer nichts Passendes mehr hat, muss nicht auf „Fertig“ klicken.</small>
+  </fieldset>
   <fieldset class="groupbox" id="kreuzwortraetsel"><legend>📰 Kreuzworträtsel</legend>
     <label>Eigene Wörter (eine Zeile pro Wort: <code>Wort=Hinweis</code>):
       <textarea name="cw_words" rows="6" class="w100" placeholder="Unraid=Server-Betriebssystem mit Docker&#10;Pinball=Flipper auf Englisch"><%= s.cw_words %></textarea></label>
@@ -91,6 +98,9 @@
 </form>
 <form method="post" action="/admin/settings/poker-reset" class="actions" data-confirm="Die Poker-Bestenliste und alle Bilanzen auf null setzen? Laufende Sitzungen an Tischen bleiben.">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">♠️ Poker-Bestenliste zurücksetzen</button> <small>(löscht alle abgeschlossenen Sitzungen und damit alle Bilanzen)</small>
+</form>
+<form method="post" action="/admin/settings/durak-reset" class="actions" data-confirm="Die Durak-Bestenliste und die Durak-Zahlen aller Mitglieder löschen?">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🎴 Durak-Bestenliste zurücksetzen</button> <small>(löscht alle gespeicherten Ergebnisse, auch die Zahlen in den Profilen)</small>
 </form>
 <form method="post" action="/admin/settings/minesweeper-reset" class="actions" data-confirm="Alle Minesweeper-Bestzeiten und Statistiken aller Mitglieder löschen?">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">💣 Minesweeper-Bestzeiten zurücksetzen</button> <small>(löscht alle gespeicherten Spiele, auch die Zahlen in den Profilen)</small>

@@ -690,6 +690,45 @@ button.bj-chip:active { transform: translateY(1px); box-shadow: 0 0 0 1px #000; 
   .pk-seat { width: 24%; min-width: 0; }
 }
 
+/* Durak (views/durak.ejs, public/durak.js): Tisch, Plätze und Karten von Poker und Blackjack, dazu Stapel, Paare und Hand */
+.dk-felt { --c: clamp(24px, min(5cqw, 9cqh), 70px); }
+.dk-center { top: 46%; transform: translate(-50%, -50%); width: 62%; }
+.dk-mid { display: flex; align-items: center; justify-content: center; gap: calc(var(--c) * .4); width: 100%; }
+.dk-stock, .dk-discard { position: relative; width: calc(var(--c) * 1.5); min-height: calc(var(--c) * 1.5); flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.dk-stock .bj-card, .dk-discard .bj-card { margin: 0; animation: none; }
+.dk-stock .dk-trump { position: absolute; transform: rotate(90deg); left: calc(var(--c) * .62); top: calc(var(--c) * .06); }
+.dk-stock .back { position: relative; left: calc(var(--c) * -.3); }
+.dk-stock small, .dk-discard small { position: absolute; bottom: calc(var(--c) * -.45); white-space: nowrap; text-shadow: 1px 1px #000; }
+.dk-discard .dk-off { transform: rotate(-12deg); opacity: .8; }
+.dk-suit { font: bold calc(var(--c) * .9) Georgia, serif; text-shadow: 1px 1px #000; }
+.dk-red { color: #ff6b6b; }
+.dk-pairs { display: flex; flex-wrap: wrap; gap: calc(var(--c) * .3) calc(var(--c) * .2); justify-content: center; align-items: center; min-height: calc(var(--c) * 1.8); flex: 1; }
+.dk-pair { position: relative; display: inline-block; width: calc(var(--c) * 1.3); height: calc(var(--c) * 1.75); border-radius: 6px; }
+.dk-pair .bj-card { position: absolute; left: 0; top: 0; margin: 0; }
+.dk-pair .dk-def { left: calc(var(--c) * .3); top: calc(var(--c) * .34); transform: rotate(8deg); }
+.dk-pair.target { cursor: pointer; outline: 2px dashed #ff0; outline-offset: 2px; }
+.dk-pair.target:hover { background: rgba(255,255,0,.15); }
+.dk-hint { opacity: .75; font-style: italic; text-shadow: 1px 1px #000; }
+.dk-big { font-size: 1.4em; }
+.dk-order { background: rgba(0,0,0,.4); padding: 4px 12px; border-radius: 8px; text-align: left; }
+.dk-backs .bj-card { width: calc(var(--c) * .55); height: calc(var(--c) * .78); margin-right: calc(var(--c) * -.38); border-width: 2px; animation: none; }
+.dk-seat .pk-hole { min-height: calc(var(--c) * .8); }
+.dk-seat.lost { box-shadow: 0 0 0 2px #ff5050, 0 0 12px #ff5050; }
+.dk-bar { min-height: calc(clamp(34px, 5.5vw, 62px) * 1.41 + 48px); }
+.dk-hand { --c: clamp(34px, 5.5vw, 62px); display: flex; flex-wrap: wrap; justify-content: center; row-gap: 6px; padding: 10px calc(var(--c) * .12) 2px 0; }
+.dk-hand .bj-card { cursor: pointer; transition: transform .1s; margin-right: calc(var(--c) * -.12); }
+.dk-hand .bj-card.ok:hover, .dk-hand .bj-card.ok:focus-visible { transform: translateY(-8px); z-index: 1; outline: 0; }
+.dk-hand .bj-card.dim { filter: brightness(.82); cursor: default; }
+.dk-hand .bj-card.trump { box-shadow: 2px 2px 0 rgba(0,0,0,.35), inset 0 -4px 0 #ffd700; }
+.dk-hand .bj-card.picked { transform: translateY(-14px); box-shadow: 0 0 0 3px #ff0, 2px 2px 0 rgba(0,0,0,.35); z-index: 2; }
+@media (max-width: 760px) {
+  .dk-felt { --c: clamp(20px, min(6.5cqw, 8.5cqh), 54px); }
+  .dk-center { width: 74%; }
+  /* Schmal: Stapel und Abwurf über die Karten in der Mitte, damit sie nicht in die Plätze links und rechts ragen */
+  .dk-mid { flex-wrap: wrap; row-gap: calc(var(--c) * .6); }
+  .dk-pairs { order: 3; flex-basis: 100%; }
+}
+
 /* Paint (views/paint.ejs, public/paint.js) */
 .pt { margin: -10px; height: 100vh; min-height: 360px; display: flex; flex-direction: column; position: relative; user-select: none; -webkit-user-select: none; }
 .pt-menu { display: flex; align-items: center; padding: 1px 2px; border-bottom: 1px solid var(--lo); box-shadow: 0 1px var(--hi); flex-wrap: wrap; }

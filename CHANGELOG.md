@@ -1,5 +1,13 @@
 # Changelog
 
+## 18.10.2026 – Durak
+
+- **Durak:** Neu im Startmenü unter Spiele und Apps → 🎴 Durak. Das russische Kartenspiel mit 36 Karten und Zuwerfen für 2 bis 6 Mitglieder. Mach einen Tisch auf und lade andere per Link ein, oder setz dich an einen offenen. Andere können zusehen. Gegeben wird, sobald alle am Tisch auf „Bereit“ klicken.
+- **Am Tisch:** Dein Platz ist immer unten, deine Karten liegen darunter, Trümpfe rechts. Klick auf eine Karte legt sie: zum Angreifen, zum Zuwerfen oder zum Schlagen. Was gerade passt, ist hervorgehoben. Verteidigen, Nehmen und Fertig gehen auch mit Tasten. Wer nichts mehr zuwerfen kann, muss nicht auf „Fertig“ klicken.
+- **Wer ist der Durak?** Wer am Ende als Einziger noch Karten hat. Im nächsten Spiel wird er zuerst angegriffen. Wer mitten im Spiel aufsteht, beendet es für alle und ist der Durak.
+- **Statistik:** Bestenliste mit Spielen, wie oft jemand als Erster raus war und wie oft Durak, dazu deine letzten Spiele. Im Profil gibt es eine neue Karte „Durak“.
+- **Für den Admin:** Unter Einstellungen → Durak schaltest du Durak an oder aus und stellst die Bedenkzeit ein. Bestenliste und Zahlen einzelner Nutzer lassen sich löschen. Was Durak speichert, steht auf der Datenschutzseite.
+
 ## 18.10.2026 – Poker und Blackjack-Einsatz bestätigen
 
 - **Poker:** Neu im Startmenü unter Spiele und Apps → ♠️ Poker. Texas Hold'em ohne Limit mit Spielgeld an Tischen für 2 bis 6 Mitglieder. Mach einen Tisch auf, wähl die Blinds und lade andere per Link ein, oder setz dich an einen offenen. Andere können zusehen.

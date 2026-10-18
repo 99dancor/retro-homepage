@@ -210,7 +210,7 @@ async function main() {
       assert.equal((await admin.req('/api/saves/testspiel/slot_1')).status, 404, 'gelöscht');
     });
 
-    await step('Mein Haustier läuft unter /haustier/ und speichert im Konto', async () => {
+    await step('Pixelpfoten läuft unter /haustier/ und speichert im Konto', async () => {
       const slash = await guest.req('/haustier', { top: true });
       assert.equal(slash.status, 301);
       assert.equal(slash.headers.get('location'), '/haustier/');
@@ -223,7 +223,7 @@ async function main() {
       assert.match(game.text_, /<body class="embed" data-user="" data-login="\/login\?next=\/haustier\/"/);
       assert.match(game.text_, /data-forum="\/forum\/new"/);
       assert.match(game.headers.get('cache-control'), /no-cache/);
-      for (const [file, type] of [['js/main.js', /javascript/], ['js/pets.js', /javascript/], ['css/game.css', /css/], ['changelog.md', /markdown/]]) {
+      for (const [file, type] of [['js/main.js', /javascript/], ['js/pets.js', /javascript/], ['js/scene.js', /javascript/], ['css/game.css', /css/], ['changelog.md', /markdown/]]) {
         const r = await guest.req('/haustier/' + file);
         assert.equal(r.status, 200, file);
         assert.match(r.headers.get('content-type'), type, file);
@@ -236,7 +236,7 @@ async function main() {
       const put = await admin.req('/api/saves/haustier/main', { method: 'PUT', body: JSON.stringify({ data }), headers: { 'content-type': 'application/json' } });
       assert.equal(put.status, 200);
       assert.equal(JSON.parse((await admin.req('/api/saves/haustier/main')).text_).data, data);
-      assert.match((await admin.req('/account')).text_, /<a href="\/haustier\/">Mein Haustier<\/a>/);
+      assert.match((await admin.req('/account')).text_, /<a href="\/haustier\/">Pixelpfoten<\/a>/);
 
       // Eine App namens „Haustier“ bekäme sonst dieselben Spielstände
       const t = await admin.csrf('/admin/apps/new');
@@ -851,7 +851,7 @@ async function main() {
       await anna.form('/account/profil', { _csrf: t, display_name: 'Anna B.', about: 'Ich mag Katzen.', profile_visibility: 'members', pm_from: 'all' });
       const prof = (await bernd.req('/nutzer/anna')).text_;
       const card = prof.slice(prof.indexOf('Spielstatistik'));
-      assert.match(card, /Mein Haustier[\s\S]*Gestartet<\/td><td class="num">1<[\s\S]*Rekord<\/td><td class="num">10<[\s\S]*Siege<\/td><td class="num">3</);
+      assert.match(card, /Pixelpfoten[\s\S]*Gestartet<\/td><td class="num">1<[\s\S]*Rekord<\/td><td class="num">10<[\s\S]*Siege<\/td><td class="num">3</);
       assert.match(card, /Höchste Stufe<\/td><td class="num">4<[\s\S]*Münzen verdient<\/td><td class="num">42</);
       assert.match(prof, /Forenbeiträge<\/td><td class="num">0</, 'anonyme Beiträge zählen nicht');
     });

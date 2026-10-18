@@ -1,5 +1,5 @@
 'use strict';
-// Schaut alle 15 Minuten in die Spielstände von „Mein Haustier“ und erinnert, wenn ein Tier etwas braucht
+// Schaut alle 15 Minuten in die Spielstände von „Pixelpfoten“ und erinnert, wenn ein Tier etwas braucht
 // oder die Besuchsserie heute noch nicht verlängert ist. Gerechnet wird mit den Regeln des Spiels selbst.
 const { db } = require('./db');
 const notify = require('./notify');
@@ -23,14 +23,14 @@ function check(userId, data, t = Date.now()) {
     const m = pets.mood(pet);
     if (m.face !== 'sad' || pet.stats[m.key] >= NEED_LOW) continue;
     // Höchstens eine Erinnerung je Tier, Bedürfnis und Tag
-    notify.send(userId, 'pet', { key: `pet:${pet.id}:${m.key}:${today}`, once: true, title: '🐾 ' + m.text, body: 'Schau mal bei Mein Haustier vorbei.', url: '/haustier/' });
+    notify.send(userId, 'pet', { key: `pet:${pet.id}:${m.key}:${today}`, once: true, title: '🐾 ' + m.text, body: 'Schau mal bei Pixelpfoten vorbei.', url: '/haustier/' });
   }
   if (s.visits.lastDay !== today && new Date(t).getHours() >= DAILY_HOUR) {
     const keep = s.visits.streak >= 2 && state.daysBetween(s.visits.lastDay, today) === 1;
     notify.send(userId, 'daily', {
       key: 'daily:' + today, once: true,
       title: keep ? `📅 Deine Besuchsserie von ${s.visits.streak} Tagen endet um Mitternacht` : '📅 Deine Tiere warten auf deinen Besuch',
-      body: s.checkinDay !== today ? 'Die Tagesfrage „Wie war dein Tag?“ ist auch noch offen.' : 'Schau heute noch bei Mein Haustier vorbei.',
+      body: s.checkinDay !== today ? 'Die Tagesfrage „Wie war dein Tag?“ ist auch noch offen.' : 'Schau heute noch bei Pixelpfoten vorbei.',
       url: '/haustier/',
     });
   }

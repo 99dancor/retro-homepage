@@ -190,7 +190,7 @@ module.exports = {
     },
   },
   haustier: {
-    title: 'Mein Haustier',
+    title: 'Pixelpfoten',
     stats(data) {
       const s = JSON.parse(data);
       const pets = Array.isArray(s.pets) ? s.pets.filter(p => p && typeof p === 'object') : [];

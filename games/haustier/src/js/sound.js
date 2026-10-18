@@ -1,4 +1,4 @@
-// Klänge für Mein Haustier: Tierstimmen und Effekte, alles im Browser erzeugt (Web Audio), ohne Tondateien.
+// Klänge für Pixelpfoten: Tierstimmen und Effekte, alles im Browser erzeugt (Web Audio), ohne Tondateien.
 // Die Lautstärke kommt vom 🔊-Regler der Homepage (localStorage "lautstaerke": effekte 0–1, stumm).
 // Läuft das Spiel allein, gilt eine mittlere Lautstärke.
 export const VOLUME_KEY = 'lautstaerke';

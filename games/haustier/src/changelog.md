@@ -1,5 +1,12 @@
 # Changelog
 
+## 18.10.2026 – Pixelpfoten: Leben im Zimmer
+
+- **Neuer Name:** Aus „Mein Haustier“ wird **Pixelpfoten**. Deine Tiere, Münzen und Sachen bleiben natürlich, wie sie sind.
+- **Alle Tiere zusammen im Zimmer:** Deine Tiere laufen frei herum, besuchen sich, sagen Hallo und spielen miteinander Fangen. Müde Tiere dösen, schlafende kuscheln sich gemeinsam ins Körbchen. Tipp ein Tier an, um es auszuwählen.
+- **Richtig spielen:** Hol ein Spielzeug aus der neuen **Spielzeugkiste** unter dem Zimmer. Bälle, Frisbee und Wollknäuel wirfst du, indem du sie ziehst und loslässt; Hunde und Füchse bringen sie dir zurück. Federangel, Laserpointer und Knabberstab folgen deiner Maus oder deinem Finger, Seifenblasen pustest du mit einem Tipp, und Laufrad, Tunnel und Kletterseil stehen im Zimmer, bis du sie antippst.
+- **Neue Grafik:** Weichere Farben mit Schatten, die Tiere blinzeln, zucken mit den Ohren, wedeln, atmen und tapsen beim Laufen. Füttern und Wasser geben bringt einen Napf, beim Gassi geht dein Tier zur Tür hinaus und kommt mit seinem Fund zurück.
+
 ## 16.10.2026 – Dein Tier macht Geräusche
 
 - **Tierstimmen:** Beim Streicheln, Kuscheln und Adoptieren hörst du dein Tier, von Miau und Wuff bis zum Brüllen des Drachen.

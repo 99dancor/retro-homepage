@@ -14,6 +14,8 @@ import {
 } from './economy.js';
 import { petSvg, roomSvg } from './art.js';
 import { play as sfx, actionSound, muted, toggleMuted, VOLUME_KEY } from './sound.js';
+import { createScene } from './scene.js';
+import { TOYS } from './behavior.js';
 
 // Adressen der Homepage. Der Server schreibt sie als data-Attribute in <body> (data-login, data-register,
 // data-forum); ein leerer Wert heißt: gibt es gerade nicht (z. B. Registrierung geschlossen, Forum aus).
@@ -61,9 +63,18 @@ let state = newState();
 let view = 'room';        // 'room' | 'adopt' | 'shop' | 'inventory' | 'tasks'
 const tab = { shop: 'food', inventory: 'food' };
 let picked = null;        // Tierart auf dem Adoptionsbildschirm
-let bubble = null;        // Sprechblase über dem Tier: { text, until }
-let shineUntil = 0;       // Glanz nach dem Bürsten
+let bubble = null;        // Sprechblase oben im Zimmer: { text, until }
 const lastAction = {};    // Abklingzeit je Tier und Aktion
+let shownRoom = null;     // Hintergrund des gerade gezeichneten Zimmers (null = Zimmer nicht offen)
+
+// Das Zimmer mit allen Tieren, die frei herumlaufen und mit Spielzeug spielen
+const scene = createScene({
+  state: () => state,
+  select: (id) => selectPet(id),
+  stroke: (id) => { if (activePet(state).id !== id) selectPet(id); act('pet'); },
+  play: (id, itemId) => playWith(id, itemId),
+  sound: (n) => sfx(n),
+});
 
 const store = createStore({
   savesUrl: config.savesUrl,
@@ -116,9 +127,26 @@ function render() {
     b.classList.toggle('active', b.dataset.view === view || (view === 'adopt' && b.dataset.view === 'room'));
     b.disabled = !state.pets.length && b.dataset.view !== 'room';
   });
-  const html = { adopt: adoptHtml, shop: shopHtml, inventory: inventoryHtml, tasks: tasksHtml }[view] || roomHtml;
-  $('screen').innerHTML = html();
+  if (view !== 'room' && scene.toy) scene.putAway();
+  if (view === 'room' && shownRoom === state.room && $('room')) updateRoom();
+  else {
+    const html = { adopt: adoptHtml, shop: shopHtml, inventory: inventoryHtml, tasks: tasksHtml }[view] || roomHtml;
+    $('screen').innerHTML = html();
+    shownRoom = view === 'room' ? state.room : null;
+    if (shownRoom) scene.mount($('room'));
+  }
   updateNotice();
+}
+
+// Im offenen Zimmer nur die Teile drumherum erneuern, die Szene mit den Tieren läuft weiter
+function updateRoom() {
+  $('pet-tabs').innerHTML = petTabs();
+  $('checkin-slot').innerHTML = checkinBanner();
+  $('bubble').textContent = bubbleText();
+  $('toybox').innerHTML = toyboxHtml();
+  $('side').innerHTML = sideHtml(activePet(state));
+  $('room').classList.toggle('night', allAsleep());
+  scene.sync();
 }
 
 function petTabs() {
@@ -152,40 +180,69 @@ function actionButtons(pet) {
     const label = a === 'walk' ? walkLabel(pet.species) : ACTIONS[a].label;
     const icon = a === 'walk' && walkLabel(pet.species) === 'Ausflug' ? '🔵' : ACTIONS[a].icon;
     return `<button type="button" class="act${c.ok ? '' : ' unavailable'}" data-act="${a}" title="${esc(c.ok ? label : c.reason)}">
-      <span class="act-icon" aria-hidden="true">${locked ? '🔒' : icon}</span>${label}${ACTIONS[a].item ? ' …' : ''}</button>`;
+      <span class="act-icon" aria-hidden="true">${locked ? '🔒' : icon}</span>${label}${a === 'feed' ? ' …' : ''}</button>`;
   }).join('');
+}
+
+const allAsleep = () => state.pets.length > 0 && state.pets.every((p) => p.sleeping);
+
+function bubbleText() {
+  const pet = activePet(state);
+  return bubble && bubble.until > Date.now() ? bubble.text : mood(pet).text;
+}
+
+function checkinBanner() {
+  const pet = activePet(state);
+  return checkinDone(state) ? '' : `<div class="checkin-banner"><span>💬 <b>Wie war dein Tag?</b> ${esc(pet.name)} möchte wissen, wie es dir geht. Drei kurze Fragen über dich.</span>
+      <button type="button" class="small" data-checkin>Fragen beantworten</button></div>`;
+}
+
+// Spielzeug, mit dem mindestens eines der Tiere spielen kann
+function toyboxHtml() {
+  const ids = Object.keys(state.inventory).filter((id) => ITEMS[id] && ITEMS[id].cat === 'toy' && TOYS[id] && state.inventory[id] > 0
+    && state.pets.some((p) => usableBy(ITEMS[id], p.species)));
+  if (!ids.length) return '';
+  const cur = scene.toy;
+  const pet = activePet(state);
+  const btns = ids.map((id) => {
+    const it = ITEMS[id];
+    const fav = isFav(it, pet.species) ? ' ❤️' : '';
+    return `<button type="button" class="toy-btn${cur === id ? ' active' : ''}" data-toy="${id}" title="${esc(it.name + fav)}" aria-label="${esc(it.name)}" aria-pressed="${cur === id}">${it.icon}</button>`;
+  }).join('');
+  const hint = cur ? `<b>${esc(ITEMS[cur].name)}:</b> ${esc(TOYS[cur].hint)}` : 'Hol ein Spielzeug heraus und spiel mit deinen Tieren. Wer gerade Lust hat, macht mit.';
+  return `<fieldset class="groupbox"><legend>🧸 Spielzeugkiste</legend><div class="toy-row">${btns}</div>
+    <div class="toy-foot"><small class="toy-hint">${hint}</small>${cur ? '<button type="button" class="small" data-toy="">📦 Wegräumen</button>' : ''}</div></fieldset>`;
+}
+
+function sideHtml(pet) {
+  const m = mood(pet);
+  const sp = SPECIES[pet.species];
+  const lp = levelProgress(pet);
+  return `<div class="pet-head"><b>${sp.icon} ${esc(pet.name)}</b> <button type="button" class="small" data-rename title="Umbenennen">✏️</button>
+      <small>${sp.name} · ${m.label}</small></div>
+    <fieldset class="groupbox"><legend>Zuneigung</legend>
+      <div class="stat"><span class="stat-label">💞 Stufe ${level(pet)}</span>
+        <span class="bar xp"><i style="width:${lp.need ? Math.round((100 * lp.have) / lp.need) : 100}%"></i></span>
+        <span class="stat-val small-val">${lp.need ? `${lp.have}/${lp.need}` : 'max'}</span></div>
+    </fieldset>
+    <fieldset class="groupbox"><legend>Werte</legend>${statBars(pet)}</fieldset>
+    <fieldset class="groupbox"><legend>Pflege</legend><div class="actions">${actionButtons(pet)}</div></fieldset>`;
 }
 
 function roomHtml() {
   const pet = activePet(state);
-  const m = mood(pet);
   const sp = SPECIES[pet.species];
-  const say = bubble && bubble.until > Date.now() ? bubble.text : m.text;
-  const lp = levelProgress(pet);
-  const ask = checkinDone(state) ? '' : `<div class="checkin-banner"><span>💬 <b>Wie war dein Tag?</b> ${esc(pet.name)} möchte wissen, wie es dir geht. Drei kurze Fragen über dich.</span>
-      <button type="button" class="small" data-checkin>Fragen beantworten</button></div>`;
-  return `${petTabs()}${ask}
+  const hint = state.pets.length > 1 ? 'Tipp ein Tier an, um es auszuwählen. ' : '';
+  return `<div id="pet-tabs">${petTabs()}</div><div id="checkin-slot">${checkinBanner()}</div>
     <div class="room-layout">
-      <div class="room${pet.sleeping ? ' night' : ''}">
-        ${roomSvg(state.room)}
-        <div class="room-content">
-          <div class="bubble" id="bubble" aria-live="polite">${esc(say)}</div>
-          <div class="stage" id="stage" title="Mit gedrückter Maus oder dem Finger über ${esc(pet.name)} streichen zum Streicheln">
-            ${petSvg(pet.species, pet.color, m.face, { title: `${pet.name}, ${sp.name}`, acc: pet.acc, shine: shineUntil > Date.now() })}
-          </div>
-          <div class="petname"><b>${esc(pet.name)}</b> <button type="button" class="small" data-rename title="Umbenennen">✏️</button>
-            <br><small>${sp.name} · ${m.label}</small></div>
+      <div class="room-col">
+        <div class="room${allAsleep() ? ' night' : ''}" id="room" title="${hint}Mit gedrückter Maus oder dem Finger über ein Tier streichen zum Streicheln" aria-label="Zimmer mit ${esc(state.pets.map((p) => p.name).join(', '))}, ausgewählt: ${esc(pet.name)} (${sp.name})">
+          ${roomSvg(state.room)}
+          <div class="bubble" id="bubble" aria-live="polite">${esc(bubbleText())}</div>
         </div>
+        <div id="toybox">${toyboxHtml()}</div>
       </div>
-      <div class="side">
-        <fieldset class="groupbox"><legend>Zuneigung</legend>
-          <div class="stat"><span class="stat-label">💞 Stufe ${level(pet)}</span>
-            <span class="bar xp"><i style="width:${lp.need ? Math.round((100 * lp.have) / lp.need) : 100}%"></i></span>
-            <span class="stat-val small-val">${lp.need ? `${lp.have}/${lp.need}` : 'max'}</span></div>
-        </fieldset>
-        <fieldset class="groupbox"><legend>Werte</legend>${statBars(pet)}</fieldset>
-        <fieldset class="groupbox"><legend>Pflege</legend><div class="actions">${actionButtons(pet)}</div></fieldset>
-      </div>
+      <div class="side" id="side">${sideHtml(pet)}</div>
     </div>`;
 }
 
@@ -321,23 +378,43 @@ function say(text, ms = 4000) {
   if (el) el.textContent = text;
 }
 
-// Kleine aufsteigende Symbole und Zahlen nach einer Aktion
-function floaters(delta, gained = 0) {
-  const stage = $('stage');
-  if (!stage) return;
+// Kleine aufsteigende Symbole und Zahlen über dem Tier nach einer Aktion
+function floaters(pet, delta, gained = 0) {
   const list = Object.entries(delta).filter(([, v]) => v).map(([k, v]) => [`${STAT_NAME[k].icon} ${v > 0 ? '+' : ''}${v}`, v < 0, '']);
   if (gained) list.push([`🪙 +${gained}`, false, 'coin']);
-  list.forEach(([text, minus, extra], i) => {
-    const el = document.createElement('span');
-    el.className = 'floater' + (minus ? ' minus' : '') + (extra ? ' ' + extra : '');
-    el.textContent = text;
-    el.style.left = `${15 + ((i * 23) % 65)}%`;
-    el.style.animationDelay = `${i * 120}ms`;
-    stage.append(el);
-    setTimeout(() => el.remove(), 1800 + i * 120);
-  });
-  const svg = stage.querySelector('svg');
-  if (svg) { svg.classList.remove('bounce'); void svg.getBoundingClientRect(); svg.classList.add('bounce'); }
+  scene.floaters(pet.id, list);
+}
+
+function selectPet(id) {
+  if (!state.pets.some((p) => p.id === id) || state.activePet === id) return;
+  state.activePet = id; bubble = null;
+  store.save(state);
+  render();
+}
+
+// Spielen mit dem Spielzeug im Zimmer: Die Szene meldet, wenn ein Tier es gefangen oder benutzt hat
+function playWith(petId, itemId) {
+  const pet = state.pets.find((p) => p.id === petId);
+  if (!pet) return { ok: false };
+  tickPet(pet, Date.now(), tickOpts(state));
+  const r = doAction(pet, 'play', state, Date.now(), { itemId });
+  if (!r.ok) { if (pet === activePet(state)) say(r.text, 3000); return { ok: false }; }
+  finish(pet, 'play', r, { animate: false });
+  return { ok: true, factor: r.factor, fav: r.fav };
+}
+
+// Spielzeug aus der Kiste holen (für das gewählte Tier das liebste zuerst)
+function takeToy(id) {
+  const pet = activePet(state);
+  const ids = usableItems(state, pet, 'toy').filter((x) => TOYS[x]);
+  id ||= ids[0];
+  if (!id) { sfx('nein'); say(`Du hast kein Spielzeug für ${pet.name}. Schau im Shop vorbei!`, 3500); return; }
+  view = 'room';
+  render();
+  scene.useToy(id);
+  sfx('klick');
+  say(TOYS[id].hint, 5000);
+  render();
 }
 
 // Futter oder Spielzeug auswählen
@@ -359,6 +436,7 @@ async function pickItem(pet, action) {
 async function act(action, itemId = null) {
   const pet = activePet(state);
   if (!pet) return;
+  if (action === 'play' && !pet.sleeping) return takeToy(itemId);
   const key = pet.id + ':' + action;
   const now = Date.now();
   if (lastAction[key] && now - lastAction[key] < ACTIONS[action].cooldown) return;
@@ -372,22 +450,28 @@ async function act(action, itemId = null) {
   const r = doAction(pet, action, state, Date.now(), { itemId });
   if (!r.ok) { sfx('nein'); say(r.text, 3500); return; }
   lastAction[key] = now;
+  await finish(pet, action, r);
+}
+
+// Nach einer gelungenen Aktion: Klänge, Münzen, Aufgaben, Speichern, Anzeige
+async function finish(pet, action, r, { animate = true } = {}) {
   actionSound(action, pet.species).forEach((n, i) => setTimeout(() => sfx(n), i * 350));
   let gained = actionCoins(state, action, r.factor);
   const notes = [r.text];
   if (action === 'pet' && pet.acc.neck === 'acc_bell') notes[0] += ' 🔔 Klingeling!';
   if (r.found && r.found.coins) { gained += addCoins(state, r.found.coins); notes.push(`Fund: ${r.found.coins} Münzen!`); }
   if (r.found && r.found.item) notes.push(`Fund: ${ITEMS[r.found.item].icon} ${ITEMS[r.found.item].name}!`);
-  if (action === 'brush') shineUntil = Date.now() + 3000;
   for (const t of track(state, action, { itemId: r.itemId })) notes.push(`✅ Aufgabe erledigt: ${t.text} (+${t.reward} Münzen)`);
   store.save(state);
   view = 'room';
   bubble = { text: notes.join(' '), until: Date.now() + 4000 + notes.length * 1500 };
   render();
-  floaters(r.delta, gained);
+  if (animate) scene.animate(pet.id, action, { itemId: r.itemId, found: r.found });
+  floaters(pet, r.delta, gained);
   if (gained) setTimeout(() => sfx('muenze'), 450);
   if (r.levelUp) {
     setTimeout(() => sfx('fanfare'), 700);
+    scene.animate(pet.id, 'levelup');
     const bonus = levelReward(state, r.levelUp);
     store.save(state);
     render();
@@ -511,7 +595,11 @@ function wire() {
     if (!t) return;
     const d = t.dataset;
     if (d.act) return act(d.act);
-    if (d.use) { const [a, id] = d.use.split(':'); return act(a, id); }
+    if (d.use) { const [a, id] = d.use.split(':'); return a === 'play' ? takeToy(id) : act(a, id); }
+    if (d.toy !== undefined) {
+      if (!d.toy || d.toy === scene.toy) { scene.putAway(); sfx('klick'); bubble = null; return render(); }
+      return takeToy(d.toy);
+    }
     if (d.buy) return doBuy(d.buy);
     if (d.wear) { wear(state, activePet(state), d.wear); store.save(state); return render(); }
     if (d.room) { setRoom(state, d.room); store.save(state); return render(); }
@@ -541,23 +629,6 @@ function wire() {
     render();
   });
 
-  // Streicheln durch Streichen über das Tier, wie bei Nintendogs
-  let stroke = null;
-  screen.addEventListener('pointerdown', (e) => {
-    if (!e.target.closest('#stage')) return;
-    stroke = { x: e.clientX, y: e.clientY, dist: 0 };
-    e.target.closest('#stage').setPointerCapture?.(e.pointerId);
-  });
-  screen.addEventListener('pointermove', (e) => {
-    if (!stroke) return;
-    stroke.dist += Math.hypot(e.clientX - stroke.x, e.clientY - stroke.y);
-    stroke.x = e.clientX; stroke.y = e.clientY;
-    if (stroke.dist > 140) { stroke.dist = 0; act('pet'); }
-  });
-  const end = () => { stroke = null; };
-  screen.addEventListener('pointerup', end);
-  screen.addEventListener('pointercancel', end);
-
   document.querySelector('[data-open=news]').addEventListener('click', showNews);
   // Ton an/aus: derselbe Schalter wie „Ton aus“ am 🔊-Regler der Homepage
   const soundBtn = document.querySelector('[data-open=sound]');
@@ -568,7 +639,10 @@ function wire() {
   document.querySelector('[data-open=help]').addEventListener('click', () => ok('Hilfe',
     `<p>Kümmere dich jeden Tag um dein Haustier. Die Werte sinken mit der Zeit, auch wenn du nicht da bist,
      aber nie unter 10. Krank wird dein Tier nicht, es wird nur traurig, wenn du es vernachlässigst.</p>
-     <ul><li><b>Streicheln</b> geht auch, indem du mit der Maus oder dem Finger über dein Tier streichst.</li>
+     <ul><li>Deine Tiere laufen frei im Zimmer herum, besuchen sich gegenseitig und spielen Fangen. <b>Tipp ein Tier an</b>, um es auszuwählen.</li>
+     <li><b>Streicheln</b> geht auch, indem du mit der Maus oder dem Finger über ein Tier streichst.</li>
+     <li><b>Spielen:</b> Hol ein Spielzeug aus der <b>Spielzeugkiste</b> unter dem Zimmer. Bälle wirfst du, indem du sie ziehst und loslässt,
+       Federangel und Laserpointer folgen deiner Maus, Seifenblasen pustest du mit einem Tipp ins Zimmer. Jedes Tier, das gerade Lust hat, macht mit.</li>
      <li>Jede Pflege bringt <b>Zuneigung</b>. Ab Stufe ${CUDDLE_LEVEL} und ${CUDDLE_LOVE} Liebe könnt ihr <b>kuscheln</b>,
        ab Stufe ${SLOT_LEVEL} gibt es einen zweiten Tierplatz.</li>
      <li>Pflege bringt <b>Münzen</b> (bis ${DAILY_CAP} am Tag), dazu kommen Login-Bonus und Tagesaufgaben.</li>

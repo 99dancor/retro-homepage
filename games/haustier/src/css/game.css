@@ -72,29 +72,103 @@ a.btn, a.btn:visited { color: var(--text); }
   box-shadow: inset 1px 1px var(--lo), inset 2px 2px var(--dark), inset -1px -1px var(--hi);
 }
 .room-bg { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); }
-.room-content { position: relative; padding: 10px 8px 8px; }
 .room.night .room-bg { filter: brightness(.4) saturate(.6); }
 .room.night { color: #fff; }
-.room.night .petname small { opacity: .85; }
-.petname { display: inline-block; padding: 2px 8px; background: rgba(255,255,255,.7); color: #000; }
-.room.night .petname { background: rgba(0,0,0,.35); color: #fff; }
 .room.night .zzz { fill: #fff; }
 .bubble {
-  position: relative; display: inline-block; max-width: 90%; min-height: 2.6em; margin-bottom: 4px; padding: 6px 10px;
-  background: var(--note); color: #000; border: 1px solid #000; border-radius: 10px;
+  position: absolute; z-index: 300; top: 8px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 88%;
+  padding: 6px 10px; background: var(--note); color: #000; border: 1px solid #000; border-radius: 10px; pointer-events: none;
 }
-.bubble::after { content: ""; position: absolute; left: 50%; bottom: -9px; margin-left: -6px; border: 6px solid transparent; border-top: 8px solid #000; border-bottom: 0; }
-.stage { position: relative; width: 240px; max-width: 100%; margin: 0 auto; cursor: grab; touch-action: none; user-select: none; }
-.stage:active { cursor: grabbing; }
-.stage .pet-svg { display: block; width: 100%; height: auto; }
-.petname button { padding: 0 4px; }
+.room-col { min-width: 0; }
+#toybox .groupbox { margin-top: 8px; }
+
+/* Szene: Tiere, Spielzeug, Napf, Seifenblasen */
+.scene { position: absolute; inset: 2px; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+.scene.toy-lure { cursor: crosshair; }
+.scene.toy-bubbles { cursor: copy; }
+.sp { position: absolute; left: 0; top: 0; cursor: grab; transition: opacity .25s; will-change: transform; pointer-events: none; }
+/* Nur das Tier selbst ist anklickbar, nicht der leere Rand um es herum (sonst trifft man beim Spielen ständig ein Tier) */
+.sp .pet-svg > g * { pointer-events: visiblePainted; }
+.sp:active { cursor: grabbing; }
+.sp-body, .sp-flip { position: absolute; inset: 0; transform-origin: 50% 100%; }
+.sp-flip { transition: transform .15s; }
+.sp .pet-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.sp-shadow { position: absolute; left: 22%; right: 22%; bottom: -3%; height: 7%; border-radius: 50%; background: rgba(0,0,0,.18); transform-origin: 50% 50%; }
+.sp-name { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 1px; padding: 0 5px; font-size: 11px; line-height: 14px;
+  white-space: nowrap; background: rgba(255,255,255,.75); color: #000; pointer-events: none; }
+.sp.active .sp-name { background: var(--title-from); color: #fff; font-weight: bold; }
+.sp.active .sp-name::before { content: "▲ "; font-size: 8px; vertical-align: 1px; }
+.room.night .sp-name { background: rgba(0,0,0,.4); color: #fff; }
+.sp-emote { position: absolute; left: 50%; top: -6%; font-size: 22px; line-height: 1; opacity: 0; pointer-events: none; transform: translate(-50%, 0) scale(.4); }
+.sp-emote.show { animation: emote 1.6s ease-out forwards; }
+@keyframes emote { 0% { opacity: 0; transform: translate(-50%, 6px) scale(.4); } 18% { opacity: 1; transform: translate(-50%, -6px) scale(1.15); }
+  30%, 75% { opacity: 1; transform: translate(-50%, -8px) scale(1); } 100% { opacity: 0; transform: translate(-50%, -22px) scale(.9); } }
+.sp .floater { top: 15%; z-index: 2; }
+
+.sc-toy { position: absolute; left: 0; top: 0; line-height: 1; will-change: transform; }
+.sc-toy.throw { cursor: grab; filter: drop-shadow(0 2px 1px rgba(0,0,0,.35)); }
+.sc-toy.throw:active { cursor: grabbing; }
+.sc-toy.throw.carried { pointer-events: none; }
+.sc-toy.station { cursor: pointer; }
+.sc-toy.station svg { display: block; width: 100%; height: auto; }
+.sc-toy .wheel { transform-box: view-box; transform-origin: 50px 55px; }
+.sc-toy.spin .wheel { animation: spin .5s linear infinite; }
+@keyframes spin { to { transform: rotate(-360deg); } }
+.sc-toy.toy_rope .rope { transform-box: view-box; transform-origin: 20px 0; animation: swing 2.4s ease-in-out infinite alternate; }
+@keyframes swing { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }
+.sc-lure { position: absolute; left: 0; top: 0; z-index: 250; pointer-events: none; }
+.sc-lure .dot { position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; border-radius: 50%; background: #ff2020;
+  box-shadow: 0 0 6px 3px rgba(255,40,40,.6); }
+.sc-lure span { position: absolute; left: -15px; top: -15px; font-size: 30px; line-height: 1; }
+.sc-lure .line { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; }
+.sc-lure line { stroke: #555; stroke-width: 1.5; }
+.sc-bubble { position: absolute; left: 0; top: 0; z-index: 240; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 32% 30%, rgba(255,255,255,.95) 0 12%, rgba(200,235,255,.25) 35%, rgba(170,140,255,.35) 100%);
+  border: 1px solid rgba(255,255,255,.8); }
+.sc-bubble.pop { animation: pop .25s ease-out forwards; }
+@keyframes pop { to { opacity: 0; transform: scale(1.6); } }
+.sc-bowl { position: absolute; left: 0; top: 0; aspect-ratio: 2 / 1; border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  background: linear-gradient(#e8e8f0, #a8acc0); border: 2px solid #555; display: flex; align-items: flex-start; justify-content: center;
+  animation: drop .25s ease-out; transition: opacity .3s; }
+.sc-bowl span { font-size: 140%; margin-top: -45%; }
+.sc-bowl.gone { opacity: 0; }
+@keyframes drop { from { opacity: 0; transform-origin: center; margin-top: -20px; } }
+.sc-bed { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; }
+.sc-bed svg { display: block; width: 100%; height: auto; }
+
+/* Bewegungen der Tiere */
+.pet-svg .eyes { transform-box: fill-box; transform-origin: 50% 50%; animation: blink 4.6s infinite; animation-delay: var(--blink, 0s); }
+@keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 95.5% { transform: scaleY(.1); } }
+.pet-svg .ears { transform-box: fill-box; transform-origin: 50% 100%; animation: twitch 7s infinite; animation-delay: var(--blink, 0s); }
+@keyframes twitch { 0%, 88%, 100% { transform: none; } 91% { transform: scaleY(.93) rotate(-1.5deg); } 94% { transform: scaleY(1.02) rotate(1deg); } }
+.pet-svg .tail { transform-box: fill-box; transform-origin: 0% 100%; animation: sway 1.8s ease-in-out infinite alternate; }
+.pet-svg .tail.wag { animation: wag .6s ease-in-out infinite alternate; }
+.sp.happy .pet-svg .tail { animation-duration: .45s; }
+.pet-svg .torso { transform-box: view-box; transform-origin: 100px 190px; animation: breathe 3.2s ease-in-out infinite; }
+.pet-svg .head { transform-box: view-box; transform-origin: 100px 122px; transition: transform .4s; }
+.sp.tilt .pet-svg .head { transform: rotate(-9deg); }
+.pet-svg .paw { transform-box: fill-box; transform-origin: 50% 100%; }
+.sp.walking .paw-l, .sp.running .paw-l { animation: step .32s ease-in-out infinite alternate; }
+.sp.walking .paw-r, .sp.running .paw-r { animation: step .32s ease-in-out infinite alternate-reverse; }
+.sp.running .sp-body { animation: run .3s ease-in-out infinite alternate; }
+@keyframes step { from { transform: translateY(0); } to { transform: translateY(-14%) scaleY(1.1); } }
+@keyframes run { to { translate: 0 -4%; } }
+.sp.eating .pet-svg .head { animation: nibble .38s ease-in-out infinite alternate; }
+@keyframes nibble { from { transform: rotate(0) translateY(0); } to { transform: rotate(4deg) translateY(9px); } }
+.sp.pounce .sp-flip { animation: pounce .4s ease-out; }
+@keyframes pounce { 40% { scale: 1.12 .86; } }
+.sp.squish .sp-flip { animation: squish .9s ease-in-out; }
+@keyframes squish { 30% { scale: 1.08 .92; } 60% { scale: .96 1.05; } }
+.sp.bath .sp-flip { animation: shake .25s ease-in-out 6 alternate; }
+@keyframes shake { from { rotate: -5deg; } to { rotate: 5deg; } }
+.pet-svg.face-sleep .eyes, .pet-svg.face-sleep .tail, .pet-svg.face-sad .tail.wag { animation: none; }
+.pet-svg.face-sleep .torso { animation-duration: 4.5s; }
+@keyframes sway { from { transform: rotate(-4deg); } to { transform: rotate(5deg); } }
 
 .pet-svg.bounce { animation: bounce .45s ease-out; }
 @keyframes bounce { 0%, 100% { transform: translateY(0) scale(1); } 35% { transform: translateY(-10px) scale(1.03, .97); } 70% { transform: translateY(0) scale(.98, 1.02); } }
 .pet-svg .tail.wag { transform-box: fill-box; transform-origin: 0% 100%; animation: wag .6s ease-in-out infinite alternate; }
-.pet-svg.face-sad .tail.wag, .pet-svg.face-sleep .tail.wag { animation: none; }
 @keyframes wag { from { transform: rotate(-8deg); } to { transform: rotate(10deg); } }
-.pet-svg.face-sleep { animation: breathe 3s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes breathe { 50% { transform: scale(1.015, .985); } }
 .floater { position: absolute; top: 30%; font-weight: bold; color: #b0003a; pointer-events: none; animation: floatup 1.7s ease-out forwards; white-space: nowrap; text-shadow: 0 1px #fff; }
 .floater.minus { color: #555; }
@@ -185,11 +259,10 @@ input[type=radio] { box-shadow: none; }
 
 @media (max-width: 640px) {
   .room-layout { grid-template-columns: 1fr; }
-  .room { min-height: 0; }
-  .stage { width: 200px; }
+  .room { min-height: 320px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pet-svg, .pet-svg *, .floater { animation: none !important; }
+  .pet-svg, .pet-svg *, .floater, .sp *, .sc-toy * { animation: none !important; }
 }
 .loading { text-align: center; opacity: .75; }
 
@@ -207,3 +280,14 @@ body.embed { padding: 0; background: var(--win); }
 body.embed .game { max-width: none; min-height: 100vh; padding: 0; box-shadow: none; }
 body.embed .game > .titlebar { display: none; }
 body.embed #screen, body.embed .notice { width: 100%; max-width: 760px; margin-left: auto; margin-right: auto; }
+
+/* Spielzeugkiste unter dem Zimmer */
+.toy-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+.toy-btn { min-width: 0; width: 40px; height: 36px; padding: 0; font-size: 21px; line-height: 1; }
+.toy-btn.active { box-shadow: inset 1px 1px var(--dark), inset -1px -1px var(--hi), inset 2px 2px var(--lo); background: var(--field); }
+.toy-foot button { white-space: nowrap; }
+.toy-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.toy-hint { opacity: .9; }
+.pet-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; margin: 0 0 -4px; font-size: 15px; }
+.pet-head small { font-size: 12px; opacity: .8; flex-basis: 100%; }
+.pet-head button { padding: 0 4px; }

@@ -369,6 +369,23 @@ CREATE TABLE IF NOT EXISTS dk_results (
   bouts INTEGER NOT NULL DEFAULT 0,         -- Angriffe im ganzen Spiel
   ended_at INTEGER NOT NULL
 );
+-- UNO, Flip 7 und Pilli Pilli (src/cardtable.js): eine Zeile pro Spieler und beendetem Spiel, game sagt welches.
+-- score ist der Endstand (UNO/Flip 7 Punkte, Pilli Pilli Strafpunkte), best und bonus zählt jedes Spiel selbst (siehe src/games.js).
+CREATE TABLE IF NOT EXISTS cg_results (
+  id INTEGER PRIMARY KEY,
+  game TEXT NOT NULL,                       -- uno | flip7 | pilli
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  table_name TEXT NOT NULL,
+  players INTEGER NOT NULL,                 -- Mitspieler in diesem Spiel
+  place INTEGER NOT NULL,
+  won INTEGER NOT NULL DEFAULT 0,
+  score INTEGER NOT NULL DEFAULT 0,
+  best INTEGER NOT NULL DEFAULT 0,          -- UNO: höchste Runde, Flip 7: beste Runde, Pilli Pilli: –
+  bonus INTEGER NOT NULL DEFAULT 0,         -- UNO: Runden gewonnen, Flip 7: Flip 7 geschafft, Pilli Pilli: Runden genau getroffen
+  rounds INTEGER NOT NULL DEFAULT 0,
+  quit INTEGER NOT NULL DEFAULT 0,          -- mitten im Spiel aufgestanden
+  ended_at INTEGER NOT NULL
+);
 -- Paint: gespeicherte Bilder. Bild und Vorschau liegen als PNG in data/paint (<stored_name>.png, <stored_name>-v.png).
 CREATE TABLE IF NOT EXISTS artworks (
   id INTEGER PRIMARY KEY,
@@ -466,6 +483,7 @@ CREATE INDEX IF NOT EXISTS aw_list ON artworks(visibility, approved, updated_at)
 CREATE INDEX IF NOT EXISTS bj_user ON bj_sessions(user_id, started_at);
 CREATE INDEX IF NOT EXISTS pk_user ON pk_sessions(user_id, started_at);
 CREATE INDEX IF NOT EXISTS dk_user ON dk_results(user_id, ended_at);
+CREATE INDEX IF NOT EXISTS cg_user ON cg_results(game, user_id, ended_at);
 CREATE INDEX IF NOT EXISTS pg_profile ON profile_guestbook(profile_id, created_at);
 CREATE INDEX IF NOT EXISTS fr_friend ON friends(friend_id);
 CREATE INDEX IF NOT EXISTS pm_to ON private_messages(to_id, read_at);
@@ -552,6 +570,12 @@ const DEFAULT_SETTINGS = {
   pk_turn: '30',                // Bedenkzeit pro Zug in Sekunden
   dk_enabled: '1',              // Durak (Kartenspiel ohne Geld) für Mitglieder
   dk_turn: '30',                // Bedenkzeit zum Angreifen und Verteidigen in Sekunden
+  uno_enabled: '1',             // UNO für Mitglieder
+  uno_turn: '30',               // Bedenkzeit pro Zug in Sekunden
+  f7_enabled: '1',              // Flip 7 für Mitglieder
+  f7_turn: '20',
+  pp_enabled: '1',              // Pilli Pilli für Mitglieder
+  pp_turn: '30',
   paint_enabled: '1',           // Paint im Startmenü
   paint_guests: '1',            // Gäste dürfen malen und herunterladen (Speichern nur mit Konto)
   paint_save: 'members',        // Bilder speichern: members | upload (nur mit Upload-Recht) | admin

@@ -2,7 +2,7 @@
 
 Selbst gehostete Homepage im Look von Windows 98 / 2000 – mit Blog, Downloads (z. B. Spielstände),
 Modlisten, Linksammlung, Forum, Besucherbuch, Kontaktformular, eigenen Seiten, Musik-Player mit
-Lobbys zum gemeinsamen Hören, Blackjack und Poker mit Spielgeld, Durak, Paint mit Galerie, Quiz für Spieleabende, einem Bereich für Browser-Spiele/Apps und einem Admin-Bereich mit Besucherstatistik, Nutzer- und Rechteverwaltung
+Lobbys zum gemeinsamen Hören, Blackjack und Poker mit Spielgeld, Durak, UNO, Flip 7, Pilli Pilli, Paint mit Galerie, Quiz für Spieleabende, einem Bereich für Browser-Spiele/Apps und einem Admin-Bereich mit Besucherstatistik, Nutzer- und Rechteverwaltung
 und Design-Editor.
 
 Technik: Node.js 22 + Express, SQLite (eingebaut, keine extra Datenbank), serverseitig gerenderte
@@ -105,7 +105,7 @@ Darin liegen Datenbank, hochgeladene Dateien, Bilder und Apps. Die Dateien gehö
 
    Ohne die beiden `…buffering off`-Zeilen speichert NPM große Uploads und Downloads erst
    zwischen – auf dem Raspberry Pi, also meist auf der SD-Karte. `proxy_buffering off` brauchen
-   auch die Musik-Lobbys, Blackjack-, Poker- und Duraktische, damit Play, Pause, Liedwechsel und Karten sofort bei allen ankommen.
+   auch die Musik-Lobbys, Blackjack-, Poker-, Durak-, UNO-, Flip-7- und Pilli-Pilli-Tische, damit Play, Pause, Liedwechsel und Karten sofort bei allen ankommen.
    (Die Seite schickt dafür zusätzlich `X-Accel-Buffering: no` mit.)
 
 5. Im Router die Ports **80 und 443** auf den Raspberry Pi weiterleiten (falls noch nicht
@@ -142,6 +142,7 @@ strenger möchte, setzt `TRUST_PROXY` auf die IP des Pi.
 | **Blackjack** | Eingebautes Kartenspiel unter `/blackjack` (Startmenü) für angemeldete Mitglieder: Tische mit bis zu 5 Plätzen und Zuschauern, live per Server-Sent Events; gemischt und gegeben wird auf dem Server. Spielgeld: Start mit 1.000 €, Nachkaufen ohne Limit unter 200 €. Bilanz (Chips minus alles Eingekaufte), Bestenliste und Zahlen im Profil. Buy-in, Nachkauf-Grenze, Decks, Soft-17-Regel und Bedenkzeit unter Einstellungen; Bestenliste oder einzelne Bilanzen zurücksetzbar |
 | **Poker** | Texas Hold'em ohne Limit unter `/poker` (Startmenü → Spiele und Apps) für angemeldete Mitglieder: Tische mit 2 bis 6 Plätzen, Blinds pro Tisch, Zuschauer, live per Server-Sent Events. Jeder Browser bekommt nur die eigenen Handkarten, fremde erst im Showdown; Nebenpots bei All-in. Buy-in, Nachkauf-Grenze und Bilanz wie bei Blackjack (Tabelle `pk_sessions`), Bestenliste und Profil-Karte. Admin: Einstellungen → Poker. |
 | **Durak** | Klassischer Durak mit Zuwerfen (Podkidnoy, 36 Karten) unter `/durak` (Startmenü → Spiele und Apps) für angemeldete Mitglieder: Tische mit 2 bis 6 Plätzen, Zuschauer, „Bereit“ zum Start, live per Server-Sent Events. Jeder Browser bekommt nur die eigenen Handkarten, von den anderen nur die Anzahl. Gespeichert wird nur das Ergebnis jedes Spiels (Tabelle `dk_results`): Platz, Durak, aufgestanden. Bestenliste und Profil-Karte. Admin: Einstellungen → Durak. |
+| **UNO, Flip 7, Pilli Pilli** | Unter `/uno`, `/flip7` und `/pilli` (Startmenü → Spiele und Apps → Kartenspiele) für angemeldete Mitglieder, Tische mit 2 bis 8 Plätzen, Zuschauer und „Bereit“ zum Start wie bei Durak. Gemeinsamer Unterbau in `src/cardtable.js` (Tische, SSE, Ergebnisse) und `public/cardtable.js` (Tischliste, Tisch, Statistik), die Regeln in `src/uno.js`, `src/flip7.js`, `src/pilli.js`. UNO nach den offiziellen Regeln bis 500 Punkte, Flip 7 bis 200, Pilli Pilli (Pili Pili) in der Grundversion ohne Missionen bis 7 Pilis. Gespeichert wird nur das Ergebnis jedes Spiels (Tabelle `cg_results`). Admin: Einstellungen → UNO / Flip 7 / Pilli Pilli. |
 | **Paint** | Nachbau von Paint aus Windows 98 unter `/paint` (Startmenü): alle 16 Werkzeuge mit ihren Pinselgrößen, 28er-Farbpalette und „Farben bearbeiten“, Auswahl verschieben, strecken und durchsichtig einsetzen, Bilder einfügen (Zwischenablage, Ziehen, Datei), Kippen/Drehen, Strecken/Zerren, Attribute, Zoom mit Raster, Rückgängig. Gäste malen und laden herunter (PNG, BMP, JPG); Mitglieder speichern im Konto (privat, für Mitglieder oder öffentlich) und setzen Bilder als Hintergrund. Öffentliche Bilder stehen in der 🖼️ Galerie und im Profil. Lobbys zum gemeinsamen Malen mit Live-Zeigern, Chat, eigenem Rückgängig, Malrechten vom Gastgeber, Entwurf beim Ersteller und Mitmalern beim Speichern („Gemeinsam gemalt“). Speicher pro Mitglied, Höchstgröße, Gäste, Galerie, Lobbys und Freigabe durch den Admin unter Admin → Paint |
 | **Quiz** | Quiz-Abende unter `/quiz` (Startmenü → Spiele): Raum eröffnen, Mitspieler kommen per Code, Einladungslink oder QR-Code (Mitglieder mit Avatar, Gäste mit Namen und Bild). Fragetypen Buzzer, Multiple Choice, Wahr/Falsch, Schätzen (mit Einheit, automatische Wertung nach Nähe) und Freitext. Der Spielleiter baut Fragen vorher oder spontan, sieht Eingaben live beim Tippen, wertet mit Richtig/Falsch, vergibt Extrapunkte und kann rückgängig machen; Punkte, Timer und Buzzer-Reihenfolge rechnet der Server. Mitglieder speichern Quizze im Konto und laden sie aus einer Liste (eigene und geteilte), dazu Datei-Export. Ergebnisse im Profil; Wer eröffnen darf, Gäste und Grenzen unter Admin → Quiz |
 | **Spiele & Apps** | HTML5-Spiele als ZIP hochladen (Godot, Unity WebGL, Phaser, eigenes JS …) oder externe Dienste einbetten |
@@ -193,7 +194,7 @@ Danach „Test-E-Mail senden“.
 ```bash
 npm install
 npm run dev        # http://localhost:3000, Daten landen in ./data
-npm test           # Rauchtest (startet den Server und klickt die wichtigsten Wege durch), Blackjack-, Poker- und Durak-Regeln, Paint-Werkzeuge, Paint-Lobbys, Quiz-Wertung und Tests des Haustier-Spiels
+npm test           # Rauchtest (startet den Server und klickt die wichtigsten Wege durch), Blackjack-, Poker-, Durak-, UNO-, Flip-7- und Pilli-Pilli-Regeln, Paint-Werkzeuge, Paint-Lobbys, Quiz-Wertung und Tests des Haustier-Spiels
 ```
 
 Das Haustier-Spiel liegt in `games/haustier/src` (HTML/CSS/JS ohne Build-Schritt) und läuft lokal unter

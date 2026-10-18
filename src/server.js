@@ -63,6 +63,9 @@ app.use((req, res, next) => {
     blackjackEnabled: getSetting('bj_enabled', '1') === '1',
     pokerEnabled: getSetting('pk_enabled', '1') === '1',
     durakEnabled: getSetting('dk_enabled', '1') === '1',
+    unoEnabled: getSetting('uno_enabled', '1') === '1',
+    flip7Enabled: getSetting('f7_enabled', '1') === '1',
+    pilliEnabled: getSetting('pp_enabled', '1') === '1',
     paintEnabled: getSetting('paint_enabled', '1') === '1',
     quizEnabled: getSetting('quiz_enabled', '1') === '1',
     galleryEnabled: getSetting('paint_enabled', '1') === '1' && getSetting('paint_gallery', '1') === '1',
@@ -107,6 +110,9 @@ app.use('/musik', require('./routes/music').router);
 app.use('/blackjack', require('./routes/blackjack'));
 app.use('/poker', require('./routes/poker'));
 app.use('/durak', require('./routes/durak'));
+app.use('/uno', require('./routes/cardgame')(require('./uno')));
+app.use('/flip7', require('./routes/cardgame')(require('./flip7')));
+app.use('/pilli', require('./routes/cardgame')(require('./pilli')));
 app.use('/quiz', require('./routes/quiz'));
 app.use('/minesweeper', require('./routes/minesweeper'));
 app.use('/kreuzwortraetsel', require('./routes/crossword'));

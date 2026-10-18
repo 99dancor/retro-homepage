@@ -21,12 +21,12 @@
       if (open) sound('menue');
     });
     document.addEventListener('click', closeMenu);
-    // Untermenüs per Klick/Antippen auf- und zuklappen, immer nur eins offen
+    // Untermenüs per Klick/Antippen auf- und zuklappen, immer nur eins pro Ebene offen (Kartenspiele steckt in Spiele und Apps)
     menu.querySelectorAll('.sub-toggle').forEach(function (t) {
       t.addEventListener('click', function (e) {
         e.stopPropagation();
         var sub = t.parentNode, open = !sub.classList.contains('open');
-        menu.querySelectorAll('.sub.open').forEach(function (s) { s.classList.remove('open'); s.firstElementChild.setAttribute('aria-expanded', false); });
+        menu.querySelectorAll('.sub.open').forEach(function (s) { if (s.contains(sub)) return; s.classList.remove('open'); s.firstElementChild.setAttribute('aria-expanded', false); });
         sub.classList.toggle('open', open); t.setAttribute('aria-expanded', open);
       });
     });
@@ -119,7 +119,7 @@
   var deskEl = document.getElementById('desk'), tasks = document.getElementById('tasks');
   var siteTitle = body.dataset.title, me = body.dataset.user;
   var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
-    contact: '✉️', changelog: '📜', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵', zufall: '🎲', blackjack: '🃏', poker: '♠️', durak: '🎴', quiz: '❓', minesweeper: '💣', kreuzwortraetsel: '📰',
+    contact: '✉️', changelog: '📜', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵', zufall: '🎲', blackjack: '🃏', poker: '♠️', durak: '🎴', uno: '🟥', flip7: '7️⃣', pilli: '🌶️', quiz: '❓', minesweeper: '💣', kreuzwortraetsel: '📰',
     nutzer: '👥', nachrichten: '💌', paint: '🎨', galerie: '🖼️' };
   var mobile = window.matchMedia('(max-width: 760px)');
   var wins = [], zTop = 10, active = null, reloading = false;
@@ -252,7 +252,7 @@
   }
 
   // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Musik-Player brauchen etwas mehr Platz
-  var SIZES = { haustier: [820, 700], musik: [900, 640], zufall: [760, 620], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], quiz: [1040, 700], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640] };
+  var SIZES = { haustier: [820, 700], musik: [900, 640], zufall: [760, 620], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640] };
   function place(el, s, url) {
     var n = wins.length % 8, size = SIZES[section(url)] || [820, 580];
     var w = s && s.w || Math.min(size[0], deskEl.clientWidth - 40), h = s && s.h || Math.min(size[1], deskEl.clientHeight - 40);

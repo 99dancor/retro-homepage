@@ -155,6 +155,22 @@ module.exports = {
       return { stats: out, last: t.last };
     },
   },
+  werwolf: {
+    title: 'Werwolf',
+    url: '/werwolf',
+    userStats(userId) {
+      const t = require('./werwolf').userTotals(userId);
+      if (!t.games) return null;
+      const pct = (n, of) => `${n.toLocaleString('de-DE')} (${Math.round(n / of * 100)} %)`;
+      const out = [
+        { key: 'Gespielt', value: t.games },
+        { key: 'Gewonnen', value: t.wins, text: pct(t.wins, t.games) },
+        { key: 'Überlebt', value: t.survived, text: pct(t.survived, t.games) },
+      ];
+      if (t.wolf) out.push({ key: 'Als Werwolf', value: t.wolf, text: `${t.wolf.toLocaleString('de-DE')}, davon ${t.wolfWins.toLocaleString('de-DE')} gewonnen` });
+      return { stats: out, last: t.last };
+    },
+  },
   minesweeper: {
     title: 'Minesweeper',
     url: '/minesweeper',

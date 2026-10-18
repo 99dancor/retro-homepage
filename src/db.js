@@ -513,6 +513,20 @@ CREATE TABLE IF NOT EXISTS cw_progress (
   PRIMARY KEY (user_id, day)
 );
 CREATE INDEX IF NOT EXISTS cw_day ON cw_progress(day, solved_at);
+-- Werwolf: eine Zeile pro Mitglied und beendetem Spiel (Gäste werden nicht gespeichert)
+CREATE TABLE IF NOT EXISTS ww_results (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  room_name TEXT NOT NULL,
+  mode TEXT NOT NULL,
+  players INTEGER NOT NULL,
+  days INTEGER NOT NULL,
+  role TEXT NOT NULL,
+  won INTEGER NOT NULL,
+  survived INTEGER NOT NULL,
+  ended_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ww_user ON ww_results(user_id, ended_at);
 CREATE INDEX IF NOT EXISTS qz_user ON quizzes(user_id, updated_at);
 CREATE INDEX IF NOT EXISTS qr_user ON quiz_results(user_id);
 CREATE INDEX IF NOT EXISTS qr_game ON quiz_results(game_id);
@@ -613,6 +627,8 @@ const DEFAULT_SETTINGS = {
   f7_turn: '20',
   pp_enabled: '1',              // Pilli Pilli für Mitglieder
   pp_turn: '30',
+  ww_enabled: '1',              // Werwolf (Gesellschaftsspiel, lokal oder online)
+  ww_guests: '1',               // Gäste spielen Werwolf ohne Konto mit
   paint_enabled: '1',           // Paint im Startmenü
   paint_guests: '1',            // Gäste dürfen malen und herunterladen (Speichern nur mit Konto)
   paint_save: 'members',        // Bilder speichern: members | upload (nur mit Upload-Recht) | admin

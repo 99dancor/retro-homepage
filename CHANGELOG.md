@@ -1,5 +1,13 @@
 # Changelog
 
+## 18.10.2026 – Werwolf
+
+- **Neues Spiel:** Unter Spiele und Apps steht 🐺 **Werwolf**. Die Seite ist der Erzähler: sie verteilt die Rollen, sammelt nachts ein, was jeder tut, und zählt die Stimmen.
+- **Lokal spielen:** Ihr sitzt zusammen, jeder öffnet den Raum auf seinem Handy (QR-Code oder vierstelliger Code, ohne Konto). Die Rolle siehst du nur, solange du die Karte gedrückt hältst. Nachts tippen alle gleichzeitig etwas an, auch wer keine Fähigkeit hat, damit am Tisch niemand merkt, wer gerade handelt. Am Tag redet ihr am Tisch und stimmt auf den Handys ab. Das Gerät des Gastgebers liest als Erzähler vor, und der Bildschirm bleibt an.
+- **Online spielen:** Jeder von zu Hause, mit Dorf-Chat am Tag, eigenem Chat für die Werwölfe in der Nacht und einem Chat für die Toten.
+- **Rollen:** Werwolf, Dorfbewohner, Seherin, Hexe, Jäger, Amor und Beschützer. Die Mischung passt sich der Spielerzahl an oder der Gastgeber stellt sie selbst ein, genauso die Zeiten für Nacht, Reden und Abstimmung.
+- **Statistik:** Für Mitglieder stehen Spiele, Siege, Überleben und Siege als Werwolf im Profil. Der Admin findet Einstellungen und offene Dörfer unter Admin → Werwolf.
+
 ## 18.10.2026 – Pixelpfoten: Ausflüge und Wettbewerb
 
 - **Ausflüge als Minispiel:** „Gassi gehen“ und Ausflüge haben jetzt eine eigene Szene. Dein Tier läuft durch Park, Wald, Strand oder Berge, du lässt es per Tipp oder Leertaste über Pfützen, Baumstämme und Sandburgen springen und sammelst Leckerli, Münzen und Schnüffelstellen mit Fundstücken ein.

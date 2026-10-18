@@ -1,0 +1,42 @@
+<%- include('../partials/head') %>
+<%# Admin → Werwolf: Einstellungen und offene Räume %>
+<% if (ok) { %><div class="msg">✔ Gespeichert.</div><% } %>
+<div class="kpis">
+  <div class="kpi"><b><%= rooms.length %></b>offene Räume</div>
+  <div class="kpi"><b><%= total.rows %></b>gespeicherte Teilnahmen</div>
+  <div class="kpi"><b><%= total.members %></b>Mitglieder haben gespielt</div>
+</div>
+<form method="post" action="/admin/werwolf">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox"><legend>Werwolf</legend>
+    <label class="inline"><input type="checkbox" name="ww_enabled" value="1" <%= s.ww_enabled === '1' ? 'checked' : '' %>> Werwolf im Startmenü (Spiele und Apps)</label><br>
+    <label class="inline"><input type="checkbox" name="ww_guests" value="1" <%= s.ww_guests === '1' ? 'checked' : '' %>> Gäste ohne Konto dürfen Räume eröffnen und mitspielen (der Gastgeber kann es pro Raum abschalten)</label>
+    <label>Höchstens <input type="number" name="ww_max_rooms" min="1" max="200" value="<%= s.maxRooms %>" style="width:70px"> offene Räume und <input type="number" name="ww_max_players" min="4" max="40" value="<%= s.maxPlayers %>" style="width:70px"> Spieler pro Raum</label>
+  </fieldset>
+  <div class="actions"><button>Speichern</button> <a href="/werwolf" target="_blank">Werwolf öffnen</a></div>
+</form>
+<h3>Offene Räume</h3>
+<% if (!rooms.length) { %><p class="muted">Gerade ist kein Raum offen. Räume leben nur im Arbeitsspeicher, nach einem Neustart sind sie weg.</p>
+<% } else { %>
+<table class="list">
+  <tr><th>Code</th><th>Dorf</th><th>Modus</th><th>Spieler</th><th>Stand</th><th>Seit</th><th></th></tr>
+  <% for (const r of rooms) { %>
+  <tr>
+    <td><code><%= r.code %></code></td>
+    <td><b><%= r.name %></b><%= r.hidden ? ' (versteckt)' : '' %></td>
+    <td><%= r.mode === 'online' ? '🌐 Online' : '🏠 Lokal' %></td>
+    <td><%= r.players %></td>
+    <td><%= { lobby: 'Warteraum', roles: 'Rollen ansehen', night: 'Nacht ' + (r.day + 1), day: 'Tag ' + r.day, vote: 'Abstimmung, Tag ' + r.day, hunter: 'Jäger schießt', end: 'Spiel vorbei' }[r.phase] %></td>
+    <td><%= fmtDate(Math.floor(r.created / 1000), true) %></td>
+    <td class="num"><form method="post" action="/admin/werwolf/raum/<%= r.code %>/schliessen" class="inline" data-confirm="Raum „<%= r.name %>“ für alle schließen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Schließen</button></form></td>
+  </tr>
+  <% } %>
+</table>
+<% } %>
+<h3>Statistik</h3>
+<p>Gespeichert wird nur das Ergebnis jedes Spiels für Mitglieder (Rolle, gewonnen, überlebt). Die Zahlen stehen in den Profilen.</p>
+<form method="post" action="/admin/werwolf/statistik/loeschen" class="inline" data-confirm="Alle Werwolf-Ergebnisse löschen? Das leert die Zahlen in allen Profilen.">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">Alle Ergebnisse löschen</button>
+</form>
+<script src="<%= asset('admin.js') %>"></script>
+<%- include('../partials/foot') %>

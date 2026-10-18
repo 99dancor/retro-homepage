@@ -63,6 +63,7 @@ app.use((req, res, next) => {
     cardsEnabled: ['bj', 'pk', 'dk', 'uno', 'f7', 'pp'].some(p => getSetting(p + '_enabled', '1') === '1'),
     paintEnabled: getSetting('paint_enabled', '1') === '1',
     quizEnabled: getSetting('quiz_enabled', '1') === '1',
+    werwolfEnabled: getSetting('ww_enabled', '1') === '1',
     galleryEnabled: getSetting('paint_enabled', '1') === '1' && getSetting('paint_gallery', '1') === '1',
     navHidden: (getSetting('nav_hidden') || '').split(','),
     marquee: getSetting('theme_marquee'),
@@ -111,6 +112,7 @@ app.use('/uno', require('./routes/cardgame')(require('./uno')));
 app.use('/flip7', require('./routes/cardgame')(require('./flip7')));
 app.use('/pilli', require('./routes/cardgame')(require('./pilli')));
 app.use('/quiz', require('./routes/quiz'));
+app.use('/werwolf', require('./routes/werwolf'));
 app.use('/minesweeper', require('./routes/minesweeper'));
 app.use('/kreuzwortraetsel', require('./routes/crossword'));
 const paintRoutes = require('./routes/paint');

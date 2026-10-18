@@ -15,7 +15,7 @@
   <li>Was du schreibst, kann der Admin lesen, auch „anonyme“ Forenbeiträge. Privatnachrichten zeigt die Seite ihm nicht an, sie liegen aber unverschlüsselt auf dem Server.</li>
 </ul>
 <p>Springe zu: <a href="#besuch">Besuch</a> · <a href="#cookies">Cookies</a> · <a href="#browser">Im Browser</a> ·
-  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#pixelpfoten">Pixelpfoten</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#kartenspiele">UNO, Flip 7, Pilli Pilli</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
+  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#pixelpfoten">Pixelpfoten</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#kartenspiele">UNO, Flip 7, Pilli Pilli</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#werwolf">Werwolf</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
 </fieldset>
 
 <h2 id="besuch">👣 Wenn du die Seite besuchst</h2>
@@ -53,11 +53,13 @@
   <tr><td><code>csrf</code></td><td>Zufallswert, der gefälschte Formulare von fremden Seiten verhindert. Bekommt jeder Besucher.</td><td>Bis du den Browser schließt</td></tr>
   <tr><td><code>sid</code></td><td>Zufällige Sitzungsnummer, damit du angemeldet bleibst. Nur nach dem Anmelden.</td><td>30 Tage oder bis zum Abmelden</td></tr>
   <tr><td><code>quiz</code></td><td>Zufallswert, an dem das Quiz dich ohne Konto wiedererkennt, damit du nach einem Neuladen mit deinen Punkten im Raum bleibst. Nur wenn du ohne Anmeldung einem Raum beitrittst oder einen eröffnest.</td><td>30 Tage</td></tr>
+  <tr><td><code>werwolf</code></td><td>Genauso für Werwolf: Zufallswert, an dem dich ein Dorf ohne Konto wiedererkennt, damit du nach einem Neuladen deine Rolle behältst. Nur wenn du ohne Anmeldung beitrittst oder ein Dorf eröffnest.</td><td>30 Tage</td></tr>
 </table>
 <details><summary>🔍 Code dazu</summary>
   <%- code('session', 'Beim Anmelden entsteht eine zufällige Nummer. Die Datenbank merkt sich nur, zu welchem Konto sie gehört und wann sie abläuft.') %>
   <%- code('csrf', 'Das Formular-Cookie ist reiner Zufall und enthält nichts über dich.') %>
   <%- code('quizCookie', 'Das Quiz-Cookie ist ebenfalls nur Zufall. Der Server kennt davon nur eine Prüfsumme, solange ein Raum offen ist.') %>
+  <%- code('wwCookie', 'Das Werwolf-Cookie auch.') %>
 </details>
 
 <h2 id="browser">💻 Nur in deinem Browser</h2>
@@ -71,11 +73,13 @@
   <li>Minesweeper: Stufe, Marken, Farbe und Sound, ohne Konto auch deine Bestzeiten mit dem eingetragenen Namen.</li>
   <li>Kreuzworträtsel: welche Buchstaben aufgedeckt wurden, ohne Konto auch deine Eintragungen, Zeit und Hilfen der letzten 40 Tage.</li>
   <li>Quiz ohne Konto: der zuletzt gewählte Name, das Bild und die Farbe, damit du sie beim nächsten Mal nicht neu eingeben musst.</li>
+  <li>Werwolf: ohne Konto der zuletzt gewählte Name und das Bild, außerdem ob der Erzähler auf diesem Gerät vorlesen soll. Die Stimme erzeugt dein Browser bzw. dein Gerät selbst.</li>
   <li>Die Lautstärke für Musik und Effekte (🔊 neben der Uhr), die gewählte Visualisierung im Musik-Player, Zufall und Wiederholen, und ob du „YouTube laden“ für diesen Browser merken wolltest.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('desk', '<code>sessionStorage</code> vergisst alles, sobald der Tab geschlossen wird.') %>
   <%- code('quizGuest', 'Name, Bild und Farbe für das Quiz liegen unter <code>quiz-gast</code> im Browser.') %>
+  <%- code('wwGuest', 'Name und Bild für Werwolf liegen unter <code>werwolf-gast</code> im Browser.') %>
   <%- code('display', 'Unter diesen beiden Namen liegen deine Darstellung und ein eigenes Hintergrundbild im <code>localStorage</code> des Browsers.') %>
   <%- code('displaySave', 'Gespeichert wird nur dort. Die ganze Datei <code>display.js</code> schickt nichts an den Server.') %>
   <%- code('paintPrefs', 'Unter diesem Namen merkt sich Paint Palette, eigene Farben, Ansicht und Werkzeug-Optionen.') %>
@@ -319,10 +323,23 @@
   <%- code('quizResults', 'Und diese pro Spieler. Bei Gästen bleibt <code>user_id</code> leer.') %>
 </details>
 
+<h2 id="werwolf">🐺 Werwolf</h2>
+<ul>
+  <li><b>Mitspielen</b> geht mit oder ohne Konto. Mit Konto sehen die anderen im Dorf deinen Anzeigenamen und dein Profilbild, ohne Konto den Namen und das Emoji, das du gewählt hast, mit „(Gast)“ dahinter.</li>
+  <li><b>Während ein Dorf offen ist</b>, hält der Server im Arbeitsspeicher, wer dabei ist, wer welche Rolle hat, was jeder nachts antippt, wer wen bei der Abstimmung wählt und im Online-Modus den Chat (höchstens 300 Zeichen pro Nachricht, die letzten 200 Nachrichten). Deine Rolle sehen nur du, im Rudel die anderen Werwölfe, nach deinem Tod je nach Regel alle und am Ende des Spiels alle. Was du nachts antippst, sieht niemand außer den anderen Werwölfen (beim Wolfsopfer) und, wenn der Gastgeber es erlaubt, Tote, die zuschauen. Den Wolfs-Chat lesen nur Werwölfe und Tote, den Chat der Toten nur Tote. Abstimmungen am Tag sind offen. Schließt das Dorf oder startet der Server neu, ist all das weg.</li>
+  <li><b>Am Ende eines Spiels</b> speichert die Seite für Mitglieder eine Zeile: Name des Dorfs, Modus, Spielerzahl, wie viele Tage es ging, deine Rolle, ob du gewonnen und ob du überlebt hast. Daraus entstehen die Zahlen im Profil. Für Gäste wird nichts gespeichert. Der Admin kann die Ergebnisse löschen.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('wwPlayer', 'Das merkt sich ein Dorf über jeden Spieler, solange es offen ist.') %>
+  <%- code('wwView', 'So entscheidet der Server, wessen Rolle du sehen darfst.') %>
+  <%- code('wwChat', 'Der Chat im Online-Modus: wer wo schreiben darf, steht in <code>channels</code> direkt darüber.') %>
+  <%- code('wwResults', 'Diese Spalten speichert die Seite pro Mitglied und Spiel.') %>
+</details>
+
 <h2 id="fragen">🗑 Löschen und Fragen</h2>
 <ul>
   <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
-  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Benachrichtigungen, Push-Geräte, Kasse der Kartenspiele, Blackjack- und Poker-Sitzungen, Durak-Ergebnisse, Ergebnisse aus UNO, Flip 7 und Pilli Pilli, Minesweeper-Spiele, Kreuzworträtsel-Stände, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Benachrichtigungen, Push-Geräte, Kasse der Kartenspiele, Blackjack- und Poker-Sitzungen, Durak-Ergebnisse, Ergebnisse aus UNO, Flip 7 und Pilli Pilli, Minesweeper-Spiele, Kreuzworträtsel-Stände, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Werwolf-Ergebnisse, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
   <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
 </ul>
 <p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>

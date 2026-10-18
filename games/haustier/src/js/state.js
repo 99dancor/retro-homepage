@@ -35,6 +35,8 @@ export function newState(now = Date.now()) {
     milestones: {},         // einmalige Belohnungen, z. B. "streak7"
     daily: null,            // Tagesaufgaben und Münzen aus Aktionen des aktuellen Tages
     checkinDay: null,       // Tag, an dem die Fragen zum Wohlbefinden zuletzt beantwortet wurden
+    visitors: 'members',    // wer meine Tiere besuchen darf: members | friends | none (siehe visits.js)
+    outgoing: null,         // eigene Besuche heute: { day, hosts, playdates } für die Besuchsbelohnung
   };
 }
 

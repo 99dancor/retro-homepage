@@ -7,10 +7,16 @@
 //   scene.useToy(id) / putAway()
 //   scene.animate(petId, action, extra)   Pflege sichtbar machen (Napf, Herzchen, Gassi …)
 //   scene.floaters(petId, list)            aufsteigende Zahlen über einem Tier
+//   scene.snapshot()                       Stand der eigenen Tiere und des Spielzeugs fürs Live-Zimmer
 //
-// hooks: state(), select(petId), stroke(petId), play(petId, itemId) -> { ok, factor }, sound(name)
+// hooks:
+//   roster()   alle Tiere im Zimmer: [{ key, pet, kind, owner?, net? }]
+//              kind: own (eigenes Tier, läuft hier), foreign (fremdes Tier, läuft hier), remote (läuft bei seinem Besitzer)
+//              net:  letzter Live-Stand eines remote-Tieres { x, d, facing, walking, hop, emote, seq, hidden }
+//   active()   key des ausgewählten Tieres     bed(): Körbchen zeigen?     remoteToys(): [{ key, id, x, y, d, spin }]
+//   select(entry), stroke(entry), play(entry, itemId) -> { ok, factor, fav }, sound(name)
 import { SPECIES, mood } from './pets.js';
-import { ITEMS, owned } from './items.js';
+import { ITEMS } from './items.js';
 import { petSvg } from './art.js';
 import { TOYS, decide, besides, stepTowards, canCatch, wantsToPlay, speed } from './behavior.js';
 
@@ -27,7 +33,8 @@ const MIN_GAP = 0.17;          // so weit (in Zimmerbreiten) halten Tiere Abstan
 
 export function createScene(hooks) {
   const layer = html('div', 'scene');
-  const actors = new Map();        // Tier-id -> Darsteller
+  const actors = new Map();        // key -> Darsteller (key = Tier-id bei eigenen Tieren)
+  const ghosts = new Map();        // Spielzeug anderer im Live-Zimmer
   let host = null, raf = 0, last = 0;
   let geo = { W: 400, H: 300, top: 200, near: 280, far: 214 };
   let toy = null;                  // herausgeholtes Spielzeug
@@ -52,12 +59,12 @@ export function createScene(hooks) {
   const sizeOf = (a) => baseSize() * scaleAt(a.d);
 
   // ---------- Tiere ----------
-  function pets() { return hooks.state().pets; }
-  const petOf = (id) => pets().find((p) => p.id === id);
+  const petOf = (key) => { const a = actors.get(key); return a ? a.entry.pet : null; };
+  const local = (a) => a.entry.kind !== 'remote';
 
-  function makeActor(pet, i, n) {
+  function makeActor(entry, i, n) {
     const el = html('div', 'sp');
-    el.dataset.pet = pet.id;
+    el.dataset.pet = entry.key;
     const shadow = html('div', 'sp-shadow');
     const body = html('div', 'sp-body');
     const flip = html('div', 'sp-flip');
@@ -66,9 +73,10 @@ export function createScene(hooks) {
     const name = html('div', 'sp-name');
     el.append(shadow, body, emote, name);
     layer.append(el);
+    const net = entry.net;
     return {
-      id: pet.id, el, body, flip, shadow, emote, name,
-      x: n === 1 ? 0.5 : 0.22 + (0.56 * i) / Math.max(1, n - 1), d: 0.55 + (i % 2) * 0.25,
+      id: entry.key, entry, el, body, flip, shadow, emote, name, seq: 0, lastEmote: '', netSeq: net ? net.seq : 0,
+      x: net ? net.x : n === 1 ? 0.5 : 0.22 + (0.56 * i) / Math.max(1, n - 1), d: net ? net.d : 0.55 + (i % 2) * 0.25,
       facing: 1, hop: 0, hopV: 0, walking: false, plan: null, until: 0, key: '',
       face: null, busyUntil: 0, nextPlay: 0, bored: {}, carry: false, hidden: false,
       emoteUntil: 0, tiltUntil: 0, blink: rand(0, 4).toFixed(2),
@@ -76,25 +84,33 @@ export function createScene(hooks) {
   }
 
   function sync() {
-    const list = pets();
-    for (const [id, a] of actors) if (!list.some((p) => p.id === id)) { a.el.remove(); actors.delete(id); }
-    list.forEach((p, i) => { if (!actors.has(p.id)) actors.set(p.id, makeActor(p, i, list.length)); });
-    const st = hooks.state();
-    const active = st.activePet || (list[0] && list[0].id);
+    const list = hooks.roster();
+    for (const [key, a] of actors) {
+      if (!list.some((e) => e.key === key)) { a.el.remove(); actors.delete(key); if (toy && toy.user === key) toy.user = null; }
+    }
+    list.forEach((e, i) => {
+      const a = actors.get(e.key);
+      if (a) a.entry = e;
+      else actors.set(e.key, makeActor(e, i, list.length));
+    });
+    const active = hooks.active();
+    const mine = list.filter((e) => e.kind === 'own').length;
     for (const a of actors.values()) {
-      const p = petOf(a.id);
-      const face = a.face || mood(p).face;
+      const p = a.entry.pet;
+      // Live-Tiere zeigen das Gesicht, das ihr Besitzer sieht
+      const face = a.face || (a.entry.kind === 'remote' && a.entry.net ? (a.entry.net.face || 'ok') : mood(p).face);
       const key = [p.species, p.color, face, JSON.stringify(p.acc), a.shine > Date.now()].join('|');
       if (key !== a.key) {
         a.key = key;
         a.flip.innerHTML = petSvg(p.species, p.color, face, { title: `${p.name}, ${SPECIES[p.species].name}`, acc: p.acc, shine: a.shine > Date.now(), shadow: false });
         a.flip.firstChild.style.setProperty('--blink', a.blink + 's');
       }
-      a.name.textContent = p.name;
-      a.el.classList.toggle('active', a.id === active && list.length > 1);
-      a.el.classList.toggle('happy', mood(p).face === 'happy');
+      a.name.textContent = a.entry.owner ? `${p.name} · ${a.entry.owner}` : p.name;
+      a.el.classList.toggle('active', a.id === active && (mine > 1 || list.length > mine));
+      a.el.classList.toggle('happy', face === 'happy');
+      a.el.classList.toggle('guest', a.entry.kind !== 'own');
     }
-    drawBed(owned(st, 'care_bed'));
+    drawBed(hooks.bed());
   }
 
   function drawBed(has) {
@@ -108,6 +124,7 @@ export function createScene(hooks) {
   }
 
   function say(a, symbol, ms = 1600) {
+    a.seq++; a.lastEmote = symbol;
     a.emote.textContent = symbol;
     a.emote.classList.remove('show'); void a.emote.offsetWidth; a.emote.classList.add('show');
     a.emoteUntil = performance.now() + ms;
@@ -126,8 +143,7 @@ export function createScene(hooks) {
       toy.el = html('div', 'sc-toy throw', `<span>${ITEMS[id].icon}</span>`);
       toy.el.title = t.hint;
     } else if (t.kind === 'station') {
-      const pet = petOf(hooks.state().activePet) || pets()[0];
-      const a = pet && actors.get(pet.id);
+      const a = actors.get(hooks.active()) || [...actors.values()][0];
       toy.x = a && a.x < 0.5 ? geo.W * 0.78 : geo.W * 0.22;
       toy.d = 0.3;
       toy.el = html('div', 'sc-toy station ' + id, stationSvg(id));
@@ -193,7 +209,7 @@ export function createScene(hooks) {
   function played(a, now) {
     if (now < a.nextPlay) return null;
     a.nextPlay = now + PLAY_GAP;
-    const r = hooks.play(a.id, toy.id) || { ok: false };
+    const r = hooks.play(a.entry, toy.id) || { ok: false };
     if (!r.ok) { say(a, '💤'); a.bored[toy.id] = now + BORED_MS; return r; }
     if (r.factor < 0.5) { say(a, '😑', 2200); a.bored[toy.id] = now + BORED_MS; } else say(a, r.fav ? '😍' : '♪');
     return r;
@@ -209,13 +225,12 @@ export function createScene(hooks) {
     last = t;
     measure();
     const now = performance.now();
-    const list = pets();
     const all = [...actors.values()];
     stepToy(dt, now);
     stepBubbles(dt);
     for (const a of all) {
-      const p = petOf(a.id);
-      if (!p) continue;
+      const p = a.entry.pet;
+      if (!local(a)) { stepRemote(a, dt); continue; }
       stepActor(a, p, all, dt, now);
       // Springen
       if (a.hopV || a.hop > 0) {
@@ -223,20 +238,20 @@ export function createScene(hooks) {
         if (a.hop <= 0) { a.hop = 0; a.hopV = 0; }
       }
     }
-    separate(all, dt, now);
-    draw(now, list);
+    separate(all.filter(local), dt, now);
+    draw(now);
     raf = requestAnimationFrame(tick);
   }
 
   function stepActor(a, p, all, dt, now) {
     if (now < a.busyUntil) { a.walking = false; return; }
-    const others = all.filter((o) => o !== a).map((o) => ({ pet: petOf(o.id), x: o.x, d: o.d, a: o })).filter((o) => o.pet);
+    const others = all.filter((o) => o !== a && !o.hidden).map((o) => ({ key: o.id, pet: o.entry.pet, x: o.x, d: o.d, a: o }));
 
     // Schlafen: ins Körbchen, falls vorhanden, sonst dort, wo es gerade ist
     if (p.sleeping) {
       a.carry = false;
       if (bed) {
-        const sleepers = [...actors.values()].filter((o) => petOf(o.id) && petOf(o.id).sleeping);
+        const sleepers = [...actors.values()].filter((o) => local(o) && o.entry.pet.sleeping);
         const i = sleepers.indexOf(a);
         const spot = { x: BED.x + (i - (sleepers.length - 1) / 2) * 0.07, d: BED.d + (i % 2) * 0.05 };
         if (move(a, spot, speed(p) * 0.8, dt)) a.walking = false;
@@ -254,7 +269,7 @@ export function createScene(hooks) {
       if (plan.type === 'nap') say(a, '💤', plan.ms);
       if (plan.type === 'chase') {
         const o = actors.get(plan.with);
-        if (o && !(o.plan && o.plan.type === 'flee')) {
+        if (o && local(o) && !(o.plan && o.plan.type === 'flee')) {
           // Wer angestupst wird, rennt weg, der andere hinterher
           o.plan = { type: 'flee', x: a.x > 0.5 ? rand(0.1, 0.35) : rand(0.65, 0.9), d: rand(0.1, 0.9) }; o.until = now + plan.ms;
           say(a, '♪'); say(o, '❗', 900);
@@ -267,27 +282,41 @@ export function createScene(hooks) {
       case 'flee': if (move(a, pl, speed(p, 'run'), dt)) { a.plan = { type: 'sit' }; a.until = now + 2000; } break;
       case 'visit': case 'chase': {
         const o = actors.get(pl.with);
-        if (!o || !petOf(o.id) || petOf(o.id).sleeping) { a.plan = null; break; }
+        if (!o || o.hidden || petOf(o.id).sleeping) { a.plan = null; break; }
         const target = pl.type === 'chase' ? { x: o.x, d: o.d } : besides(o);
         if (pl.type === 'chase' && Math.abs(o.x - a.x) < 0.09 && Math.abs(o.d - a.d) < 0.2) {
           // Erwischt! Beide hüpfen vor Freude
-          hop(a); hop(o, 0.8); say(a, '😄'); say(o, '😄');
-          a.plan = { type: 'sit' }; a.until = now + 2500; o.plan = { type: 'sit' }; o.until = now + 2500;
+          hop(a); say(a, '😄');
+          if (local(o)) { hop(o, 0.8); say(o, '😄'); o.plan = { type: 'sit' }; o.until = now + 2500; }
+          a.plan = { type: 'sit' }; a.until = now + 2500;
           break;
         }
         if (move(a, target, speed(p, pl.type === 'chase' ? 'run' : 'walk'), dt) && pl.type === 'visit') {
           // Angekommen: einander anschauen, beschnuppern, Herzchen
           a.facing = o.x > a.x ? 1 : -1;
-          if (!o.walking) o.facing = -a.facing;
+          if (!o.walking && local(o)) o.facing = -a.facing;
           say(a, pick(['❤️', '💕', '👋', '😊'])); setTimeout(() => say(o, pick(['❤️', '💕', '😊'])), 450);
           hop(a, 0.5);
           a.plan = { type: 'sit' }; a.until = now + rand(2500, 4000);
-          if (o.plan && ['wander', 'sit', 'look'].includes(o.plan.type)) { o.plan = { type: 'sit' }; o.until = now + 2500; }
+          if (local(o) && o.plan && ['wander', 'sit', 'look'].includes(o.plan.type)) { o.plan = { type: 'sit' }; o.until = now + 2500; }
         }
         break;
       }
       default: a.walking = false;
     }
+  }
+
+  // Live-Tiere: sanft zum letzten gemeldeten Stand gleiten
+  function stepRemote(a, dt) {
+    const n = a.entry.net;
+    if (!n) return;
+    const k = Math.min(1, dt * 8);
+    if (Math.abs(n.x - a.x) > 0.5) a.x = n.x; else a.x += (n.x - a.x) * k;
+    a.d += (n.d - a.d) * k;
+    a.facing = n.facing; a.walking = n.walking;
+    a.hop = n.hop * (geo.H / 380); a.hopV = 0;
+    if (n.hidden !== a.hidden) { a.hidden = n.hidden; a.el.style.opacity = n.hidden ? '0' : ''; }
+    if (n.seq !== a.netSeq) { a.netSeq = n.seq; if (n.emote) say(a, n.emote); }
   }
 
   // Tiere schieben sich sanft auseinander, statt übereinander zu stehen
@@ -510,6 +539,45 @@ export function createScene(hooks) {
       bed.style.transform = `translate(${BED.x * geo.W - s / 2}px, ${feetY(BED.d) - s * 0.3}px)`;
     }
     for (const b of bubbles) b.el.style.transform = `translate(${b.x - b.r}px, ${b.y - b.r}px)`;
+    drawGhosts();
+  }
+
+  // Spielzeug, mit dem andere im Live-Zimmer gerade spielen (nur zum Ansehen)
+  function drawGhosts() {
+    const list = hooks.remoteToys();
+    for (const [key, el] of ghosts) if (!list.some((t) => t.key === key)) { el.remove(); ghosts.delete(key); }
+    for (const t of list) {
+      let el = ghosts.get(t.key);
+      if (!el || el.dataset.id !== t.id) {
+        if (el) el.remove();
+        el = html('div', 'sc-toy ghost', t.id === 'toy_laser' ? '<i class="dot"></i>' : `<span>${ITEMS[t.id].icon}</span>`);
+        el.dataset.id = t.id;
+        layer.append(el);
+        ghosts.set(t.key, el);
+      }
+      const s = (TOYS[t.id] ? TOYS[t.id].size : 26) * (geo.H / 380) * scaleAt(t.d);
+      el.style.fontSize = s + 'px';
+      el.style.transform = `translate(${t.x * geo.W - s / 2}px, ${t.y * geo.H - s / 2}px) rotate(${Math.round(t.spin)}deg)`;
+      el.style.zIndex = String(11 + Math.round(t.d * 100));
+    }
+  }
+
+  // Stand der eigenen Tiere (und des Spielzeugs) für die anderen im Live-Zimmer
+  function snapshot() {
+    const pets = [];
+    for (const a of actors.values()) {
+      if (a.entry.kind !== 'own') continue;
+      const p = a.entry.pet;
+      pets.push({
+        id: p.id, name: p.name, species: p.species, color: p.color, acc: p.acc, face: a.face || mood(p).face, sleeping: !!p.sleeping,
+        x: +a.x.toFixed(3), d: +a.d.toFixed(3), facing: a.facing, walking: a.walking, hop: Math.round((a.hop * 380) / geo.H),
+        emote: a.lastEmote, seq: a.seq, hidden: a.hidden,
+      });
+    }
+    let t = null;
+    if (toy && toy.kind === 'throw') t = { id: toy.id, x: toy.x / geo.W, y: toy.y / geo.H, d: toy.d, spin: toy.spin };
+    else if (toy && toy.kind === 'lure' && lure) t = { id: toy.id, x: lure.x / geo.W, y: lure.y / geo.H, d: depthAt(lure.y), spin: 0 };
+    return { pets, toy: t };
   }
 
   // ---------- Maus und Finger ----------
@@ -548,7 +616,7 @@ export function createScene(hooks) {
     if (stroke) {
       const dd = Math.hypot(e.clientX - stroke.x, e.clientY - stroke.y);
       stroke.dist += dd; stroke.moved += dd; stroke.x = e.clientX; stroke.y = e.clientY;
-      if (stroke.dist > 140) { stroke.dist = 0; hooks.stroke(stroke.id); }
+      if (stroke.dist > 140) { stroke.dist = 0; const a = actors.get(stroke.id); if (a) hooks.stroke(a.entry); }
       return;
     }
     if (toy && toy.kind === 'lure' && (e.pointerType === 'mouse' || e.buttons)) { lure = p; drawLure(); }
@@ -566,7 +634,7 @@ export function createScene(hooks) {
       hooks.sound('klick');
     }
     if (stroke) {
-      if (stroke.moved < 8) hooks.select(stroke.id);
+      if (stroke.moved < 8) { const a = actors.get(stroke.id); if (a) hooks.select(a.entry); }
       stroke = null;
     }
     if (toy && toy.kind === 'lure' && e.pointerType !== 'mouse') { lure = null; drawLure(); }
@@ -581,10 +649,10 @@ export function createScene(hooks) {
       if (toy.id === 'toy_wheel' && toy.using) { const a = actors.get(toy.user); if (a) a.busyUntil += 600; }
       return;
     }
-    const st = hooks.state();
     const now = performance.now();
-    const order = [...actors.values()].sort((x, y) => (y.id === st.activePet) - (x.id === st.activePet));
-    const a = order.find((o) => wantsToPlay(petOf(o.id), toy.id, new Set(bored(o, now) ? [o.id] : [])));
+    const act = hooks.active();
+    const order = [...actors.values()].filter(local).sort((x, y) => (y.id === act) - (x.id === act));
+    const a = order.find((o) => wantsToPlay(o.entry.pet, toy.id, new Set(bored(o, now) ? [o.id] : [])));
     if (!a) {
       const any = order[0];
       if (any) say(any, '😴');
@@ -655,7 +723,7 @@ export function createScene(hooks) {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && host && !raf) raf = requestAnimationFrame(tick); });
 
   return {
-    mount, sync, useToy, putAway, animate, floaters,
+    mount, sync, useToy, putAway, animate, floaters, snapshot,
     get toy() { return toy ? toy.id : null; },
     actorAt: (id) => actors.get(id),
   };

@@ -2,6 +2,9 @@
 
 ## 18.10.2026 – Pixelpfoten
 
+- **Besuche:** Unter 🏘️ Besuchen siehst du die Zimmer anderer Mitglieder und kannst vorbeischauen, allein oder mit einem deiner Tiere. Streichel ihre Tiere, spiel mit ihnen, lass Futter oder einen Gruß im Besuchsbuch da. Für die ersten drei Besuche am Tag gibt es Münzen.
+- **Live zusammen:** Ist der Gastgeber gerade selbst im Spiel, seht ihr die Tiere des anderen live im Zimmer herumlaufen. Was Besucher tun, kommt bei deinen Tieren an, sobald du das Spiel öffnest; du bekommst eine Benachrichtigung.
+- **Wer darf kommen:** Alle Mitglieder, nur Freunde oder niemand, einstellbar unter 🏘️ Besuchen. Was dabei gespeichert wird, steht auf der Datenschutzseite.
 - **Neuer Name:** Das Haustier-Spiel heißt jetzt 🐾 **Pixelpfoten**. Adresse und Spielstände bleiben gleich.
 - **Leben im Zimmer:** Alle deine Tiere sind gemeinsam im Zimmer, laufen frei herum, besuchen sich und spielen miteinander.
 - **Spielzeug zum Anfassen:** Bälle werfen, mit Federangel und Laserpointer locken, Seifenblasen pusten, Laufrad und Tunnel antippen. Statt einen Knopf zu drücken, spielst du jetzt wirklich mit deinen Tieren.

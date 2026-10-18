@@ -235,7 +235,7 @@
     var hands = s.hands.length ? s.hands.map(function (h, k) {
       var active = turn && st.turn.hand === k;
       return '<div class="bj-hand' + (active ? ' active' : '') + '">' + cards(h.cards) + '<div>' + chip(h.bet) + ' ' + totalBadge(h) + (h.doubled ? ' <small>×2</small>' : '') + '</div></div>';
-    }).join('') : (s.bet ? '<div class="bj-hand">' + chip(s.bet) + '</div>' : '<div class="bj-hand bj-nobet">' + (st.phase === 'betting' ? (s.chips < st.minBet ? 'keine Chips' : 'setzt …') : 'setzt aus') + '</div>');
+    }).join('') : (s.bet ? '<div class="bj-hand">' + chip(s.bet) + (st.phase === 'betting' ? (s.ready ? ' <span class="bj-badge win" title="Einsatz bestätigt">✔</span>' : ' <small>wählt …</small>') : '') + '</div>' : '<div class="bj-hand bj-nobet">' + (st.phase === 'betting' ? (s.chips < st.minBet ? 'keine Chips' : 'setzt …') : 'setzt aus') + '</div>');
     return '<div class="bj-seat' + (turn ? ' turn' : '') + (mine ? ' mine' : '') + '" style="' + style + '">' + hands +
       '<button type="button" class="bj-name" data-user="' + esc(s.user) + '" data-uid="' + s.id + '">' + (st.hostId === s.id ? '👑 ' : '') + esc(s.name) + (mine ? ' (du)' : '') + (s.away ? ' 💤' : '') + (s.leaving ? ' 🚪' : '') + '</button>' +
       '<div class="bj-chips">Chips ' + euro(s.chips) + ' · <span class="' + cls(s.balance) + '">' + euro(s.balance, true) + '</span></div></div>';
@@ -250,7 +250,7 @@
     if (!tab || !tab.state) { main.innerHTML = '<p class="bj-empty">Verbinde mit dem Tisch …</p>'; return; }
     var s = tab.state, seat = mySeat(), host = isHost(), r = s.rules;
     var dealer = s.dealer.length ? cards(s.dealer) + ' <span class="bj-badge">' + (s.dealer.indexOf(null) >= 0 ? s.dealerTotal + ' + ?' : s.dealerTotal) + '</span>' : '';
-    var phaseText = s.phase === 'betting' ? (s.betLeft ? 'Einsätze: noch <b data-count="bet">' + secs(s.betLeft) + '</b> s' : 'Bitte Einsätze setzen') :
+    var phaseText = s.phase === 'betting' ? (s.betLeft ? 'Einsätze: noch <b data-count="bet">' + secs(s.betLeft) + '</b> s' : 'Chips legen und Einsatz bestätigen') :
       s.phase === 'dealer' ? 'Dealer ist dran' : s.phase === 'result' ? 'Runde ' + s.round + ' vorbei' :
       s.turn ? (s.seats[s.turn.seat] && s.seats[s.turn.seat].id === ME ? '<b>Du bist dran</b> · <b data-count="turn">' + secs(s.turn.left) + '</b> s ⏳' : esc(s.seats[s.turn.seat] ? s.seats[s.turn.seat].name : '') + ' ist dran · <span data-count="turn">' + secs(s.turn.left) + '</span> s') : '';
     var felt = '<div class="bj-felt"><div class="bj-dealer"><div class="bj-label">DEALER</div>' + dealer + '</div>' +
@@ -287,8 +287,11 @@
       return '<div class="bj-betbar">' + CHIPS.filter(function (c) { return c <= room && c >= Math.min(s.minBet, 5); }).map(function (c) {
         return '<button type="button" class="bj-chip ' + chip(c).match(/c\d+/)[0] + '" data-bet="' + c + '" title="+' + euro(c) + '">' + (c >= 1000 ? '1k' : c) + '</button>';
       }).join('') + '</div><div>Einsatz: <b>' + euro(seat.bet) + '</b> ' +
-        (seat.lastBet && seat.lastBet <= room && seat.lastBet >= s.minBet ? '<button type="button" class="small" data-act="again">↺ Wie zuletzt (' + euro(seat.lastBet) + ')</button> ' : '') +
-        (seat.bet ? '<button type="button" class="small" data-act="clear">✖ Zurücknehmen</button>' : '') + '</div>';
+        (seat.bet && !seat.ready ? '<button type="button" data-act="confirm" title="Taste Enter"><b>✔ Einsatz bestätigen</b></button> ' : '') +
+        (seat.ready ? '<span class="bj-badge win">✔ Bestätigt</span> ' : '') +
+        (seat.lastBet && seat.lastBet <= room && seat.lastBet >= s.minBet && seat.lastBet !== seat.bet ? '<button type="button" class="small" data-act="again">↺ Wie zuletzt (' + euro(seat.lastBet) + ')</button> ' : '') +
+        (seat.bet ? '<button type="button" class="small" data-act="clear">✖ Zurücknehmen</button>' : '') + '</div>' +
+        (seat.ready ? '<small>Noch ein Chip ändert den Einsatz, dann neu bestätigen.</small>' : seat.bet ? '<small>Gegeben wird erst, wenn du bestätigst.</small>' : '');
     }
     if (s.phase === 'playing' && s.turn && s.seats[s.turn.seat] === seat) {
       var h = seat.hands[s.turn.hand], two = h.cards.length === 2;
@@ -390,7 +393,8 @@
       '<li><b>Verdoppeln</b> mit den ersten zwei Karten: doppelter Einsatz, genau eine Karte. <b>Teilen</b> einmal bei zwei gleichwertigen Karten; geteilte Asse bekommen nur noch je eine Karte.</li>' +
       '<li>Hat der Dealer Blackjack, ist die Runde sofort vorbei. Versicherung gibt es nicht.</li>' +
       '<li>Bedenkzeit pro Zug: ' + r.turn + ' Sekunden, danach hältst du automatisch. Wer das Fenster länger als anderthalb Minuten zu hat, steht nach der Runde auf.</li>' +
-      '<li>Tastatur am Tisch: <b>Z</b>iehen, <b>H</b>alten, <b>V</b>erdoppeln, <b>T</b>eilen.</li></ul></div>';
+      '<li>Einsatz: Chips anklicken, bis der Betrag stimmt, dann <b>✔ Einsatz bestätigen</b>. Gegeben wird, wenn alle bestätigt haben, spätestens 15 Sekunden nach der ersten Bestätigung. Wer bis dahin nicht bestätigt hat, setzt diese Runde aus.</li>' +
+      '<li>Tastatur am Tisch: <b>Enter</b> bestätigt den Einsatz, <b>Z</b>iehen, <b>H</b>alten, <b>V</b>erdoppeln, <b>T</b>eilen.</li></ul></div>';
   }
 
   // ---------- Klicks und Tasten ----------
@@ -409,6 +413,7 @@
     else if (a === 'refresh') loadTables();
     else if (a === 'hit' || a === 'stand' || a === 'double' || a === 'split') ctl(a);
     else if (a === 'again') ctl('bet', { amount: mySeat().lastBet });
+    else if (a === 'confirm') ctl('confirm');
     else if (a === 'clear') ctl('bet', { amount: 0 });
     else if (a === 'rebuy') ctl('rebuy');
     else if (a === 'leave') { var s = mySeat(); if (s && s.hands.some(function (h) { return !h.result; })) status('Du stehst nach dieser Hand auf.'); ctl('leave'); }
@@ -420,7 +425,7 @@
   });
   document.addEventListener('keydown', function (e) {
     if (view !== 'tisch' || dlg.open || e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
-    var map = { z: 'hit', h: 'stand', v: 'double', t: 'split' }, a = map[e.key.toLowerCase()];
+    var map = { z: 'hit', h: 'stand', v: 'double', t: 'split', enter: 'confirm' }, a = map[e.key.toLowerCase()];
     var btn = a && main.querySelector('[data-act=' + a + ']:not([disabled])');
     if (btn) { e.preventDefault(); btn.click(); }
   });

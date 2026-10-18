@@ -14,9 +14,9 @@ const MAX_TABLES = 30;
 const MAX_SEATS = 5;
 const EMPTY_MS = 10 * 60 * 1000;   // leere Tische verschwinden nach 10 Minuten
 const AWAY_MS = 90 * 1000;         // wer so lange kein Fenster mehr offen hat, steht auf
-const BET_MS = 15 * 1000;          // Zeit für Einsätze, sobald der erste gesetzt hat
+const BET_MS = 15 * 1000;          // Zeit für Einsätze, sobald der erste seinen bestätigt hat
 const RESULT_MS = 5000;            // Ergebnis zeigen, dann neue Runde
-const DEAL_MS = 900;               // kurze Pause vor dem Geben, wenn alle gesetzt haben
+const DEAL_MS = 900;               // kurze Pause vor dem Geben, wenn alle bestätigt haben
 const DEALER_MS = 750;             // Pause zwischen den Karten des Dealers
 const MIN_BETS = [1, 5, 10, 25, 50, 100];
 const MAX_BETS = [50, 100, 250, 500, 1000, 2500, 5000];
@@ -171,7 +171,7 @@ function state(t) {
     id: t.id, name: t.name, host: t.hostName, hostId: t.hostId, hidden: t.hidden, minBet: t.minBet, maxBet: t.maxBet, seatCount: t.seatCount,
     phase: t.phase, round: t.round, dealer, dealerTotal: shown.length ? total(shown).total : 0,
     seats: t.seats.slice(0, t.seatCount).map((s, i) => s && {
-      i, id: s.userId, name: s.name, user: s.username, chips: s.chips, bet: s.bet, lastBet: s.lastBet, buyins: s.buyins, bought: s.bought,
+      i, id: s.userId, name: s.name, user: s.username, chips: s.chips, bet: s.bet, ready: s.ready, lastBet: s.lastBet, buyins: s.buyins, bought: s.bought,
       balance: balanceOf(s), hands: s.hands.map(handView), away: !online(t, s.userId), leaving: s.leaving,
       session: { hands: s.stats.hands, wins: s.stats.wins },
     }),
@@ -205,7 +205,7 @@ function sit(t, user, index) {
   const cfg = config();
   const seat = {
     userId: user.id, name: user.name, username: user.username, chips: cfg.buyin, bought: cfg.buyin, buyins: 1,
-    bet: 0, lastBet: 0, hands: [], leaving: false, awaySince: 0, streak: 0,
+    bet: 0, ready: false, lastBet: 0, hands: [], leaving: false, awaySince: 0, streak: 0,
     stats: { hands: 0, wins: 0, losses: 0, pushes: 0, blackjacks: 0, bestWin: 0, bestStreak: 0 },
   };
   openSession(t, seat);
@@ -239,22 +239,34 @@ function stand(t, seat) {
 }
 
 // ---------- Ablauf einer Runde ----------
+// Chips legen ändert nur den Einsatz; mitgespielt wird erst, wenn er bestätigt ist (confirmBet).
+// Wer nach dem Bestätigen noch einen Chip legt, muss neu bestätigen.
 function placeBet(t, seat, amount) {
   if (t.phase !== 'betting') return 'Gerade läuft eine Runde. Setz in der nächsten.';
   const a = Math.floor(Number(amount) || 0);
   if (a !== 0 && (a < t.minBet || a > t.maxBet)) return `Der Einsatz muss zwischen ${euro(t.minBet)} und ${euro(t.maxBet)} liegen.`;
   if (a > seat.chips) return 'So viele Chips hast du nicht.';
   seat.bet = a;
-  if (a && !t.betDeadline) t.betDeadline = Date.now() + BET_MS;
+  seat.ready = false;
   maybeDeal(t);
   return null;
 }
-// Gegeben wird, wenn alle Anwesenden gesetzt haben oder die Zeit um ist
+function confirmBet(t, seat) {
+  if (t.phase !== 'betting') return 'Gerade läuft eine Runde. Setz in der nächsten.';
+  if (!seat.bet) return 'Leg erst Chips als Einsatz.';
+  if (seat.bet > seat.chips) return 'So viele Chips hast du nicht.';
+  seat.ready = true;
+  if (!t.betDeadline) t.betDeadline = Date.now() + BET_MS;
+  maybeDeal(t);
+  return null;
+}
+// Gegeben wird, wenn alle Anwesenden ihren Einsatz bestätigt haben oder die Zeit um ist; die Zeit läuft ab der
+// ersten Bestätigung. Nicht bestätigte Einsätze spielen dann nicht mit.
 function maybeDeal(t) {
   const players = seated(t);
-  const betting = players.filter(s => s.bet > 0);
+  const betting = players.filter(s => s.bet > 0 && s.ready);
   if (!betting.length) { t.betDeadline = 0; clearTimeout(t.timer); t.timer = null; return; }
-  const waiting = players.filter(s => !s.bet && online(t, s.userId) && !s.leaving && s.chips >= t.minBet);
+  const waiting = players.filter(s => !s.ready && online(t, s.userId) && !s.leaving && s.chips >= t.minBet);
   if (!waiting.length) later(t, DEAL_MS, () => deal(t));
   else later(t, Math.max(0, t.betDeadline - Date.now()), () => deal(t));
 }
@@ -267,7 +279,7 @@ function deal(t) {
   const cfg = config();
   // Neu gemischt wird vor einer Runde, wenn nur noch ein Viertel im Schlitten ist
   if (t.shoe.length < cfg.decks * 52 * 0.25) { t.shoe = newShoe(cfg.decks); log(t, `🔀 Neu gemischt (${cfg.decks} ${cfg.decks === 1 ? 'Deck' : 'Decks'}).`); }
-  const players = seated(t).filter(s => s.bet > 0 && s.bet <= s.chips);
+  const players = seated(t).filter(s => s.ready && s.bet > 0 && s.bet <= s.chips);
   if (!players.length) { t.betDeadline = 0; return; }
   t.round++;
   t.phase = 'playing'; t.betDeadline = 0; t.holeHidden = true;
@@ -275,9 +287,9 @@ function deal(t) {
     s.chips -= s.bet;
     s.lastBet = s.bet;
     s.hands = [{ cards: [], bet: s.bet, done: false, doubled: false, split: false, result: null, payout: 0 }];
-    s.bet = 0;
+    s.bet = 0; s.ready = false;
   }
-  for (const s of seated(t)) if (!players.includes(s)) s.bet = 0;
+  for (const s of seated(t)) if (!players.includes(s)) { s.bet = 0; s.ready = false; }
   t.dealer = [];
   for (let k = 0; k < 2; k++) {
     for (const s of players) s.hands[0].cards.push(draw(t));
@@ -407,6 +419,7 @@ function control(t, user, b) {
   switch (a) {
     case 'sit': return sit(t, user, Number(b.seat));
     case 'bet': return seat ? placeBet(t, seat, b.amount) : 'Setz dich erst an den Tisch.';
+    case 'confirm': return seat ? confirmBet(t, seat) : 'Setz dich erst an den Tisch.';
     case 'hit': case 'stand': case 'double': case 'split': return seat ? act(t, seat, a) : 'Du sitzt nicht am Tisch.';
     case 'rebuy': return seat ? rebuy(t, seat) : 'Du sitzt nicht am Tisch.';
     case 'leave': if (seat) stand(t, seat); return null;
@@ -422,7 +435,8 @@ function control(t, user, b) {
       if (!isHost(t, user)) return 'Nur der Gastgeber ändert die Einstellungen.';
       if (t.phase !== 'betting' && ('minBet' in b || 'maxBet' in b)) return 'Einsätze lassen sich nur zwischen zwei Runden ändern.';
       applySettings(t, b);
-      for (const s of seated(t)) if (s.bet && (s.bet < t.minBet || s.bet > t.maxBet)) s.bet = 0;
+      for (const s of seated(t)) if (s.bet && (s.bet < t.minBet || s.bet > t.maxBet)) { s.bet = 0; s.ready = false; }
+      if (t.phase === 'betting') maybeDeal(t);
       return null;
     default: return 'Unbekannte Aktion.';
   }

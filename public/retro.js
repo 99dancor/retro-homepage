@@ -119,7 +119,7 @@
   var deskEl = document.getElementById('desk'), tasks = document.getElementById('tasks');
   var siteTitle = body.dataset.title, me = body.dataset.user;
   var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
-    contact: '✉️', changelog: '📜', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵', zufall: '🎲', blackjack: '🃏', quiz: '❓', minesweeper: '💣', kreuzwortraetsel: '📰',
+    contact: '✉️', changelog: '📜', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵', zufall: '🎲', blackjack: '🃏', poker: '♠️', quiz: '❓', minesweeper: '💣', kreuzwortraetsel: '📰',
     nutzer: '👥', nachrichten: '💌', paint: '🎨', galerie: '🖼️' };
   var mobile = window.matchMedia('(max-width: 760px)');
   var wins = [], zTop = 10, active = null, reloading = false;
@@ -252,7 +252,7 @@
   }
 
   // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Musik-Player brauchen etwas mehr Platz
-  var SIZES = { haustier: [820, 700], musik: [900, 640], zufall: [760, 620], blackjack: [1000, 680], quiz: [1040, 700], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640] };
+  var SIZES = { haustier: [820, 700], musik: [900, 640], zufall: [760, 620], blackjack: [1000, 680], poker: [1060, 720], quiz: [1040, 700], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640] };
   function place(el, s, url) {
     var n = wins.length % 8, size = SIZES[section(url)] || [820, 580];
     var w = s && s.w || Math.min(size[0], deskEl.clientWidth - 40), h = s && s.h || Math.min(size[1], deskEl.clientHeight - 40);

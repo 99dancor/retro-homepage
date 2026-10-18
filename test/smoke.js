@@ -956,8 +956,9 @@ async function main() {
       assert.match(rebuy.json.error, /weniger als 200 €/);
       assert.equal((await api(bernd, `/blackjack/tisch/${id}`, { action: 'kick', user: st.seats[0].id })).status, 400, 'nur der Gastgeber');
 
-      // Eine Runde: setzen, beim eigenen Zug halten, Ergebnis abwarten
+      // Eine Runde: setzen, bestätigen, beim eigenen Zug halten, Ergebnis abwarten
       assert.equal((await api(anna, `/blackjack/tisch/${id}`, { action: 'bet', amount: 100 })).status, 200);
+      assert.equal((await api(anna, `/blackjack/tisch/${id}`, { action: 'confirm' })).status, 200);
       for (;;) {
         st = await nextState();
         if (st.phase === 'playing') assert.ok(st.dealer[1] === null, 'Lochkarte verdeckt');
@@ -983,6 +984,66 @@ async function main() {
       assert.equal((await api(anna, `/blackjack/tisch/${id}`, { action: 'sit' })).status, 404);
       const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'));
       assert.ok(sql.prepare("SELECT s.ended_at FROM bj_sessions s JOIN users u ON u.id = s.user_id WHERE u.username = 'anna'").get().ended_at);
+    });
+
+    await step('Poker: Tisch, eigene Karten, eine Hand, Bilanz im Profil', async () => {
+      const { anna, bernd } = members;
+      const home = (await guest.req('/', { top: true })).text_;
+      assert.match(home, /<div class="startmenu"[\s\S]*href="\/poker">♠️ Poker/);
+      const page = (await guest.req('/poker')).text_;
+      assert.match(page, /Anmelden/);
+      assert.doesNotMatch(page, /poker\.js/, 'Gäste bekommen kein Spiel');
+      assert.match((await anna.req('/poker')).text_, /usermenu\.js[\s\S]*poker\.js/);
+      assert.equal((await api(guest, '/poker/tische', undefined, 'GET')).status, 401);
+      assert.equal((await api(anna, '/api/stats/poker', { add: { Bilanz: 1e6 } }, 'PATCH')).status, 404);
+
+      const made = await api(anna, '/poker/tische', { name: 'Pokerabend', sb: 5, seats: 4 });
+      assert.equal(made.status, 200);
+      const id = made.json.id;
+      const list = await api(bernd, '/poker/tische', undefined, 'GET');
+      assert.deepEqual(list.json.tables.map(t => [t.name, t.seats, t.bb]), [['Pokerabend', 4, 10]]);
+
+      const ctrl = new AbortController();
+      const res = await fetch(`${BASE}/poker/tisch/${id}/events`, { headers: { cookie: [...anna.jar].map(([k, v]) => `${k}=${v}`).join('; '), 'user-agent': UA }, signal: ctrl.signal });
+      assert.match(res.headers.get('content-type'), /text\/event-stream/);
+      const reader = res.body.getReader();
+      let buf = '';
+      const nextState = async () => {
+        for (;;) {
+          const i = buf.indexOf('\n\n');
+          if (i >= 0) { const ev = buf.slice(0, i); buf = buf.slice(i + 2); const m = ev.match(/^event: state\ndata: (.*)$/m); if (m) return JSON.parse(m[1]); continue; }
+          const { value, done } = await reader.read();
+          if (done) throw new Error('Verbindung zu');
+          buf += Buffer.from(value).toString();
+        }
+      };
+      let st = await nextState();
+      assert.equal(st.seatCount, 4);
+      assert.equal((await api(anna, `/poker/tisch/${id}`, { action: 'sit' })).status, 200);
+      assert.equal((await api(bernd, `/poker/tisch/${id}`, { action: 'sit' })).status, 200);
+      while (st.phase !== 'playing') st = await nextState();
+      const mine = st.seats.find(x => x && x.user === 'anna'), his = st.seats.find(x => x && x.user === 'bernd');
+      assert.ok(mine.cards[0] && mine.cards[0].r, 'eigene Karten sichtbar');
+      assert.deepEqual(his.cards, [null, null], 'fremde Karten nicht');
+      assert.equal(st.pot, 15);
+      // Wer dran ist, steigt aus
+      const who = st.seats[st.turn.seat].user === 'anna' ? anna : bernd;
+      assert.equal((await api(who === anna ? bernd : anna, `/poker/tisch/${id}`, { action: 'fold' })).status, 400, 'nicht dran');
+      assert.equal((await api(who, `/poker/tisch/${id}`, { action: 'fold' })).status, 200);
+      while (st.phase !== 'showdown') st = await nextState();
+      const balance = st.seats.find(x => x && x.user === 'anna').balance;
+      assert.equal(Math.abs(balance), 5, 'Small Blind verloren oder gewonnen');
+      ctrl.abort();
+
+      const stats = await api(anna, '/poker/statistik', undefined, 'GET');
+      assert.equal(stats.json.me.hands, 1);
+      assert.equal(stats.json.me.balance, balance);
+      assert.equal(stats.json.sessions[0].table, 'Pokerabend');
+      const prof = (await bernd.req('/nutzer/anna')).text_;
+      assert.match(prof, /href="\/poker"><b>Poker<\/b>[\s\S]*Bilanz<\/td><td class="num[^"]*">[−+±][\d.]+ €/);
+
+      assert.equal((await api(anna, `/poker/tisch/${id}`, { action: 'close' })).status, 200);
+      assert.equal((await api(anna, `/poker/tisch/${id}`, { action: 'sit' })).status, 404);
     });
 
     await step('Minesweeper: Fenster, Start und Ende auf dem Server, Bestzeiten und Profil', async () => {

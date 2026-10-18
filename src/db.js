@@ -339,6 +339,23 @@ CREATE TABLE IF NOT EXISTS bj_sessions (
   updated_at INTEGER NOT NULL,
   ended_at INTEGER
 );
+-- Poker (Texas Hold'em): eine Zeile pro Sitzung an einem Tisch, Bilanz wie bei Blackjack = Chips − eingekauft.
+CREATE TABLE IF NOT EXISTS pk_sessions (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  table_name TEXT NOT NULL,
+  chips INTEGER NOT NULL,                   -- Chips beim letzten Speichern (nach jeder Hand) bzw. beim Aufstehen
+  bought INTEGER NOT NULL,                  -- insgesamt eingekauft
+  buyins INTEGER NOT NULL DEFAULT 1,
+  hands INTEGER NOT NULL DEFAULT 0,         -- ausgeteilte Hände
+  wins INTEGER NOT NULL DEFAULT 0,          -- Hände mit Gewinn
+  showdowns INTEGER NOT NULL DEFAULT 0,
+  best_win INTEGER NOT NULL DEFAULT 0,      -- höchster Gewinn in einer Hand
+  best_hand INTEGER NOT NULL DEFAULT -1,    -- bestes Blatt im Showdown (0 Höchste Karte … 9 Royal Flush)
+  started_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  ended_at INTEGER
+);
 -- Paint: gespeicherte Bilder. Bild und Vorschau liegen als PNG in data/paint (<stored_name>.png, <stored_name>-v.png).
 CREATE TABLE IF NOT EXISTS artworks (
   id INTEGER PRIMARY KEY,
@@ -434,6 +451,7 @@ CREATE INDEX IF NOT EXISTS awp_user ON artwork_painters(user_id);
 CREATE INDEX IF NOT EXISTS aw_owner ON artworks(owner_id, updated_at);
 CREATE INDEX IF NOT EXISTS aw_list ON artworks(visibility, approved, updated_at);
 CREATE INDEX IF NOT EXISTS bj_user ON bj_sessions(user_id, started_at);
+CREATE INDEX IF NOT EXISTS pk_user ON pk_sessions(user_id, started_at);
 CREATE INDEX IF NOT EXISTS pg_profile ON profile_guestbook(profile_id, created_at);
 CREATE INDEX IF NOT EXISTS fr_friend ON friends(friend_id);
 CREATE INDEX IF NOT EXISTS pm_to ON private_messages(to_id, read_at);
@@ -514,6 +532,10 @@ const DEFAULT_SETTINGS = {
   bj_decks: '6',
   bj_h17: '0',                  // Dealer zieht auf Soft 17
   bj_turn: '30',                // Bedenkzeit pro Zug in Sekunden
+  pk_enabled: '1',              // Poker (Texas Hold'em, Spielgeld) für Mitglieder
+  pk_buyin: '1000',             // Start und jeder Nachkauf
+  pk_rebuy_below: '200',        // Nachkaufen erst unter diesem Chipstand
+  pk_turn: '30',                // Bedenkzeit pro Zug in Sekunden
   paint_enabled: '1',           // Paint im Startmenü
   paint_guests: '1',            // Gäste dürfen malen und herunterladen (Speichern nur mit Konto)
   paint_save: 'members',        // Bilder speichern: members | upload (nur mit Upload-Recht) | admin

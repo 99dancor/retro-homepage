@@ -1106,6 +1106,66 @@ async function main() {
       assert.equal((await api(anna, `/durak/tisch/${id}`, { action: 'sit' })).status, 404);
     });
 
+    await step('UNO, Flip 7, Pilli Pilli: Kartenspiele-Untermenü, Tisch, eigene Karten, Aufstehen, Profil', async () => {
+      const { anna, bernd } = members;
+      const home = (await guest.req('/', { top: true })).text_;
+      // Kartenspiele ist ein Untermenü in Spiele und Apps
+      assert.match(home, /🎮 Spiele und Apps<\/button><div class="submenu">\s*<div class="sub"><button[^>]*>🂡 Kartenspiele<\/button><div class="submenu">[\s\S]*href="\/blackjack"[\s\S]*href="\/durak"[\s\S]*href="\/uno">🟥 UNO[\s\S]*href="\/flip7">7️⃣ Flip 7[\s\S]*href="\/pilli">🌶️ Pilli Pilli<\/a>\s*<\/div><\/div>[\s\S]*href="\/quiz"/);
+      for (const [game, title, hand] of [['uno', 'UNO', 7], ['flip7', 'Flip 7', null], ['pilli', 'Pilli Pilli', 5]]) {
+        const page = (await guest.req('/' + game)).text_;
+        assert.match(page, /Anmelden/);
+        assert.doesNotMatch(page, /cardtable\.js/, 'Gäste bekommen kein Spiel');
+        assert.match((await anna.req('/' + game)).text_, new RegExp(`usermenu\\.js[\\s\\S]*cardtable\\.js[\\s\\S]*${game}\\.js`));
+        assert.equal((await api(guest, `/${game}/tische`, undefined, 'GET')).status, 401);
+        assert.equal((await api(anna, `/api/stats/${game}`, { add: { Gespielt: 99 } }, 'PATCH')).status, 404);
+
+        const made = await api(anna, `/${game}/tische`, { name: title + 'runde', seats: 3, target: 100 });
+        assert.equal(made.status, 200);
+        const id = made.json.id;
+        const list = await api(bernd, `/${game}/tische`, undefined, 'GET');
+        assert.deepEqual(list.json.tables.map(t => [t.name, t.seats]), [[title + 'runde', 3]]);
+
+        const ctrl = new AbortController();
+        const res = await fetch(`${BASE}/${game}/tisch/${id}/events`, { headers: { cookie: [...anna.jar].map(([k, v]) => `${k}=${v}`).join('; '), 'user-agent': UA }, signal: ctrl.signal });
+        assert.match(res.headers.get('content-type'), /text\/event-stream/);
+        const reader = res.body.getReader();
+        let buf = '';
+        const nextState = async () => {
+          for (;;) {
+            const i = buf.indexOf('\n\n');
+            if (i >= 0) { const ev = buf.slice(0, i); buf = buf.slice(i + 2); const m = ev.match(/^event: state\ndata: (.*)$/m); if (m) return JSON.parse(m[1]); continue; }
+            const { value, done } = await reader.read();
+            if (done) throw new Error('Verbindung zu');
+            buf += Buffer.from(value).toString();
+          }
+        };
+        let st = await nextState();
+        assert.equal(st.seatCount, 3);
+        for (const m of [anna, bernd]) assert.equal((await api(m, `/${game}/tisch/${id}`, { action: 'sit' })).status, 200);
+        for (const m of [anna, bernd]) assert.equal((await api(m, `/${game}/tisch/${id}`, { action: 'ready' })).status, 200);
+        while (st.phase !== 'playing') st = await nextState();
+        if (hand) {
+          assert.equal(st.hand.length, hand, 'eigene Karten');
+          assert.ok(!JSON.stringify(st.seats).includes('"hand"'), 'fremde Karten nicht');
+        } else assert.ok(st.f7 && st.f7.deck < 94, 'Flip 7: es wird offen gegeben');
+        assert.equal((await api(anna, `/${game}/tisch/${id}`, { action: 'quatsch' })).status, 400);
+        assert.equal((await api(anna, `/${game}/tisch/${id}`, { action: 'leave' })).status, 200);
+        while (st.phase !== 'result') st = await nextState();
+        assert.deepEqual(st.result.order.filter(o => o.won).map(o => o.user), ['bernd'], 'wer sitzen bleibt, gewinnt');
+        assert.ok(st.result.order.find(o => o.user === 'anna').quit);
+        ctrl.abort();
+
+        const stats = await api(bernd, `/${game}/statistik`, undefined, 'GET');
+        assert.deepEqual([stats.json.me.games, stats.json.me.wins], [1, 1]);
+        assert.equal(stats.json.games[0].table, title + 'runde');
+        const prof = (await anna.req('/nutzer/bernd')).text_;
+        assert.match(prof, new RegExp(`href="/${game}"><b>${title}</b>[\\s\\S]*Gewonnen</td><td class="num[^"]*">1 \\(100 %\\)`));
+
+        assert.equal((await api(anna, `/${game}/tisch/${id}`, { action: 'close' })).status, 200);
+        assert.equal((await api(anna, `/${game}/tisch/${id}`, { action: 'sit' })).status, 404);
+      }
+    });
+
     await step('Minesweeper: Fenster, Start und Ende auf dem Server, Bestzeiten und Profil', async () => {
       const { anna, bernd } = members;
       const home = (await guest.req('/', { top: true })).text_;
@@ -1329,7 +1389,8 @@ async function main() {
     await step('Paint: malen ohne Konto, speichern mit Konto, Sichtbarkeit und Galerie', async () => {
       const { png } = require('./png');
       const desk = (await guest.req('/', { top: true })).text_;
-      assert.match(desk, /<div class="startmenu"[\s\S]*href="\/paint"[\s\S]*href="\/galerie"/);
+      // Galerie steht unter Dokumente, Paint unter Spiele und Apps
+      assert.match(desk, /<div class="startmenu"[\s\S]*📂 Dokumente<\/button><div class="submenu">[\s\S]*href="\/galerie"[\s\S]*🎮 Spiele und Apps[\s\S]*href="\/paint"/);
       const page = await guest.req('/paint');
       assert.equal(page.status, 200);
       assert.match(page.text_, /id="paint"/);

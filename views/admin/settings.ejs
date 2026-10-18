@@ -66,6 +66,14 @@
     </div>
     <small>Zum Zuwerfen gibt es die halbe Zeit. Wer nichts Passendes mehr hat, muss nicht auf „Fertig“ klicken.</small>
   </fieldset>
+  <% for (const [id, icon, title, prefix, what] of [['uno', '🟥', 'UNO', 'uno', 'UNO nach den offiziellen Regeln'], ['flip7', '7️⃣', 'Flip 7', 'f7', 'Flip 7'], ['pilli', '🌶️', 'Pilli Pilli', 'pp', 'Pilli Pilli (Stichspiel)']]) { %>
+  <fieldset class="groupbox" id="<%= id %>"><legend><%= icon %> <%= title %></legend>
+    <label class="inline"><input type="checkbox" name="<%= prefix %>_enabled" value="1" <%= s[prefix + '_enabled'] === '1' ? 'checked' : '' %>> <%= what %> für angemeldete Mitglieder</label>
+    <div class="row">
+      <label>Bedenkzeit pro Zug (Sekunden, 5–300):<input type="number" name="<%= prefix %>_turn" value="<%= s[prefix + '_turn'] %>" min="5" max="300"></label>
+    </div>
+  </fieldset>
+  <% } %>
   <fieldset class="groupbox" id="kreuzwortraetsel"><legend>📰 Kreuzworträtsel</legend>
     <label>Eigene Wörter (eine Zeile pro Wort: <code>Wort=Hinweis</code>):
       <textarea name="cw_words" rows="6" class="w100" placeholder="Unraid=Server-Betriebssystem mit Docker&#10;Pinball=Flipper auf Englisch"><%= s.cw_words %></textarea></label>
@@ -102,6 +110,11 @@
 <form method="post" action="/admin/settings/durak-reset" class="actions" data-confirm="Die Durak-Bestenliste und die Durak-Zahlen aller Mitglieder löschen?">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🎴 Durak-Bestenliste zurücksetzen</button> <small>(löscht alle gespeicherten Ergebnisse, auch die Zahlen in den Profilen)</small>
 </form>
+<% for (const [id, icon, title] of [['uno', '🟥', 'UNO'], ['flip7', '7️⃣', 'Flip 7'], ['pilli', '🌶️', 'Pilli Pilli']]) { %>
+<form method="post" action="/admin/settings/kartenspiel-reset/<%= id %>" class="actions" data-confirm="Die <%= title %>-Bestenliste und die <%= title %>-Zahlen aller Mitglieder löschen?">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger"><%= icon %> <%= title %>-Bestenliste zurücksetzen</button> <small>(löscht alle gespeicherten Ergebnisse, auch die Zahlen in den Profilen)</small>
+</form>
+<% } %>
 <form method="post" action="/admin/settings/minesweeper-reset" class="actions" data-confirm="Alle Minesweeper-Bestzeiten und Statistiken aller Mitglieder löschen?">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">💣 Minesweeper-Bestzeiten zurücksetzen</button> <small>(löscht alle gespeicherten Spiele, auch die Zahlen in den Profilen)</small>
 </form>

@@ -729,6 +729,75 @@ button.bj-chip:active { transform: translateY(1px); box-shadow: 0 0 0 1px #000; 
   .dk-pairs { order: 3; flex-basis: 100%; }
 }
 
+/* UNO, Flip 7, Pilli Pilli (views/cardgame.ejs, public/cardtable.js): Tisch und Plätze wie Durak, dazu eigene Karten */
+.cg-seat { width: 15%; }
+.cg-seat .pk-hole { min-height: calc(var(--c) * .8); display: flex; justify-content: center; }
+.cg-seat.folded .f7-row { opacity: .55; }
+.cg-center { gap: 6px; }
+.cg-bar .bj-row button { min-width: 0; }
+.dk-hand .bj-card.mini, .bj-card.mini { --c: 22px; animation: none; }
+/* UNO: farbige Karten mit weißem Oval */
+.un-card { color: #fff; border: 2px solid #fff; outline: 1px solid #222; background: #222; overflow: hidden; font-family: var(--font); }
+.un-card.un-r, .un-pick.un-r, .un-dot.un-r { background: #d72600; } .un-card.un-y, .un-pick.un-y, .un-dot.un-y { background: #ecd407; }
+.un-card.un-g, .un-pick.un-g, .un-dot.un-g { background: #379711; } .un-card.un-b, .un-pick.un-b, .un-dot.un-b { background: #0956bf; }
+.un-card.un-y { color: #222; }
+.un-oval { position: absolute; left: 14%; right: 14%; top: 18%; bottom: 18%; border-radius: 50%; background: #fff; transform: rotate(-28deg); display: flex; align-items: center; justify-content: center; }
+.un-oval span { transform: rotate(28deg); font: bold calc(var(--c) * .42) var(--font); color: #222; }
+.un-r .un-oval span { color: #d72600; } .un-g .un-oval span { color: #379711; } .un-b .un-oval span { color: #0956bf; } .un-y .un-oval span { color: #b8a000; }
+.un-w .un-oval { background: conic-gradient(#d72600 0 25%, #0956bf 0 50%, #ecd407 0 75%, #379711 0); }
+.un-w .un-oval span { color: #fff; text-shadow: 1px 1px #000; }
+.un-corner { position: absolute; left: 6%; top: 2%; font: bold calc(var(--c) * .22) var(--font); text-shadow: 1px 1px rgba(0,0,0,.4); }
+.un-corner.br { left: auto; top: auto; right: 6%; bottom: 2%; transform: rotate(180deg); }
+.un-card.mini { --c: 22px; margin-right: 1px; border-width: 1px; }
+.un-card.mini .un-corner { display: none; }
+.un-mini { display: inline-flex; flex-wrap: wrap; gap: 1px; vertical-align: middle; }
+.un-mid { display: flex; align-items: center; justify-content: center; gap: calc(var(--c) * .6); }
+.un-stack, .un-pile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.un-stack .bj-card, .un-pile .bj-card { margin: 0; }
+.un-stack small, .un-pile small { white-space: nowrap; text-shadow: 1px 1px #000; }
+.un-stack.ok { cursor: pointer; }
+.un-stack.ok .bj-card { box-shadow: 0 0 0 3px #ff0, 2px 2px 0 rgba(0,0,0,.35); }
+.un-dir { font-size: calc(var(--c) * .8); opacity: .8; text-shadow: 1px 1px #000; }
+.un-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid #fff; vertical-align: middle; }
+.un-pick { color: #fff; text-shadow: 1px 1px #000; font-weight: bold; }
+.un-pick.un-y { color: #222; text-shadow: none; }
+.un-catch { background: #ffd700; font-weight: bold; animation: un-blink 1s steps(2) infinite; }
+.un-uno { font-weight: bold; }
+@keyframes un-blink { 50% { background: #ff8c00; } }
+@media (prefers-reduced-motion: reduce) { .un-catch { animation: none; } }
+.un-hand .bj-card.picked { transform: translateY(-14px); box-shadow: 0 0 0 3px #ff0, 2px 2px 0 rgba(0,0,0,.35); z-index: 2; }
+/* Flip 7: Zahlen in Farbe, Bonus orange, Aktionen bunt; alle Karten liegen offen */
+.f7-card { background: #fffbe8; font-family: var(--font); display: inline-flex; flex-direction: column; align-items: center; justify-content: center; }
+.f7-big { font: bold calc(var(--c) * .5) Georgia, serif; line-height: 1; }
+.f7-lbl { font: bold calc(var(--c) * .14) var(--font); text-align: center; line-height: 1.1; margin-top: 2px; }
+.f7-v0, .f7-v7 { color: #444; } .f7-v1, .f7-v8 { color: #b0006a; } .f7-v2, .f7-v9 { color: #b35a00; } .f7-v3, .f7-v10 { color: #1a7f2a; }
+.f7-v4, .f7-v11 { color: #0b5cad; } .f7-v5, .f7-v12 { color: #6a1b9a; } .f7-v6 { color: #c00000; }
+.f7-m { background: #ffb347; color: #5a2a00; }
+.f7-a { background: #2a2a6a; color: #fff; }
+.f7-freeze { background: #4fc3f7; color: #003049; } .f7-flip3 { background: #ffd54f; color: #4a3000; } .f7-second { background: #e53935; }
+.f7-card.f7-dup { box-shadow: 0 0 0 3px #ff2020; transform: rotate(8deg); }
+.f7-card.mini { margin-right: 1px; border-width: 1px; }
+.f7-card.mini .f7-lbl { display: none; }
+.f7-row { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 1px; max-width: 100%; }
+.f7-hand .bj-card { margin-right: calc(var(--c) * .06); cursor: default; }
+.f7-frozen { background: #4fc3f7; color: #003049; }
+.f7-sum td { padding: 0 6px; } .f7-sum th { font-weight: normal; opacity: .8; padding: 0 6px; }
+/* Pilli Pilli: rote Chili-Karten, die Zahl groß in der Mitte */
+.pp-card { background: linear-gradient(160deg, #fff6e0, #ffd9b0); color: #b31200; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--font); }
+.pp-num { font: bold calc(var(--c) * .48) Georgia, serif; line-height: 1; }
+.pp-lbl { font-size: calc(var(--c) * .2); margin-top: 2px; }
+.pp-joker { background: linear-gradient(160deg, #3b1a5a, #7b2ab0); color: #ffd700; }
+.pp-trick { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--c) * .25); min-height: calc(var(--c) * 1.8); align-items: center; }
+.pp-play { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.pp-play .bj-card { margin: 0; }
+.pp-play small { text-shadow: 1px 1px #000; white-space: nowrap; max-width: calc(var(--c) * 1.6); overflow: hidden; text-overflow: ellipsis; }
+.pp-play.win .bj-card { box-shadow: 0 0 0 3px #ffd700, 0 0 12px #ffd700; }
+.pp-last { font-size: .85em; opacity: .85; text-shadow: 1px 1px #000; }
+.pp-hand .bj-card { margin-right: calc(var(--c) * .06); }
+@media (max-width: 760px) {
+  .cg-seat { width: 22%; }
+}
+
 /* Paint (views/paint.ejs, public/paint.js) */
 .pt { margin: -10px; height: 100vh; min-height: 360px; display: flex; flex-direction: column; position: relative; user-select: none; -webkit-user-select: none; }
 .pt-menu { display: flex; align-items: center; padding: 1px 2px; border-bottom: 1px solid var(--lo); box-shadow: 0 1px var(--hi); flex-wrap: wrap; }

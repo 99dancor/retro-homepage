@@ -1,5 +1,15 @@
 # Changelog
 
+## 18.10.2026 – UNO, Flip 7, Pilli Pilli und ein Kartenspiele-Menü
+
+- **Kartenspiele:** Im Startmenü gibt es unter Spiele und Apps jetzt das Untermenü 🂡 **Kartenspiele** mit Blackjack, Poker, Durak und den drei neuen Spielen. Die **Galerie** steht jetzt unter Dokumente.
+- **UNO:** Nach den offiziellen Regeln mit 108 Karten für 2 bis 8 Mitglieder. Farbe oder Zahl bedienen, Aussetzen, Richtungswechsel, Zieh zwei, Farbwahl und Zieh vier mit Anzweifeln. Vor der letzten Karte „UNO!“ klicken, sonst kann dich jemand erwischen und du ziehst zwei. Gespielt wird bis 500 Punkte, am Tisch auch kürzer oder nur eine Runde.
+- **Flip 7:** Reihum „Karte!“ oder „Genug“, keine Zahl doppelt ziehen, mit Bonuskarten, Einfrieren, Drei ziehen und Zweite Chance. Sieben verschiedene Zahlen sind Flip 7 und bringen 15 Punkte extra. Gespielt wird bis 200 Punkte. Alle Karten liegen offen.
+- **Pilli Pilli:** Das Stichspiel Pili Pili in der Grundversion: fünf Karten von 1 bis 55 plus Joker, jeder sagt seine Stiche an, die höchste Karte gewinnt. Jeder Stich daneben bringt einen Pili, bei 7 Pilis ist Schluss und wer die wenigsten hat, gewinnt.
+- **Tische wie bei Durak:** Tisch aufmachen, per Link einladen, zusehen, „Bereit“ zum Start. Wer mitten im Spiel aufsteht, scheidet aus und landet auf dem letzten Platz, die anderen spielen weiter.
+- **Statistik:** Für jedes Spiel eine Bestenliste und deine letzten Spiele, im Profil neue Karten „UNO“, „Flip 7“ und „Pilli Pilli“.
+- **Für den Admin:** Unter Einstellungen schaltest du jedes Spiel an oder aus und stellst die Bedenkzeit ein. Bestenlisten und Zahlen einzelner Nutzer lassen sich löschen. Was gespeichert wird, steht auf der Datenschutzseite.
+
 ## 18.10.2026 – Durak
 
 - **Durak:** Neu im Startmenü unter Spiele und Apps → 🎴 Durak. Das russische Kartenspiel mit 36 Karten und Zuwerfen für 2 bis 6 Mitglieder. Mach einen Tisch auf und lade andere per Link ein, oder setz dich an einen offenen. Andere können zusehen. Gegeben wird, sobald alle am Tisch auf „Bereit“ klicken.

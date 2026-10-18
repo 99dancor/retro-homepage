@@ -14,6 +14,7 @@ function petLevel(xp) {
   return l;
 }
 
+const pct = (n, of) => `${n.toLocaleString('de-DE')} (${Math.round(n / of * 100)} %)`;
 const euro = n => (n < 0 ? '−' : n > 0 ? '+' : '±') + Math.abs(n).toLocaleString('de-DE') + ' €';
 
 module.exports = {
@@ -67,6 +68,56 @@ module.exports = {
           { key: 'Als Erster raus', value: t.wins, text: pct(t.wins) },
           { key: 'Durak geworden', value: t.duraks, text: pct(t.duraks) },
           { key: 'Nicht Durak', value: t.games - t.duraks, text: pct(t.games - t.duraks) },
+        ],
+        last: t.last,
+      };
+    },
+  },
+  uno: {
+    title: 'UNO',
+    url: '/uno',
+    userStats(userId) {
+      const t = require('./uno').userTotals(userId);
+      if (!t.games) return null;
+      return {
+        stats: [
+          { key: 'Gespielt', value: t.games },
+          { key: 'Gewonnen', value: t.wins, text: pct(t.wins, t.games) },
+          { key: 'Runden gewonnen', value: t.bonus, text: `${t.bonus.toLocaleString('de-DE')} von ${t.rounds.toLocaleString('de-DE')}` },
+          { key: 'Beste Runde', value: t.best, text: `${t.best.toLocaleString('de-DE')} Punkte` },
+        ],
+        last: t.last,
+      };
+    },
+  },
+  flip7: {
+    title: 'Flip 7',
+    url: '/flip7',
+    userStats(userId) {
+      const t = require('./flip7').userTotals(userId);
+      if (!t.games) return null;
+      return {
+        stats: [
+          { key: 'Gespielt', value: t.games },
+          { key: 'Gewonnen', value: t.wins, text: pct(t.wins, t.games) },
+          { key: 'Flip 7 geschafft', value: t.bonus, text: `${t.bonus.toLocaleString('de-DE')}×` },
+          { key: 'Beste Runde', value: t.best, text: `${t.best.toLocaleString('de-DE')} Punkte` },
+        ],
+        last: t.last,
+      };
+    },
+  },
+  pilli: {
+    title: 'Pilli Pilli',
+    url: '/pilli',
+    userStats(userId) {
+      const t = require('./pilli').userTotals(userId);
+      if (!t.games) return null;
+      return {
+        stats: [
+          { key: 'Gespielt', value: t.games },
+          { key: 'Gewonnen', value: t.wins, text: pct(t.wins, t.games) },
+          { key: 'Genau getroffen', value: t.bonus, text: `${t.bonus.toLocaleString('de-DE')} von ${t.rounds.toLocaleString('de-DE')} Runden` },
         ],
         last: t.last,
       };

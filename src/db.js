@@ -513,6 +513,30 @@ CREATE TABLE IF NOT EXISTS cw_progress (
   PRIMARY KEY (user_id, day)
 );
 CREATE INDEX IF NOT EXISTS cw_day ON cw_progress(day, solved_at);
+-- Sudoku: drei Sudokus pro Tag (Leicht, Mittel, Schwer; für alle gleich) und der Stand jedes Mitglieds daran
+CREATE TABLE IF NOT EXISTS sd_puzzles (
+  day TEXT NOT NULL,
+  level TEXT NOT NULL,
+  givens TEXT NOT NULL,
+  solution TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (day, level)
+);
+CREATE TABLE IF NOT EXISTS sd_progress (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  day TEXT NOT NULL,
+  level TEXT NOT NULL,
+  digits TEXT NOT NULL DEFAULT '',
+  seconds INTEGER NOT NULL DEFAULT 0,
+  checks INTEGER NOT NULL DEFAULT 0,
+  reveals INTEGER NOT NULL DEFAULT 0,
+  gave_up INTEGER NOT NULL DEFAULT 0,
+  started_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  solved_at INTEGER,
+  PRIMARY KEY (user_id, day, level)
+);
+CREATE INDEX IF NOT EXISTS sd_day ON sd_progress(day, level, solved_at);
 -- Werwolf: eine Zeile pro Mitglied und beendetem Spiel (Gäste werden nicht gespeichert)
 CREATE TABLE IF NOT EXISTS ww_results (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

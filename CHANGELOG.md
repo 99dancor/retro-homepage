@@ -1,5 +1,11 @@
 # Changelog
 
+## 18.10.2026 – Tägliches Sudoku
+
+- **Neues Spiel:** Unter Spiele und Apps steht 🔢 **Sudoku**. Jeden Tag um Mitternacht gibt es drei neue Sudokus, Leicht, Mittel und Schwer, für alle dieselben. Jedes hat genau eine Lösung, die sich ohne Raten finden lässt.
+- **Spielen:** Mit Maus und Tastatur oder dem Ziffernfeld (am Handy unter dem Gitter). Notizen, Rückgängig und rot markierte doppelte Ziffern helfen, ohne als Hilfe zu zählen. Prüfen, Tipp und Aufdecken fragen den Server und zählen als Hilfe.
+- **Statistik:** Mit Konto wird dein Stand gespeichert. Gelöste Sudokus, Serie (Tage mit mindestens einem gelösten Sudoku) und Bestzeiten je Stufe stehen im Profil, jede Stufe hat ihre eigene Bestenliste. Im Archiv lassen sich die letzten 30 Tage nachspielen. Ohne Konto bleibt alles im Browser.
+
 ## 18.10.2026 – Werwolf
 
 - **Neues Spiel:** Unter Spiele und Apps steht 🐺 **Werwolf**. Die Seite ist der Erzähler: sie verteilt die Rollen, sammelt nachts ein, was jeder tut, und zählt die Stimmen.

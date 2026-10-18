@@ -1,0 +1,30 @@
+<%- include('partials/head') %>
+<%# Tägliches Sudoku: Gitter und Bedienung in public/sudoku.js, Sudokus, Lösung und Statistik in src/sudoku.js.
+    Menüs und Dialoge benutzen dieselben Klassen wie Minesweeper. %>
+<div class="sd" id="sd" data-csrf="<%= csrf %>" data-user="<%= user ? user.id : '' %>" data-site="<%= site.title %>">
+  <script type="application/json" id="sd-data"><%- JSON.stringify(data).replace(/</g, '\\u003c') %></script>
+  <div class="ms-menu sd-menu" role="menubar">
+    <button type="button" class="ms-mtop" data-menu="spiel" aria-haspopup="true"><u>S</u>piel</button><button type="button" class="ms-mtop" data-menu="pruefen" aria-haspopup="true"><u>P</u>rüfen</button><button type="button" class="ms-mtop" data-menu="aufdecken" aria-haspopup="true"><u>A</u>ufdecken</button><button type="button" class="ms-mtop" data-menu="hilfe" aria-haspopup="true">?</button>
+  </div>
+  <div class="sd-head">
+    <div class="sd-tabs" id="sd-tabs" role="tablist" aria-label="Stufe"></div>
+    <span class="sd-date" id="sd-date"></span>
+    <span class="sd-time" id="sd-time" title="Zeit (hält an, wenn das Fenster nicht zu sehen ist)">⏱ 0:00</span>
+  </div>
+  <div class="sd-status" id="sd-status" aria-live="polite"></div>
+  <div class="sd-main">
+    <div class="sd-board sunken" id="sd-board">
+      <div class="sd-grid" id="sd-grid" role="grid" aria-label="Sudoku"></div>
+    </div>
+    <div class="sd-side">
+      <div class="sd-pad" id="sd-pad"></div>
+      <div class="sd-tools">
+        <button type="button" id="sd-notes" aria-pressed="false" title="Notizen (N)">✏️ Notizen</button>
+        <button type="button" id="sd-erase" title="Löschen (Entf)">⌫ Löschen</button>
+        <button type="button" id="sd-undo" title="Rückgängig (Strg+Z)">↶ Zurück</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="<%= asset('sudoku.js') %>"></script>
+<%- include('partials/foot') %>

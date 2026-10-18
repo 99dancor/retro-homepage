@@ -1,0 +1,18 @@
+<%- include('partials/head') %>
+<%# Werwolf: Start, Warteraum und Spiel laufen in public/werwolf.js; Rollen, Nacht und Abstimmung auf dem Server (src/werwolf.js) %>
+<div class="qz ww" id="ww" data-csrf="<%= csrf %>" data-code="<%= code %>" data-member="<%= user ? '1' : '' %>" data-name="<%= user ? user.name : '' %>"
+     data-emojis="<%= emojis.join(' ') %>" data-colors="<%= colors.join(' ') %>" data-roles="<%= JSON.stringify(roles) %>">
+  <nav class="menubar qz-nav" id="ww-nav"></nav>
+  <div class="qz-main" id="ww-main"><p class="qz-empty">Lädt …</p></div>
+  <div class="statusbar"><span id="ww-status">Bereit.</span></div>
+</div>
+<dialog class="window mp-dlg" id="ww-dlg">
+  <div class="titlebar"><span class="ttl" id="ww-dlg-title"></span></div>
+  <form method="dialog" class="body">
+    <div id="ww-dlg-body"></div>
+    <div class="actions" id="ww-dlg-actions"></div>
+  </form>
+</dialog>
+<script src="<%= asset('usermenu.js') %>"></script>
+<script src="<%= asset('werwolf.js') %>"></script>
+<%- include('partials/foot') %>

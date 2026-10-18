@@ -2,7 +2,7 @@
 
 Selbst gehostete Homepage im Look von Windows 98 / 2000 – mit Blog, Downloads (z. B. Spielstände),
 Modlisten, Linksammlung, Forum, Besucherbuch, Kontaktformular, eigenen Seiten, Musik-Player mit
-Lobbys zum gemeinsamen Hören, Blackjack und Poker mit Spielgeld, Durak, UNO, Flip 7, Pilli Pilli, Paint mit Galerie, Quiz für Spieleabende, einem Bereich für Browser-Spiele/Apps und einem Admin-Bereich mit Besucherstatistik, Nutzer- und Rechteverwaltung
+Lobbys zum gemeinsamen Hören, Blackjack und Poker mit Spielgeld, Durak, UNO, Flip 7, Pilli Pilli, Paint mit Galerie, Quiz für Spieleabende, Werwolf (lokal am Tisch oder online), einem Bereich für Browser-Spiele/Apps und einem Admin-Bereich mit Besucherstatistik, Nutzer- und Rechteverwaltung
 und Design-Editor.
 
 Technik: Node.js 22 + Express, SQLite (eingebaut, keine extra Datenbank), serverseitig gerenderte
@@ -146,6 +146,7 @@ strenger möchte, setzt `TRUST_PROXY` auf die IP des Pi.
 | **UNO, Flip 7, Pilli Pilli** | Im Fenster Kartenspiele für angemeldete Mitglieder, Tische mit 2 bis 8 Plätzen, Zuschauer und „Bereit“ zum Start wie bei Durak. Gemeinsamer Unterbau in `src/cardtable.js` (Tische, SSE, Ergebnisse) und `public/cardtable.js` (Tisch, Statistik), die Regeln in `src/uno.js`, `src/flip7.js`, `src/pilli.js`. UNO nach den offiziellen Regeln bis 500 Punkte, Flip 7 bis 200, Pilli Pilli (Pili Pili) in der Grundversion ohne Missionen bis 7 Pilis. Gespeichert wird nur das Ergebnis jedes Spiels (Tabelle `cg_results`). Admin: Einstellungen → UNO / Flip 7 / Pilli Pilli. |
 | **Paint** | Nachbau von Paint aus Windows 98 unter `/paint` (Startmenü): alle 16 Werkzeuge mit ihren Pinselgrößen, 28er-Farbpalette und „Farben bearbeiten“, Auswahl verschieben, strecken und durchsichtig einsetzen, Bilder einfügen (Zwischenablage, Ziehen, Datei), Kippen/Drehen, Strecken/Zerren, Attribute, Zoom mit Raster, Rückgängig. Gäste malen und laden herunter (PNG, BMP, JPG); Mitglieder speichern im Konto (privat, für Mitglieder oder öffentlich) und setzen Bilder als Hintergrund. Öffentliche Bilder stehen in der 🖼️ Galerie und im Profil. Lobbys zum gemeinsamen Malen mit Live-Zeigern, Chat, eigenem Rückgängig, Malrechten vom Gastgeber, Entwurf beim Ersteller und Mitmalern beim Speichern („Gemeinsam gemalt“). Speicher pro Mitglied, Höchstgröße, Gäste, Galerie, Lobbys und Freigabe durch den Admin unter Admin → Paint |
 | **Quiz** | Quiz-Abende unter `/quiz` (Startmenü → Spiele): Raum eröffnen, Mitspieler kommen per Code, Einladungslink oder QR-Code (Mitglieder mit Avatar, Gäste mit Namen und Bild). Fragetypen Buzzer, Multiple Choice, Wahr/Falsch, Schätzen (mit Einheit, automatische Wertung nach Nähe) und Freitext. Der Spielleiter baut Fragen vorher oder spontan, sieht Eingaben live beim Tippen, wertet mit Richtig/Falsch, vergibt Extrapunkte und kann rückgängig machen; Punkte, Timer und Buzzer-Reihenfolge rechnet der Server. Mitglieder speichern Quizze im Konto und laden sie aus einer Liste (eigene und geteilte), dazu Datei-Export. Ergebnisse im Profil; Wer eröffnen darf, Gäste und Grenzen unter Admin → Quiz |
+| **Werwolf** | Das Gesellschaftsspiel unter `/werwolf` (Startmenü → Spiele), die Seite ist der Erzähler. **Lokal**: alle sitzen zusammen, jeder tritt mit seinem Handy per QR-Code oder Code bei (auch ohne Konto), die Rolle sieht man nur beim Gedrückthalten, nachts tippen alle gleichzeitig etwas an (wer keine Fähigkeit hat, seinen Verdacht), geredet wird am Tisch, abgestimmt auf dem Handy; das Gerät des Gastgebers liest per Sprachausgabe des Browsers vor. **Online**: dasselbe mit Dorf-, Wolfs- und Toten-Chat. Rollen Werwolf, Dorfbewohner, Seherin, Hexe, Jäger, Amor, Beschützer (automatisch nach Spielerzahl oder selbst gewählt), Zeiten einstellbar. Ergebnisse für Mitglieder im Profil; Gäste und Grenzen unter Admin → Werwolf |
 | **Spiele & Apps** | HTML5-Spiele als ZIP hochladen (Godot, Unity WebGL, Phaser, eigenes JS …) oder externe Dienste einbetten |
 | **Design** | Farben, Hintergrundbild (kacheln/füllen/zentriert), Schrift, Lauftext, Besucherzähler, eigenes CSS, 5 Vorlagen |
 | **Statistik** | Seitenaufrufe & Besucher pro Tag, Top-Seiten, Herkunft, Geräte, aktive Mitglieder – ohne Cookies, ohne gespeicherte IPs |
@@ -195,7 +196,7 @@ Danach „Test-E-Mail senden“.
 ```bash
 npm install
 npm run dev        # http://localhost:3000, Daten landen in ./data
-npm test           # Rauchtest (startet den Server und klickt die wichtigsten Wege durch), Blackjack-, Poker-, Durak-, UNO-, Flip-7- und Pilli-Pilli-Regeln, Spieltische und Kasse, Paint-Werkzeuge, Paint-Lobbys, Quiz-Wertung und Tests des Haustier-Spiels
+npm test           # Rauchtest (startet den Server und klickt die wichtigsten Wege durch), Blackjack-, Poker-, Durak-, UNO-, Flip-7- und Pilli-Pilli-Regeln, Spieltische und Kasse, Paint-Werkzeuge, Paint-Lobbys, Quiz-Wertung, Werwolf-Regeln und Tests des Haustier-Spiels
 ```
 
 Das Haustier-Spiel liegt in `games/haustier/src` (HTML/CSS/JS ohne Build-Schritt) und läuft lokal unter

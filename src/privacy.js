@@ -91,6 +91,12 @@ const SNIPPETS = {
   quizSaved: ['src/db.js', 'CREATE TABLE IF NOT EXISTS quizzes (', 10],
   quizGames: ['src/db.js', 'CREATE TABLE IF NOT EXISTS quiz_games (', 11],
   quizResults: ['src/db.js', 'CREATE TABLE IF NOT EXISTS quiz_results (', 10],
+  wwCookie: ['src/routes/werwolf.js', "res.cookie('werwolf', t", 1],
+  wwGuest: ['public/werwolf.js', "store('werwolf-gast'", 1],
+  wwPlayer: ['src/werwolf.js', 'r.players.set(who.pid, {', 8],
+  wwView: ['src/werwolf.js', 'function roleVisible(r, me, q) {', 8],
+  wwChat: ['src/werwolf.js', 'function chat(r, p, b) {', 10],
+  wwResults: ['src/db.js', 'CREATE TABLE IF NOT EXISTS ww_results (', 12],
 };
 
 let cache = null;

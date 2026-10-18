@@ -1418,6 +1418,94 @@ async function main() {
       assert.equal((await api(oma, `/quiz/${code}/info`, undefined, 'GET')).status, 404);
     });
 
+    await step('Werwolf: Dorf mit Gästen, Rollen geheim, Nacht, Abstimmung, Profil und Admin', async () => {
+      const { anna, bernd } = members;
+      const home = (await guest.req('/', { top: true })).text_;
+      assert.match(home, /<div class="startmenu"[\s\S]*href="\/werwolf">🐺 Werwolf/);
+      const oma = browser(), opa = browser();
+      assert.match((await oma.req('/werwolf')).text_, /werwolf\.js/, 'auch Gäste bekommen Werwolf');
+      await opa.req('/werwolf/');
+      const made = await api(anna, '/werwolf/raeume', { name: 'Wolfsbach', mode: 'lokal' });
+      assert.equal(made.status, 200);
+      const code = made.json.code;
+      assert.deepEqual((await api(bernd, '/werwolf/raeume', undefined, 'GET')).json.rooms.map(r => [r.name, r.mode]), [['Wolfsbach', 'lokal']]);
+      assert.match((await oma.req('/werwolf/' + code)).text_, new RegExp('data-code="' + code + '"'), 'Einladungslink');
+      assert.equal((await api(oma, `/werwolf/${code}/beitreten`, { name: '' })).status, 400);
+      assert.equal((await api(oma, `/werwolf/${code}/beitreten`, { name: 'Oma Gerda', emoji: '🦉' })).status, 200);
+      assert.ok(/^[a-f0-9]{32}$/.test(oma.jar.get('werwolf')), 'Gast-Cookie');
+      assert.equal((await api(opa, `/werwolf/${code}/beitreten`, { name: 'Opa Kurt' })).status, 200);
+      assert.equal((await api(bernd, `/werwolf/${code}/beitreten`, {})).status, 200);
+      assert.match((await oma.req(`/werwolf/${code}/qr.svg`)).text_, /^<svg/);
+      assert.equal((await fetch(`${BASE}/werwolf/${code}/events`, { headers: { 'user-agent': UA } })).status, 403, 'nicht dabei');
+
+      const listen = b => {
+        const ctrl = new AbortController(), states = [];
+        let buf = '', wake = null;
+        fetch(`${BASE}/werwolf/${code}/events`, { headers: { cookie: [...b.jar].map(([k, v]) => `${k}=${v}`).join('; '), 'user-agent': UA }, signal: ctrl.signal }).then(async res => {
+          const reader = res.body.getReader();
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) return;
+            buf += Buffer.from(value).toString();
+            let i;
+            while ((i = buf.indexOf('\n\n')) >= 0) {
+              const ev = buf.slice(0, i); buf = buf.slice(i + 2);
+              const m = ev.match(/^event: state\ndata: (.*)$/m);
+              if (m) { states.push(JSON.parse(m[1])); if (wake) wake(); }
+            }
+          }
+        }).catch(() => {});
+        const until = (pred, ms = 3000) => new Promise((resolve, reject) => {
+          const t = setTimeout(() => reject(new Error('Kein passender Stand: ' + JSON.stringify(states.at(-1)))), ms);
+          const check = () => { const s = states.slice().reverse().find(pred); if (s) { clearTimeout(t); wake = null; resolve(s); } else wake = check; };
+          check();
+        });
+        return { until, close: () => ctrl.abort() };
+      };
+      const all = [anna, bernd, oma, opa];
+      const ears = all.map(listen);
+      await ears[0].until(s => s.players.length === 4);
+      assert.equal((await api(oma, `/werwolf/${code}`, { action: 'start' })).status, 403, 'nur der Gastgeber startet');
+      assert.equal((await api(anna, `/werwolf/${code}`, { action: 'start' })).status, 200);
+      let st = await Promise.all(ears.map(e => e.until(s => s.phase === 'roles')));
+      assert.deepEqual(st.map(s => s.players.filter(p => p.role).length), [1, 1, 1, 1], 'jeder sieht nur seine eigene Rolle');
+      const role = st.map(s => s.mine.role);
+      assert.deepEqual(role.slice().sort(), ['dorf', 'dorf', 'seherin', 'werwolf']);
+      for (const b of all) assert.equal((await api(b, `/werwolf/${code}`, { action: 'seen' })).status, 200);
+      st = await Promise.all(ears.map(e => e.until(s => s.phase === 'night')));
+      const wolf = role.indexOf('werwolf');
+      const pidOf = i => st[i].me;
+      const victim = [0, 1, 2, 3].find(i => i !== wolf);
+      for (let i = 0; i < 4; i++) {
+        const target = i === wolf ? pidOf(victim) : pidOf([0, 1, 2, 3].find(j => j !== i));
+        assert.equal((await api(all[i], `/werwolf/${code}`, { action: 'pick', target })).status, 200);
+        assert.equal((await api(all[i], `/werwolf/${code}`, { action: 'done' })).status, 200);
+      }
+      const dayState = await ears[wolf].until(s => s.phase === 'day');
+      assert.deepEqual(dayState.news, [{ pid: pidOf(victim), cause: 'wolf' }]);
+      assert.equal(dayState.players.find(p => p.pid === pidOf(victim)).role, role[victim], 'Tote zeigen ihre Rolle');
+      assert.equal((await api(anna, `/werwolf/${code}`, { action: 'chat', text: 'Hallo' })).status, 400, 'lokal wird am Tisch geredet');
+      assert.equal((await api(anna, `/werwolf/${code}`, { action: 'skip' })).status, 200, 'Gastgeber startet die Abstimmung');
+      await ears[wolf].until(s => s.phase === 'vote');
+      for (let i = 0; i < 4; i++) {
+        if (i === victim) continue;
+        const target = i === wolf ? pidOf([0, 1, 2, 3].find(j => j !== wolf && j !== victim)) : pidOf(wolf);
+        assert.equal((await api(all[i], `/werwolf/${code}`, { action: 'pick', target })).status, 200);
+        assert.equal((await api(all[i], `/werwolf/${code}`, { action: 'done' })).status, 200);
+      }
+      const end = await ears[victim].until(s => s.phase === 'end');
+      assert.equal(end.winner, 'dorf');
+      assert.ok(end.players.every(p => p.role), 'am Ende sind alle Rollen offen');
+      ears.forEach(e => e.close());
+      const prof = (await anna.req('/nutzer/bernd')).text_;
+      assert.match(prof, /href="\/werwolf"><b>Werwolf<\/b>[\s\S]*?Gespielt<\/td><td class="num">1</);
+      assert.equal((await api(bernd, '/api/stats/werwolf', { add: { Gewonnen: 100 } }, 'PATCH')).status, 404, 'Browser melden keine eigenen Zahlen');
+      assert.match((await admin.req('/admin/werwolf')).text_, /<b>Wolfsbach<\/b>/);
+      assert.equal((await api(oma, `/werwolf/${code}`, { action: 'close' })).status, 403);
+      assert.equal((await api(anna, `/werwolf/${code}`, { action: 'close' })).status, 200);
+      assert.equal((await api(oma, `/werwolf/${code}/info`, undefined, 'GET')).status, 404);
+    });
+
     await step('Changelog im Startmenü', async () => {
       const home = (await guest.req('/', { top: true })).text_;
       assert.match(home, /<div class="startmenu"[\s\S]*href="\/changelog"/);

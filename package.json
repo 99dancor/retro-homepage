@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning src/server.js",
     "dev": "node --watch --disable-warning=ExperimentalWarning src/server.js",
-    "test": "node --disable-warning=ExperimentalWarning test/smoke.js && node --test --disable-warning=ExperimentalWarning test/blackjack.test.js test/poker.test.js test/durak.test.js test/cardgames.test.js test/kartenspiele.test.js test/crossword.test.js test/quiz.test.js test/paint.test.js test/paintlobby.test.js test/webpush.test.js games/haustier/test/*.test.js"
+    "test": "node --disable-warning=ExperimentalWarning test/smoke.js && node --test --disable-warning=ExperimentalWarning test/blackjack.test.js test/poker.test.js test/durak.test.js test/cardgames.test.js test/kartenspiele.test.js test/crossword.test.js test/quiz.test.js test/werwolf.test.js test/paint.test.js test/paintlobby.test.js test/webpush.test.js games/haustier/test/*.test.js"
   },
   "license": "UNLICENSED",
   "dependencies": {

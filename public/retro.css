@@ -1311,3 +1311,74 @@ tr.me td { background: #ffffcc; color: #000; }
 .ks-back-gold { --back: radial-gradient(circle, #ffd700 0 22%, transparent 24%) 50% 50% / 100% 100% no-repeat, repeating-linear-gradient(45deg, #151515 0 5px, #3a2a00 5px 10px); }
 .ks-back-karo { --back: conic-gradient(#c00000 25%, #fff 0 50%, #c00000 0 75%, #fff 0) 0 0 / 8px 8px; }
 .ks-back-retro { --back: radial-gradient(circle, #fff 0 18%, transparent 20%) 0 0 / 7px 7px, #00007f; }
+
+/* Werwolf (views/werwolf.ejs, public/werwolf.js); Grundgerüst und Avatare wie beim Quiz */
+.ww-how { margin: 4px 0; padding-left: 22px; line-height: 1.5; }
+.ww-play { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 8px; padding: 4px; min-height: 100%; }
+.ww-stage { min-width: 0; padding: 6px 10px; background: var(--field); color: var(--field-text); box-shadow: inset 1px 1px var(--lo), inset 2px 2px var(--dark), inset -1px -1px var(--hi); }
+.ww-dark .ww-stage { background: #0d1530; color: #dfe6ff; }
+.ww-dark .ww-stage small { color: #b8c3ea; }
+.ww-side { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ww-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.ww-head h2 { margin: 4px 0; font-size: 20px; }
+.ww-clock { font-size: 18px; width: 70px; }
+.ww-people { list-style: none; margin: 0; padding: 2px; background: var(--field); color: var(--field-text); max-height: 46vh; overflow: auto; box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); }
+.ww-people li { display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 2px 3px; }
+.ww-people li.dead .qz-name { text-decoration: line-through; opacity: .6; }
+.ww-people li.dead .qz-av { filter: grayscale(1); opacity: .6; }
+.ww-people li.off .qz-av { opacity: .45; }
+.ww-bits { white-space: nowrap; font-size: 13px; }
+.ww-role { white-space: nowrap; }
+.ww-tabs { display: flex; gap: 2px; }
+.ww-tabs .on, .ww-stage button.small.on { box-shadow: inset 1px 1px var(--dark), inset -1px -1px var(--hi); font-weight: bold; }
+.ww-chat { flex: 1; min-height: 140px; max-height: 40vh; overflow: auto; background: var(--field); color: var(--field-text); padding: 3px 5px; font-size: 13px; box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); }
+.ww-msg { overflow-wrap: anywhere; margin: 1px 0; }
+.ww-msg.mine b { color: var(--title-from); }
+.ww-say { display: flex; gap: 3px; }
+.ww-say input { flex: 1; min-width: 0; }
+.ww-note { margin: 2px 0; }
+.ww-lobby { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 10px; }
+.ww-roles td { vertical-align: top; }
+.ww-n { width: 48px; }
+.ww-tip { font-size: 13px; }
+.ww-cardrow { display: flex; justify-content: center; margin: 10px 0; }
+.ww-card { width: min(260px, 80vw); min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; text-align: center;
+  background: #fffbe8; color: #222; border: 3px solid #5b4320; box-shadow: 4px 4px 0 rgba(0,0,0,.35); user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.ww-card .ico { font-size: 80px; line-height: 1; }
+.ww-card b { font-size: 24px; }
+.ww-card.back { background: repeating-linear-gradient(45deg, #3b2a6b 0 10px, #2a1d50 10px 20px); color: #fff; border-color: #120b29; cursor: pointer; }
+.ww-card.r-werwolf { background: #ffe1d8; border-color: #8a1c0f; }
+.ww-mini { margin: 4px 0; }
+.ww-mini button { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.ww-notes { margin: 4px 0 8px; padding: 4px 8px; background: rgba(255, 216, 74, .2); border-left: 3px solid #d4a017; font-size: 14px; }
+.ww-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin: 8px 0; }
+.ww-target { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; min-height: 84px; color: var(--text); }
+.ww-target .nm { font-weight: bold; overflow-wrap: anywhere; }
+.ww-target.on { outline: 3px solid #d4a017; outline-offset: -5px; background: #fff3c4; color: #000; }
+.ww-target:disabled { opacity: .45; }
+.ww-marks { font-size: 11px; line-height: 1.2; }
+.ww-go { font-size: 18px; padding: 8px 22px; font-weight: bold; }
+.ww-ok { font-weight: bold; }
+.ww-dead { text-align: center; padding: 20px 0; }
+.ww-dead .ico, .ww-win .ico { font-size: 60px; }
+.ww-news { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+.ww-death { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #f3d6d6; color: #000; border: 1px solid #7a1f1f; }
+.ww-talk { text-align: center; padding: 10px 0; }
+.ww-talk p { font-size: 16px; }
+.ww-potion { font-size: 15px; }
+.ww-win { text-align: center; padding: 10px 0; }
+.ww-win h2 { margin: 4px 0; font-size: 26px; }
+.ww-endtab { width: 100%; }
+.ww-endtab td:first-child { white-space: nowrap; }
+.ww-endtab tr.dead td:first-child { opacity: .65; }
+.ww-log { margin: 8px 0; font-size: 13px; }
+.ww-rules { max-width: 560px; max-height: 60vh; overflow: auto; }
+.ww-rules td { vertical-align: top; }
+@media (max-width: 760px) {
+  .ww-play, .ww-lobby { grid-template-columns: minmax(0, 1fr); }
+  .ww-lobby-right { order: -1; }
+  .ww-desc { display: none; }
+  .ww-roles td { padding: 1px 4px; }
+  .ww-stage { padding: 4px 6px; }
+  .ww-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+}

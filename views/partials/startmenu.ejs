@@ -3,10 +3,10 @@
   <%# Einträge: [Schlüssel, Adresse, Beschriftung] oder [Gruppe, Beschriftung, [Einträge]] → Untermenü wie bei Windows 98, auch verschachtelt %>
   <% const entries = [['blog','/blog','📝 Blog'],
        ['dokumente','📂 Dokumente',[['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['galerie','/galerie','🖼️ Galerie']]],
-       ['spiele','🎮 Spiele und Apps',[['kartenspiele','/kartenspiele','🂡 Kartenspiele'],['quiz','/quiz','❓ Quiz'],['minesweeper','/minesweeper','💣 Minesweeper'],['kreuzwortraetsel','/kreuzwortraetsel','📰 Kreuzworträtsel'],['paint','/paint','🎨 Paint'],['zufall','/zufall','🎲 Zufallsgenerator'],['musik','/musik','🎵 Musikplayer'],['apps','/apps','🕹️ Andere Games']]],
+       ['spiele','🎮 Spiele und Apps',[['kartenspiele','/kartenspiele','🂡 Kartenspiele'],['quiz','/quiz','❓ Quiz'],['werwolf','/werwolf','🐺 Werwolf'],['minesweeper','/minesweeper','💣 Minesweeper'],['kreuzwortraetsel','/kreuzwortraetsel','📰 Kreuzworträtsel'],['paint','/paint','🎨 Paint'],['zufall','/zufall','🎲 Zufallsgenerator'],['musik','/musik','🎵 Musikplayer'],['apps','/apps','🕹️ Andere Games']]],
        ['haustier','/haustier/','🐾 Pixelpfoten'],['board','/forum','💬 Forum'],['nutzer','/nutzer','👥 Mitglieder'],['guestbook','/guestbook','📖 Besucherbuch'],['contact','/contact','✉️ Kontakt']];
      const off = { guestbook: !guestbookEnabled, board: !boardEnabled, kartenspiele: !cardsEnabled,
-       paint: !paintEnabled, quiz: !quizEnabled, galerie: !galleryEnabled, contact: !contactEnabled };
+       paint: !paintEnabled, quiz: !quizEnabled, werwolf: !werwolfEnabled, galerie: !galleryEnabled, contact: !contactEnabled };
      const shown = ([key, , b]) => Array.isArray(b) ? b.some(shown) : !(navHidden.includes(key) || off[key]);
      function menu(list) { for (const [key, a, b] of list.filter(shown)) {
        if (Array.isArray(b)) { %>

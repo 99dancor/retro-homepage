@@ -6,7 +6,7 @@ import {
   adopt, activePet, isUnlocked, unlockText, petSlots, nextSlotHint, cleanName, level, levelProgress,
   availableActions, usableItems, walkLabel,
 } from './pets.js';
-import { ITEMS, ITEM_LIST, CATEGORIES, usableBy, isFav, isDurable } from './items.js';
+import { ITEMS, ITEM_LIST, CATEGORIES, usableBy, isFav, isDurable, owned } from './items.js';
 import {
   ensureDaily, track, taskProgress, TASK_INFO, actionCoins, addCoins, loginBonus, streakMilestones, levelReward,
   accountBonus, available, relevant, dealOfDay, priceOf, canBuy, buy, wear, setRoom, LOGIN_BONUS, DAILY_CAP, ACCOUNT_BONUS,
@@ -16,6 +16,8 @@ import { petSvg, roomSvg } from './art.js';
 import { play as sfx, actionSound, muted, toggleMuted, VOLUME_KEY } from './sound.js';
 import { createScene } from './scene.js';
 import { TOYS } from './behavior.js';
+import { api, createLive } from './live.js';
+import { VISITOR_PRIVACY, privacyOf, STICKERS, giftable, applyVisits, visitText, visitReward, playdate } from './visits.js';
 
 // Adressen der Homepage. Der Server schreibt sie als data-Attribute in <body> (data-login, data-register,
 // data-forum); ein leerer Wert heißt: gibt es gerade nicht (z. B. Registrierung geschlossen, Forum aus).
@@ -60,21 +62,80 @@ const STAT_NAME = Object.fromEntries(STATS.map((s) => [s.key, s]));
 const LEVEL_UNLOCKS = { [CUDDLE_LEVEL]: 'Ihr könnt jetzt kuscheln.', [SLOT_LEVEL]: 'Ein zweiter Tierplatz und der Puzzle-Futterball sind frei.', 8: 'Die Krone gibt es jetzt im Shop.' };
 
 let state = newState();
-let view = 'room';        // 'room' | 'adopt' | 'shop' | 'inventory' | 'tasks'
+let view = 'room';        // 'room' | 'adopt' | 'shop' | 'inventory' | 'tasks' | 'visit'
 const tab = { shop: 'food', inventory: 'food' };
 let picked = null;        // Tierart auf dem Adoptionsbildschirm
 let bubble = null;        // Sprechblase oben im Zimmer: { text, until }
 const lastAction = {};    // Abklingzeit je Tier und Aktion
 let shownRoom = null;     // Hintergrund des gerade gezeichneten Zimmers (null = Zimmer nicht offen)
 
+// Besuch bei einem anderen Mitglied: { host: { user, name, url }, data: Zimmer vom Server, bring: eigenes Tier oder null }
+let visit = null;
+let neighbours = null;    // Liste fürs Besuchen (null = wird geladen), oder { error }
+let visitBook = [];       // wer zuletzt bei mir war
+const foreignCooldown = {};
+
+// Live-Zimmer: das eigene, solange man zu Hause ist, sonst das des Gastgebers
+const live = createLive({
+  change: () => { if (view === 'room') render(); },
+  post: () => fetchInbox(),
+  join: (m) => {
+    if (m.host) return;
+    sfx('freude');
+    const pets = m.pets.map((p) => p.name);
+    say(`${m.name} ist ${visit ? 'auch hier' : 'zu Besuch'}${pets.length ? ` und hat ${pets.join(' und ')} dabei` : ''}!`, 6000);
+  },
+  leave: (m) => { if (!m.host) say(`${m.name} ist wieder gegangen.`, 3500); },
+});
+const hostMember = () => (visit ? [...live.members.values()].find((m) => m.host) : null);
+
+// Alle Tiere im Zimmer für die Szene: eigene, die des Gastgebers und die anderer Besucher
+function roster() {
+  const list = [];
+  const remote = (m) => m.pets.forEach((p) => list.push({ key: `${m.sid}:${p.id}`, pet: p, kind: 'remote', owner: m.name, user: m.user, net: p }));
+  if (visit) {
+    const hm = hostMember();
+    if (hm) remote(hm);
+    else visit.data.pets.forEach((p) => list.push({ key: 'h:' + p.id, pet: p, kind: 'foreign', owner: visit.host.name, user: visit.host.user }));
+    const mine = state.pets.find((p) => p.id === visit.bring);
+    if (mine) list.push({ key: mine.id, pet: mine, kind: 'own' });
+  } else state.pets.forEach((p) => list.push({ key: p.id, pet: p, kind: 'own' }));
+  for (const m of live.members.values()) if (!(visit && m.host)) remote(m);
+  return list;
+}
+
 // Das Zimmer mit allen Tieren, die frei herumlaufen und mit Spielzeug spielen
 const scene = createScene({
-  state: () => state,
-  select: (id) => selectPet(id),
-  stroke: (id) => { if (activePet(state).id !== id) selectPet(id); act('pet'); },
-  play: (id, itemId) => playWith(id, itemId),
+  roster,
+  active: () => (visit ? visit.bring : activePet(state) && activePet(state).id),
+  bed: () => !visit && owned(state, 'care_bed'),
+  remoteToys: () => [...live.members.values()].filter((m) => m.toy).map((m) => ({ key: m.sid, ...m.toy })),
+  select: (e) => {
+    if (e.kind === 'own') return visit ? null : selectPet(e.pet.id);
+    say(`${e.pet.name} gehört ${e.owner}. ${e.pet.sleeping ? 'Psst, schläft gerade.' : 'Streich darüber zum Streicheln.'}`, 3500);
+  },
+  stroke: (e) => {
+    if (e.kind !== 'own') return foreign(e, 'pet');
+    if (activePet(state).id !== e.pet.id) selectPet(e.pet.id);
+    act('pet');
+  },
+  play: (e, itemId) => (e.kind === 'own' ? playWith(e.pet.id, itemId) : foreign(e, 'play', itemId)),
   sound: (n) => sfx(n),
 });
+
+// Ein fremdes Tier streicheln oder mit ihm spielen: landet im Besuchsbuch seines Besitzers
+function foreign(e, kind, itemId) {
+  const now = Date.now();
+  const k = e.key + ':' + kind;
+  if (e.pet.sleeping) { say(`${e.pet.name} schläft gerade. Psst!`, 2500); return { ok: false }; }
+  if (foreignCooldown[k] && now - foreignCooldown[k] < (kind === 'pet' ? 1500 : 2500)) return { ok: true, factor: 1 };
+  foreignCooldown[k] = now;
+  scene.animate(e.key, kind === 'pet' ? 'pet' : 'none');
+  sfx(kind === 'pet' ? 'stimme:' + e.pet.species : 'pop');
+  say(kind === 'pet' ? `${e.pet.name} ${SPECIES[e.pet.species].sound}.` : `${e.pet.name} spielt mit deinem Spielzeug: ${ITEMS[itemId].name}.`, 3000);
+  api.act(e.user, { kind, pet: e.pet.id }).catch(() => {});
+  return { ok: true, factor: 1 };
+}
 
 const store = createStore({
   savesUrl: config.savesUrl,
@@ -128,11 +189,12 @@ function render() {
     b.disabled = !state.pets.length && b.dataset.view !== 'room';
   });
   if (view !== 'room' && scene.toy) scene.putAway();
-  if (view === 'room' && shownRoom === state.room && $('room')) updateRoom();
+  const roomKey = visit ? `v:${visit.host.user}:${visit.data.room}` : state.room;
+  if (view === 'room' && shownRoom === roomKey && $('room')) updateRoom();
   else {
-    const html = { adopt: adoptHtml, shop: shopHtml, inventory: inventoryHtml, tasks: tasksHtml }[view] || roomHtml;
+    const html = { adopt: adoptHtml, shop: shopHtml, inventory: inventoryHtml, tasks: tasksHtml, visit: neighboursHtml }[view] || roomHtml;
     $('screen').innerHTML = html();
-    shownRoom = view === 'room' ? state.room : null;
+    shownRoom = view === 'room' ? roomKey : null;
     if (shownRoom) scene.mount($('room'));
   }
   updateNotice();
@@ -140,12 +202,12 @@ function render() {
 
 // Im offenen Zimmer nur die Teile drumherum erneuern, die Szene mit den Tieren läuft weiter
 function updateRoom() {
-  $('pet-tabs').innerHTML = petTabs();
-  $('checkin-slot').innerHTML = checkinBanner();
+  $('pet-tabs').innerHTML = visit ? '' : petTabs();
+  $('checkin-slot').innerHTML = visit ? visitBanner() : checkinBanner();
   $('bubble').textContent = bubbleText();
   $('toybox').innerHTML = toyboxHtml();
-  $('side').innerHTML = sideHtml(activePet(state));
-  $('room').classList.toggle('night', allAsleep());
+  $('side').innerHTML = visit ? visitSideHtml() : sideHtml(activePet(state));
+  $('room').classList.toggle('night', !visit && allAsleep());
   scene.sync();
 }
 
@@ -187,8 +249,9 @@ function actionButtons(pet) {
 const allAsleep = () => state.pets.length > 0 && state.pets.every((p) => p.sleeping);
 
 function bubbleText() {
-  const pet = activePet(state);
-  return bubble && bubble.until > Date.now() ? bubble.text : mood(pet).text;
+  if (bubble && bubble.until > Date.now()) return bubble.text;
+  if (visit) return hostMember() ? `${visit.host.name} ist gerade auch hier!` : `Willkommen bei ${visit.host.name}!`;
+  return mood(activePet(state)).text;
 }
 
 function checkinBanner() {
@@ -231,19 +294,188 @@ function sideHtml(pet) {
 
 function roomHtml() {
   const pet = activePet(state);
-  const sp = SPECIES[pet.species];
-  const hint = state.pets.length > 1 ? 'Tipp ein Tier an, um es auszuwählen. ' : '';
-  return `<div id="pet-tabs">${petTabs()}</div><div id="checkin-slot">${checkinBanner()}</div>
+  const names = roster().map((e) => e.pet.name).join(', ');
+  const hint = visit ? '' : state.pets.length > 1 ? 'Tipp ein Tier an, um es auszuwählen. ' : '';
+  return `<div id="pet-tabs">${visit ? '' : petTabs()}</div><div id="checkin-slot">${visit ? visitBanner() : checkinBanner()}</div>
     <div class="room-layout">
       <div class="room-col">
-        <div class="room${allAsleep() ? ' night' : ''}" id="room" title="${hint}Mit gedrückter Maus oder dem Finger über ein Tier streichen zum Streicheln" aria-label="Zimmer mit ${esc(state.pets.map((p) => p.name).join(', '))}, ausgewählt: ${esc(pet.name)} (${sp.name})">
-          ${roomSvg(state.room)}
+        <div class="room${!visit && allAsleep() ? ' night' : ''}" id="room" title="${hint}Mit gedrückter Maus oder dem Finger über ein Tier streichen zum Streicheln" aria-label="Zimmer${visit ? ' von ' + esc(visit.host.name) : ''} mit ${esc(names)}">
+          ${roomSvg(visit ? visit.data.room : state.room)}
           <div class="bubble" id="bubble" aria-live="polite">${esc(bubbleText())}</div>
         </div>
         <div id="toybox">${toyboxHtml()}</div>
       </div>
-      <div class="side" id="side">${sideHtml(pet)}</div>
+      <div class="side" id="side">${visit ? visitSideHtml() : sideHtml(pet)}</div>
     </div>`;
+}
+
+// ---------- Besuche ----------
+function visitBanner() {
+  return `<div class="checkin-banner visit-banner"><span>🏘️ Du bist bei <b>${esc(visit.host.name)}</b> zu Besuch${hostMember() ? ' (gerade auch online 🟢)' : ''}.</span>
+    <button type="button" class="small" data-home>🏠 Nach Hause</button></div>`;
+}
+
+function bookHtml(list, empty) {
+  if (!list.length) return `<p class="muted">${empty}</p>`;
+  return `<ul class="book">${list.map((b) => `<li><a href="${esc(b.url)}" target="_top">${esc(b.name)}</a> ${esc(b.stickers)}
+    ${b.buddy ? `<small>mit ${esc(b.buddy)}</small>` : ''} <small class="muted">${fmtDate(b.at * 1000)}</small></li>`).join('')}</ul>`;
+}
+
+function visitSideHtml() {
+  const hm = hostMember();
+  const pets = visit.data.pets.map((p) => {
+    const m = mood(p);
+    return `<li>${SPECIES[p.species].icon} <b>${esc(p.name)}</b> <small>${SPECIES[p.species].name} · Stufe ${p.level} · ${m.label}</small></li>`;
+  }).join('');
+  const bring = [{ id: '', label: 'Niemand' }, ...state.pets.map((p) => ({ id: p.id, label: `${SPECIES[p.species].icon} ${p.name}` }))]
+    .map((o) => `<button type="button" class="small${(visit.bring || '') === o.id ? ' active' : ''}" data-bring="${o.id}" aria-pressed="${(visit.bring || '') === o.id}">${esc(o.label)}</button>`).join('');
+  const stickers = STICKERS.map((s) => `<button type="button" class="sticker" data-sticker="${s}" title="Gruß hinterlassen"${visit.greeted ? ' disabled' : ''}>${s}</button>`).join('');
+  return `<div class="pet-head"><b>🏘️ Bei ${esc(visit.host.name)}</b> <a class="small" href="${esc(visit.host.url)}" target="_top">Profil</a>
+      <small>${hm ? '🟢 Gerade auch hier, ihr seht euch live.' : 'Gerade nicht online. Was du tust, sieht sie oder er beim nächsten Mal.'}</small></div>
+    <fieldset class="groupbox"><legend>Tiere</legend><ul class="host-pets">${pets}</ul>
+      <small class="muted">Streich über ein Tier zum Streicheln oder spiel mit ihm mit deinem Spielzeug.</small></fieldset>
+    <fieldset class="groupbox"><legend>Mitbringen</legend><div class="bring">${bring}</div>
+      <small class="muted">Dein Tier spielt hier mit den anderen und hat danach mehr Spaß.</small></fieldset>
+    <fieldset class="groupbox"><legend>Etwas dalassen</legend>
+      <button type="button" class="small" data-gift>🎁 Futter schenken …</button>
+      <div class="stickers">${stickers}</div><small class="muted">${visit.greeted ? 'Dein Gruß steht im Besuchsbuch.' : 'Ein Gruß fürs Besuchsbuch, einmal am Tag.'}</small></fieldset>
+    <fieldset class="groupbox"><legend>Besuchsbuch</legend>${bookHtml(visit.data.book, 'Du bist heute der erste Besuch.')}</fieldset>`;
+}
+
+function neighboursHtml() {
+  if (store.mode !== 'account') {
+    return `<h1>🏘️ Besuchen</h1><p>Mit einem Konto kannst du die Tiere anderer Mitglieder besuchen, mit ihnen spielen und dein eigenes Tier mitbringen.
+      Andere können dann auch dich besuchen.</p><p><a class="btn" href="${esc(config.loginUrl)}" target="_top">Anmelden</a>
+      ${config.registerUrl ? `<a class="btn" href="${esc(config.registerUrl)}" target="_top">Konto erstellen</a>` : ''}</p>`;
+  }
+  let list;
+  if (!neighbours) list = '<p class="loading">Lade Nachbarn …</p>';
+  else if (neighbours.error) list = `<p>⚠️ ${esc(neighbours.error)}</p>`;
+  else if (!neighbours.length) list = '<p class="muted">Noch niemand zum Besuchen da. Sobald andere Mitglieder Tiere haben und Besuch erlauben, stehen sie hier.</p>';
+  else {
+    list = `<div class="neighbours">${neighbours.map((n) => `<div class="item neighbour">
+      <div class="nb-pets">${n.pets.slice(0, 3).map((p) => petSvg(p.species, p.color, 'happy', { acc: p.acc, title: p.name })).join('')}</div>
+      <div class="item-body"><b>${esc(n.name)}</b>${n.live ? ' <span class="badge live">🟢 online</span>' : ''}${n.friend ? ' <span class="badge">👥 Freund</span>' : ''}
+        <small>${esc(n.pets.map((p) => p.name).join(', '))}</small>
+        <div class="item-foot"><button type="button" class="small" data-visit="${esc(n.user)}">🚪 Besuchen</button></div></div></div>`).join('')}</div>`;
+  }
+  const priv = privacyOf(state);
+  const opts = Object.entries(VISITOR_PRIVACY).map(([k, label]) => `<label><input type="radio" name="privacy" value="${k}"${priv === k ? ' checked' : ''}> ${label}</label>`).join(' ');
+  return `<h1>🏘️ Besuchen</h1><p>Schau bei den Tieren anderer Mitglieder vorbei. Wer gerade online ist, sieht dich live.
+      Die ersten ${3} Besuche am Tag bringen je 10 Münzen.</p>${list}
+    <fieldset class="groupbox"><legend>Zuletzt bei dir</legend>${bookHtml(visitBook, 'Noch kein Besuch. Erzähl anderen von deinen Tieren!')}</fieldset>
+    <fieldset class="groupbox"><legend>Wer dich besuchen darf</legend><div class="privacy">${opts}</div>
+      <small class="muted">Besucher sehen dein Zimmer, deine Tiere mit Namen, Aussehen und Laune, aber keine Münzen und kein Inventar.</small></fieldset>`;
+}
+
+async function loadNeighbours() {
+  neighbours = null;
+  if (view === 'visit') render();
+  try { neighbours = (await api.neighbours()).neighbours; } catch (e) { neighbours = { error: e.message }; }
+  if (view === 'visit') render();
+}
+
+async function startVisit(user) {
+  let data;
+  try { data = await api.room(user); } catch (e) { sfx('nein'); return ok('Besuchen', `<p>${esc(e.message)}</p>`); }
+  scene.putAway();
+  visit = { host: data.host, data, bring: null, greeted: false };
+  bubble = null;
+  live.open(user);
+  view = 'room';
+  const coinsGot = visitReward(state, user);
+  store.save(state);
+  api.act(user, { kind: 'visit' }).catch(() => {});
+  sfx('freude');
+  say(`Willkommen bei ${data.host.name}!${coinsGot ? ` Für deinen Besuch gibt es ${coins(coinsGot)}.` : ''} Wen bringst du mit?`, 6000);
+  render();
+}
+
+function endVisit() {
+  if (!visit) return;
+  visit = null;
+  scene.putAway();
+  bubble = null;
+  if (store.mode === 'account') live.open(store.user); else live.close();
+  view = 'room';
+  render();
+}
+
+function bringPet(id) {
+  visit.bring = id || null;
+  const pet = state.pets.find((p) => p.id === id);
+  render();
+  if (!pet) return;
+  sfx('stimme:' + pet.species);
+  const delta = playdate(state, pet, visit.host.user);
+  if (delta) {
+    store.save(state);
+    api.act(visit.host.user, { kind: 'playdate', detail: pet.name }).catch(() => {});
+    setTimeout(() => floaters(pet, delta), 300);
+    say(`${pet.name} ist mitgekommen und freut sich auf die anderen!`, 4000);
+  } else say(`${pet.name} ist mitgekommen.`, 3000);
+}
+
+async function giveGift() {
+  const ids = Object.keys(state.inventory).filter((id) => giftable(id) && state.inventory[id] > 0);
+  if (!ids.length) { sfx('nein'); return say('Du hast gerade kein Futter zum Verschenken. Im Shop gibt es welches.', 4000); }
+  const rows = ids.map((id) => `<button class="pick" value="${id}"><span class="item-emoji">${ITEMS[id].icon}</span><span><b>${ITEMS[id].name}</b><small>noch ${state.inventory[id]}</small></span></button>`).join('');
+  const r = await dialog(`Was schenkst du ${visit.host.name}?`, `<div class="picks">${rows}</div>`, [{ label: 'Abbrechen', value: 'cancel' }]);
+  if (!ids.includes(r) || !visit) return;
+  try {
+    const res = await api.act(visit.host.user, { kind: 'gift', detail: r });
+    if (!res.counted) return say('Heute hast du hier schon genug verschenkt. Morgen wieder!', 3500);
+  } catch (e) { return say(e.message, 3500); }
+  state.inventory[r] -= 1;
+  if (state.inventory[r] <= 0) delete state.inventory[r];
+  store.save(state);
+  sfx('kaufen');
+  say(`${ITEMS[r].icon} ${ITEMS[r].name} liegt jetzt bei ${visit.host.name}. Wie lieb von dir!`, 4000);
+  render();
+}
+
+async function leaveSticker(s) {
+  if (!visit || visit.greeted) return;
+  visit.greeted = true;
+  try { await api.act(visit.host.user, { kind: 'sticker', detail: s }); } catch { /* egal */ }
+  sfx('pop');
+  say(`Dein Gruß ${s} steht jetzt im Besuchsbuch von ${visit.host.name}.`, 3500);
+  try { visit.data.book = (await api.room(visit.host.user)).book; } catch { /* bleibt */ }
+  render();
+}
+
+// Was Besucher bei meinen Tieren getan haben, in den Spielstand einrechnen
+let inboxBusy = false, inboxAgain = false;
+let news = null;           // Besuchsmeldung, die gerade angezeigt wird: { until, sums: Map Besucher -> Zusammenfassung }
+const union = (a, b) => [...new Set([...a, ...b])];
+const mergeVisit = (a, b) => (a ? {
+  visitor: a.visitor, kinds: union(a.kinds, b.kinds), pets: union(a.pets, b.pets), gifts: [...a.gifts, ...b.gifts],
+  stickers: [...a.stickers, ...b.stickers], buddies: union(a.buddies, b.buddies),
+} : b);
+
+async function fetchInbox(announce = true) {
+  if (store.mode !== 'account') return [];
+  if (inboxBusy) { inboxAgain = true; return []; }
+  inboxBusy = true;
+  try {
+    const d = await api.inbox();
+    visitBook = d.book || [];
+    if (!d.entries.length) return [];
+    const sums = applyVisits(state, d.entries);
+    store.save(state);
+    await api.done(d.entries[d.entries.length - 1].id);
+    if (view === 'room' && !visit) render();
+    // Läuft die letzte Besuchsmeldung noch, kommen neue Handlungen dazu, statt sie zu ersetzen
+    if (!news || Date.now() > news.until) news = { sums: new Map() };
+    for (const s of sums) news.sums.set(s.visitor, mergeVisit(news.sums.get(s.visitor), s));
+    const lines = [...news.sums.values()].map(visitText);
+    news.until = Date.now() + 5000 + lines.length * 2000;
+    if (announce) say(lines.join(' '), news.until - Date.now());
+    return lines;
+  } catch { return []; } finally {
+    inboxBusy = false;
+    if (inboxAgain) { inboxAgain = false; setTimeout(() => fetchInbox(), 300); }
+  }
 }
 
 function adoptHtml() {
@@ -586,7 +818,11 @@ function wire() {
     const b = e.target.closest('[data-view]');
     if (!b || !state.pets.length) return;
     sfx('klick');
-    view = b.dataset.view; picked = null; render();
+    if (visit && b.dataset.view !== 'room') endVisit();
+    else if (visit) return endVisit();
+    view = b.dataset.view; picked = null;
+    if (view === 'visit' && store.mode === 'account') loadNeighbours();
+    render();
   });
 
   const screen = $('screen');
@@ -614,6 +850,18 @@ function wire() {
     if (t.id === 'name-dice') { $('pet-name').value = pick(SPECIES[picked].names); return; }
     if ('rename' in d) return rename();
     if ('checkin' in d) return runCheckin();
+    if (d.visit) return startVisit(d.visit);
+    if ('home' in d) return endVisit();
+    if (d.bring !== undefined) return bringPet(d.bring);
+    if ('gift' in d) return giveGift();
+    if (d.sticker) return leaveSticker(d.sticker);
+  });
+  screen.addEventListener('change', (e) => {
+    if (e.target.name !== 'privacy' || !VISITOR_PRIVACY[e.target.value]) return;
+    state.visitors = e.target.value;
+    store.save(state);
+    store.flush();
+    sfx('klick');
   });
   screen.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -731,6 +979,11 @@ async function start() {
   }
 
   msgs.push(...claimAccountBonus(), ...arrive());
+  if (store.mode === 'account') {
+    live.open(store.user);
+    const lines = await fetchInbox(false);
+    if (lines.length) msgs.push(['Besuch war da!', lines.map((l) => `<p>🐾 ${esc(l)}</p>`).join('')]);
+  }
   render();
   markNews();
   await showAll(msgs);
@@ -741,6 +994,7 @@ async function start() {
     if (document.visibilityState === 'hidden') { store.flush(true); return; }
     const newer = await store.refresh();
     if (newer) state = newer;
+    fetchInbox();
     const m = arrive();
     if (!$('dlg').open && !picked) render();
     if (m.length && !$('dlg').open) { await showAll(m); render(); }
@@ -752,6 +1006,8 @@ async function start() {
     if (view === 'room' && state.pets.length && !$('dlg').open) render();
   }, 60000);
   setInterval(() => { if (store.dirty) store.flush(); }, 30000);
+  // Live-Zimmer: Stand der eigenen Tiere an die anderen Anwesenden
+  setInterval(() => { if (view === 'room' && live.connected && live.members.size) live.send(scene.snapshot()); }, 200);
 }
 
 start().catch((e) => {

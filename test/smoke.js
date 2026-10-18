@@ -911,6 +911,121 @@ async function main() {
       assert.equal((await api(bernd, '/api/nutzer/anna', undefined, 'GET')).json.relation, rel);
     });
 
+    await step('Pixelpfoten-Besuche: Nachbarn, Besuchsbuch, Einstellung und Live-Zimmer', async () => {
+      const { anna, bernd } = members;
+      const { newState } = require('../games/haustier/src/js/state.js');
+      const { adopt } = require('../games/haustier/src/js/pets.js');
+      const saveFor = async (b, name, visitors) => {
+        const s = newState();
+        adopt(s, 'dog', null, name);
+        if (visitors) s.visitors = visitors;
+        const r = await b.req('/api/saves/haustier/main', { method: 'PUT', body: JSON.stringify({ data: JSON.stringify(s) }), headers: { 'content-type': 'application/json' } });
+        assert.equal(r.status, 200);
+        return s;
+      };
+      const annaSave = await saveFor(anna, 'Balu');
+      await saveFor(bernd, 'Hoppel');
+      assert.equal((await api(guest, '/api/pixelpfoten/nachbarn', undefined, 'GET')).status, 401);
+      const nb = await api(bernd, '/api/pixelpfoten/nachbarn', undefined, 'GET');
+      const a = nb.json.neighbours.find(n => n.user === 'anna');
+      assert.ok(a, 'Anna steht bei Bernds Nachbarn');
+      assert.deepEqual(a.pets.map(p => p.name), ['Balu']);
+      assert.equal(a.coins, undefined);
+      const room = await api(bernd, '/api/pixelpfoten/zimmer/anna', undefined, 'GET');
+      assert.equal(room.status, 200);
+      assert.equal(room.json.pets[0].name, 'Balu');
+      assert.equal(room.json.pets[0].xp, undefined, 'nur die öffentliche Ansicht');
+      assert.equal((await api(bernd, '/api/pixelpfoten/zimmer/bernd', undefined, 'GET')).status, 404, 'das eigene Zimmer ist kein Besuch');
+
+      // Handlungen landen im Besuchsbuch, mit Tageslimit und Prüfung
+      const pet = annaSave.pets[0].id;
+      const act = body => api(bernd, '/api/pixelpfoten/zimmer/anna', body);
+      assert.equal((await bernd.req('/api/pixelpfoten/zimmer/anna', { method: 'POST', body: '{"kind":"visit"}', headers: { 'content-type': 'application/json' } })).status, 403, 'ohne CSRF-Token');
+      assert.deepEqual((await act({ kind: 'visit' })).json, { ok: true, counted: true });
+      assert.deepEqual((await act({ kind: 'visit' })).json, { ok: true, counted: false }, 'einmal am Tag');
+      assert.equal((await act({ kind: 'pet', pet })).json.counted, true);
+      assert.equal((await act({ kind: 'pet', pet: 'fremd' })).status, 400);
+      assert.equal((await act({ kind: 'gift', detail: 'food_dry' })).json.counted, true);
+      assert.equal((await act({ kind: 'gift', detail: 'acc_crown' })).status, 400);
+      assert.equal((await act({ kind: 'sticker', detail: '🌟' })).json.counted, true);
+      assert.equal((await act({ kind: 'sticker', detail: '<b>' })).status, 400);
+      assert.equal((await act({ kind: 'hack' })).status, 400);
+      const box = await api(anna, '/api/pixelpfoten/post', undefined, 'GET');
+      assert.deepEqual(box.json.entries.map(e => e.kind), ['visit', 'pet', 'gift', 'sticker']);
+      assert.ok(box.json.entries.every(e => e.visitor === 'bernd'));
+      assert.equal(box.json.book[0].stickers, '🌟');
+      assert.equal((await api(anna, '/api/pixelpfoten/post', { upTo: box.json.entries.at(-1).id })).status, 200);
+      assert.equal((await api(anna, '/api/pixelpfoten/post', undefined, 'GET')).json.entries.length, 0, 'abgeholt');
+      assert.ok((await api(anna, '/api/benachrichtigungen', undefined, 'GET')).json.items.some(n => /bernd hat deine Pixelpfoten besucht/.test(n.title)), 'Anna erfährt vom Besuch');
+
+      // Live-Zimmer: Anna ist zu Hause, Bernd kommt dazu und schickt den Stand seines Tieres
+      const sse = (b, url) => {
+        const ctl = new AbortController();
+        const events = [];
+        let waiters = [];
+        const ready = fetch(BASE + url, { signal: ctl.signal, headers: { 'user-agent': UA, cookie: [...b.jar].map(([k, v]) => `${k}=${v}`).join('; ') } }).then(async res => {
+          assert.equal(res.headers.get('content-type'), 'text/event-stream; charset=utf-8');
+          const dec = new TextDecoder();
+          let buf = '';
+          (async () => {
+            try {
+              for await (const chunk of res.body) {
+                buf += dec.decode(chunk, { stream: true });
+                let i;
+                while ((i = buf.indexOf('\n\n')) >= 0) {
+                  const block = buf.slice(0, i); buf = buf.slice(i + 2);
+                  const ev = block.match(/^event: (.+)$/m), data = block.match(/^data: (.+)$/m);
+                  if (ev) { events.push({ event: ev[1], data: JSON.parse(data[1]) }); waiters.forEach(w => w()); }
+                }
+              }
+            } catch {}
+          })();
+        });
+        const next = async (name) => {
+          for (let t = 0; t < 40; t++) {
+            const i = events.findIndex(e => e.event === name);
+            if (i >= 0) return events.splice(i, 1)[0].data;
+            await new Promise(r => { waiters.push(r); setTimeout(r, 50); });
+            waiters = [];
+          }
+          throw new Error('kein Ereignis ' + name);
+        };
+        return { ready, next, close: () => ctl.abort() };
+      };
+      const home = sse(anna, '/api/pixelpfoten/live/anna');
+      await home.ready;
+      assert.deepEqual((await home.next('hello')).members, []);
+      const guestLive = sse(bernd, '/api/pixelpfoten/live/anna');
+      await guestLive.ready;
+      const hello = await guestLive.next('hello');
+      assert.equal(hello.members[0].user, 'anna');
+      assert.equal(hello.members[0].host, true);
+      assert.equal((await home.next('join')).user, 'bernd');
+      assert.equal((await api(bernd, '/api/pixelpfoten/nachbarn', undefined, 'GET')).json.neighbours.find(n => n.user === 'anna').live, true);
+      const up = await api(bernd, '/api/pixelpfoten/live/anna', { sid: hello.sid, pets: [{ id: 'h1', name: 'Hoppel<script>', species: 'dog', x: 0.4, d: 0.5 }, { species: 'drache' }], toy: { id: 'toy_ball', x: 0.5, y: 0.5, d: 0.5 } });
+      assert.equal(up.status, 200);
+      const st = await home.next('state');
+      assert.equal(st.pets.length, 1);
+      assert.equal(st.pets[0].name, 'Hoppelscript');
+      assert.equal(st.toy.id, 'toy_ball');
+      assert.equal((await api(anna, '/api/pixelpfoten/live/anna', { sid: hello.sid, pets: [] })).status, 409, 'fremde Verbindung');
+      // Streicheln, während Anna da ist: ihr Spiel holt es sofort ab
+      await act({ kind: 'pet', pet });
+      await home.next('post');
+      guestLive.close();
+      assert.equal((await home.next('leave')).sid, hello.sid);
+      home.close();
+
+      // Niemand darf besuchen: Zimmer und Nachbarliste sind zu
+      await saveFor(anna, 'Balu', 'none');
+      assert.equal((await api(bernd, '/api/pixelpfoten/zimmer/anna', undefined, 'GET')).status, 404);
+      assert.equal((await act({ kind: 'pet', pet })).status, 400);
+      assert.ok(!(await api(bernd, '/api/pixelpfoten/nachbarn', undefined, 'GET')).json.neighbours.some(n => n.user === 'anna'));
+      const g = sse(bernd, '/api/pixelpfoten/live/anna');
+      await assert.rejects(g.ready);
+      g.close();
+    });
+
     // Live-Verbindung zum Spieltisch: liefert die Zustände des gerade gewählten Spiels und meldet einen Spielwechsel
     let cardTable = null;
     function cardStream(m) {

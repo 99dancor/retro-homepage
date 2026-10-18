@@ -291,3 +291,20 @@ body.embed #screen, body.embed .notice { width: 100%; max-width: 760px; margin-l
 .pet-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; margin: 0 0 -4px; font-size: 15px; }
 .pet-head small { font-size: 12px; opacity: .8; flex-basis: 100%; }
 .pet-head button { padding: 0 4px; }
+
+/* Besuche: fremde Tiere und Spielzeug anderer im Live-Zimmer */
+.sp.guest .sp-name { background: #fff8d0; }
+.sc-toy.ghost { pointer-events: none; opacity: .9; filter: drop-shadow(0 2px 1px rgba(0,0,0,.3)); }
+.sc-toy.ghost .dot { position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; border-radius: 50%; background: #ff2020; box-shadow: 0 0 6px 3px rgba(255,40,40,.6); }
+.visit-banner { background: #e0f0ff; }
+.host-pets, .book { margin: 0; padding-left: 0; list-style: none; }
+.host-pets li, .book li { margin: 3px 0; }
+.host-pets small, .book small { opacity: .8; }
+.bring, .stickers { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+.bring button.active { box-shadow: inset 1px 1px var(--dark), inset -1px -1px var(--hi), inset 2px 2px var(--lo); background: var(--field); font-weight: bold; }
+.sticker { min-width: 0; width: 34px; height: 30px; padding: 0; font-size: 17px; margin-top: 6px; }
+.neighbours { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
+.nb-pets { flex: 0 0 auto; display: flex; }
+.nb-pets svg { width: 48px; height: 48px; margin-right: -10px; }
+.badge.live { background: #208020; }
+.privacy { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 4px; }

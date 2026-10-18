@@ -35,6 +35,7 @@ for (const [slug, game] of Object.entries(GAMES)) {
         'data-login': '/login?next=' + base,
         'data-register': l.registrationOpen ? '/register?next=' + base : '',
         'data-forum': l.boardEnabled ? '/forum/new' : '',
+        'data-csrf': req.csrfToken || '',
       };
       const tag = '<body ' + Object.entries(data).map(([k, v]) => `${k}="${attr(v)}"`).join(' ') + '>';
       noCache(res).type('html').send(html.replace('<body>', tag));

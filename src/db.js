@@ -465,6 +465,21 @@ CREATE TABLE IF NOT EXISTS ms_games (
 );
 CREATE INDEX IF NOT EXISTS ms_user ON ms_games(user_id, played_at);
 CREATE INDEX IF NOT EXISTS ms_best ON ms_games(level, won, seconds);
+-- Pixelpfoten-Besuchsbuch: was ein Mitglied bei den Tieren eines anderen getan hat (siehe src/pixelpfoten.js).
+-- applied: das Spiel des Gastgebers hat es schon in seinen Spielstand eingerechnet. Einträge bleiben 30 Tage.
+CREATE TABLE IF NOT EXISTS pp_visits (
+  id INTEGER PRIMARY KEY,
+  host_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  visitor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  pet_id TEXT,
+  detail TEXT,
+  day TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  applied INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS pp_visits_host ON pp_visits(host_id, applied, id);
+CREATE INDEX IF NOT EXISTS pp_visits_day ON pp_visits(host_id, visitor_id, day, kind);
 -- Kreuzworträtsel: ein Rätsel pro Tag (für alle gleich) und der Stand jedes Mitglieds an diesem Tag
 CREATE TABLE IF NOT EXISTS cw_puzzles (
   day TEXT PRIMARY KEY,

@@ -56,6 +56,27 @@ Grundlage ist das Konzept in der Projektablage (`haustier/konzept.md`), als „M
 - **Lieblingssachen** (❤️) wirken 50 % stärker, z. B. Thunfisch für Katzen oder der Ball für Hunde.
 - **Start:** ein Ball und 5 × Trockenfutter.
 
+## Besuche
+
+Mitglieder besuchen die Tiere anderer Mitglieder, allein oder mit einem eigenen Tier (Menü 🏘️ Besuchen).
+Regeln in `src/js/visits.js` (vom Spiel und vom Server genutzt), Server-Teil in `src/pixelpfoten.js` und
+`src/routes/pixelpfoten.js` der Homepage unter `/api/pixelpfoten` (nur mit Konto).
+
+- **Wer darf:** `visitors` im Spielstand: `members` (Voreinstellung), `friends` oder `none`. Besucher sehen nur
+  Zimmer, Name, Art, Farbe, Accessoires, Stufe und Werte der Tiere (`publicPet`), keine Münzen oder Inventar.
+- **Besuchsbuch** (Tabelle `pp_visits`): vorbeischauen (1×), streicheln (6×), spielen (6×), mit eigenem Tier
+  (1×), Futter dalassen (3×, Futter bis 60 Münzen aus dem eigenen Inventar), Gruß (1×), jeweils am Tag je
+  Gastgeber. Der Spielstand bleibt in der Hand seines Besitzers: Das Spiel des Gastgebers holt die Einträge beim
+  Öffnen (und sofort, wenn es offen ist) und rechnet sie mit `applyVisits` ein. Einträge verschwinden nach 30 Tagen.
+- **Belohnung:** die ersten drei Gastgeber am Tag bringen je 10 Münzen, das mitgebrachte Tier bekommt einmal je
+  Gastgeber und Tag Spaß und Erfüllung (`state.outgoing`).
+- **Live-Zimmer:** Server-Sent Events (`GET /api/pixelpfoten/live/<name>`). Jedes Spiel ist für seine eigenen
+  Tiere zuständig und schickt ihren Stand fünfmal pro Sekunde (`POST`), solange noch jemand im Zimmer ist; der
+  Server prüft ihn (`cleanLivePet`) und reicht ihn weiter. Nur im Arbeitsspeicher, höchstens 8 Leute je Zimmer.
+- Ist der Gastgeber nicht live, laufen seine Tiere als Simulation im Zimmer und spielen mit dem Spielzeug des
+  Besuchers; im Live-Zimmer laufen sie so, wie sie beim Gastgeber gerade laufen.
+- Ist der Gastgeber nicht im Spiel, bekommt er einmal am Tag je Besucher eine Benachrichtigung (`besuch`).
+
 ## Wie war dein Tag?
 
 Einmal am Tag drei Ja/Nein-Fragen zum eigenen Wohlbefinden: „Hast du den Tag heute überlebt?“, „Hast du etwas
@@ -122,7 +143,9 @@ src/js/items.js     alle Gegenstände (Futter, Spielzeug, Pflege, Accessoires, R
 src/js/economy.js   Münzen, Login-Bonus, Tagesaufgaben, Shop
 src/js/art.js       Vektorgrafiken der Tiere (mit Gruppen für Augen, Ohren, Kopf, Pfoten, Schwanz), Accessoires und Räume
 src/js/behavior.js  Verhalten im Zimmer und Spielzeugarten (reine Funktionen)
-src/js/scene.js     Zimmer-Szene: Tiere, Spielzeug, Napf, Animationen
+src/js/scene.js     Zimmer-Szene: Tiere, Spielzeug, Napf, Animationen, Tiere anderer Mitglieder
+src/js/visits.js    Regeln für Besuche (reine Funktionen, auch vom Server genutzt)
+src/js/live.js      Verbindung zum Server: Nachbarn, Besuchsbuch, Live-Zimmer
 src/js/storage.js   Laden/Speichern für Gäste und Konten
 src/js/main.js      Ablauf und Oberfläche
 test/               Tests (node --test)

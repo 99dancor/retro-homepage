@@ -15,7 +15,7 @@
   <li>Was du schreibst, kann der Admin lesen, auch „anonyme“ Forenbeiträge. Privatnachrichten zeigt die Seite ihm nicht an, sie liegen aber unverschlüsselt auf dem Server.</li>
 </ul>
 <p>Springe zu: <a href="#besuch">Besuch</a> · <a href="#cookies">Cookies</a> · <a href="#browser">Im Browser</a> ·
-  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#kartenspiele">UNO, Flip 7, Pilli Pilli</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
+  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#pixelpfoten">Pixelpfoten</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#kartenspiele">UNO, Flip 7, Pilli Pilli</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
 </fieldset>
 
 <h2 id="besuch">👣 Wenn du die Seite besuchst</h2>
@@ -180,6 +180,19 @@
   <%- code('saves', 'Ein Spielstand gehört immer zu genau einem Konto, Spiel und Speicherplatz.') %>
   <%- code('gameStats', 'Pro Konto, Spiel und Wert eine einzige Zahl, keine Liste einzelner Spiele.') %>
   <%- code('countStart', 'Beim Start eines Spiels zählt nur der Zähler „Gestartet“ eins hoch, und nur mit Konto.') %>
+</details>
+
+<h2 id="pixelpfoten">🐾 Pixelpfoten-Besuche</h2>
+<ul>
+  <li>Mit Konto können andere Mitglieder deine Pixelpfoten besuchen. Sie sehen dann dein Zimmer, Namen, Aussehen, Stufe und Laune deiner Tiere sowie die letzten Einträge in deinem Besuchsbuch. Münzen, Inventar und alles andere aus deinem Spielstand sehen sie nicht.</li>
+  <li>Wer dich besuchen darf, stellst du im Spiel unter „Besuchen“ ein: alle Mitglieder (Voreinstellung), nur Freunde oder niemand. Die Einstellung steht in deinem Spielstand.</li>
+  <li><b>Besuchsbuch:</b> Was Besucher bei dir tun (vorbeischauen, streicheln, spielen, Futter dalassen, Gruß), wird mit Gastgeber, Besucher, Art, Tier, Gruß oder Futter und Zeit gespeichert, damit dein Spiel es beim nächsten Öffnen einrechnen kann. Nach 30 Tagen werden die Einträge gelöscht, mit deinem Konto auch sofort.</li>
+  <li><b>Live-Zimmer:</b> Wer gerade gleichzeitig im selben Zimmer ist, sieht die Tiere der anderen herumlaufen. Dafür schickt das Spiel Position, Aussehen und Gesichtsausdruck der eigenen Tiere an den Server, der sie nur weiterreicht und im Arbeitsspeicher hält, bis du das Zimmer verlässt.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('ppVisits', 'Ein Eintrag im Besuchsbuch: bei wem, von wem, was, welches Tier, Gruß oder Futter, Tag und Zeit, und ob dein Spiel ihn schon abgeholt hat.') %>
+  <%- code('ppAllowed', 'Diese Regel entscheidet, wer deine Tiere besuchen darf.') %>
+  <%- code('ppLive', 'Live-Stände werden geprüft, im Arbeitsspeicher gehalten und an die anderen im Zimmer weitergereicht. In die Datenbank kommen sie nicht.') %>
 </details>
 
 <h2 id="kartenspiele">🂡 Kartenspiele und Kasse</h2>

@@ -1,5 +1,14 @@
 # Changelog
 
+## 18.10.2026 – Pixelpfoten: Besuche
+
+- **Zu Besuch:** Unter 🏘️ Besuchen findest du die Zimmer anderer Mitglieder, Freunde und wer gerade live da ist zuerst. Schau vorbei und streichel ihre Tiere, oder hol ein Spielzeug aus deiner Kiste und spiel mit ihnen.
+- **Mit eigenem Tier:** Bring eins deiner Tiere mit. Es spielt mit den Tieren des Gastgebers und hat danach mehr Spaß und gute Laune.
+- **Live:** Ist der Gastgeber auch gerade im Spiel, seht ihr eure Tiere gleichzeitig im selben Zimmer herumlaufen.
+- **Geschenke und Grüße:** Lass Futter aus deinem Inventar da oder einen Gruß im Besuchsbuch. Die ersten drei Besuche am Tag bringen je 10 Münzen.
+- **Besuch war da:** Wenn du das Spiel öffnest, erzählen dir deine Tiere, wer da war. Streicheln und Spielen der Besucher wirken auf deine Tiere, Geschenke landen im Inventar.
+- **Wer darf kommen:** Alle Mitglieder, nur Freunde oder niemand. Das stellst du unter 🏘️ Besuchen ein.
+
 ## 18.10.2026 – Pixelpfoten: Leben im Zimmer
 
 - **Neuer Name:** Aus „Mein Haustier“ wird **Pixelpfoten**. Deine Tiere, Münzen und Sachen bleiben natürlich, wie sie sind.

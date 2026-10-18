@@ -54,7 +54,8 @@ const clamp01 = (v, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
 
 // Nächster Zug eines Tieres, das gerade nichts zu tun hat.
 //   me:     { pet, x, d }
-//   others: dieselbe Form für die anderen Tiere
+//   others: dieselbe Form für die anderen Tiere, dazu key (Schlüssel in der Szene, sonst gilt pet.id).
+//           Tiere anderer Mitglieder im Live-Zimmer haben keine Werte (stats) und spielen nicht Fangen.
 //   rng:    Zufall (für Tests austauschbar)
 // Gibt { type, x?, d?, with?, ms } zurück. type: sleep | sit | look | wander | visit | chase | nap
 export function decide(me, others, rng = Math.random) {
@@ -69,8 +70,9 @@ export function decide(me, others, rng = Math.random) {
   if (awake.length && r < (m.face === 'happy' ? 0.42 : 0.3)) {
     const o = awake[Math.floor(rng() * awake.length)];
     // Gute Laune und genug Energie: Fangen spielen statt nur Hallo sagen
-    if (pet.stats.fun < 85 && pet.stats.rest > 40 && o.pet.stats.rest > 40 && rng() < 0.35) return { type: 'chase', with: o.pet.id, ms: 3500 };
-    return { type: 'visit', with: o.pet.id, ms: 6000 };
+    const id = o.key ?? o.pet.id;
+    if (pet.stats.fun < 85 && pet.stats.rest > 40 && o.pet.stats && o.pet.stats.rest > 40 && rng() < 0.35) return { type: 'chase', with: id, ms: 3500 };
+    return { type: 'visit', with: id, ms: 6000 };
   }
   if (r < 0.75) return { type: 'wander', x: clamp01(0.1 + rng() * 0.8), d: clamp01(rng()), ms: 7000 };
   if (r < 0.88) return { type: 'look', ms: 1800 + rng() * 1500 };

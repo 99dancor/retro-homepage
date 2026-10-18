@@ -20,6 +20,7 @@
     <% if (dk.games) { %><label class="inline"><input type="checkbox" name="reset_durak" value="1"> Durak-Statistik (<%= dk.games %> Spiele, <%= dk.duraks %>× Durak) löschen</label><% } %>
     <% for (const g of cg) if (g.t.games) { %><label class="inline"><input type="checkbox" name="reset_<%= g.id %>" value="1"> <%= g.title %>-Statistik (<%= g.t.games %> Spiele, <%= g.t.wins %> gewonnen) löschen</label><% } %>
     <% if (cw.solved || cw.streak) { %><label class="inline"><input type="checkbox" name="reset_crossword" value="1"> Kreuzworträtsel-Stand und Serie (<%= cw.solved %> gelöst) löschen</label><% } %>
+    <% if (sd.solved || sd.streak) { %><label class="inline"><input type="checkbox" name="reset_sudoku" value="1"> Sudoku-Stand und Serie (<%= sd.solved %> gelöst) löschen</label><% } %>
     <% if (ms.games) { %><label class="inline"><input type="checkbox" name="reset_minesweeper" value="1"> Minesweeper-Statistik und Bestzeiten (<%= ms.games %> Spiele) löschen</label><% } %>
   </fieldset>
   <fieldset class="groupbox"><legend>Rechte</legend>

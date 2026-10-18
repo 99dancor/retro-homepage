@@ -125,5 +125,8 @@
 <form method="post" action="/admin/settings/kreuzwortraetsel-reset" class="actions" data-confirm="Alle gelösten Kreuzworträtsel, Serien und Bestenlisten aller Mitglieder löschen?">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">📰 Kreuzworträtsel-Statistik zurücksetzen</button> <small>(löscht den Stand aller Mitglieder, auch Serien und Zahlen im Profil; die Rätsel bleiben)</small>
 </form>
+<form method="post" action="/admin/settings/sudoku-reset" class="actions" data-confirm="Alle gelösten Sudokus, Serien und Bestenlisten aller Mitglieder löschen?">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🔢 Sudoku-Statistik zurücksetzen</button> <small>(löscht den Stand aller Mitglieder, auch Serien und Zahlen im Profil; die Sudokus bleiben)</small>
+</form>
 <script src="<%= asset('admin.js') %>"></script>
 <%- include('../partials/foot') %>

@@ -205,6 +205,23 @@ module.exports = {
       return { stats: out, last: t.last };
     },
   },
+  sudoku: {
+    title: 'Sudoku',
+    url: '/sudoku',
+    userStats(userId) {
+      const sd = require('./sudoku'), t = sd.userTotals(userId);
+      if (!t.solved) return null;
+      const clock = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+      const out = [
+        { key: 'Gelöst', value: t.solved },
+        { key: 'Ohne Hilfe', value: t.clean, text: `${t.clean.toLocaleString('de-DE')} (${Math.round(t.clean / t.solved * 100)} %)` },
+        { key: 'Aktuelle Serie', value: t.streak, text: t.streak === 1 ? '1 Tag' : `${t.streak} Tage` },
+        { key: 'Längste Serie', value: t.best_streak, text: t.best_streak === 1 ? '1 Tag' : `${t.best_streak} Tage` },
+      ];
+      for (const [k, l] of Object.entries(sd.LEVELS)) if (t.levels[k].best != null) out.push({ key: 'Bestzeit ' + l.name, value: t.levels[k].best, text: clock(t.levels[k].best) });
+      return { stats: out, last: t.last };
+    },
+  },
   haustier: {
     title: 'Pixelpfoten',
     stats(data) {

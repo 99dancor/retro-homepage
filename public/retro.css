@@ -1285,6 +1285,66 @@ tr.me td { background: #ffffcc; color: #000; }
 .cw.narrow .cw-main { flex-direction: column; }
 .cw.narrow .cw-clue { position: sticky; top: 0; z-index: 2; }
 .cw.narrow .cw-lists { flex: none; overflow: visible; }
+/* Sudoku (public/sudoku.js): Aufbau wie beim Kreuzworträtsel, Menüs und Dialoge von Minesweeper */
+.sd { margin: -10px; height: 100vh; display: flex; flex-direction: column; position: relative; overflow: hidden; --sd-cell: 44px; }
+.sd-head { display: flex; align-items: flex-end; gap: 8px; padding: 6px 8px 0; }
+.sd-tabs { display: flex; gap: 2px; }
+.sd-tabs button { min-width: 0; padding: 3px 10px; box-shadow: inset 1px 1px var(--hi), inset -1px 0 var(--lo); border-bottom: 0; }
+.sd-tabs button.on { font-weight: bold; position: relative; top: 1px; padding-bottom: 5px; background: var(--win); }
+.sd-date { flex: 1; text-align: right; font-weight: bold; padding-bottom: 3px; }
+.sd-time { font-variant-numeric: tabular-nums; padding: 1px 6px; margin-bottom: 2px; box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); }
+.sd-status { margin: 0 8px 6px; padding: 5px 8px; min-height: 2.2em; background: var(--title-from); color: #fff; }
+.sd-flash { font-weight: bold; }
+.sd-main { flex: 1; min-height: 0; display: flex; gap: 10px; padding: 0 8px 8px; }
+.sd-board { flex: 1 1 auto; min-width: 0; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 6px; }
+.sd-grid { display: grid; grid-template-columns: repeat(9, var(--sd-cell)); border: 3px solid #000; user-select: none; -webkit-user-select: none; }
+.sd-cell { width: var(--sd-cell); height: var(--sd-cell); position: relative; background: #fff; color: #0040c0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  border-right: 1px solid #9a9a9a; border-bottom: 1px solid #9a9a9a; }
+.sd-cell:nth-child(9n) { border-right: 0; }
+.sd-cell:nth-child(n+73) { border-bottom: 0; }
+.sd-cell.br { border-right: 3px solid #000; }
+.sd-cell.bb { border-bottom: 3px solid #000; }
+.sd-cell .v { font: calc(var(--sd-cell) * .6) / 1 var(--font); }
+.sd-cell.given { color: #000; }
+.sd-cell.given .v { font-weight: bold; }
+.sd-cell .nt { position: absolute; inset: 1px; display: grid; grid-template-columns: repeat(3, 1fr); color: #555; font-size: max(8px, calc(var(--sd-cell) * .26)); line-height: 1; }
+.sd-cell .nt[hidden] { display: none; }
+.sd-cell .nt i { font-style: normal; display: flex; align-items: center; justify-content: center; visibility: hidden; }
+.sd-cell .nt i.on { visibility: visible; }
+.sd-cell.house { background: #e4ecff; }
+.sd-cell.same { background: #b9cdf5; }
+.sd-cell.cur { background: #ffe066; }
+.sd-cell.clash .v { color: #d00000; }
+.sd-cell.clash.given .v { text-decoration: underline wavy #d00000; }
+.sd-cell.wrong::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top right, transparent 46%, rgba(200,0,0,.6) 47% 53%, transparent 54%); }
+.sd-cell.revealed { color: #007a1e; }
+.sd-cell.revealed::before { content: ''; position: absolute; right: 0; top: 0; border: 4px solid; border-color: #007a1e #007a1e transparent transparent; }
+.sd.done .sd-cell { cursor: default; }
+.sd.done .sd-cell.house, .sd.done .sd-cell.same, .sd.done .sd-cell.cur { background: #fff; }
+.sd-grid.solved .sd-cell, .sd.done .sd-grid.solved .sd-cell { background: #d7f5d0; }
+.sd-side { flex: 0 0 180px; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+.sd-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.sd-pad button { min-width: 0; height: 52px; padding: 0; position: relative; font-size: 22px; }
+.sd-pad button small { position: absolute; right: 4px; bottom: 2px; font-size: 10px; opacity: .7; }
+.sd-pad button.used { opacity: .45; }
+.sd-tools { display: flex; flex-direction: column; gap: 4px; }
+.sd-tools button { min-width: 0; text-align: left; }
+.sd-tools button.on { box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); font-weight: bold; }
+.sd-days { border-collapse: collapse; }
+.sd-days th { font-weight: normal; padding: 0 6px; }
+.sd-days td.num { text-align: center; }
+.sd-days tr.me td { font-weight: bold; }
+.sd-days button { background: none; box-shadow: none; padding: 1px 0; min-width: 0; text-align: left; color: var(--field-link); text-decoration: underline; cursor: pointer; }
+.sd.narrow { height: auto; min-height: 100vh; overflow: visible; }
+.sd.narrow .sd-head { flex-wrap: wrap; }
+.sd.narrow .sd-date { order: -1; flex-basis: 100%; text-align: left; }
+.sd.narrow .sd-main { flex-direction: column; }
+.sd.narrow .sd-board { flex: none; }
+.sd.narrow .sd-side { flex: none; }
+.sd.narrow .sd-pad { grid-template-columns: repeat(9, 1fr); }
+.sd.narrow .sd-pad button { height: 46px; font-size: 20px; }
+.sd.narrow .sd-tools { flex-direction: row; }
+.sd.narrow .sd-tools button { flex: 1; text-align: center; padding-left: 2px; padding-right: 2px; }
 
 /* Kartenspiele (views/kartenspiele.ejs, public/kartenspiele.js): Spieltische, Kasse und die Leiste über dem Tisch.
    Filz und Kartenrücken wählt der Gastgeber; die Klassen hängen am Spiel und setzen nur Farben (--felt-*, --rim-*, --back). */

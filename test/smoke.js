@@ -1326,6 +1326,49 @@ async function main() {
       assert.match((await admin.req('/admin/settings')).text_, /name="cw_words"/);
     });
 
+    await step('Sudoku: drei Stufen am Tag, Prüfen, Lösen, Bestenliste und Profil', async () => {
+      const { anna, bernd } = members;
+      const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'));
+      const home = (await guest.req('/', { top: true })).text_;
+      assert.match(home, /<div class="startmenu"[\s\S]*href="\/sudoku">🔢 Sudoku/);
+      const page = (await guest.req('/sudoku')).text_;
+      assert.match(page, /src="\/static\/sudoku\.js\?v=\w+"/);
+      const data = JSON.parse(page.match(/<script type="application\/json" id="sd-data">([\s\S]*?)<\/script>/)[1]);
+      assert.deepEqual(Object.keys(data.levels), ['leicht', 'mittel', 'schwer']);
+      assert.ok(!page.includes('solution'), 'keine Lösungen im Browser');
+      assert.match((await guest.req('/sudoku', { top: true })).text_, /class="window dwin/);
+      // Lösung direkt aus der Datenbank
+      const sol = sql.prepare('SELECT solution FROM sd_puzzles WHERE day = ? AND level = ?').get(data.day, 'leicht').solution;
+      const givens = data.levels.leicht.givens, k = givens.indexOf('-');
+      const typo = givens.slice(0, k) + (sol[k] === '1' ? '2' : '1') + givens.slice(k + 1);
+      // Gäste: Prüfen und „gelöst?“ gehen, gespeichert wird nichts
+      assert.deepEqual((await api(guest, '/sudoku/pruefen', { day: data.day, level: 'leicht', digits: typo, scope: 'all' })).json.wrong, [k]);
+      assert.equal((await api(guest, '/sudoku/speichern', { day: data.day, level: 'leicht', digits: sol, seconds: 10 })).json.solved, true);
+      assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM sd_progress').get().n, 0);
+      assert.equal((await api(guest, '/sudoku/pruefen', { day: '2020-01-01', level: 'leicht', digits: typo, scope: 'all' })).status, 404);
+      assert.equal((await api(guest, '/sudoku/pruefen', { day: data.day, level: 'extrem', digits: typo, scope: 'all' })).status, 400);
+      assert.equal((await api(guest, '/sudoku/aufdecken', { day: data.day, level: 'leicht', scope: 'alles' })).status, 400);
+      // Anna speichert zwischendurch, deckt ein Feld auf und löst; Bernd löst ohne Hilfe
+      assert.equal((await api(anna, '/sudoku/speichern', { day: data.day, level: 'leicht', digits: typo, seconds: 20 })).json.solved, false);
+      assert.deepEqual((await api(anna, '/sudoku/aufdecken', { day: data.day, level: 'leicht', scope: 'cell', cell: k })).json.cells, [[k, sol[k]]]);
+      const again = JSON.parse((await anna.req('/sudoku')).text_.match(/id="sd-data">([\s\S]*?)<\/script>/)[1]);
+      assert.equal(again.levels.leicht.progress.digits, typo, 'Stand kommt beim nächsten Öffnen zurück');
+      assert.equal(again.levels.mittel.progress, null);
+      assert.equal((await api(anna, '/sudoku/speichern', { day: data.day, level: 'leicht', digits: sol, seconds: 90 })).json.help, true);
+      const r = await api(bernd, '/sudoku/speichern', { day: data.day, level: 'leicht', digits: sol, seconds: 300 });
+      assert.deepEqual([r.json.solved, r.json.help, r.json.rank.place, r.json.rank.of], [true, false, 1, 2]);
+      const best = await api(anna, '/sudoku/bestenliste?level=leicht', undefined, 'GET');
+      assert.deepEqual(best.json.list.map(e => [e.help, e.me]), [[false, false], [true, true]]);
+      assert.equal(best.json.mine.solved, 1);
+      const arch = await api(anna, '/sudoku/archiv', undefined, 'GET');
+      assert.deepEqual(arch.json.days[0], { day: data.day, state: { leicht: 'solved' } });
+      // Browser dürfen keine eigenen Zahlen melden, das Profil zeigt die vom Server
+      assert.equal((await api(anna, '/api/stats/sudoku', { add: { Gelöst: 100 } }, 'PATCH')).status, 404);
+      const prof = (await anna.req('/nutzer/bernd')).text_;
+      assert.match(prof, /href="\/sudoku"><b>Sudoku<\/b>[\s\S]*?Gelöst<\/td><td class="num">1[\s\S]*?Bestzeit Leicht<\/td><td class="num">5:00/);
+      assert.match((await admin.req('/admin/settings')).text_, /action="\/admin\/settings\/sudoku-reset"/);
+    });
+
     await step('Quiz: Raum, Gast mit Namen, Live-Verbindung, Wertung, Profil und Admin', async () => {
       const { anna, bernd } = members;
       const home = (await guest.req('/', { top: true })).text_;

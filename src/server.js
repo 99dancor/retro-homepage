@@ -115,6 +115,7 @@ app.use('/quiz', require('./routes/quiz'));
 app.use('/werwolf', require('./routes/werwolf'));
 app.use('/minesweeper', require('./routes/minesweeper'));
 app.use('/kreuzwortraetsel', require('./routes/crossword'));
+app.use('/sudoku', require('./routes/sudoku'));
 const paintRoutes = require('./routes/paint');
 app.use('/paint', paintRoutes.router);
 app.use('/galerie', paintRoutes.gallery);

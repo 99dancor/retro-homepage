@@ -1884,7 +1884,10 @@ async function main() {
       // Entwurf: wer die Lobby aufgemacht hat, findet den letzten Stand unter „Meine Bilder“
       assert.equal((await json(tom, `/paint/lobby/${id}/op`, { sid: ht.sid, cid: 'b5', x: 10, y: 10, data: patch(4, 4, 0x00ff00) })).status, 200);
       const sse = await st.close();
-      assert.equal((await json(tom, `/paint/lobby/${id}/chat`, { text: 'weg' })).status, 409, 'ohne Verbindung keine Änderungen');
+      // Der Server merkt das Trennen erst einen Moment später: kurz warten, bis er Tom austrägt
+      let gone;
+      for (let i = 0; i < 40 && (gone = (await json(tom, `/paint/lobby/${id}/chat`, { text: 'weg' })).status) !== 409; i++) await new Promise(r => setTimeout(r, 50));
+      assert.equal(gone, 409, 'ohne Verbindung keine Änderungen');
       assert.equal((await json(lena, `/paint/lobby/${id}`, { action: 'close' })).status, 200);
       await sl.next(e => e.event === 'closed');
       await sl.close();

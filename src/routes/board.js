@@ -8,6 +8,7 @@ const up = require('../uploads');
 const { md, mdBlocks } = require('../util');
 const { displayName, profileUrl } = require('../profiles');
 const notify = require('../notify');
+const drafts = require('./drafts');
 
 const router = express.Router();
 const PER_PAGE = 25;
@@ -97,8 +98,11 @@ router.get('/', (req, res) => {
     t.last_author = byline(req.user, t.last_username && (t.last_display_name || t.last_username), t.last_anonymous, t.last_user_id);
     t.last_url = t.last_username && !t.last_anonymous ? profileUrl(t.last_username) : null;
   }
-  res.render('board-list', { title: 'Forum', topics, page, pages: Math.max(1, Math.ceil(total / PER_PAGE)), total, q, sort, dir, mine });
+  res.render('board-list', { title: 'Forum', draftCount: req.user ? drafts.count(req.user.id, 'forum') : 0, topics, page, pages: Math.max(1, Math.ceil(total / PER_PAGE)), total, q, sort, dir, mine });
 });
+
+// ---------- Eigene Entwürfe ----------
+router.get('/entwuerfe', auth.requireLogin, (req, res) => res.render('board-drafts', { title: 'Meine Entwürfe', drafts: drafts.list(req.user.id, 'forum') }));
 
 // ---------- Neues Thema ----------
 router.get('/new', auth.requireLogin, (req, res) => res.render('board-new', { title: 'Neues Thema', err: null, form: {} }));
@@ -106,7 +110,7 @@ router.post('/new', auth.requireLogin, auth.rateLimit('board', 10, 600), (req, r
   const title = str(req.body.title, 150);
   const body = String(req.body.body_md || '').trim().slice(0, MAX_BODY);
   const anon = req.body.anonymous ? 1 : 0;
-  if (!title || !body) return res.render('board-new', { title: 'Neues Thema', err: 'Bitte Titel und Text ausfüllen.', form: { title, body, anonymous: anon } });
+  if (!title || !body) return res.render('board-new', { title: 'Neues Thema', err: 'Bitte Titel und Text ausfüllen.', form: { title, body, anonymous: anon, draft_id: req.body.draft_id } });
   const t = now();
   const id = tx(() => {
     const tid = Number(db.prepare('INSERT INTO board_topics(title, user_id, anonymous, created_at, last_post_at) VALUES (?, ?, ?, ?, ?)').run(title, req.user.id, anon, t, t).lastInsertRowid);
@@ -114,6 +118,7 @@ router.post('/new', auth.requireLogin, auth.rateLimit('board', 10, 600), (req, r
     subscribe(req.user.id, tid);
     return tid;
   });
+  drafts.consume(req);
   if (!req.user.isAdmin) {
     mail.notifyQuietly('Neues Thema im Forum: ' + title, `Von: ${req.user.username}${anon ? ' (anonym)' : ''}\n\n${body}`);
     notify.toAdmins('💬 Neues Thema im Forum: ' + title, `Von ${anon ? 'Anonym (' + req.user.username + ')' : displayName(req.user)}`, '/forum/t/' + id);
@@ -155,6 +160,7 @@ router.post('/t/:id/reply', auth.requireLogin, auth.rateLimit('board', 10, 600),
     subscribe(req.user.id, t.id);
     return id;
   });
+  drafts.consume(req);
   // Alle anderen, die das Thema abonniert haben, bekommen Bescheid
   const who = req.body.anonymous ? 'Anonym' : displayName(req.user);
   const text = body.replace(/\s+/g, ' ');
@@ -172,12 +178,13 @@ router.post('/p/:id/edit', auth.requireLogin, loadPost, (req, res) => {
   const body = String(req.body.body_md || '').trim().slice(0, MAX_BODY);
   const title = str(req.body.title, 150);
   if (!body || (req.isFirst && !title)) {
-    return res.render('board-edit', { title: 'Beitrag bearbeiten', post: { ...req.post, body_md: body }, topic: { ...req.topic, title }, isFirst: req.isFirst, err: 'Bitte nichts leer lassen.' });
+    return res.render('board-edit', { title: 'Beitrag bearbeiten', post: { ...req.post, body_md: body }, topic: { ...req.topic, title }, isFirst: req.isFirst, err: 'Bitte nichts leer lassen.', draftId: req.body.draft_id });
   }
   tx(() => {
     db.prepare('UPDATE board_posts SET body_md = ?, edited_at = ? WHERE id = ?').run(body, now(), req.post.id);
     if (req.isFirst) db.prepare('UPDATE board_topics SET title = ? WHERE id = ?').run(title, req.topic.id);
   });
+  drafts.consume(req);
   res.redirect(`/forum/t/${req.topic.id}?page=${pageOf(req.post)}#b${req.post.id}`);
 });
 // Der erste Beitrag eines Themas löscht das ganze Thema. Nutzer dürfen das nur, solange niemand geantwortet hat.

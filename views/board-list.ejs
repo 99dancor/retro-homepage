@@ -1,7 +1,7 @@
 <%- include('partials/head') %>
 <h1>💬 Forum</h1>
 <div class="actions" style="margin-top:0">
-  <% if (user) { %><a class="btn" href="/forum/new">✍️ Neues Thema</a>
+  <% if (user) { %><a class="btn" href="/forum/new">✍️ Neues Thema</a><% if (draftCount) { %> <a class="btn" href="/forum/entwuerfe">📝 Entwürfe (<%= draftCount %>)</a><% } %>
   <% } else { %><span>Zum Mitschreiben bitte <a href="/login?next=/forum">anmelden</a><%= registrationOpen ? '' : '.' %><% if (registrationOpen) { %> oder <a href="/register">registrieren</a>.<% } %></span><% } %>
   <small><%= total %> <%= total === 1 ? "Thema" : "Themen" %></small>
 </div>

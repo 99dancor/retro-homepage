@@ -1,0 +1,10 @@
+<%# Entwürfe speichern und laden (public/drafts.js). Gehört in ein Formular mit Textfeld body_md.
+    Erwartet: kind ('forum' | 'blog'), place (siehe src/routes/drafts.js). Optional: draftId %>
+<input type="hidden" name="draft_id" value="<%= typeof draftId !== 'undefined' && draftId ? draftId : '' %>">
+<div class="drafts-bar" data-drafts="<%= kind %>" data-draft-place="<%= place %>">
+  <button type="button" class="small" data-draft-save title="Text und Felder für später speichern, ohne zu veröffentlichen">💾 Entwurf speichern</button>
+  <button type="button" class="small" data-draft-open title="Gespeicherte Entwürfe anzeigen und laden">📂 Entwürfe laden<span data-draft-count></span></button>
+  <span class="muted" data-draft-status></span>
+  <div class="panel drafts-panel" data-draft-panel hidden></div>
+</div>
+<script src="<%= asset('drafts.js') %>" defer></script>

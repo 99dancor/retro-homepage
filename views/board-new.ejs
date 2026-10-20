@@ -8,6 +8,7 @@
   <label>Text:</label>
   <%- include('partials/md-editor', { name: 'body_md', value: form.body, uploadUrl: '/forum/media', previewUrl: '/forum/preview', libraryUrl: null, compact: true }) %>
   <%- include('partials/anonymous', { checked: form.anonymous }) %>
+  <%- include('partials/drafts-bar', { kind: 'forum', place: 'new', draftId: form.draft_id }) %>
   <div class="actions"><button>📨 Thema erstellen</button><a class="btn" href="/forum">Abbrechen</a></div>
 </form>
 <%- include('partials/foot') %>

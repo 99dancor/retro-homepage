@@ -1,0 +1,14 @@
+<%# Liste gespeicherter Entwürfe. Erwartet: drafts (aus src/routes/drafts.js list), back (Adresse nach dem Löschen) %>
+<table class="list draft-list">
+  <tr><th>Entwurf</th><th>Für</th><th>Zuletzt gespeichert</th><th></th></tr>
+  <% for (const d of drafts) { %>
+  <tr>
+    <td><a href="<%= d.url %>"><b><%= d.title || '(ohne Titel)' %></b></a><% if (d.snippet) { %><br><small class="muted"><%= d.snippet %></small><% } %></td>
+    <td><%= d.where %></td>
+    <td><%= fmtDate(d.updated_at, true) %></td>
+    <td style="white-space:nowrap"><a class="btn small" href="<%= d.url %>">✏️ Weiterschreiben</a>
+      <form method="post" action="/api/entwuerfe/<%= d.id %>/delete" class="inline" data-confirm="Entwurf löschen?">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= back %>"><button class="small danger">🗑</button></form></td>
+  </tr>
+  <% } %>
+</table>

@@ -32,6 +32,7 @@ const SNIPPETS = {
   pushSubs: ['src/db.js', 'CREATE TABLE IF NOT EXISTS push_subs (', 10],
   pushEncrypt: ['src/webpush.js', 'function encrypt(payload, p256dh, authSecret) {', 15],
   petwatch: ['src/petwatch.js', 'function check(userId, data, t = Date.now()) {', 9],
+  drafts: ['src/db.js', 'CREATE TABLE IF NOT EXISTS drafts (', 11],
   boardSubs: ['src/db.js', 'CREATE TABLE IF NOT EXISTS board_subs (', 6],
   boardViews: ['src/routes/board.js', 'function countView(req, topicId) {', 6],
   byline: ['src/routes/board.js', 'function byline(viewer, name, anonymous, userId)', 5],

@@ -80,7 +80,7 @@ test('Kasse: Geld geht mit an den Tisch, bleibt beim Wechsel und nach der Hand',
   assert.match(String(kasse.rebuy(anna.id)), /weniger als 200/);
   kasse.save(anna.id, 150);
   assert.equal(kasse.rebuy(anna.id), null);
-  assert.deepEqual(kasse.view(kasse.wallet(anna.id)), { balance: 1150, bought: 2000, buyins: 2, net: -850 });
+  assert.deepEqual(kasse.view(kasse.wallet(anna.id)), { balance: 1150, bought: 2000, buyins: 2, spent: 0, net: -850 });
 
   const { table: s } = ks.create(anna, { game: 'blackjack' });
   ok(s, anna, { action: 'sit' });
@@ -107,7 +107,7 @@ test('Kasse: Geld geht mit an den Tisch, bleibt beim Wechsel und nach der Hand',
   // Nachkaufen am Tisch zählt in der Kasse
   t.seats[1].chips = 50; t.bank.save(bernd.id, 50);
   ok(s, bernd, { action: 'rebuy' });
-  assert.deepEqual(kasse.view(kasse.wallet(bernd.id)), { balance: 1050, bought: 2000, buyins: 2, net: -950 });
+  assert.deepEqual(kasse.view(kasse.wallet(bernd.id)), { balance: 1050, bought: 2000, buyins: 2, spent: 0, net: -950 });
 
   // Aufstehen: Stand landet in der Kasse; Wechsel zu UNO braucht kein Geld
   ok(s, bernd, { action: 'leave' });
@@ -136,5 +136,53 @@ test('Spieltisch: Aussehen und Einstellungen', () => {
   assert.equal(ks.switchGame(s, anna, 'uno'), null);
   assert.equal(ks.switchGame(s, anna, 'poker'), null);
   assert.equal(ks.tableOf(s).sb, 25);
+  ks.close(s);
+});
+
+test('Shop: kaufen, hinstellen, am Geldtisch bezahlen, Holzrand und Tier am Platz', () => {
+  setSetting('ks_buyin', '1000');
+  const [anna, bernd] = ['Anna', 'Bernd'].map(user);
+  // Kaffee und Eiche hat jeder, Kaufen geht nur mit genug Geld
+  assert.equal(kasse.wallet(anna.id).drink, 'kaffee');
+  assert.match(String(kasse.buy(anna.id, 'kaffee')), /schon/);
+  assert.match(String(kasse.buy(anna.id, 'krone')), /reicht/);
+  assert.match(String(kasse.equip(anna.id, 'bier')), /erst kaufen/);
+  assert.equal(ks.buy(anna, 'bier'), null);
+  assert.deepEqual(kasse.view(kasse.wallet(anna.id)), { balance: 850, bought: 1000, buyins: 1, spent: 150, net: 0 });
+  assert.equal(kasse.loadout(anna.id).drink, 'bier');
+  assert.equal(kasse.equip(anna.id, '', 'drink'), null);
+  assert.equal(kasse.loadout(anna.id).drink, null);
+
+  // Am Geldtisch zahlt man mit den Chips; die Bilanz der Sitzung bleibt
+  const { table: s } = ks.create(anna, { game: 'blackjack', wood: 'mahagoni' });
+  assert.equal(s.wood, 'eiche');
+  ok(s, anna, { action: 'sit' });
+  ok(s, bernd, { action: 'sit' });
+  const t = ks.tableOf(s);
+  t.seats[0].chips += 200;
+  assert.equal(ks.buy(anna, 'korb'), null);
+  assert.equal(t.seats[0].chips, 550);
+  assert.equal(t.seats[0].chips - t.seats[0].bought, 200);
+  assert.equal(kasse.wallet(anna.id).balance, 550);
+  assert.equal(kasse.view(kasse.wallet(anna.id)).net, 200);
+
+  // Holzrand nur, wenn der Gastgeber ihn gekauft hat
+  assert.match(String(ks.settings(s, anna, { wood: 'mahagoni' })), /erst im Shop/);
+  kasse.save(anna.id, 5000); t.seats[0].chips = 5000;
+  assert.equal(ks.buy(anna, 'mahagoni'), null);
+  assert.equal(ks.settings(s, anna, { wood: 'mahagoni' }), null);
+  assert.equal(ks.meta(s).wood, 'mahagoni');
+
+  // Am Platz: Getränk, Glücksbringer und mit dem Körbchen das Tier aus Pixelpfoten
+  let m = ks.meta(s);
+  assert.equal(m.deco[anna.id].charm.id, 'korb');
+  assert.equal(m.deco[anna.id].pet, null);
+  assert.equal(m.deco[bernd.id].drink.id, 'kaffee');
+  const st = require('../games/haustier/src/js/state.js'), pets = require('../games/haustier/src/js/pets.js');
+  const save = st.newState(); save.pets.push(pets.newPet('dog', '', 'Bello'));
+  db.prepare("INSERT INTO game_saves(user_id, app_slug, slot, data, updated_at) VALUES (?, 'haustier', 'main', ?, ?)").run(anna.id, JSON.stringify(save), now());
+  m = ks.meta(s);
+  assert.equal(m.deco[anna.id].pet.name, 'Bello');
+  assert.match(m.deco[anna.id].pet.svg, /^<svg class="pet-svg species-dog/);
   ks.close(s);
 });

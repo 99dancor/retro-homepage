@@ -1,5 +1,12 @@
 # Changelog
 
+## 20.10.2026 – Kartentisch mit Holzrand, Shop und Glücksbringern
+
+- **Neuer Tisch:** Alle Kartenspiele liegen jetzt auf einem Tisch mit schmalem Holzrand, runden Ecken, Messing-Einlage und Ranken als Verzierung. Der Gastgeber wählt unter „🎨 Tisch gestalten“ neben Filz und Kartenrücken auch das Holz: Eiche, Walnuss mit Silber, Mahagoni mit Messing oder Ebenholz mit Gold.
+- **Am Platz:** Über deinem Namen sitzt dein Profilbild. Im Holzrand vor dir steht eine Ablage mit deinem Getränk oder Snack, neben dem Bild liegt dein Glücksbringer.
+- **Pixelpfoten am Tisch:** Mit dem Körbchen aus dem Shop sitzt dein Pixelpfoten-Tier (das mit der höchsten Stufe) neben dir am Tisch, mit seinen Accessoires.
+- **Shop:** Unter 🛒 Shop kaufst du mit Spielgeld aus der Kasse Getränke und Snacks (50 bis 1.500 €), Glücksbringer (250 bis 10.000 €) und Holzränder. Kaffee und Eiche sind gratis. Sitzt du an einem Geldtisch, zahlst du dort mit deinen Chips. Gekauftes bleibt; was du im Shop ausgibst, zählt nicht als Verlust in der Bilanz.
+
 ## 18.10.2026 – Tägliches Sudoku
 
 - **Neues Spiel:** Unter Spiele und Apps steht 🔢 **Sudoku**. Jeden Tag um Mitternacht gibt es drei neue Sudokus, Leicht, Mittel und Schwer, für alle dieselben. Jedes hat genau eine Lösung, die sich ohne Raten finden lässt.

@@ -25,7 +25,7 @@ module.exports = {
     userStats(userId) {
       const w = require('./kasse').peek(userId);
       if (!w) return null;
-      const net = w.balance - w.bought;
+      const net = w.balance + (w.spent || 0) - w.bought;
       return {
         stats: [
           { key: 'Kontostand', value: w.balance, text: w.balance.toLocaleString('de-DE') + ' €' },

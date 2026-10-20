@@ -394,8 +394,19 @@ CREATE TABLE IF NOT EXISTS ks_wallets (
   balance INTEGER NOT NULL,
   bought INTEGER NOT NULL,                  -- insgesamt eingekauft (Start + Nachkäufe)
   buyins INTEGER NOT NULL DEFAULT 1,
+  spent INTEGER NOT NULL DEFAULT 0,         -- im Shop ausgegeben (zählt nicht als Verlust)
+  drink TEXT,                               -- was in der Ablage am Platz steht (Shop-Artikel)
+  charm TEXT,                               -- Glücksbringer neben dem Namen (Shop-Artikel)
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
+);
+-- Kartenspiele-Shop (src/kasse.js): was ein Mitglied mit Spielgeld gekauft hat (Getränke, Glücksbringer, Tischränder)
+CREATE TABLE IF NOT EXISTS ks_items (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  item TEXT NOT NULL,
+  price INTEGER NOT NULL,
+  bought_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, item)
 );
 -- Paint: gespeicherte Bilder. Bild und Vorschau liegen als PNG in data/paint (<stored_name>.png, <stored_name>-v.png).
 CREATE TABLE IF NOT EXISTS artworks (
@@ -587,6 +598,9 @@ addColumn('board_topics', 'views', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('users', 'notify_prefs', 'TEXT');                       // JSON je Art: { site, push }, leer = Vorgaben
 addColumn('users', 'display_name', 'TEXT');
 addColumn('users', 'avatar', 'TEXT');
+addColumn('ks_wallets', 'spent', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('ks_wallets', 'drink', 'TEXT');
+addColumn('ks_wallets', 'charm', 'TEXT');
 addColumn('users', 'about', 'TEXT');
 addColumn('users', 'profile_visibility', "TEXT NOT NULL DEFAULT 'members'");
 addColumn('users', 'pm_from', "TEXT NOT NULL DEFAULT 'all'");

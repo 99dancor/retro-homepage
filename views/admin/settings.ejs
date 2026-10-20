@@ -102,7 +102,7 @@
 <form method="post" action="/admin/settings/testmail" class="actions">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button>✉️ Test-E-Mail senden</button> <small>(erst speichern, dann testen)</small>
 </form>
-<form method="post" action="/admin/settings/kasse-reset" class="actions" data-confirm="Die Kasse aller Mitglieder zurücksetzen? Jeder startet wieder mit dem Startgeld. Wer gerade an einem Geldtisch sitzt, behält dort seine Chips.">
+<form method="post" action="/admin/settings/kasse-reset" class="actions" data-confirm="Die Kasse aller Mitglieder zurücksetzen? Jeder startet wieder mit dem Startgeld, auch die Einkäufe im Shop sind weg. Wer gerade an einem Geldtisch sitzt, behält dort seine Chips.">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">💰 Kasse aller Mitglieder zurücksetzen</button> <small>(Kontostand und Bilanz; die Zahlen der einzelnen Spiele bleiben)</small>
 </form>
 <form method="post" action="/admin/settings/blackjack-reset" class="actions" data-confirm="Die Blackjack-Bestenliste und alle Bilanzen auf null setzen? Laufende Sitzungen an Tischen bleiben.">

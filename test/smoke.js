@@ -1238,6 +1238,15 @@ async function main() {
       assert.match((await at(anna, { action: 'ready' })).json.error, /wählt der Gastgeber/);
       assert.equal((await at(anna, { action: 'design', felt: 'rot', back: 'karo', name: 'Samstagsrunde' })).status, 200);
       assert.deepEqual((await api(bernd, '/kartenspiele/tische', undefined, 'GET')).json.tables.map(t => [t.name, t.game]), [['Samstagsrunde', 'lobby']]);
+      // Shop: Bernd kauft einen Saft, der steht dann an seinem Platz; Holzränder nur, wenn gekauft
+      const sh = await api(bernd, '/kartenspiele/shop', undefined, 'GET');
+      assert.ok(sh.json.items.some(x => x.id === 'korb' && !x.owned));
+      const bought = await api(bernd, '/kartenspiele/shop', { action: 'buy', item: 'saft' });
+      assert.deepEqual([bought.json.drink, bought.json.kasse.spent], ['saft', 50]);
+      assert.match((await api(bernd, '/kartenspiele/shop', { action: 'buy', item: 'saft' })).json.error, /schon/);
+      const seen = await api(anna, `/kartenspiele/tisch/${cardTable}`, undefined, 'GET');
+      assert.ok(Object.values(seen.json.deco).some(d => d.drink && d.drink.id === 'saft'));
+      assert.match((await at(anna, { action: 'design', wood: 'ebenholz' })).json.error, /erst im Shop/);
       assert.equal((await at(bernd, { action: 'close' })).status, 403);
       assert.equal((await at(anna, { action: 'close' })).status, 200);
       assert.equal((await at(anna, { action: 'sit' })).status, 404);

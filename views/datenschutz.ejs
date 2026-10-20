@@ -207,11 +207,15 @@
   <li>Alle Kartenspiele laufen in einem Fenster an <b>Spieltischen</b>. Ein Spieltisch, das gewählte Spiel, Name, Tischfarbe und Kartenrücken leben nur im Arbeitsspeicher und sind nach einem Neustart weg.</li>
   <li>Für die Spiele mit Geld (Blackjack und Poker) hat jedes Mitglied eine <b>Kasse</b> mit Spielgeld. Gespeichert werden dein Konto, dein Kontostand, wie viel und wie oft du insgesamt eingekauft hast und wann die Kasse angelegt und zuletzt geändert wurde. Angelegt wird sie erst, wenn du die Kartenspiele öffnest.</li>
   <li>Kontostand, Bilanz und Buy-ins stehen in deinem Profil (sieht, wer dein Profil sehen darf) und in der Bestenliste der Kasse; dort erscheinst du nur für Mitglieder, die dein Profil sehen dürfen.</li>
-  <li>Der Admin kann deine Kasse oder die aller Mitglieder zurücksetzen. Löschst du dein Konto, verschwindet deine Kasse mit.</li>
+  <li>Im <b>Shop</b> kaufst du mit diesem Spielgeld Getränke, Glücksbringer und Holzränder. Gespeichert wird, was du gekauft hast, zu welchem Preis und wann, außerdem in der Kasse, wie viel du im Shop ausgegeben hast und was du gerade an deinen Platz gestellt hast.</li>
+  <li>Wer an einem Spieltisch sitzt, zeigt allen am Tisch (auch Zuschauern) sein <b>Profilbild</b>, sein Getränk und seinen Glücksbringer. Hast du das Körbchen hingestellt, sehen sie auch dein Pixelpfoten-Tier mit Namen, Aussehen und Accessoires; dafür liest der Server deinen gespeicherten Pixelpfoten-Spielstand, egal wer dein Tier sonst besuchen darf. Räumst du das Körbchen weg, ist das Tier nicht mehr zu sehen.</li>
+  <li>Der Admin kann deine Kasse oder die aller Mitglieder zurücksetzen, damit verschwinden auch deine Einkäufe. Löschst du dein Konto, verschwinden Kasse und Einkäufe mit.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
-  <%- code('ksWallets', 'Eine Zeile pro Mitglied: Kontostand und was insgesamt eingekauft wurde. Bilanz = Kontostand − eingekauft.') %>
-  <%- code('ksMeta', 'Das bekommt das Fenster über einen Spieltisch: Name, Aussehen, gewähltes Spiel und wer Gastgeber ist.') %>
+  <%- code('ksWallets', 'Eine Zeile pro Mitglied: Kontostand, was insgesamt eingekauft und im Shop ausgegeben wurde und was am Platz steht. Bilanz = Kontostand + im Shop ausgegeben − eingekauft.') %>
+  <%- code('ksItems', 'Eine Zeile pro gekauftem Artikel aus dem Shop.') %>
+  <%- code('ksMeta', 'Das bekommt das Fenster über einen Spieltisch: Name, Aussehen, gewähltes Spiel, wer Gastgeber ist und was an den Plätzen zu sehen ist.') %>
+  <%- code('ksDeco', 'Das sehen alle am Tisch an deinem Platz: Profilbild, Getränk, Glücksbringer und mit dem Körbchen dein Tier.') %>
 </details>
 
 <h2 id="blackjack">🃏 Blackjack</h2>
@@ -353,7 +357,7 @@
 <h2 id="fragen">🗑 Löschen und Fragen</h2>
 <ul>
   <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
-  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Benachrichtigungen, Push-Geräte, Kasse der Kartenspiele, Blackjack- und Poker-Sitzungen, Durak-Ergebnisse, Ergebnisse aus UNO, Flip 7 und Pilli Pilli, Minesweeper-Spiele, Kreuzworträtsel- und Sudoku-Stände, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Werwolf-Ergebnisse, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Benachrichtigungen, Push-Geräte, Kasse und Einkäufe der Kartenspiele, Blackjack- und Poker-Sitzungen, Durak-Ergebnisse, Ergebnisse aus UNO, Flip 7 und Pilli Pilli, Minesweeper-Spiele, Kreuzworträtsel- und Sudoku-Stände, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Werwolf-Ergebnisse, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
   <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
 </ul>
 <p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>

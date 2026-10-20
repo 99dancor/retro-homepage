@@ -8,11 +8,12 @@
   if (!root || !root.dataset.user) return;
   function $(id) { return document.getElementById(id); }
   var CSRF = root.dataset.csrf, ME = Number(root.dataset.user);
-  var GAMES = JSON.parse(root.dataset.games), FELTS = root.dataset.felts.split(','), BACKS = root.dataset.backs.split(',');
+  var GAMES = JSON.parse(root.dataset.games), FELTS = root.dataset.felts.split(','), BACKS = root.dataset.backs.split(','), WOODS = root.dataset.woods.split(',');
   var main = $('ks-main'), statusEl = $('ks-status'), meEl = $('ks-me'), dlg = $('ks-dlg'), gameEl = $('ks-game');
   var Sound = window.RetroSound || { play: function () {} };
-  var view = 'tische', tables = [], mine = null, me = null, kasse = null, board = null, current = null;
+  var view = 'tische', tables = [], mine = null, me = null, kasse = null, board = null, current = null, shop = null, myWoods = ['eiche'];
   var FELT_NAMES = { gruen: 'Grün', blau: 'Blau', rot: 'Rot', lila: 'Lila', schwarz: 'Schwarz', petrol: 'Petrol mit Chromrand' };
+  var WOOD_NAMES = { eiche: 'Eiche', walnuss: 'Walnuss mit Silber', mahagoni: 'Mahagoni mit Messing', ebenholz: 'Ebenholz mit Gold' };
   var BACK_NAMES = { klassisch: 'Klassisch (Fensterfarben)', rot: 'Rot gestreift', blau: 'Blau gestreift', gruen: 'Grün gestreift', gold: 'Schwarz-Gold', karo: 'Rot-weiß kariert', retro: 'Retro (Punkte)' };
   // Wie die Spiele ihr Fenster erwarten: Kürzel der Element-Ids und Klassen (die Spiele bauen aufeinander auf)
   var LOOK = { blackjack: ['bj', 'bj'], poker: ['pk', 'bj pk'], durak: ['dk', 'bj pk dk'] };
@@ -69,6 +70,7 @@
     render();
     if (v === 'tische') loadTables();
     if (v === 'kasse') loadKasse();
+    if (v === 'shop') loadShop();
   }
   root.querySelector('.bj-nav').addEventListener('click', function (e) {
     var a = e.target.closest('[data-view]');
@@ -79,6 +81,7 @@
   function render() {
     if (view === 'tische') renderTables();
     else if (view === 'kasse') renderKasse();
+    else if (view === 'shop') renderShop();
     else renderGames();
   }
   function renderMe() {
@@ -87,7 +90,7 @@
 
   function loadTables() {
     return req('GET', '/kartenspiele/tische').then(function (j) {
-      tables = j.tables; mine = j.mine; me = j.me; kasse = j.kasse;
+      tables = j.tables; mine = j.mine; me = j.me; kasse = j.kasse; myWoods = j.woods || myWoods;
       renderMe();
       if (view === 'tische' && !current) renderTables();
     }).catch(oops);
@@ -112,9 +115,10 @@
   function options(list, names, cur) {
     return list.map(function (x) { return '<option value="' + x + '"' + (x === cur ? ' selected' : '') + '>' + esc(names[x] || x) + '</option>'; }).join('');
   }
-  // Vorschau von Filz und Kartenrücken im Dialog
-  function preview(felt, back) {
-    return '<div class="ks-preview ks-felt-' + felt + ' ks-back-' + back + '" id="ks-preview"><div class="bj-felt"><span class="bj-card back"></span><span class="bj-card back"></span><span class="bj-card red"><span class="r">A</span><span class="s">♥</span></span></div>' +
+  // Vorschau von Holzrand, Filz und Kartenrücken im Dialog
+  function lookCls(felt, back, wood) { return 'ks-preview ks-tisch ks-felt-' + felt + ' ks-back-' + back + ' ks-wood-' + wood; }
+  function preview(felt, back, wood) {
+    return '<div class="' + lookCls(felt, back, wood) + '" id="ks-preview"><div class="bj-felt"><span class="bj-card back"></span><span class="bj-card back"></span><span class="bj-card red"><span class="r">A</span><span class="s">♥</span></span></div>' +
       '<small>So sieht der Tisch für alle aus.</small></div>';
   }
   function designForm(o) {
@@ -125,20 +129,24 @@
         '<label>Plätze:<select name="seats" class="w100">' + [1, 2, 3, 4, 5, 6, 7, 8].map(function (n) { return '<option' + (n === 4 ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></label></div>' : '') +
       '<div class="row"><label>Tisch:<select name="felt" class="w100" data-look="felt">' + options(FELTS, FELT_NAMES, o.felt) + '</select></label>' +
       '<label>Kartenrücken:<select name="back" class="w100" data-look="back">' + options(BACKS, BACK_NAMES, o.back) + '</select></label></div>' +
-      preview(o.felt, o.back) +
+      '<label>Holzrand:<select name="wood" class="w100" data-look="wood">' + WOODS.map(function (w) {
+        var has = myWoods.indexOf(w) >= 0 || w === o.wood;
+        return '<option value="' + w + '"' + (w === o.wood ? ' selected' : '') + (has ? '' : ' disabled') + '>' + esc(WOOD_NAMES[w] || w) + (has ? '' : ' (erst im 🛒 Shop kaufen)') + '</option>';
+      }).join('') + '</select></label>' +
+      preview(o.felt, o.back, o.wood || 'eiche') +
       '<label class="inline"><input type="checkbox" name="hidden"' + (o.hidden ? ' checked' : '') + '> Nicht in der Liste zeigen (nur mit Link)</label>' +
       (o.create ? '<p><small>Das Spiel kannst du am Tisch jederzeit zwischen zwei Runden ändern. Wie viele Plätze es gibt, hängt dann auch vom Spiel ab.</small></p>' : '');
   }
   dlg.addEventListener('change', function (e) {
     if (!e.target.dataset.look) return;
     var p = $('ks-preview');
-    if (p) p.className = 'ks-preview ks-felt-' + field('felt') + ' ks-back-' + field('back');
+    if (p) p.className = lookCls(field('felt'), field('back'), field('wood'));
   });
   function createTable() {
-    dialog('➕ Neuer Spieltisch', designForm({ create: true, name: 'Spieltisch von ' + (me ? me.name : ''), felt: FELTS[0], back: BACKS[0] }),
+    dialog('➕ Neuer Spieltisch', designForm({ create: true, name: 'Spieltisch von ' + (me ? me.name : ''), felt: FELTS[0], back: BACKS[0], wood: 'eiche' }),
       [{ label: '<b>Eröffnen</b>', value: 'ok' }, { label: 'Abbrechen', value: 'cancel' }]).then(function (r) {
       if (r !== 'ok') return;
-      req('POST', '/kartenspiele/tische', { name: field('name'), game: field('game'), seats: Number(field('seats')), felt: field('felt'), back: field('back'), hidden: field('hidden') })
+      req('POST', '/kartenspiele/tische', { name: field('name'), game: field('game'), seats: Number(field('seats')), felt: field('felt'), back: field('back'), wood: field('wood'), hidden: field('hidden') })
         .then(function (j) { enter(j.id, true); }).catch(oops);
     });
   }
@@ -156,8 +164,9 @@
     var k = kasse, can = k.balance < k.rebuyBelow && !k.atTable;
     main.innerHTML = '<div class="bj-pad"><h2>💰 Kasse</h2><div class="bj-kpis">' +
       '<div class="sunken"><small>Kontostand</small><b>' + euro(k.balance) + '</b><small>' + (k.atTable ? 'liegt gerade am Tisch „' + esc(k.atTable) + '“' : '&nbsp;') + '</small></div>' +
-      '<div class="sunken"><small>Bilanz</small><b class="' + cls(k.net) + '">' + euro(k.net, true) + '</b><small>Kontostand − eingekauft</small></div>' +
-      '<div class="sunken"><small>Buy-ins</small><b>' + k.buyins + '</b><small>' + euro(k.bought) + ' eingekauft</small></div></div>' +
+      '<div class="sunken"><small>Bilanz</small><b class="' + cls(k.net) + '">' + euro(k.net, true) + '</b><small>Kontostand + Shop − eingekauft</small></div>' +
+      '<div class="sunken"><small>Buy-ins</small><b>' + k.buyins + '</b><small>' + euro(k.bought) + ' eingekauft</small></div>' +
+      '<div class="sunken"><small>Im Shop ausgegeben</small><b>' + euro(k.spent) + '</b><small>zählt nicht als Verlust</small></div></div>' +
       '<div class="actions"><button type="button" data-act="rebuy"' + (can ? '' : ' disabled') + '>💶 Für ' + euro(k.buyin) + ' nachkaufen</button>' +
       '<small>' + (k.atTable ? 'Am Tisch kaufst du direkt dort nach.' : can ? 'Du hast weniger als ' + euro(k.rebuyBelow) + '.' : 'Nachkaufen geht, sobald du weniger als ' + euro(k.rebuyBelow) + ' hast.') + '</small></div>' +
       '<p><small>Eine Kasse für alle Kartenspiele mit Geld (Blackjack und Poker). Wer sich an einen Geldtisch setzt, nimmt seinen ganzen Kontostand als Chips mit; nach jeder Hand und beim Aufstehen geht der Stand zurück in die Kasse. ' +
@@ -168,6 +177,55 @@
             '<td class="num ' + cls(u.net) + '"><b>' + euro(u.net, true) + '</b></td><td class="num">' + euro(u.balance) + '</td><td class="num">' + u.buyins + '</td></tr>';
         }).join('') + '</tbody></table>' : '<p class="bj-empty">Noch hat niemand eine Kasse.</p>') +
       '<p><small>Es erscheint nur, wessen Profil du sehen darfst.</small></p></div>';
+  }
+
+  // Shop: Getränke, Glücksbringer (mit dem Körbchen das Pixelpfoten-Tier) und Holzränder für Spielgeld aus der Kasse
+  var SHOP_KINDS = [
+    ['drink', '🥤 Getränke und Snacks', 'Stehen in der Ablage im Holzrand vor deinem Platz.'],
+    ['charm', '🍀 Glücksbringer', 'Liegen neben deinem Namen. Mit dem Körbchen sitzt dein Pixelpfoten-Tier mit am Tisch.'],
+    ['wood', '🪵 Holzränder', 'Für deine eigenen Spieltische, wählbar unter „🎨 Tisch gestalten“.'],
+  ];
+  function loadShop() {
+    return req('GET', '/kartenspiele/shop').then(function (j) {
+      shop = j; kasse = j.kasse;
+      myWoods = j.items.filter(function (x) { return x.kind === 'wood' && x.owned; }).map(function (x) { return x.id; });
+      renderMe();
+      if (view === 'shop' && !current) renderShop();
+    }).catch(oops);
+  }
+  function shopAct(a, item, kind) {
+    req('POST', '/kartenspiele/shop', { action: a, item: item || '', kind: kind || '' }).then(function (j) {
+      shop = j; kasse = j.kasse;
+      myWoods = j.items.filter(function (x) { return x.kind === 'wood' && x.owned; }).map(function (x) { return x.id; });
+      Sound.play(a === 'buy' ? 'ding' : 'klick');
+      status(a === 'buy' ? 'Gekauft.' : item ? 'Steht an deinem Platz.' : 'Weggeräumt.');
+      renderMe();
+      if (view === 'shop' && !current) renderShop();
+    }).catch(oops);
+  }
+  // So sieht dein Platz am Tisch aus
+  function seatPreview(d) {
+    return '<div class="ks-myseat ks-tisch ks-wood-eiche"><div class="ks-myseat-wood">' + cupHtml(d.drink) + '</div><div class="ks-myseat-me">' + whoHtml(d, me ? me.name : '') +
+      '<b>' + esc(me ? me.name : '') + '</b></div></div>';
+  }
+  function renderShop() {
+    if (!shop) { main.innerHTML = '<p class="bj-empty">Lädt …</p>'; return; }
+    var k = shop.kasse;
+    main.innerHTML = '<div class="bj-pad"><h2>🛒 Shop</h2><div class="ks-shophead"><div><b class="ks-big">💰 ' + euro(k.balance) + '</b><br><small>' +
+      (k.atTable ? 'Dein Geld liegt am Tisch „' + esc(k.atTable) + '“, bezahlt wird dort mit deinen Chips.' : 'Bezahlt wird mit Spielgeld aus der Kasse.') +
+      ' Gekauftes behältst du; es zählt nicht als Verlust in der Bilanz.</small></div>' + seatPreview(shop.deco) + '</div>' +
+      SHOP_KINDS.map(function (c) {
+        var cur = c[0] === 'drink' ? shop.drink : c[0] === 'charm' ? shop.charm : null;
+        return '<h3>' + c[1] + '</h3><p><small>' + c[2] + '</small>' + (cur ? ' <button type="button" class="small" data-act="equip" data-item="" data-kind="' + c[0] + '">Wegräumen</button>' : '') + '</p>' +
+          '<div class="ks-shop">' + shop.items.filter(function (x) { return x.kind === c[0]; }).map(function (x) {
+            var on = x.id === cur;
+            var btn = !x.owned ? '<button type="button" class="small" data-act="buy" data-item="' + x.id + '"' + (x.price > k.balance && !k.atTable ? ' disabled' : '') + '>Kaufen</button>'
+              : x.kind === 'wood' ? '<small>✔ gehört dir</small>'
+                : on ? '<button type="button" class="small" disabled>✔ Am Platz</button>' : '<button type="button" class="small" data-act="equip" data-item="' + x.id + '">Hinstellen</button>';
+            return '<div class="ks-item' + (x.owned ? ' owned' : '') + (on ? ' on' : '') + '">' + (x.kind === 'wood' ? '<span class="ks-woodchip ks-tisch ks-wood-' + x.id + '"></span>' : '<span class="ks-ic">' + x.icon + '</span>') +
+              '<span>' + esc(x.title) + '</span><b>' + (x.price ? euro(x.price) : 'gratis') + '</b>' + btn + '</div>';
+          }).join('') + '</div>';
+      }).join('') + '</div>';
   }
 
   // Bestenlisten und Regeln: das Spiel ohne Tisch aufbauen
@@ -188,6 +246,7 @@
     var a = b.dataset.act;
     if (a === 'create') createTable();
     else if (a === 'refresh') loadTables();
+    else if (a === 'buy' || a === 'equip') shopAct(a, b.dataset.item, b.dataset.kind);
     else if (a === 'rebuy') req('POST', '/kartenspiele/kasse', { action: 'rebuy' }).then(function () { Sound.play('ding'); status('Nachgekauft.'); return loadKasse(); }).catch(oops);
   });
 
@@ -210,7 +269,7 @@
     root.hidden = true;
     gameEl.hidden = false;
     current = { id: id, meta: meta, el: gameEl.firstElementChild, destroy: null };
-    if (meta) { design(meta); url('/kartenspiele?tisch=' + encodeURIComponent(meta.id)); }
+    if (meta) { design(meta); watch(); url('/kartenspiele?tisch=' + encodeURIComponent(meta.id)); }
     var K = {
       table: meta ? meta.id : null, sit: !!sit, view: viewName, url: '/kartenspiele/tisch/',
       lobby: function () { show('tische'); },
@@ -225,6 +284,7 @@
   }
   function unmount() {
     if (!current) return;
+    unwatch();
     if (current.destroy) current.destroy();
     current = null;
     gameEl.innerHTML = '';
@@ -236,13 +296,19 @@
     var el = current.el, g = game(m.game);
     FELTS.forEach(function (f) { el.classList.toggle('ks-felt-' + f, f === m.felt); });
     BACKS.forEach(function (b) { el.classList.toggle('ks-back-' + b, b === m.back); });
+    WOODS.forEach(function (w) { el.classList.toggle('ks-wood-' + w, w === (m.wood || 'eiche')); });
+    el.classList.add('ks-tisch');
+    // Wer was am Platz hat, kann sich geändert haben: neu anhängen
+    el.querySelectorAll('.ks-who').forEach(function (x) { x.remove(); });
+    decorate(true);
     var host = m.hostId === ME || (me && me.admin);
     $('ks-bar').innerHTML = '<b>🂡 Spiel:</b>' +
       (host ? '<select id="ks-pick" title="Gewechselt wird zwischen zwei Runden; alle bleiben sitzen.">' + GAMES.map(function (x) {
         return '<option value="' + x.id + '"' + (x.id === m.game ? ' selected' : '') + '>' + x.icon + ' ' + esc(x.id === 'lobby' ? 'Kein Spiel (Lobby)' : x.title) + '</option>';
       }).join('') + '</select>' : '<span>' + g.icon + ' <b>' + esc(m.game === 'lobby' ? 'noch keins' : g.title) + '</b></span>') +
       (m.money ? '<span class="tag" title="Das Geld kommt aus deiner Kasse und geht nach jeder Hand dorthin zurück.">💰 aus der Kasse</span>' : '') +
-      '<span class="spacer"></span>' + (host ? '<button type="button" class="small" data-ks="design">🎨 Tisch gestalten</button>' : '<small>👑 ' + esc(m.host) + ' wählt das Spiel</small>');
+      '<span class="spacer"></span>' + (host ? '<button type="button" class="small" data-ks="design">🎨 Tisch gestalten</button>' : '<small>👑 ' + esc(m.host) + ' wählt das Spiel</small>') +
+      '<button type="button" class="small" data-ks="shop" title="Getränke, Glücksbringer und Holzränder; du bleibst sitzen">🛒 Shop</button>';
   }
   gameEl.addEventListener('change', function (e) {
     if (e.target.id !== 'ks-pick' || !current || !current.meta) return;
@@ -255,10 +321,11 @@
   gameEl.addEventListener('click', function (e) {
     var b = e.target.closest('[data-ks]');
     if (!b || !current || !current.meta) return;
+    if (b.dataset.ks === 'shop') { show('shop'); return; }
     var m = current.meta;
     dialog('🎨 Tisch gestalten', designForm(m), [{ label: 'Speichern', value: 'ok' }, { label: 'Abbrechen', value: 'cancel' }]).then(function (r) {
       if (r !== 'ok') return;
-      req('POST', '/kartenspiele/tisch/' + encodeURIComponent(m.id), { action: 'design', name: field('name'), felt: field('felt'), back: field('back'), hidden: field('hidden') }).catch(oopsAtTable);
+      req('POST', '/kartenspiele/tisch/' + encodeURIComponent(m.id), { action: 'design', name: field('name'), felt: field('felt'), back: field('back'), wood: field('wood'), hidden: field('hidden') }).catch(oopsAtTable);
     });
   });
   // Fehler am Tisch landen in der Statusleiste des Spiels
@@ -266,6 +333,102 @@
     var el = current && current.el.querySelector('.statusbar span');
     if (el) el.textContent = '⚠ ' + err.message;
     Sound.play('fehler');
+  }
+
+  // ---------- Der Tisch: Holzrand mit Verzierungen, Ablagen, Avatare, Glücksbringer ----------
+  // Die Spiele zeichnen ihren Filz (.bj-felt) selbst neu; Rand und Filz kommen per CSS (.ks-tisch, ::before/::after),
+  // Verzierungen und Ablagen liegen in einer Ebene (.ks-layer), die hier nach jedem Neuzeichnen wieder eingesetzt wird.
+  // Avatar, Glücksbringer und Tier hängen an den Plätzen (.bj-name[data-uid]); was wer hat, steht in meta.deco.
+  function avatarHtml(src, name) {
+    return src ? '<img class="ks-ava" src="' + esc(src) + '" alt="">' : '<span class="ks-ava ks-ava-none">' + esc(String(name || '?').charAt(0).toUpperCase()) + '</span>';
+  }
+  function cupHtml(drink) { return '<span class="ks-cup' + (drink ? '' : ' empty') + '"' + (drink ? ' title="' + esc(drink.title) + '"' : '') + '>' + (drink ? drink.icon : '') + '</span>'; }
+  function charmHtml(d) {
+    if (!d || !d.charm) return '';
+    if (d.charm.id === 'korb') return '<span class="ks-pet" title="' + esc(d.pet ? d.pet.name : 'Leeres Körbchen: Hol dir ein Tier bei Pixelpfoten') + '">' + (d.pet ? d.pet.svg : '') + '<span class="ks-basket">🧺</span></span>';
+    return '<span class="ks-charm" title="' + esc(d.charm.title) + '">' + d.charm.icon + '</span>';
+  }
+  // Über dem Namen: Avatar, daneben Glücksbringer oder das Tier im Körbchen
+  function whoHtml(d, name) { return '<span class="ks-who">' + avatarHtml(d && d.avatar, name) + charmHtml(d) + '</span>'; }
+  var ORN_SIDE = '<svg viewBox="0 0 64 26"><path d="M32 4 L38 13 L32 22 L26 13 Z"/><circle class="dot" cx="32" cy="13" r="2"/>' +
+    '<path d="M25 13 C 18 13, 16 5, 10 7 C 5 9, 6 16, 11 15 C 14 14, 13 11, 11 11"/><path d="M39 13 C 46 13, 48 5, 54 7 C 59 9, 58 16, 53 15 C 50 14, 51 11, 53 11"/>' +
+    '<path d="M25 13 C 20 14, 18 20, 13 20"/><path d="M39 13 C 44 14, 46 20, 51 20"/></svg>';
+  var ORN_CORNER = '<svg viewBox="0 0 64 26"><path d="M8 18 C 20 18, 22 6, 32 6 C 42 6, 44 18, 56 18"/><circle class="dot" cx="32" cy="6" r="2.2"/><circle class="dot" cx="8" cy="18" r="1.6"/><circle class="dot" cx="56" cy="18" r="1.6"/></svg>';
+  var observer = null, sizer = null, pending = 0;
+  function decorate(now) {
+    if (!now) { if (!pending) pending = requestAnimationFrame(function () { pending = 0; decorate(true); }); return; }
+    if (!current || !current.meta) return;
+    var felt = current.el.querySelector('.bj-felt');
+    if (!felt) return;
+    if (sizer && sizer.felt !== felt) { sizer.disconnect(); sizer = null; }
+    if (!sizer && window.ResizeObserver) { sizer = new ResizeObserver(function () { decorate(); }); sizer.felt = felt; sizer.observe(felt); }
+    var W = felt.clientWidth, H = felt.clientHeight;
+    if (!W || !H) return;
+    // Maße des Tisches: Rand und Rundung wachsen mit dem Fenster
+    var rim = Math.round(Math.max(11, Math.min(22, W * 0.02))), ix = W * 0.025, iy = H * 0.04;
+    var bw = W - 2 * ix, bh = H - 2 * iy, r = Math.min(bh / 2, bw * 0.2);
+    felt.style.setProperty('--rim', rim + 'px');
+    felt.style.setProperty('--ks-r', r + 'px');
+    var layer = felt.querySelector(':scope > .ks-layer');
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.className = 'ks-layer';
+      layer.setAttribute('aria-hidden', 'true');
+      felt.insertBefore(layer, felt.firstChild);
+    }
+    // Mittellinie des Holzes als abgerundetes Rechteck: Abstand eines Punktes (negativ = innen)
+    var cx = W / 2, cy = H / 2, hw = bw / 2 - rim / 2, hh = bh / 2 - rim / 2, rr = r - rim / 2;
+    function sdf(x, y) {
+      var qx = Math.abs(x - cx) - (hw - rr), qy = Math.abs(y - cy) - (hh - rr);
+      return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - rr;
+    }
+    // Punkt auf dem Holz in Richtung (x, y), gesehen vom Punkt (ox, oy) innen
+    function onRim(ox, oy, x, y) {
+      var dx = x - ox, dy = y - oy, len = Math.hypot(dx, dy) || 1, lo = 0, hi = W + H;
+      dx /= len; dy /= len;
+      if (!len || (dx === 0 && dy === 0)) dy = 1;
+      for (var k = 0; k < 30; k++) { var mid = (lo + hi) / 2; if (sdf(ox + dx * mid, oy + dy * mid) < 0) lo = mid; else hi = mid; }
+      return { x: ox + dx * lo, y: oy + dy * lo, dx: dx, dy: dy };
+    }
+    var html = '';
+    // Verzierungen: Ranken mitten auf den Seiten, Bögen in den Ecken
+    var side = [[cx, iy + rim / 2, 0], [cx, H - iy - rim / 2, 180], [ix + rim / 2, cy, -90], [W - ix - rim / 2, cy, 90]];
+    side.forEach(function (o) { html += '<span class="ks-orn" style="left:' + o[0] + 'px;top:' + o[1] + 'px;transform:translate(-50%,-50%) rotate(' + o[2] + 'deg)">' + ORN_SIDE + '</span>'; });
+    var cd = rr * (1 - Math.SQRT1_2);
+    [[-1, -1, -45], [1, -1, 45], [1, 1, 135], [-1, 1, -135]].forEach(function (c) {
+      var x = cx + c[0] * (hw - cd), y = cy + c[1] * (hh - cd);
+      html += '<span class="ks-orn corner" style="left:' + x + 'px;top:' + y + 'px;transform:translate(-50%,-50%) rotate(' + c[2] + 'deg)">' + ORN_CORNER + '</span>';
+    });
+    // Ablagen: auf dem Holz hinter jedem Platz, etwas zur Seite. Beim Blackjack sitzt der Geber oben, die Ablagen kommen
+    // senkrecht unter die Plätze.
+    var fr = felt.getBoundingClientRect(), deco = current.meta.deco || {};
+    var bj = current.id === 'blackjack';
+    function at(x, y) { return bj ? onRim(x, cy, x, H * 2) : onRim(cx, cy, x, y); }
+    felt.querySelectorAll('.pk-seat, .bj-seat').forEach(function (seat) {
+      var sr = seat.getBoundingClientRect(), px = sr.left - fr.left + sr.width / 2, py = sr.top - fr.top + sr.height / 2;
+      // Zur linken Seite des Platzes (beim Blackjack nach außen, in der Mitte liegen die Chips)
+      var p = at(px, py), off = Math.min(sr.width * 0.62, 80);
+      var q1 = at(p.x - p.dy * off, p.y + p.dx * off), q2 = at(p.x + p.dy * off, p.y - p.dx * off);
+      var q = bj ? (Math.abs(q1.x - cx) > Math.abs(q2.x - cx) ? q1 : q2) : Math.abs(q1.x - q2.x) > 1 ? (q1.x < q2.x ? q1 : q2) : (q1.y < q2.y ? q1 : q2);
+      var name = seat.querySelector('.bj-name[data-uid]'), d = name && deco[name.dataset.uid];
+      html += '<span class="ks-at" style="left:' + q.x + 'px;top:' + q.y + 'px">' + cupHtml(d && d.drink) + '</span>';
+      // Avatar und Glücksbringer an den Platz hängen (einmal je Neuzeichnen)
+      if (name && !seat.querySelector('.ks-who')) name.insertAdjacentHTML('beforebegin', whoHtml(d, name.textContent.replace(/^👑 /, '')));
+    });
+    if (layer.innerHTML !== html) layer.innerHTML = html;
+  }
+  function watch() {
+    unwatch();
+    if (!window.MutationObserver) return;
+    observer = new MutationObserver(function (list) {
+      // Nur Änderungen der Spiele zählen, nicht die eigene Ebene
+      for (var i = 0; i < list.length; i++) if (!list[i].target.closest || !list[i].target.closest('.ks-layer')) { decorate(); return; }
+    });
+    observer.observe(current.el, { childList: true, subtree: true });
+  }
+  function unwatch() {
+    if (observer) { observer.disconnect(); observer = null; }
+    if (sizer) { sizer.disconnect(); sizer = null; }
   }
 
   // Treffpunkt ohne Spiel: läuft über den gemeinsamen Kartentisch (public/cardtable.js), gegeben wird dort nie
@@ -296,7 +459,7 @@
     if (want) enter(want, false);
     else if (statsFor && game(statsFor).id) mount(statsFor, null, false, 'statistik');
     else if (mine) enter(mine, false);
-    else if (hash === 'kasse' || hash === 'statistik') show(hash);
+    else if (hash === 'kasse' || hash === 'shop' || hash === 'statistik') show(hash);
   });
   show('tische');
 })();

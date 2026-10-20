@@ -10,7 +10,7 @@
 // nächsten freien). Die offenen Fenster bekommen das Ereignis „switch“ und verbinden sich neu. Geld (Blackjack, Poker)
 // kommt aus der gemeinsamen Kasse (src/kasse.js) und geht nach jeder Hand dorthin zurück, bleibt beim Wechsel also beim Spieler.
 const crypto = require('node:crypto');
-const { getSetting } = require('./db');
+const { db, getSetting } = require('./db');
 const { createGame } = require('./cardtable');
 const kasse = require('./kasse');
 
@@ -41,6 +41,8 @@ function games() {
 // Aussehen: Filz und Kartenrücken (die Farben stehen in public/retro.css unter .ks-felt-* und .ks-back-*)
 const FELTS = ['gruen', 'blau', 'rot', 'lila', 'schwarz', 'petrol'];
 const BACKS = ['klassisch', 'rot', 'blau', 'gruen', 'gold', 'karo', 'retro'];
+// Holzrand: Eiche hat jeder, die anderen kauft der Gastgeber im Shop (src/kasse.js)
+const WOODS = Object.keys(kasse.SHOP).filter(id => kasse.SHOP[id].kind === 'wood');
 
 const tables = new Map();
 const clamp = (n, [min, max]) => Math.max(min, Math.min(max, n));
@@ -81,27 +83,62 @@ function create(user, b = {}) {
   const game = GAMES[b.game] && enabled(b.game) ? b.game : 'lobby';
   const s = {
     id: crypto.randomBytes(5).toString('hex'), name: `Spieltisch von ${user.name}`, hidden: false, seats: 4,
-    felt: 'gruen', back: 'klassisch', game, tableId: null, opts: {},
+    felt: 'gruen', back: 'klassisch', wood: 'eiche', game, tableId: null, opts: {},
   };
-  applySettings(s, b);
+  applySettings(s, b, user);
   const err = open(s, game, user);
   if (err) return { error: err };
   tables.set(s.id, s);
   return { table: s };
 }
-function applySettings(s, b) {
+function applySettings(s, b, user) {
   if (typeof b.name === 'string' && b.name.trim()) s.name = b.name.trim().slice(0, 60);
   if ('hidden' in b) s.hidden = !!b.hidden;
   if (Number(b.seats) >= 1 && Number(b.seats) <= 8) s.seats = Math.floor(Number(b.seats));
   if (FELTS.includes(b.felt)) s.felt = b.felt;
   if (BACKS.includes(b.back)) s.back = b.back;
+  if (WOODS.includes(b.wood) && kasse.owns(user.id, b.wood)) s.wood = b.wood;
+}
+
+// ---------- Was an den Plätzen zu sehen ist ----------
+// Avatar, Getränk in der Ablage, Glücksbringer und mit dem Körbchen das Pixelpfoten-Tier (aus dem gespeicherten Spielstand)
+let pp = null;
+function petArt() {
+  pp ||= {
+    state: require('../games/haustier/src/js/state.js'), pets: require('../games/haustier/src/js/pets.js'),
+    items: require('../games/haustier/src/js/items.js'), art: require('../games/haustier/src/js/art.js'),
+  };
+  return pp;
+}
+function petOf(userId) {
+  const row = db.prepare("SELECT data FROM game_saves WHERE user_id = ? AND app_slug = 'haustier' AND slot = 'main'").get(userId);
+  if (!row) return null;
+  try {
+    const { state, pets, items, art } = petArt();
+    const save = state.migrate(JSON.parse(row.data));
+    if (!save || !save.pets || !save.pets.length) return null;
+    // Das Tier mit der höchsten Stufe kommt mit an den Tisch
+    const p = save.pets.reduce((a, x) => (pets.level(x) > pets.level(a) ? x : a));
+    if (!pets.SPECIES[p.species]) return null;
+    const acc = {};
+    for (const [slot, id] of Object.entries(p.acc || {})) if (items.ITEMS[id] && items.ITEMS[id].slot === slot) acc[slot] = id;
+    return { name: String(p.name || '').slice(0, 30), svg: art.petSvg(p.species, p.color, p.sleeping ? 'sleep' : 'happy', { acc, shadow: false }) };
+  } catch { return null; }
+}
+const shopItem = id => (id && kasse.SHOP[id] ? { id, icon: kasse.SHOP[id].icon, title: kasse.SHOP[id].title } : null);
+function deco(userId) {
+  const u = db.prepare('SELECT avatar FROM users WHERE id = ?').get(userId);
+  const l = kasse.loadout(userId);
+  const charm = shopItem(l.charm);
+  return { avatar: u && u.avatar ? '/avatar/' + u.avatar : null, drink: shopItem(l.drink), charm, pet: charm && kasse.SHOP[charm.id].pet ? petOf(userId) : null };
 }
 
 // Was das Fenster über den Spieltisch wissen muss
 function meta(s) {
   const t = tableOf(s), G = GAMES[s.game];
   return {
-    id: s.id, name: s.name, hidden: s.hidden, seats: s.seats, felt: s.felt, back: s.back,
+    id: s.id, name: s.name, hidden: s.hidden, seats: s.seats, felt: s.felt, back: s.back, wood: s.wood,
+    deco: Object.fromEntries(t.seats.filter(Boolean).map(x => [x.userId, deco(x.userId)])),
     game: s.game, title: G.title, icon: G.icon, money: !!G.money, hostId: t.hostId, host: t.hostName, busy: busy(t),
   };
 }
@@ -148,13 +185,35 @@ function switchGame(s, user, game) {
 // Name, Sichtbarkeit, Filz und Kartenrücken; die offenen Fenster bekommen das gleich mit
 function settings(s, user, b) {
   if (!isHost(s, user)) return 'Nur der Gastgeber gestaltet den Tisch.';
-  applySettings(s, b);
+  if (b.wood && !WOODS.includes(b.wood)) return 'Diesen Tischrand gibt es nicht.';
+  if (b.wood && b.wood !== s.wood && !kasse.owns(user.id, b.wood)) return `Den Tischrand „${kasse.SHOP[b.wood].title}“ musst du erst im Shop kaufen.`;
+  applySettings(s, b, user);
   const t = tableOf(s);
   t.name = s.name; t.hidden = s.hidden;
   announce(s);
   return null;
 }
 function announce(s) { send(tableOf(s), 'salon', meta(s)); }
+
+// Shop am Tisch: Liegt das Geld gerade als Chips an einem Geldtisch, wird dort bezahlt. Danach sehen alle am Tisch,
+// was neu am Platz steht.
+function buy(user, item) {
+  const s = seatedAt(user.id), t = s && tableOf(s);
+  const seat = t && GAMES[s.game].money ? t.seats.find(x => x && x.userId === user.id) : null;
+  const err = kasse.buy(user.id, item, seat ? seat.chips : undefined);
+  if (err) return err;
+  // Der Einkauf ist kein Verlust am Tisch: Mitgebrachtes sinkt mit, die Bilanz der Sitzung bleibt
+  if (seat) { const price = kasse.SHOP[item].price; seat.chips -= price; seat.bought -= price; engine(s.game).broadcast(t); }
+  if (s) announce(s);
+  return null;
+}
+function equip(user, item, kind) {
+  const err = kasse.equip(user.id, item, kind);
+  if (err) return err;
+  const s = seatedAt(user.id);
+  if (s) announce(s);
+  return null;
+}
 
 function close(s) {
   const t = tableOf(s);
@@ -187,6 +246,6 @@ function control(s, user, b) {
 }
 
 module.exports = {
-  GAMES, FELTS, BACKS, games, enabled, engine, get, list, create, meta, switchGame, settings, announce, close, control, isHost, seatedAt, tableOf,
+  GAMES, FELTS, BACKS, WOODS, games, buy, equip, deco, enabled, engine, get, list, create, meta, switchGame, settings, announce, close, control, isHost, seatedAt, tableOf,
   _tables: tables,
 };

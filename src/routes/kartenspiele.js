@@ -30,16 +30,17 @@ function wallet(user) {
 
 router.get('/', (req, res) => {
   if (req.user) profiles.countStart(req.user, 'kartenspiele');
-  res.render('kartenspiele', { title: 'Kartenspiele', games: ks.games(), felts: ks.FELTS, backs: ks.BACKS, kasse: kasse.config() });
+  res.render('kartenspiele', { title: 'Kartenspiele', games: ks.games(), felts: ks.FELTS, backs: ks.BACKS, woods: ks.WOODS, kasse: kasse.config() });
 });
 
 router.get('/tische', gate, (req, res) => {
   const mine = ks.seatedAt(req.user.id);
-  res.json({ tables: ks.list(req.user), mine: mine ? mine.id : null, games: ks.games(), kasse: wallet(req.user), me: { id: req.user.id, name: req.user.name, user: req.user.username, admin: req.user.isAdmin } });
+  const owned = kasse.owned(req.user.id);
+  res.json({ tables: ks.list(req.user), mine: mine ? mine.id : null, games: ks.games(), kasse: wallet(req.user), woods: ks.WOODS.filter(w => owned.has(w)), me: { id: req.user.id, name: req.user.name, user: req.user.username, admin: req.user.isAdmin } });
 });
 router.post('/tische', gate, auth.rateLimit('kstable', 20, 600), (req, res) => {
   const b = req.body || {};
-  const r = ks.create(req.user, { name: b.name, hidden: !!b.hidden, seats: b.seats, game: b.game, felt: b.felt, back: b.back });
+  const r = ks.create(req.user, { name: b.name, hidden: !!b.hidden, seats: b.seats, game: b.game, felt: b.felt, back: b.back, wood: b.wood });
   if (r.error) return fail(res, 503, r.error);
   res.json({ id: r.table.id });
 });
@@ -57,6 +58,25 @@ router.post('/kasse', gate, auth.rateLimit('kskasse', 30, 600), (req, res) => {
   const err = kasse.rebuy(req.user.id);
   if (err) return fail(res, 400, err);
   res.json({ kasse: wallet(req.user) });
+});
+
+// Shop: Getränke, Glücksbringer und Tischränder für Spielgeld
+function shop(user) {
+  const owned = kasse.owned(user.id), l = kasse.loadout(user.id);
+  return {
+    kasse: wallet(user), drink: l.drink, charm: l.charm, deco: ks.deco(user.id),
+    items: Object.entries(kasse.SHOP).map(([id, it]) => ({ id, kind: it.kind, title: it.title, icon: it.icon, price: it.price, owned: owned.has(id) })),
+  };
+}
+router.get('/shop', gate, (req, res) => res.json(shop(req.user)));
+router.post('/shop', gate, auth.rateLimit('ksshop', 60, 600), (req, res) => {
+  const b = req.body || {}, item = String(b.item || '');
+  let err;
+  if (b.action === 'buy') err = ks.buy(req.user, item);
+  else if (b.action === 'equip') err = ks.equip(req.user, item, String(b.kind || ''));
+  else err = 'Unbekannte Aktion.';
+  if (err) return fail(res, 400, err);
+  res.json(shop(req.user));
 });
 
 router.get('/tisch/:id', gate, loadTable, (req, res) => {
@@ -93,6 +113,8 @@ router.post('/tisch/:id', gate, loadTable, auth.rateLimit('ksctl', 300, 60), (re
   if (err) return fail(res, 400, err);
   const t = ks.tableOf(s);
   if (t) ks.engine(s.game).broadcast(t);
+  // Wer sich hinsetzt oder aufsteht, bringt Avatar, Getränk und Glücksbringer mit bzw. nimmt sie mit
+  if (t && (b.action === 'sit' || b.action === 'leave' || b.action === 'kick')) ks.announce(s);
   res.json({ ok: true });
 });
 

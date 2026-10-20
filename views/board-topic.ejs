@@ -47,6 +47,7 @@
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <%- include('partials/md-editor', { name: 'body_md', value: '', uploadUrl: '/forum/media', previewUrl: '/forum/preview', libraryUrl: null, compact: true }) %>
   <%- include('partials/anonymous', { checked: replyAnon }) %>
+  <%- include('partials/drafts-bar', { kind: 'forum', place: 'reply:' + topic.id }) %>
   <div class="actions"><button>📨 Antworten</button></div>
 </form>
 </fieldset>

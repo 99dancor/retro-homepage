@@ -17,6 +17,7 @@
     <label class="inline"><input type="checkbox" name="published" value="1" <%= post.published ? 'checked' : '' %>> Veröffentlicht (sonst Entwurf)</label>
     <%- include('../partials/visibility', { item: post, acl }) %>
   </fieldset>
+  <%- include('../partials/drafts-bar', { kind: 'blog', place: post.id ? 'post:' + post.id : 'new' }) %>
   <div class="actions">
     <button>💾 Speichern</button>
     <% if (post.id) { %><a class="btn" href="/blog/<%= post.slug %>" target="_blank">Ansehen</a><% } %>

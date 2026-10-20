@@ -14,6 +14,7 @@ const paint = require('../paint');
 const paintRoutes = require('./paint');
 const paintLobby = require('../paintlobby');
 const { deleteTrack } = require('./music');
+const drafts = require('./drafts');
 
 const router = express.Router();
 // UNO, Flip 7, Pilli Pilli (src/cardtable.js): Modul, Name, Schalter-Präfix
@@ -76,7 +77,7 @@ router.get('/downloads/:id', (req, res, next) => {
 });
 
 // ---------- Blog ----------
-router.get('/posts', (req, res) => res.render('admin/posts', { title: 'Blog-Beiträge', posts: db.prepare('SELECT * FROM posts ORDER BY created_at DESC').all() }));
+router.get('/posts', (req, res) => res.render('admin/posts', { title: 'Blog-Beiträge', posts: db.prepare('SELECT * FROM posts ORDER BY created_at DESC').all(), drafts: drafts.list(req.user.id, 'blog') }));
 router.get('/posts/new', (req, res) => res.render('admin/post-edit', { title: 'Neuer Beitrag', post: { visibility: 'public', published: 1 }, acl: [] }));
 router.get('/posts/:id', (req, res, next) => {
   const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(Number(req.params.id));
@@ -97,6 +98,7 @@ router.post('/posts/save', (req, res) => {
     saveVisibility('post', pid, b);
     return pid;
   });
+  drafts.consume(req);
   res.redirect(`/admin/posts/${postId}?ok=1`);
 });
 router.post('/posts/:id/delete', (req, res) => {

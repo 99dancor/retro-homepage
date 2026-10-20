@@ -1,5 +1,11 @@
 # Changelog
 
+## 20.10.2026 – Entwürfe für Forum und Blog
+
+- **Entwurf speichern:** Unter dem Texteditor im Forum (neues Thema, Antwort, Bearbeiten) und im Blog-Editor gibt es „💾 Entwurf speichern“ (oder Strg+S). Titel, Text und Einstellungen wie „Anonym“ werden in deinem Konto abgelegt, ohne dass etwas veröffentlicht wird. Danach sichert das Formular Änderungen nach ein paar Sekunden von selbst.
+- **Entwurf laden:** „📂 Entwürfe laden“ zeigt alle deine Entwürfe. Ein Entwurf für eine andere Stelle, etwa eine Antwort in einem anderen Thema, öffnet dort. Im Forum stehen sie zusätzlich unter „📝 Entwürfe“, im Admin-Bereich unter Blog.
+- **Aufräumen:** Schickst du den Beitrag ab, verschwindet sein Entwurf. Entwürfe sieht nur, wer sie geschrieben hat.
+
 ## 20.10.2026 – Kartentisch mit Holzrand, Shop und Glücksbringern
 
 - **Neuer Tisch:** Alle Kartenspiele liegen jetzt auf einem Tisch mit schmalem Holzrand, runden Ecken, Messing-Einlage und Ranken als Verzierung. Der Gastgeber wählt unter „🎨 Tisch gestalten“ neben Filz und Kartenrücken auch das Holz: Eiche, Walnuss mit Silber, Mahagoni mit Messing oder Ebenholz mit Gold.

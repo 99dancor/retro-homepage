@@ -428,6 +428,59 @@ async function main() {
       assert.doesNotMatch((await guest.req('/forum')).text_, ANNA, 'auch nicht als letzter Beitrag');
     });
 
+    await step('Entwürfe: speichern, laden, nur eigene, beim Abschicken weg', async () => {
+      const { anna, bernd } = members;
+      const json = (b, url, body, tk) => b.req(url, { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json', 'x-csrf-token': tk } });
+      let tk = await anna.csrf('/forum/new');
+      const form = (await anna.req('/forum/new')).text_;
+      assert.match(form, /data-drafts="forum" data-draft-place="new"/);
+      assert.match(form, /name="draft_id"/);
+      assert.equal((await json(guest, '/api/entwuerfe', { kind: 'forum', title: 'x' }, tk)).status, 403, 'ohne eigenes Token');
+      assert.equal((await json(anna, '/api/entwuerfe', { kind: 'forum', place: 'new' }, tk)).status, 400, 'leer wird nicht gespeichert');
+      let r = await json(anna, '/api/entwuerfe', { kind: 'forum', place: 'new', title: 'Halb fertig', body_md: 'Erster Gedanke', fields: { anonymous: '1' } }, tk);
+      assert.equal(r.status, 200);
+      const { id } = JSON.parse(r.text_);
+      r = await json(anna, '/api/entwuerfe', { id, kind: 'forum', place: 'new', title: 'Halb fertig', body_md: 'Erster Gedanke, weiter', fields: { anonymous: '1' } }, tk);
+      assert.equal(JSON.parse(r.text_).id, id, 'gleicher Entwurf wird überschrieben');
+      const list = JSON.parse((await anna.req('/api/entwuerfe?art=forum')).text_);
+      assert.equal(list.length, 1);
+      assert.equal(list[0].where, 'Neues Thema');
+      assert.equal(list[0].url, '/forum/new?entwurf=' + id);
+      const one = JSON.parse((await anna.req('/api/entwuerfe/' + id)).text_);
+      assert.equal(one.body_md, 'Erster Gedanke, weiter');
+      assert.equal(one.fields.anonymous, '1');
+      assert.equal((await bernd.req('/api/entwuerfe/' + id)).status, 404, 'fremde Entwürfe bleiben unsichtbar');
+      assert.equal(JSON.parse((await bernd.req('/api/entwuerfe?art=forum')).text_).length, 0);
+      assert.equal((await anna.req('/api/entwuerfe?art=blog')).status, 403, 'Blogentwürfe nur für den Admin');
+      assert.equal((await guest.req('/api/entwuerfe?art=forum')).status, 401);
+      assert.match((await anna.req('/forum')).text_, /Entwürfe \(1\)/);
+      assert.match((await anna.req('/forum/entwuerfe')).text_, /Halb fertig/);
+
+      // Antwort-Entwurf zeigt das Thema, Abschicken mit draft_id löscht ihn
+      const topic = (await anna.form('/forum/new', { _csrf: tk, title: 'Fertig', body_md: 'Jetzt fertig', anonymous: '1', draft_id: id })).headers.get('location');
+      assert.equal(JSON.parse((await anna.req('/api/entwuerfe?art=forum')).text_).length, 0, 'Entwurf nach dem Abschicken weg');
+      const tid = topic.split('/').pop();
+      assert.match((await anna.req(topic)).text_, new RegExp(`data-draft-place="reply:${tid}"`));
+      r = await json(anna, '/api/entwuerfe', { kind: 'forum', place: 'reply:' + tid, body_md: 'Antwort später' }, tk);
+      const rid = JSON.parse(r.text_).id;
+      const [d] = JSON.parse((await anna.req('/api/entwuerfe?art=forum')).text_);
+      assert.equal(d.where, 'Antwort in „Fertig“');
+      assert.equal(d.url, `/forum/t/${tid}?page=last&entwurf=${rid}#antworten`);
+      assert.equal((await bernd.form(`/api/entwuerfe/${rid}/delete`, { _csrf: await bernd.csrf('/forum/new'), back: '/forum' })).status, 302);
+      assert.equal(JSON.parse((await anna.req('/api/entwuerfe?art=forum')).text_).length, 1, 'Bernd kann Annas Entwurf nicht löschen');
+      assert.equal((await anna.form(`/api/entwuerfe/${rid}/delete`, { _csrf: tk, back: '//example.org' })).status, 200, 'keine fremde Rücksprungadresse');
+      assert.equal(JSON.parse((await anna.req('/api/entwuerfe?art=forum')).text_).length, 0);
+
+      // Blog: Admin speichert einen Entwurf zu einem Beitrag, Speichern des Beitrags räumt ihn weg
+      const at = await admin.csrf('/admin/posts/new');
+      assert.match((await admin.req('/admin/posts/new')).text_, /data-drafts="blog" data-draft-place="new"/);
+      r = await json(admin, '/api/entwuerfe', { kind: 'blog', place: 'new', title: 'Blog-Idee', body_md: 'Noch roh', fields: { summary: 'kurz', tags: 'a, b' } }, at);
+      const bid = JSON.parse(r.text_).id;
+      assert.match((await admin.req('/admin/posts')).text_, /Blog-Idee[\s\S]*Neuer Blogbeitrag/);
+      assert.equal((await admin.form('/admin/posts/save', { _csrf: at, title: 'Blog-Idee', body_md: 'Fertig', visibility: 'public', draft_id: bid })).status, 302);
+      assert.equal(JSON.parse((await admin.req('/api/entwuerfe?art=blog')).text_).length, 0);
+    });
+
     await step('Nach der Anmeldung geht es nur zu Seiten dieser Homepage', async () => {
       for (const [next, to] of [['/haustier/', '/haustier/'], ['//example.org', '/'], ['/\\example.org', '/']]) {
         const b = browser();
@@ -1831,7 +1884,10 @@ async function main() {
       // Entwurf: wer die Lobby aufgemacht hat, findet den letzten Stand unter „Meine Bilder“
       assert.equal((await json(tom, `/paint/lobby/${id}/op`, { sid: ht.sid, cid: 'b5', x: 10, y: 10, data: patch(4, 4, 0x00ff00) })).status, 200);
       const sse = await st.close();
-      assert.equal((await json(tom, `/paint/lobby/${id}/chat`, { text: 'weg' })).status, 409, 'ohne Verbindung keine Änderungen');
+      // Der Server merkt das Trennen erst einen Moment später: kurz warten, bis er Tom austrägt
+      let gone;
+      for (let i = 0; i < 40 && (gone = (await json(tom, `/paint/lobby/${id}/chat`, { text: 'weg' })).status) !== 409; i++) await new Promise(r => setTimeout(r, 50));
+      assert.equal(gone, 409, 'ohne Verbindung keine Änderungen');
       assert.equal((await json(lena, `/paint/lobby/${id}`, { action: 'close' })).status, 200);
       await sl.next(e => e.event === 'closed');
       await sl.close();

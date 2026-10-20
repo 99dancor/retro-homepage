@@ -7,6 +7,7 @@
   <% if (isFirst) { %><label>Titel des Themas:<input type="text" name="title" class="w100" maxlength="150" value="<%= topic.title %>" required></label><% } %>
   <label>Text:</label>
   <%- include('partials/md-editor', { name: 'body_md', value: post.body_md, uploadUrl: '/forum/media', previewUrl: '/forum/preview', libraryUrl: null, compact: true }) %>
+  <%- include('partials/drafts-bar', { kind: 'forum', place: 'edit:' + post.id, draftId: typeof draftId !== 'undefined' ? draftId : '' }) %>
   <div class="actions"><button>💾 Speichern</button><a class="btn" href="/forum/t/<%= topic.id %>">Abbrechen</a></div>
 </form>
 <%- include('partials/foot') %>

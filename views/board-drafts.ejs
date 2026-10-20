@@ -1,0 +1,7 @@
+<%- include('partials/head') %>
+<p><a href="/forum">« Zurück zum Forum</a></p>
+<h1>📝 Meine Entwürfe</h1>
+<p class="muted">Entwürfe sieht nur du. Sobald du einen Beitrag abschickst, verschwindet sein Entwurf von selbst.</p>
+<% if (drafts.length) { %><%- include('partials/draft-list', { drafts, back: '/forum/entwuerfe' }) %>
+<% } else { %><p>Du hast gerade keine Entwürfe. Beim Schreiben speichert „💾 Entwurf speichern“ deinen Text hier.</p><% } %>
+<%- include('partials/foot') %>

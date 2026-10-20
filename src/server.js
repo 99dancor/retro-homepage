@@ -98,6 +98,7 @@ app.use((req, res, next) => (req.is('multipart/form-data') ? next() : auth.csrfC
 app.use(analytics.middleware);
 
 app.use('/api/saves', require('./routes/saves'));
+app.use('/api/entwuerfe', require('./routes/drafts').router);
 app.use('/api/pixelpfoten', require('./routes/pixelpfoten'));
 const profileRoutes = require('./routes/profiles');
 app.use('/api/stats', profileRoutes.stats);

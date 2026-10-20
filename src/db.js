@@ -223,6 +223,19 @@ CREATE TABLE IF NOT EXISTS board_posts (
   created_at INTEGER NOT NULL,
   edited_at INTEGER
 );
+-- Entwürfe für Forenbeiträge und Blogbeiträge. place sagt, wofür der Text gedacht war:
+-- Forum 'new' | 'reply:<Thema>' | 'edit:<Beitrag>', Blog 'new' | 'post:<Beitrag>'. fields: übrige Formularfelder als JSON.
+CREATE TABLE IF NOT EXISTS drafts (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  place TEXT NOT NULL,
+  title TEXT,
+  body_md TEXT NOT NULL DEFAULT '',
+  fields TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
 -- Abonnierte Forenthemen. Wer ein Thema beginnt oder antwortet, abonniert es von selbst.
 CREATE TABLE IF NOT EXISTS board_subs (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -576,6 +589,7 @@ CREATE INDEX IF NOT EXISTS pg_profile ON profile_guestbook(profile_id, created_a
 CREATE INDEX IF NOT EXISTS fr_friend ON friends(friend_id);
 CREATE INDEX IF NOT EXISTS pm_to ON private_messages(to_id, read_at);
 CREATE INDEX IF NOT EXISTS pm_pair ON private_messages(from_id, to_id, created_at);
+CREATE INDEX IF NOT EXISTS dr_user ON drafts(user_id, kind, updated_at);
 CREATE INDEX IF NOT EXISTS bp_topic ON board_posts(topic_id, created_at);
 CREATE INDEX IF NOT EXISTS bt_order ON board_topics(pinned, last_post_at);
 CREATE INDEX IF NOT EXISTS nt_user ON notifications(user_id, read_at, created_at);

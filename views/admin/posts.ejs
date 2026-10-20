@@ -13,4 +13,9 @@
   <% } %>
   <% if (!posts.length) { %><tr><td colspan="5">Noch keine Beiträge – leg los mit „Neuer Beitrag“.</td></tr><% } %>
 </table>
+<% if (drafts.length) { %>
+<h3 style="margin-top:16px">📝 Gespeicherte Entwürfe</h3>
+<p class="muted" style="margin-top:0">Noch nicht übernommene Texte aus dem Editor. Beim Speichern des Beitrags verschwindet der Entwurf von selbst.</p>
+<%- include('../partials/draft-list', { drafts, back: '/admin/posts' }) %>
+<% } %>
 <%- include('../partials/foot') %>

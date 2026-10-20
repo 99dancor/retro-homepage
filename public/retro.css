@@ -1494,3 +1494,12 @@ tr.me td { background: #ffffcc; color: #000; }
   .ww-stage { padding: 4px 6px; }
   .ww-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
 }
+/* Entwürfe speichern und laden (public/drafts.js) */
+.drafts-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; }
+.drafts-bar .drafts-panel { flex-basis: 100%; max-height: 260px; overflow: auto; padding: 4px; }
+.drafts-panel .draft-item { display: flex; align-items: center; gap: 6px; padding: 4px; border-bottom: 1px solid var(--lo); }
+.drafts-panel .draft-item:last-child { border-bottom: 0; }
+.drafts-panel .draft-item.current { background: var(--hover); }
+.drafts-panel .draft-text { flex: 1; min-width: 0; overflow: hidden; }
+.drafts-panel .draft-text small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drafts-bar .err { color: var(--danger); }

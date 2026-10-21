@@ -75,7 +75,7 @@
   <li>Sudoku: die zuletzt gewählte Stufe, deine Notizen und welche Ziffern aufgedeckt wurden, ohne Konto auch deine Ziffern, Zeit und Hilfen der letzten 40 Tage.</li>
   <li>Quiz ohne Konto: der zuletzt gewählte Name, das Bild und die Farbe, damit du sie beim nächsten Mal nicht neu eingeben musst.</li>
   <li>Werwolf: ohne Konto der zuletzt gewählte Name und das Bild, außerdem ob der Erzähler auf diesem Gerät vorlesen soll. Die Stimme erzeugt dein Browser bzw. dein Gerät selbst.</li>
-  <li>Die Lautstärke für Musik und Effekte (🔊 neben der Uhr), die gewählte Visualisierung im Musik-Player, Zufall und Wiederholen, und ob du „YouTube laden“ für diesen Browser merken wolltest.</li>
+  <li>Die Lautstärke für Musik und Effekte (🔊 neben der Uhr), die gewählte Visualisierung im Musik-Player, Zufall und Wiederholen, die Größe von Bibliothek und Bild, und ob du „YouTube laden“ für diesen Browser merken wolltest.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('desk', '<code>sessionStorage</code> vergisst alles, sobald der Tab geschlossen wird.') %>
@@ -89,7 +89,7 @@
   <%- code('editor', 'Der Editor merkt sich nur, ob du Text, Vorschau oder beides siehst.') %>
   <%- code('pet', 'Unter diesen Namen speichert das Haustier-Spiel im Browser.') %>
   <%- code('volume', 'Die Lautstärke liegt unter diesem Namen im Browser. Musik-Player und Haustier-Spiel lesen sie von dort.') %>
-  <%- code('musicPrefs', 'Der Musik-Player merkt sich Visualisierung, Zufall und Wiederholen.') %>
+  <%- code('musicPrefs', 'Der Musik-Player merkt sich Visualisierung, Zufall, Wiederholen und die Größe der Bereiche.') %>
   <%- code('youtubeKey', 'Hier steht nur „1“, wenn du „Für diesen Browser merken“ angekreuzt hast.') %>
 </details>
 

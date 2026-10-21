@@ -1,5 +1,11 @@
 # Changelog
 
+## 21.10.2026 – Musik-Player: flüssiger und verstellbar
+
+- **Balken auf dem Handy:** Die Visualisierung „Balken und Wellen: Balken“ zeichnet jetzt etwa viermal schneller und läuft auch auf dem Handy flüssig.
+- **Klick ins Bild:** Ein Klick ins Bild oder ins YouTube-Video spielt ab oder pausiert, in Lobbys für alle. Doppelklick schaltet weiter auf Vollbild.
+- **Größe selbst einstellen:** Zieh die Leiste rechts neben der Bibliothek oder unter dem Bild, um Breite und Höhe zu ändern. Der Player merkt sich das, Doppelklick auf die Leiste stellt es zurück.
+
 ## 20.10.2026 – Entwürfe für Forum und Blog
 
 - **Entwurf speichern:** Unter dem Texteditor im Forum (neues Thema, Antwort, Bearbeiten) und im Blog-Editor gibt es „💾 Entwurf speichern“ (oder Strg+S). Titel, Text und Einstellungen wie „Anonym“ werden in deinem Konto abgelegt, ohne dass etwas veröffentlicht wird. Danach sichert das Formular Änderungen nach ein paar Sekunden von selbst.

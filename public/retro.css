@@ -404,7 +404,7 @@ input[type=range].vertical { writing-mode: vertical-lr; direction: rtl; width: 2
 .mp-toolbar { align-items: center; gap: 4px; padding: 2px 0 4px; }
 .mp-toolbar label.inline { margin: 0; }
 .mp-vis-pick select { max-width: 210px; }
-.mp-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 190px 1fr; gap: 6px; }
+.mp-main { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--mp-side, 190px) 6px minmax(0, 1fr); }
 .mp-side { overflow: auto; padding: 4px; display: flex; flex-direction: column; align-items: stretch; }
 .mp-group { font-size: 11px; font-weight: bold; opacity: .7; margin: 8px 4px 2px; text-transform: uppercase; letter-spacing: .03em; }
 .mp-group:first-child { margin-top: 2px; }
@@ -414,13 +414,25 @@ button.mp-nav:hover { background: var(--hover); }
 button.mp-nav.active { background: var(--title-from); color: #fff; }
 .mp-hint { font-size: 12px; margin: 6px 4px; opacity: .85; }
 .mp-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 4px; }
-.mp-stage { position: relative; height: 38%; min-height: 120px; background: #000; color: #fff;
+/* Ziehleisten zum Ändern von Breite und Höhe */
+.mp-split { touch-action: none; user-select: none; position: relative; }
+.mp-split::after { content: ''; position: absolute; background: var(--lo); opacity: .0; }
+.mp-split:hover::after, .mp-split:focus-visible::after, .mp-split.dragging::after { opacity: .6; }
+.mp-split-side { cursor: col-resize; }
+.mp-split-side::after { top: 0; bottom: 0; left: 2px; width: 2px; }
+.mp-split-stage { cursor: row-resize; height: 6px; margin: -3px 0; flex: none; z-index: 1; }
+.mp-split-stage::after { left: 0; right: 0; top: 2px; height: 2px; }
+.mp-dragging, .mp-dragging * { cursor: inherit !important; user-select: none; }
+.mp-dragging iframe { pointer-events: none; }
+.mp-stage { position: relative; height: var(--mp-stage, 38%); min-height: 80px; max-height: calc(100% - 90px); flex: none; background: #000; color: #fff;
   box-shadow: inset 1px 1px var(--lo), inset 2px 2px var(--dark), inset -1px -1px var(--hi); overflow: hidden; }
 .mp-stage canvas { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); display: block; }
 .mp-stage:fullscreen { height: 100%; }
 .mp-yt { position: absolute; inset: 2px; background: #000; }
 .mp-yt[hidden] { display: none; }
 .mp-yt iframe { width: 100%; height: 100%; border: 0; display: block; }
+.mp-yt-shield { position: absolute; inset: 0; cursor: pointer; }
+.mp-stage { cursor: pointer; }
 .mp-yt-probe { position: absolute; width: 1px; height: 1px; left: -9999px; border: 0; }
 .mp-now { position: absolute; left: 8px; right: 8px; bottom: 6px; font: bold 12px var(--font); text-shadow: 1px 1px 0 #000, 0 0 4px #000;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
@@ -466,8 +478,10 @@ button.mp-track:disabled { cursor: default; }
 .mp-picks { display: flex; flex-direction: column; gap: 3px; max-height: 50vh; overflow: auto; }
 .mp-picks button { text-align: left; }
 @media (max-width: 640px) {
-  .mp-main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .mp-side { max-height: 110px; }
+  .mp-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--mp-side-h, 110px) 6px minmax(0, 1fr); }
+  .mp-side { max-height: none; }
+  .mp-split-side { cursor: row-resize; }
+  .mp-split-side::after { left: 0; right: 0; top: 2px; bottom: auto; width: auto; height: 2px; }
   .mp-by, .mp-table th:nth-child(5) { display: none; }
   .mp-vis-pick { display: none; }
   .mp-vol input { width: 50px; }

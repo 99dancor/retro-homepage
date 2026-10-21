@@ -129,7 +129,63 @@
     if (document.fullscreenElement) document.exitFullscreen();
     else if (stage.requestFullscreen) stage.requestFullscreen().catch(function () { status('Vollbild geht hier nicht.'); });
   }
-  stage.addEventListener('dblclick', fullscreen);
+  // ---------- Ziehleisten: Breite der Bibliothek, Höhe von Bild/Video ----------
+  var main = root.querySelector('.mp-main'), center = root.querySelector('.mp-center');
+  var narrow = window.matchMedia('(max-width: 640px)');
+  var clamp = function (v, lo, hi) { return Math.max(lo, Math.min(hi, v)); };
+  function applySizes() {
+    root.style.setProperty('--mp-side', prefs.sideW ? prefs.sideW + 'px' : '');
+    root.style.setProperty('--mp-side-h', prefs.sideH ? prefs.sideH + 'px' : '');
+    root.style.setProperty('--mp-stage', prefs.stageH ? prefs.stageH + 'px' : '');
+  }
+  function sizeFrom(which, x, y) {
+    var m = main.getBoundingClientRect(), c = center.getBoundingClientRect();
+    if (which === 'stage') prefs.stageH = Math.round(clamp(y - c.top, 80, c.height - 90));
+    else if (narrow.matches) prefs.sideH = Math.round(clamp(y - m.top, 40, m.height * 0.6));
+    else prefs.sideW = Math.round(clamp(x - m.left, 110, m.width * 0.5));
+    applySizes();
+  }
+  root.querySelectorAll('.mp-split').forEach(function (bar) {
+    var which = bar.dataset.split;
+    bar.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      bar.setPointerCapture(e.pointerId);
+      bar.classList.add('dragging'); document.body.classList.add('mp-dragging');
+      document.body.style.cursor = getComputedStyle(bar).cursor;
+    });
+    bar.addEventListener('pointermove', function (e) { if (bar.hasPointerCapture(e.pointerId)) sizeFrom(which, e.clientX, e.clientY); });
+    function end(e) {
+      if (!bar.classList.contains('dragging')) return;
+      bar.classList.remove('dragging'); document.body.classList.remove('mp-dragging'); document.body.style.cursor = '';
+      savePrefs();
+    }
+    bar.addEventListener('pointerup', end);
+    bar.addEventListener('pointercancel', end);
+    bar.addEventListener('dblclick', function () {
+      if (which === 'stage') delete prefs.stageH; else if (narrow.matches) delete prefs.sideH; else delete prefs.sideW;
+      applySizes(); savePrefs();
+    });
+    // Mit Pfeiltasten geht es auch ohne Maus
+    bar.addEventListener('keydown', function (e) {
+      var d = { ArrowLeft: -20, ArrowUp: -20, ArrowRight: 20, ArrowDown: 20 }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      var r = bar.getBoundingClientRect();
+      sizeFrom(which, r.left + d, r.top + d);
+      savePrefs();
+    });
+  });
+  applySizes();
+
+  // Klick ins Bild oder Video: Wiedergabe/Pause (wie im Media Player), Doppelklick: Vollbild.
+  // Der Klick wartet kurz, damit ein Doppelklick nicht zweimal umschaltet.
+  var clickTimer = null;
+  stage.addEventListener('click', function (e) {
+    if (e.target.closest('button, input, label, a')) return;
+    clearTimeout(clickTimer);
+    clickTimer = setTimeout(playPause, 250);
+  });
+  stage.addEventListener('dblclick', function () { clearTimeout(clickTimer); fullscreen(); });
 
   // ---------- Bibliothek ----------
   function load() {
@@ -795,6 +851,11 @@
     f.addEventListener('load', function () { listen(f, function () { return yt.ready || yt.frame !== f; }); });
     ytBox.innerHTML = '';
     ytBox.appendChild(f);
+    // Durchsichtige Scheibe über dem Video: sonst schluckt der YouTube-Player den Klick und pausiert nur bei sich,
+    // die Lobby spielt dann gleich weiter
+    var shield = document.createElement('div');
+    shield.className = 'mp-yt-shield';
+    ytBox.appendChild(shield);
   }
   function ytSync(it, target, playing) {
     ytBox.hidden = false;

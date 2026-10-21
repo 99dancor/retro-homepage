@@ -38,11 +38,12 @@ function games() {
   return Object.entries(GAMES).filter(([id]) => enabled(id)).map(([id, g]) => ({ id, title: g.title, icon: g.icon, min: g.seats[0], max: g.seats[1], money: !!g.money }));
 }
 
-// Aussehen: Filz und Kartenrücken (die Farben stehen in public/retro.css unter .ks-felt-* und .ks-back-*)
-const FELTS = ['gruen', 'blau', 'rot', 'lila', 'schwarz', 'petrol'];
-const BACKS = ['klassisch', 'rot', 'blau', 'gruen', 'gold', 'karo', 'retro'];
-// Holzrand: Eiche hat jeder, die anderen kauft der Gastgeber im Shop (src/kasse.js)
-const WOODS = Object.keys(kasse.SHOP).filter(id => kasse.SHOP[id].kind === 'wood');
+// Aussehen: Holzrand, Filz und Kartenrücken (die Farben stehen in public/retro.css unter .ks-wood-*, .ks-felt-* und
+// .ks-back-*). Die ersten hat jeder, die anderen kauft der Gastgeber im Shop (src/kasse.js).
+const ofKind = kind => Object.keys(kasse.SHOP).filter(id => kasse.SHOP[id].kind === kind);
+const WOODS = ofKind('wood'), FELTS = ofKind('felt'), BACKS = ofKind('back');
+const LOOKS = { wood: 'Den Tischrand', felt: 'Den Filz', back: 'Den Kartenrücken' };
+const looks = () => Object.fromEntries(['wood', 'felt', 'back'].map(k => [k, ofKind(k).map(id => ({ id, title: kasse.SHOP[id].title, price: kasse.SHOP[id].price }))]));
 
 const tables = new Map();
 const clamp = (n, [min, max]) => Math.max(min, Math.min(max, n));
@@ -95,8 +96,8 @@ function applySettings(s, b, user) {
   if (typeof b.name === 'string' && b.name.trim()) s.name = b.name.trim().slice(0, 60);
   if ('hidden' in b) s.hidden = !!b.hidden;
   if (Number(b.seats) >= 1 && Number(b.seats) <= 8) s.seats = Math.floor(Number(b.seats));
-  if (FELTS.includes(b.felt)) s.felt = b.felt;
-  if (BACKS.includes(b.back)) s.back = b.back;
+  if (FELTS.includes(b.felt) && kasse.owns(user.id, b.felt)) s.felt = b.felt;
+  if (BACKS.includes(b.back) && kasse.owns(user.id, b.back)) s.back = b.back;
   if (WOODS.includes(b.wood) && kasse.owns(user.id, b.wood)) s.wood = b.wood;
 }
 
@@ -125,12 +126,19 @@ function petOf(userId) {
     return { name: String(p.name || '').slice(0, 30), svg: art.petSvg(p.species, p.color, p.sleeping ? 'sleep' : 'happy', { acc, shadow: false }) };
   } catch { return null; }
 }
-const shopItem = id => (id && kasse.SHOP[id] ? { id, icon: kasse.SHOP[id].icon, title: kasse.SHOP[id].title } : null);
-function deco(userId) {
+const shopItem = id => (id && kasse.SHOP[id] ? { id, icon: kasse.SHOP[id].icon, title: kasse.SHOP[id].title, pet: !!kasse.SHOP[id].pet } : null);
+function avatarOf(userId) {
   const u = db.prepare('SELECT avatar FROM users WHERE id = ?').get(userId);
-  const l = kasse.loadout(userId);
+  return u && u.avatar ? '/avatar/' + u.avatar : null;
+}
+// Hat jemand am Spieltisch s eine Runde geschmissen, steht dessen Getränk bei allen, solange der Tisch offen ist
+function deco(userId, s) {
+  const l = kasse.loadout(userId), round = s && s.rounds && s.rounds[userId];
   const charm = shopItem(l.charm);
-  return { avatar: u && u.avatar ? '/avatar/' + u.avatar : null, drink: shopItem(l.drink), charm, pet: charm && kasse.SHOP[charm.id].pet ? petOf(userId) : null };
+  return {
+    avatar: avatarOf(userId), drink: round ? { ...shopItem(round.item), from: round.from } : shopItem(l.drink), coaster: shopItem(l.coaster),
+    charm, pet: charm && kasse.SHOP[charm.id].pet ? petOf(userId) : null,
+  };
 }
 
 // Was das Fenster über den Spieltisch wissen muss
@@ -138,7 +146,7 @@ function meta(s) {
   const t = tableOf(s), G = GAMES[s.game];
   return {
     id: s.id, name: s.name, hidden: s.hidden, seats: s.seats, felt: s.felt, back: s.back, wood: s.wood,
-    deco: Object.fromEntries(t.seats.filter(Boolean).map(x => [x.userId, deco(x.userId)])),
+    deco: Object.fromEntries(t.seats.filter(Boolean).map(x => [x.userId, deco(x.userId, s)])),
     game: s.game, title: G.title, icon: G.icon, money: !!G.money, hostId: t.hostId, host: t.hostName, busy: busy(t),
   };
 }
@@ -147,8 +155,10 @@ function summary(s) {
   const seated = t.seats.filter(Boolean);
   const viewers = new Set([...t.clients].map(c => c.user.id).filter(id => !seated.some(x => x.userId === id)));
   return {
-    id: s.id, name: s.name, hidden: s.hidden, game: s.game, title: G.title, icon: G.icon, host: t.hostName,
-    players: seated.length, seats: t.seatCount, viewers: viewers.size,
+    id: s.id, name: s.name, hidden: s.hidden, game: s.game, title: G.title, icon: G.icon, host: t.hostName, felt: s.felt, wood: s.wood,
+    players: seated.length, seats: t.seatCount, viewers: viewers.size, live: busy(t),
+    // Für die Karte in der Tischliste: wer auf welchem Platz sitzt
+    faces: t.seats.map(x => x && { id: x.userId, name: x.name, avatar: avatarOf(x.userId) }),
     status: s.game === 'lobby' ? 'Wählt gerade ein Spiel' : busy(t) ? 'Runde läuft' : seated.length ? 'Zwischen zwei Runden' : 'Freie Plätze',
   };
 }
@@ -182,11 +192,13 @@ function switchGame(s, user, game) {
   return null;
 }
 
-// Name, Sichtbarkeit, Filz und Kartenrücken; die offenen Fenster bekommen das gleich mit
+// Name, Sichtbarkeit, Holz, Filz und Kartenrücken; die offenen Fenster bekommen das gleich mit
 function settings(s, user, b) {
   if (!isHost(s, user)) return 'Nur der Gastgeber gestaltet den Tisch.';
   if (b.wood && !WOODS.includes(b.wood)) return 'Diesen Tischrand gibt es nicht.';
-  if (b.wood && b.wood !== s.wood && !kasse.owns(user.id, b.wood)) return `Den Tischrand „${kasse.SHOP[b.wood].title}“ musst du erst im Shop kaufen.`;
+  for (const [k, what] of Object.entries(LOOKS)) {
+    if (b[k] && b[k] !== s[k] && kasse.SHOP[b[k]] && kasse.SHOP[b[k]].kind === k && !kasse.owns(user.id, b[k])) return `${what} „${kasse.SHOP[b[k]].title}“ musst du erst im Shop kaufen.`;
+  }
   applySettings(s, b, user);
   const t = tableOf(s);
   t.name = s.name; t.hidden = s.hidden;
@@ -203,7 +215,7 @@ function buy(user, item) {
   const err = kasse.buy(user.id, item, seat ? seat.chips : undefined);
   if (err) return err;
   // Der Einkauf ist kein Verlust am Tisch: Mitgebrachtes sinkt mit, die Bilanz der Sitzung bleibt
-  if (seat) { const price = kasse.SHOP[item].price; seat.chips -= price; seat.bought -= price; engine(s.game).broadcast(t); }
+  if (seat) { const price = kasse.price(item); seat.chips -= price; seat.bought -= price; engine(s.game).broadcast(t); }
   if (s) announce(s);
   return null;
 }
@@ -212,6 +224,75 @@ function equip(user, item, kind) {
   if (err) return err;
   const s = seatedAt(user.id);
   if (s) announce(s);
+  return null;
+}
+
+// Schnell spielen: an den vollsten Tisch mit freiem Platz im gewünschten Spiel (oder irgendeinem), sonst einen aufmachen.
+// Wer schon sitzt, kommt an seinen Tisch zurück.
+function quick(user, game) {
+  const mine = seatedAt(user.id);
+  if (mine) return { table: mine };
+  const want = game && game !== 'egal' ? game : null;
+  if (want && (!GAMES[want] || want === 'lobby' || !enabled(want))) return { error: 'Dieses Spiel gibt es gerade nicht.' };
+  const free = [...tables.values()].map(s => [s, tableOf(s)]).filter(([s, t]) => t && !s.hidden && (!want || s.game === want) && t.seats.some(x => !x))
+    .sort(([, a], [, b]) => b.seats.filter(Boolean).length - a.seats.filter(Boolean).length);
+  if (free.length) return { table: free[0][0] };
+  return create(user, { game: want || 'lobby' });
+}
+
+// Eine Runde für alle am Tisch: jeder bekommt das Getränk hingestellt, solange der Spieltisch offen ist. Bezahlt wird wie
+// im Shop (am Geldtisch mit den Chips) und zählt nicht als Verlust.
+function round(user, item) {
+  const s = seatedAt(user.id), t = s && tableOf(s);
+  if (!t) return 'Setz dich erst an einen Spieltisch.';
+  const it = kasse.SHOP[item];
+  if (!it || it.kind !== 'drink' || !it.price) return 'Dieses Getränk gibt es nicht als Runde.';
+  const players = t.seats.filter(Boolean);
+  if (players.length < 2) return 'Eine Runde lohnt sich erst, wenn noch jemand am Tisch sitzt.';
+  const total = kasse.price(item) * players.length;
+  const seat = GAMES[s.game].money ? players.find(x => x.userId === user.id) : null;
+  const err = kasse.spend(user.id, total, seat ? seat.chips : undefined);
+  if (err) return err;
+  if (seat) { seat.chips -= total; seat.bought -= total; }
+  s.rounds = s.rounds || {};
+  for (const p of players) s.rounds[p.userId] = { item, from: user.name };
+  t.log.unshift(`${user.name} schmeißt eine Runde ${it.title} für alle.`);
+  engine(s.game).broadcast(t);
+  announce(s);
+  send(t, 'fx', { kind: 'round', uid: user.id, icon: it.icon });
+  return null;
+}
+
+// Leben am Tisch, nur für den Augenblick (nichts wird gespeichert): Reaktionen, Anstoßen, fremde Tiere streicheln.
+// Alle offenen Fenster bekommen „fx“ und zeigen es am Platz an.
+const EMOTES = ['👏', '😂', '😮', '😡', '🍀', '🫡'];
+const WAIT = { emote: 3000, cheers: 2000, pet: 1500 };
+const FX = Object.keys(WAIT);
+const CHEERS = 8000;
+function fx(s, user, b) {
+  const t = tableOf(s), kind = String(b.action || '');
+  const seated = t.seats.some(x => x && x.userId === user.id);
+  if (kind !== 'pet' && !seated) return 'Setz dich erst an den Tisch.';
+  s.fxAt = s.fxAt || new Map();
+  const key = kind + ':' + user.id, at = Date.now();
+  if (at - (s.fxAt.get(key) || 0) < WAIT[kind]) return 'Nicht so schnell.';
+  let msg;
+  if (kind === 'emote') {
+    if (!EMOTES.includes(b.emoji)) return 'Diese Reaktion gibt es nicht.';
+    msg = { kind, uid: user.id, emoji: b.emoji };
+  } else if (kind === 'cheers') {
+    // Wer kurz nach dem ersten Glas auch anstößt, stößt mit an
+    const join = !!s.cheers && at - s.cheers.at < CHEERS && s.cheers.uid !== user.id;
+    if (!join) s.cheers = { at, uid: user.id };
+    msg = { kind, uid: user.id, join };
+  } else if (kind === 'pet') {
+    const owner = Number(b.uid), x = t.seats.find(y => y && y.userId === owner);
+    const charm = x && kasse.loadout(owner).charm;
+    if (!charm || !kasse.SHOP[charm].pet) return 'Hier sitzt kein Tier.';
+    msg = { kind, uid: owner, by: user.id };
+  } else return 'Unbekannte Aktion.';
+  s.fxAt.set(key, at);
+  send(t, 'fx', msg);
   return null;
 }
 
@@ -246,6 +327,6 @@ function control(s, user, b) {
 }
 
 module.exports = {
-  GAMES, FELTS, BACKS, WOODS, games, buy, equip, deco, enabled, engine, get, list, create, meta, switchGame, settings, announce, close, control, isHost, seatedAt, tableOf,
+  GAMES, FELTS, BACKS, WOODS, EMOTES, FX, games, looks, pet: petOf, buy, equip, deco, enabled, engine, get, list, create, quick, round, fx, meta, switchGame, settings, announce, close, control, isHost, seatedAt, tableOf,
   _tables: tables,
 };

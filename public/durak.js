@@ -62,7 +62,6 @@
     function sortHand(hand, trump) {
       return hand.slice().sort(function (a, b) { return (a.s === trump) - (b.s === trump) || RANKS.indexOf(a.r) - RANKS.indexOf(b.r) || a.s.localeCompare(b.s); });
     }
-    function secs(ms) { return Math.ceil(ms / 1000); }
 
     // ---------- Navigation ----------
     function show(v) {
@@ -115,6 +114,7 @@
       // Der Gastgeber hat ein anderes Spiel gewählt: das Fenster baut den Tisch neu auf
       tab.es.addEventListener('switch', function () { leaveView(); K.switched(); });
       tab.es.addEventListener('salon', function (e) { K.salon(JSON.parse(e.data)); });
+      tab.es.addEventListener('fx', function (e) { K.fx(JSON.parse(e.data)); });
       tab.es.addEventListener('error', function () {
         if (!tab) return;
         if (tab.es.readyState === 2) gone('Diesen Tisch gibt es nicht mehr.');
@@ -173,11 +173,12 @@
       var a = Math.PI / 2 + slot * 2 * Math.PI / n;
       return { x: 50 + 41 * r * Math.cos(a), y: 47 + 36 * r * Math.sin(a) };
     }
+    // Rolle im laufenden Spiel als Abzeichen am Bild
     function role(st, s) {
       if (st.phase !== 'playing' || !s.inGame) return '';
-      if (s.place) return '<span class="bj-badge win">🏁 ' + s.place + '. raus</span>';
-      if (s.i === st.defender) return '<span class="bj-badge lose">🛡 verteidigt' + (st.taking ? ', nimmt' : '') + '</span>';
-      if (s.i === st.attacker) return '<span class="bj-badge">⚔ greift an</span>';
+      if (s.place) return '🏁 ' + s.place + '.';
+      if (s.i === st.defender) return st.taking ? '🛡 nimmt' : '🛡';
+      if (s.i === st.attacker) return '⚔';
       return '';
     }
     function backs(n) {
@@ -188,29 +189,24 @@
     function seatHtml(s, i, st, slot) {
       var p = spot(slot, st.seatCount, 1);
       var style = 'left:' + p.x.toFixed(1) + '%;top:' + p.y.toFixed(1) + '%';
-      if (!s) {
-        return '<div class="pk-seat empty" style="' + style + '">' + (mySeat() ? '<span class="bj-free">frei</span>' : '<button type="button" class="small" data-sit="' + i + '">🪑 Hier hinsetzen</button>') + '</div>';
-      }
-      var mine = s.id === ME;
+      if (!s) return '<div class="pk-seat empty" style="' + style + '">' + K.free(i, !mySeat()) + '</div>';
+      var mine = s.id === ME, playing = st.phase === 'playing';
       var turn = st.turn && (st.turn.seat === i || (st.turn.kind === 'pass' && st.waiting.indexOf(i) >= 0));
       var lost = st.phase === 'result' && st.result && st.result.order.some(function (o) { return o.user === s.user && o.durak; });
-      var note = st.phase === 'playing' ? (s.inGame ? (turn ? '⏳ <span data-count="turn">' + secs(st.turn.left) + '</span> s' + (st.turn.kind === 'pass' ? ' zum Zuwerfen' : '') : s.passed ? '✓ fertig' : '') : 'spielt nächste Runde mit')
-        : s.ready ? '✓ bereit' : 'noch nicht bereit';
-      return '<div class="pk-seat dk-seat' + (turn ? ' turn' : '') + (mine ? ' mine' : '') + (s.place ? ' folded' : '') + (lost ? ' lost' : '') + '" style="' + style + '">' +
-        (mine ? '' : '<div class="pk-hole">' + (s.cards ? backs(s.cards) : '') + '</div>') +
-        '<button type="button" class="bj-name" data-user="' + esc(s.user) + '" data-uid="' + s.id + '">' + (st.hostId === s.id ? '👑 ' : '') + esc(s.name) + (mine ? ' (du)' : '') + (s.away ? ' 💤' : '') + (s.leaving ? ' 🚪' : '') + '</button>' +
-        '<div class="bj-chips">' + (st.phase === 'playing' && s.inGame ? s.cards + (s.cards === 1 ? ' Karte' : ' Karten') : '&nbsp;') + '</div>' +
-        '<div>' + role(st, s) + '</div><div class="pk-act">' + note + '</div></div>';
+      var tags = [role(st, s), !playing && s.ready ? '✓ bereit' : '', playing && s.inGame && !turn && s.passed ? '✓' : ''];
+      var left = st.turn ? st.turn.left - (Date.now() + (tab.offset || 0) - st.now) : 0;
+      return '<div class="pk-seat dk-seat' + (turn ? ' turn' : '') + (mine ? ' mine' : '') + (s.place ? ' folded' : '') + (lost ? ' lost' : '') + (playing && !s.inGame ? ' out' : '') + (p.y < 45 ? ' up' : '') + '" style="' + style + '">' +
+        '<div class="pk-hole">' + (mine || !s.cards ? '' : backs(s.cards)) + '</div>' +
+        K.plaque({ p: s, host: st.hostId === s.id, turn: turn, left: left, total: (st.turn && st.turn.kind === 'pass' ? rules().pass : rules().turn) * 1000, tags: tags,
+          line: playing && s.inGame ? s.cards + (s.cards === 1 ? ' Karte' : ' Karten') : s.session.duraks + '× Durak', note: turn && st.turn.kind === 'pass' ? 'darf zuwerfen' : '' }) + '</div>';
     }
     function renderTable() {
       if (!tab || !tab.state) { main.innerHTML = '<p class="bj-empty">Verbinde mit dem Tisch …</p>'; return; }
       var s = tab.state, seat = mySeat();
       if (!$('dk-felt')) {
-        main.innerHTML = '<div class="bj-tools" id="dk-tools"></div><div class="bj-table"><div class="pk-col"><div class="bj-felt pk-felt dk-felt" id="dk-felt"></div>' +
-          '<div class="pk-bar dk-bar sunken" id="dk-bar"></div></div><div class="bj-side" id="dk-side"></div></div>';
+        main.innerHTML = '<div class="bj-table"><div class="pk-col"><div class="bj-felt pk-felt dk-felt" id="dk-felt"></div><div class="ks-dock"><div class="pk-bar dk-bar" id="dk-bar"></div></div></div></div>';
       }
-      $('dk-tools').innerHTML = '<b>' + (s.hidden ? '🔒 ' : '🎴 ') + esc(s.name) + '</b>' + (s.game ? '<span class="tag">Spiel ' + s.game + '</span>' : '') +
-        (s.trump && s.phase === 'playing' ? '<span class="tag">Trumpf <b class="' + (s.trump.s === '♥' || s.trump.s === '♦' ? 'dk-red' : '') + '">' + s.trump.s + '</b></span>' : '') + '<span class="tag">36 Karten · mit Zuwerfen</span>';
+      K.info((s.trump && s.phase === 'playing' ? '<span class="tag">Trumpf <b class="' + (s.trump.s === '♥' || s.trump.s === '♦' ? 'dk-red' : '') + '">' + s.trump.s + '</b></span>' : '') + (s.game ? '<span class="tag">Spiel ' + s.game + '</span>' : ''));
       var shift = seat ? seat.i : 0;
       var seats = s.seats.map(function (x, i) { return seatHtml(x, i, s, (i - shift + s.seatCount) % s.seatCount); }).join('');
       $('dk-felt').innerHTML = (s.phase === 'result' ? '' : '<div class="bj-motto pk-motto">DURAK · 36 KARTEN</div>') + center(s) + seats;
@@ -242,35 +238,31 @@
       }
       return h + '</div>';
     }
+    // Seitenfach (☰ Mehr): wer sitzt, Verlauf und die eigenen Zahlen
     function renderSide(s, seat) {
-      var host = isHost(), html = '';
-      if (seat) {
-        html += '<fieldset class="groupbox"><legend>Mein Platz</legend><table class="kv">' +
+      K.side({
+        players: s.seats.filter(Boolean).map(function (p) {
+          var sub = s.phase === 'playing' ? (p.inGame ? (p.place ? p.place + '. raus' : p.i === s.defender ? 'verteidigt' : p.i === s.attacker ? 'greift an' : '') : 'spielt nächstes Spiel mit') : p.ready ? 'bereit' : 'noch nicht bereit';
+          return { p: p, sub: sub, cells: [s.phase === 'playing' && p.inGame ? String(p.cards) : '–', p.session.duraks + '×'] };
+        }),
+        cols: ['Karten', 'Durak'], viewers: s.viewers, hostId: s.hostId, log: s.log, playing: s.phase === 'playing',
+        info: '🎴 Durak mit Zuwerfen, 36 Karten' + (s.trump && s.phase === 'playing' ? ' · Trumpf ' + s.trump.s : ''),
+        me: seat ? '<fieldset class="groupbox"><legend>Mein Platz</legend><table class="kv">' +
           '<tr><td>Spiele hier</td><td class="num">' + seat.session.games + '</td></tr>' +
           '<tr><td>Als Erster raus</td><td class="num">' + seat.session.wins + '</td></tr>' +
-          '<tr><td>Durak</td><td class="num">' + seat.session.duraks + '×</td></tr></table>' +
-          '<div class="actions">' + (s.phase !== 'playing' ? '<button type="button" class="small" data-act="ready">' + (seat.ready ? '✋ Doch nicht bereit' : '<b>✓ Bereit</b>') + '</button>' : '') +
-          '<button type="button" class="small" data-act="leave">🚪 Aufstehen</button></div></fieldset>';
-      }
-      var players = s.seats.filter(Boolean);
-      html += '<fieldset class="groupbox"><legend>Am Tisch (' + players.length + (s.viewers.length ? ' + ' + s.viewers.length + ' 👁' : '') + ')</legend><table class="kv">' +
-        players.map(function (p) { return '<tr><td><button type="button" class="bj-link" data-user="' + esc(p.user) + '" data-uid="' + p.id + '">' + (s.hostId === p.id ? '👑 ' : '') + esc(p.name) + '</button></td><td class="num">' + p.session.duraks + '× Durak</td></tr>'; }).join('') +
-        (s.viewers.length ? '<tr><td colspan="2"><small>👁 ' + s.viewers.map(function (v) { return '<button type="button" class="bj-link" data-user="' + esc(v.user) + '" data-uid="' + v.id + '">' + esc(v.name) + '</button>'; }).join(', ') + '</small></td></tr>' : '') +
-        '</table><div class="actions"><button type="button" class="small" data-act="link">🔗 Einladen</button>' +
-        (host ? '<button type="button" class="small" data-act="settings">⚙️</button><button type="button" class="small danger" data-act="close" title="Tisch schließen">✖</button>' : '') +
-        (!seat ? '<button type="button" class="small" data-act="leave-view">🚪 Weggehen</button>' : '') + '</div></fieldset>';
-      html += '<div class="sunken bj-log">' + s.log.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</div>';
-      $('dk-side').innerHTML = html;
+          '<tr><td>Durak</td><td class="num">' + seat.session.duraks + '×</td></tr></table></fieldset>' : '',
+        acts: seat ? (s.phase !== 'playing' ? '<button type="button" data-act="ready">' + (seat.ready ? '✋ Doch nicht bereit' : '✓ Bereit') + '</button>' : '') + '<button type="button" data-act="leave">🚪 Aufstehen</button>' : '',
+      });
     }
 
     // Unten: die eigene Hand und die Knöpfe Nehmen / Fertig / Bereit
     function renderBar(s, seat) {
       var bar = $('dk-bar'), o = s.options, html = '';
       if (!seat) {
-        html = '<span>' + (s.seats.some(function (x) { return !x; }) ? 'Klick auf einen freien Platz, um mitzuspielen.' : 'Alle Plätze sind besetzt. Du siehst zu.') + '</span>';
+        html = '<span>' + (s.seats.some(function (x) { return !x; }) ? 'Klick auf „🪑 Platz frei“, um mitzuspielen.' : 'Alle Plätze sind besetzt. Du siehst zu.') + '</span>';
       } else if (s.phase !== 'playing' || !seat.inGame) {
         html = '<div class="bj-row"><span>' + (s.phase === 'playing' ? 'Das Spiel läuft schon. Du spielst ab dem nächsten mit.' : seat.ready ? 'Du bist bereit. Gegeben wird, wenn alle bereit sind.' : 'Bereit für ein Spiel?') + '</span>' +
-          (s.phase !== 'playing' ? '<button type="button" data-act="ready">' + (seat.ready ? '✋ Doch nicht' : '<b>✓ Bereit</b>') + '</button>' : '') + '</div>';
+          (s.phase !== 'playing' ? '<button type="button"' + (seat.ready ? '' : ' class="def"') + ' data-act="ready">' + (seat.ready ? '✋ Doch nicht' : '✓ Bereit') + '</button>' : '') + '</div>';
       } else {
         var trump = s.trump.s, hand = sortHand(s.hand || [], trump);
         var playable = function (c) { return o && (o.attack.indexOf(cid(c)) >= 0 || !!o.defend[cid(c)]); };
@@ -279,8 +271,8 @@
           return card(c, (ok ? 'ok' : 'dim') + (c.s === trump ? ' trump' : '') + (tab.pick === cid(c) ? ' picked' : ''), ' data-card="' + esc(cid(c)) + '" role="button" tabindex="0"');
         }).join('') : '<span>Keine Karten mehr' + (seat.place ? ', du bist raus. 🎉' : '.') + '</span>') + '</div>';
         html += '<div class="bj-row">' + hint(s, seat) +
-          (o && o.take ? '<button type="button" data-act="take" title="Taste N"><b><u>N</u>ehmen</b></button>' : '') +
-          (o && o.pass ? '<button type="button" data-act="pass" title="Taste F oder Leertaste"><b><u>F</u>ertig</b></button>' : '') + '</div>';
+          (o && o.take ? '<button type="button" data-act="take" title="Taste N"><u>N</u>ehmen</button>' : '') +
+          (o && o.pass ? '<button type="button" class="def" data-act="pass" title="Taste F, Leertaste oder Enter"><u>F</u>ertig</button>' : '') + '</div>';
       }
       bar.innerHTML = html;
     }
@@ -309,13 +301,6 @@
       var seat = mySeat();
       status(seat && seat.i === s.defender ? 'Mit ' + id + ' kannst du keine offene Karte schlagen.' : s.table.length ? 'Zuwerfen geht nur mit einem Wert, der schon auf dem Tisch liegt.' : 'Du bist gerade nicht dran.');
     }
-
-    // Countdown ohne neu zu zeichnen
-    var tick = setInterval(function () {
-      if (!tab || !tab.state || view !== 'tisch') return;
-      var s = tab.state, passed = Date.now() + (tab.offset || 0) - s.now;
-      main.querySelectorAll('[data-count]').forEach(function (el) { el.textContent = Math.max(0, secs((s.turn ? s.turn.left : 0) - passed)); });
-    }, 250);
 
     function settings() {
       var s = tab.state;
@@ -395,7 +380,8 @@
     }
 
     // ---------- Klicks und Tasten ----------
-    main.addEventListener('click', function (e) {
+    // Klicks im ganzen Fenster: auch Werkzeugleiste und Seitenfach (public/kartenspiele.js) tragen data-act
+    root.addEventListener('click', function (e) {
       var cardEl = e.target.closest('[data-card]');
       if (cardEl) { playCard(cardEl.dataset.card); return; }
       var tgt = e.target.closest('[data-target]');
@@ -425,6 +411,7 @@
     function onKey(e) {
       if (view !== 'tisch' || dlg.open || e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
       if (e.key === 'Enter' && e.target.dataset && e.target.dataset.card) { e.preventDefault(); playCard(e.target.dataset.card); return; }
+      if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { var def = main.querySelector('.ks-dock .def:not([disabled])'); if (def) { e.preventDefault(); def.click(); } return; }
       var k = e.key.toLowerCase(), act = k === 'n' ? 'take' : k === 'f' || k === ' ' ? 'pass' : null;
       var btn = act && main.querySelector('[data-act=' + act + ']:not([disabled])');
       if (btn) { e.preventDefault(); btn.click(); }
@@ -436,6 +423,6 @@
     if (K.table) enter(K.table, K.sit);
     else show(K.view || 'statistik');
     // Abbauen, wenn das Fenster ein anderes Spiel zeigt
-    return function destroy() { leaveView(); clearInterval(tick); document.removeEventListener('keydown', onKey); };
+    return function destroy() { leaveView(); document.removeEventListener('keydown', onKey); };
   };
 })();

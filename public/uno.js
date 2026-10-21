@@ -40,7 +40,8 @@
       return {
         hole: ctx.mine(p) ? '' : ctx.backs(p.cards),
         line: p.cards + (p.cards === 1 ? ' Karte' : ' Karten') + ' · ' + p.score + ' P.',
-        badge: (p.cards === 1 && p.said ? '<span class="bj-badge win">📣 UNO!</span>' : '') + (s.uno && s.uno.dealer === p.i ? ' <span class="bj-badge">Geber</span>' : ''),
+        badge: p.cards === 1 && p.said ? '<span class="bj-badge win">📣 UNO!</span>' : '',
+        dealer: !!s.uno && s.uno.dealer === p.i,
       };
     },
     score: function (p) { return p.score + ' P.'; },

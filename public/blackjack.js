@@ -118,6 +118,7 @@
       // Der Gastgeber hat ein anderes Spiel gewählt: das Fenster baut den Tisch neu auf
       tab.es.addEventListener('switch', function () { leaveView(); K.switched(); });
       tab.es.addEventListener('salon', function (e) { K.salon(JSON.parse(e.data)); });
+      tab.es.addEventListener('fx', function (e) { K.fx(JSON.parse(e.data)); });
       tab.es.addEventListener('error', function () {
         if (!tab) return;
         if (tab.es.readyState === 2) gone('Diesen Tisch gibt es nicht mehr.');
@@ -191,23 +192,23 @@
       });
     }
 
-    // Plätze im Halbkreis um den Dealer
+    // Plätze im Halbkreis um den Dealer: Hände über der Plakette (K.plaque), die Bedenkzeit läuft unter dem Namensschild ab
     var POS = { 1: [50], 2: [30, 70], 3: [17, 50, 83], 4: [12, 37, 63, 88], 5: [10, 30, 50, 70, 90] };
     function seatHtml(s, i, st) {
       var pos = POS[st.seatCount][i], dy = Math.abs(pos - 50) * 1.3;
       var style = 'left:' + pos + '%;top:calc(46% - var(--c) * ' + (dy / 44).toFixed(2) + ')';
-      if (!s) {
-        return '<div class="bj-seat empty" style="' + style + '">' + (mySeat() ? '<span class="bj-free">frei</span>' : '<button type="button" class="small" data-sit="' + i + '">🪑 Hier hinsetzen</button>') + '</div>';
-      }
+      if (!s) return '<div class="bj-seat empty" style="' + style + '">' + K.free(i, !mySeat()) + '</div>';
       var turn = st.turn && st.turn.seat === i, mine = s.id === ME;
       var hands = s.hands.length ? s.hands.map(function (h, k) {
         var active = turn && st.turn.hand === k;
         return '<div class="bj-hand' + (active ? ' active' : '') + '">' + cards(h.cards) + '<div>' + chip(h.bet) + ' ' + totalBadge(h) + (h.doubled ? ' <small>×2</small>' : '') + '</div></div>';
-      }).join('') : (s.bet ? '<div class="bj-hand">' + chip(s.bet) + (st.phase === 'betting' ? (s.ready ? ' <span class="bj-badge win" title="Einsatz bestätigt">✔</span>' : ' <small>wählt …</small>') : '') + '</div>' : '<div class="bj-hand bj-nobet">' + (st.phase === 'betting' ? (s.chips < st.minBet ? 'keine Chips' : 'setzt …') : 'setzt aus') + '</div>');
-      return '<div class="bj-seat' + (turn ? ' turn' : '') + (mine ? ' mine' : '') + '" style="' + style + '">' + hands +
-        '<button type="button" class="bj-name" data-user="' + esc(s.user) + '" data-uid="' + s.id + '">' + (st.hostId === s.id ? '👑 ' : '') + esc(s.name) + (mine ? ' (du)' : '') + (s.away ? ' 💤' : '') + (s.leaving ? ' 🚪' : '') + '</button>' +
-        '<div class="bj-chips">Chips ' + euro(s.chips) + ' · <span class="' + cls(s.balance) + '">' + euro(s.balance, true) + '</span></div></div>';
+      }).join('') : (s.bet ? '<div class="bj-hand">' + chip(s.bet) + '</div>' : '<div class="bj-hand bj-nobet">' + (st.phase === 'betting' ? (s.chips < st.minBet ? 'keine Chips' : 'setzt …') : '') + '</div>');
+      var out = !s.hands.length && !s.bet && st.phase !== 'betting';
+      var tags = [st.phase === 'betting' && s.ready ? '✓' : '', out ? 'Pause' : ''];
+      return '<div class="bj-seat' + (turn ? ' turn' : '') + (mine ? ' mine' : '') + (out ? ' out' : '') + '" style="' + style + '">' + hands +
+        K.plaque({ p: s, host: st.hostId === s.id, turn: turn, left: turnLeft(st), total: rules().turn * 1000, tags: tags, line: euro(s.chips) }) + '</div>';
     }
+    function turnLeft(st) { return st.turn ? st.turn.left - (Date.now() + (tab.offset || 0) - st.now) : 0; }
     function chip(n) {
       if (!n) return '';
       var c = n >= 1000 ? 'c1000' : n >= 500 ? 'c500' : n >= 100 ? 'c100' : n >= 50 ? 'c50' : n >= 25 ? 'c25' : n >= 10 ? 'c10' : 'c5';
@@ -216,46 +217,44 @@
     function secs(ms) { return Math.ceil(ms / 1000); }
     function renderTable() {
       if (!tab || !tab.state) { main.innerHTML = '<p class="bj-empty">Verbinde mit dem Tisch …</p>'; return; }
-      var s = tab.state, seat = mySeat(), host = isHost(), r = s.rules;
+      var s = tab.state, seat = mySeat(), r = s.rules;
       var dealer = s.dealer.length ? cards(s.dealer) + ' <span class="bj-badge">' + (s.dealer.indexOf(null) >= 0 ? s.dealerTotal + ' + ?' : s.dealerTotal) + '</span>' : '';
-      var phaseText = s.phase === 'betting' ? (s.betLeft ? 'Einsätze: noch <b data-count="bet">' + secs(s.betLeft) + '</b> s' : 'Chips legen und Einsatz bestätigen') :
-        s.phase === 'dealer' ? 'Dealer ist dran' : s.phase === 'result' ? 'Runde ' + s.round + ' vorbei' :
-        s.turn ? (s.seats[s.turn.seat] && s.seats[s.turn.seat].id === ME ? '<b>Du bist dran</b> · <b data-count="turn">' + secs(s.turn.left) + '</b> s ⏳' : esc(s.seats[s.turn.seat] ? s.seats[s.turn.seat].name : '') + ' ist dran · <span data-count="turn">' + secs(s.turn.left) + '</span> s') : '';
-      var felt = '<div class="bj-felt"><div class="bj-dealer"><div class="bj-label">DEALER</div>' + dealer + '</div>' +
+      var felt = '<div class="bj-felt" id="bj-felt"><div class="bj-dealer"><div class="bj-label">DEALER</div>' + dealer + '</div>' +
         '<div class="bj-motto">BLACKJACK ZAHLT 3 ZU 2 · DEALER ' + (r.h17 ? 'ZIEHT AUF SOFT 17' : 'STEHT AUF ALLEN 17') + '</div>' +
-        s.seats.map(function (x, i) { return seatHtml(x, i, s); }).join('') +
-        '<div class="bj-bottom"><div class="bj-phase">' + phaseText + '</div><div class="bj-controls">' + controls(s, seat) + '</div></div></div>';
-      var side = '<div class="bj-side">';
-      if (seat) {
-        side += '<fieldset class="groupbox"><legend>Mein Platz</legend><table class="kv">' +
+        s.seats.map(function (x, i) { return seatHtml(x, i, s); }).join('') + '</div>';
+      main.innerHTML = '<div class="bj-table"><div class="pk-col">' + felt + '<div class="ks-dock"><div class="pk-bar bj-controls" id="bj-bar">' + controls(s, seat) + '</div></div></div></div>';
+      K.info('<span class="tag">Einsatz ' + euro(s.minBet) + ' – ' + euro(s.maxBet) + '</span><span class="tag">Runde ' + s.round + '</span>');
+      renderSide(s, seat);
+    }
+    // Seitenfach (☰ Mehr): wer sitzt, Verlauf und die eigenen Zahlen
+    function renderSide(s, seat) {
+      var r = s.rules;
+      K.side({
+        players: s.seats.filter(Boolean).map(function (p) {
+          var turn = s.turn && s.seats[s.turn.seat] === p;
+          return { p: p, sub: turn ? 'am Zug' : s.phase === 'betting' ? (p.ready ? 'Einsatz bestätigt' : 'setzt …') : '', cells: [euro(p.chips), '<span class="' + cls(p.balance) + '">' + euro(p.balance, true) + '</span>'] };
+        }),
+        cols: ['Chips', 'Heute'], viewers: s.viewers, hostId: s.hostId, log: s.log, playing: s.phase === 'playing' || s.phase === 'dealer',
+        info: '🃏 ' + r.decks + ' Decks' + (s.shoeLeft ? ', noch ' + s.shoeLeft + ' Karten im Schlitten' : '') + ' · Einsatz ' + euro(s.minBet) + ' – ' + euro(s.maxBet),
+        me: seat ? '<fieldset class="groupbox"><legend>Mein Platz</legend><table class="kv">' +
           '<tr><td>Chips</td><td class="num"><b>' + euro(seat.chips) + '</b></td></tr>' +
           '<tr><td>Nachgekauft</td><td class="num">' + seat.buyins + '×</td></tr>' +
           '<tr><td>Bilanz hier</td><td class="num ' + cls(seat.balance) + '">' + euro(seat.balance, true) + '</td></tr>' +
-          '<tr><td>Hände hier</td><td class="num">' + seat.session.hands + ' · ' + seat.session.wins + ' gewonnen</td></tr></table>' +
-          '<div class="actions"><button type="button" class="small" data-act="rebuy"' + (seat.chips < r.rebuyBelow && !inHand(seat) ? '' : ' disabled title="Nachkaufen geht unter ' + esc(euro(r.rebuyBelow)) + ' und zwischen zwei Händen"') + '>💰 Nachkaufen</button>' +
-          '<button type="button" class="small" data-act="leave">🚪 Aufstehen</button></div></fieldset>';
-      }
-      var players = s.seats.filter(Boolean);
-      side += '<fieldset class="groupbox"><legend>Am Tisch (' + players.length + (s.viewers.length ? ' + ' + s.viewers.length + ' 👁' : '') + ')</legend><table class="kv">' +
-        players.map(function (p) { return '<tr><td><button type="button" class="bj-link" data-user="' + esc(p.user) + '" data-uid="' + p.id + '">' + (s.hostId === p.id ? '👑 ' : '') + esc(p.name) + '</button></td><td class="num ' + cls(p.balance) + '">' + euro(p.balance, true) + '</td></tr>'; }).join('') +
-        (s.viewers.length ? '<tr><td colspan="2"><small>👁 ' + s.viewers.map(function (v) { return '<button type="button" class="bj-link" data-user="' + esc(v.user) + '" data-uid="' + v.id + '">' + esc(v.name) + '</button>'; }).join(', ') + '</small></td></tr>' : '') +
-        '</table><div class="actions"><button type="button" class="small" data-act="link">🔗 Einladen</button>' +
-        (host ? '<button type="button" class="small" data-act="settings">⚙️</button><button type="button" class="small danger" data-act="close" title="Tisch schließen">✖</button>' : '') +
-        (!seat ? '<button type="button" class="small" data-act="leave-view">🚪 Weggehen</button>' : '') + '</div></fieldset>';
-      side += '<div class="sunken bj-log">' + s.log.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</div></div>';
-      main.innerHTML = '<div class="bj-tools"><b>' + (s.hidden ? '🔒 ' : '🃏 ') + esc(s.name) + '</b><span class="tag">Runde ' + s.round + '</span><span class="tag">Einsatz ' + euro(s.minBet) + ' – ' + euro(s.maxBet) + '</span>' +
-        '<span class="tag">' + r.decks + ' Decks' + (s.shoeLeft ? ' · noch ' + s.shoeLeft + ' Karten' : '') + '</span></div><div class="bj-table">' + felt + side + '</div>';
+          '<tr><td>Hände hier</td><td class="num">' + seat.session.hands + ' · ' + seat.session.wins + ' gewonnen</td></tr></table></fieldset>' : '',
+        acts: seat ? '<button type="button" data-act="rebuy"' + (seat.chips < r.rebuyBelow && !inHand(seat) ? '' : ' disabled title="Nachkaufen geht unter ' + esc(euro(r.rebuyBelow)) + ' und zwischen zwei Händen"') + '>💶 Nachkaufen</button>' +
+          '<button type="button" data-act="leave">🚪 Aufstehen</button>' : '',
+      });
     }
     function inHand(seat) { return seat.hands.some(function (h) { return !h.result; }); }
     function controls(s, seat) {
-      if (!seat) return s.seats.some(function (x) { return !x; }) ? '<small>Klick auf einen freien Platz, um mitzuspielen. Du bringst dein Geld aus der Kasse mit.</small>' : '<small>Alle Plätze sind besetzt. Du siehst zu.</small>';
+      if (!seat) return '<span>' + (s.seats.some(function (x) { return !x; }) ? 'Klick auf „🪑 Platz frei“, um mitzuspielen. Du bringst dein Geld aus der Kasse mit.' : 'Alle Plätze sind besetzt. Du siehst zu.') + '</span>';
       if (s.phase === 'betting') {
-        if (seat.chips < s.minBet) return '<small>Zu wenig Chips für den Mindesteinsatz.</small> <button type="button" data-act="rebuy">💰 Nachkaufen</button>';
+        if (seat.chips < s.minBet) return '<div class="bj-row"><span>Zu wenig Chips für den Mindesteinsatz.</span><button type="button" class="def" data-act="rebuy">💶 Nachkaufen</button></div>';
         var room = Math.min(s.maxBet, seat.chips);
         return '<div class="bj-betbar">' + CHIPS.filter(function (c) { return c <= room && c >= Math.min(s.minBet, 5); }).map(function (c) {
           return '<button type="button" class="bj-chip ' + chip(c).match(/c\d+/)[0] + '" data-bet="' + c + '" title="+' + euro(c) + '">' + (c >= 1000 ? '1k' : c) + '</button>';
-        }).join('') + '</div><div>Einsatz: <b>' + euro(seat.bet) + '</b> ' +
-          (seat.bet && !seat.ready ? '<button type="button" data-act="confirm" title="Taste Enter"><b>✔ Einsatz bestätigen</b></button> ' : '') +
+        }).join('') + '</div><div>Einsatz: <b>' + euro(seat.bet) + '</b> ' + (s.betLeft ? '<small>(noch <b data-count="bet">' + secs(s.betLeft) + '</b> s)</small> ' : '') +
+          (seat.bet && !seat.ready ? '<button type="button" class="def" data-act="confirm" title="Taste Enter">✔ Einsatz bestätigen</button> ' : '') +
           (seat.ready ? '<span class="bj-badge win">✔ Bestätigt</span> ' : '') +
           (seat.lastBet && seat.lastBet <= room && seat.lastBet >= s.minBet && seat.lastBet !== seat.bet ? '<button type="button" class="small" data-act="again">↺ Wie zuletzt (' + euro(seat.lastBet) + ')</button> ' : '') +
           (seat.bet ? '<button type="button" class="small" data-act="clear">✖ Zurücknehmen</button>' : '') + '</div>' +
@@ -264,10 +263,12 @@
       if (s.phase === 'playing' && s.turn && s.seats[s.turn.seat] === seat) {
         var h = seat.hands[s.turn.hand], two = h.cards.length === 2;
         var canDouble = two && seat.chips >= h.bet, canSplit = two && seat.hands.length === 1 && val(h.cards[0]) === val(h.cards[1]) && seat.chips >= h.bet;
-        return '<div class="bj-row"><button type="button" data-act="hit"><u>Z</u>iehen</button><button type="button" data-act="stand"><u>H</u>alten</button>' +
+        return '<div class="bj-row"><span>Du bist dran.</span><button type="button" data-act="hit"><u>Z</u>iehen</button><button type="button" data-act="stand"><u>H</u>alten</button>' +
           '<button type="button" data-act="double"' + (canDouble ? '' : ' disabled') + '><u>V</u>erdoppeln</button><button type="button" data-act="split"' + (canSplit ? '' : ' disabled') + '><u>T</u>eilen</button></div>';
       }
-      return '';
+      if (s.phase === 'dealer') return '<span>Der Dealer ist dran …</span>';
+      if (s.phase === 'playing') return '<span>' + (inHand(seat) ? 'Warten, bis du dran bist …' : 'Du bist in dieser Runde nicht dabei.') + '</span>';
+      return '<span>' + (s.phase === 'result' ? 'Gleich geht es mit der nächsten Runde weiter.' : 'Warten …') + '</span>';
     }
     function val(c) { return c.r === 'A' ? 11 : ['J', 'Q', 'K'].indexOf(c.r) >= 0 ? 10 : Number(c.r); }
 
@@ -275,10 +276,7 @@
     var tick = setInterval(function () {
       if (!tab || !tab.state || view !== 'tisch') return;
       var s = tab.state, passed = Date.now() + (tab.offset || 0) - s.now;
-      main.querySelectorAll('[data-count]').forEach(function (el) {
-        var ms = el.dataset.count === 'bet' ? s.betLeft : s.turn ? s.turn.left : 0;
-        el.textContent = Math.max(0, secs(ms - passed));
-      });
+      main.querySelectorAll('[data-count]').forEach(function (el) { el.textContent = Math.max(0, secs(s.betLeft - passed)); });
     }, 250);
 
     function settings() {
@@ -365,7 +363,8 @@
     }
 
     // ---------- Klicks und Tasten ----------
-    main.addEventListener('click', function (e) {
+    // Klicks im ganzen Fenster: auch Werkzeugleiste und Seitenfach (public/kartenspiele.js) tragen data-act
+    root.addEventListener('click', function (e) {
       var b = e.target.closest('button, a');
       if (!b) return;
       if (b.dataset.sit) { ctl('sit', { seat: Number(b.dataset.sit) }); return; }

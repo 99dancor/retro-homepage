@@ -82,6 +82,8 @@
     'ms-boom': function (c, t) { noise(c, t, { d: 0.6, f: 400, q: 0.7, filter: 'lowpass', v: 0.6 }); tone(c, t, { f: 120, to: 40, d: 0.5, type: 'sawtooth', v: 0.15 }); },
     'ms-sieg': function (c, t) { chord(c, t, [523, 659, 784, 1047], { d: 0.16, type: 'square', v: 0.07, step: 0.11 }); },
     anmelden: function (c, t) { chord(c, t, [392, 523, 659, 784], { d: 0.9, type: 'triangle', v: 0.14, step: 0.11 }); },
+    // Kartenspiele: Gläser stoßen an
+    prost: function (c, t) { [0, 0.07].forEach(function (o, i) { tone(c, t + o, { f: 2350 + i * 410, d: 0.35, v: 0.1 }); tone(c, t + o, { f: 5300 + i * 700, d: 0.12, v: 0.03 }); }); },
   };
 
   function play(name) {

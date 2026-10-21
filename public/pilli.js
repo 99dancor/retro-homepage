@@ -24,7 +24,8 @@
       return {
         hole: ctx.mine(p) ? '' : ctx.backs(p.cards),
         line: 'Ansage ' + (p.bid == null ? '?' : p.bid) + ' · Stiche ' + p.tricks,
-        badge: '<span class="bj-badge' + (p.pilis >= 5 ? ' lose' : '') + '" title="' + p.pilis + ' Pilis">' + chilis(p.pilis) + '</span>' + (s.pp && s.pp.dealer === p.i ? ' <span class="bj-badge">Geber</span>' : ''),
+        badge: '<span class="bj-badge' + (p.pilis >= 5 ? ' lose' : '') + '" title="' + p.pilis + ' Pilis">' + chilis(p.pilis) + '</span>',
+        dealer: !!s.pp && s.pp.dealer === p.i,
       };
     },
     score: function (p) { return p.pilis + ' 🌶️'; },

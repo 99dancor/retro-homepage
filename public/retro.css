@@ -761,8 +761,6 @@ button.bj-chip { width: clamp(36px, calc(var(--c) * .7), 60px); height: clamp(36
 button.bj-chip:active { transform: translateY(1px); box-shadow: 0 0 0 1px #000; }
 .bj-chip.c5 { background: #c62828; } .bj-chip.c10 { background: #1565c0; } .bj-chip.c25 { background: #2e7d32; } .bj-chip.c50 { background: #ef6c00; }
 .bj-chip.c100 { background: #222; } .bj-chip.c500 { background: #6a1b9a; } .bj-chip.c1000 { background: #b8860b; }
-.bj-bottom { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
-.bj-phase { text-shadow: 1px 1px #000; }
 .bj-controls { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .bj-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
 .bj button:disabled { opacity: .5; cursor: default; }
@@ -1482,33 +1480,37 @@ tr.me td { background: #ffffcc; color: #000; }
 .sd.narrow .sd-tools { flex-direction: row; }
 .sd.narrow .sd-tools button { flex: 1; text-align: center; padding-left: 2px; padding-right: 2px; }
 
-/* Kartenspiele (views/kartenspiele.ejs, public/kartenspiele.js): Spieltische, Kasse und die Leiste über dem Tisch.
-   Filz und Kartenrücken wählt der Gastgeber; die Klassen hängen am Spiel und setzen nur Farben (--felt-*, --rim-*, --back). */
+/* Kartenspiele (views/kartenspiele.ejs, public/kartenspiele.js): Spieltische als Karten, Kasse, Shop und am Tisch der Rahmen
+   um das Spiel: Werkzeugleiste, Seitenfach, Platz-Plaketten, Leiste für die Züge. Bedienelemente sehen aus wie im Rest des
+   Desktops; bunt ist nur die Spielfläche mit Holz, Filz und Karten. Filz, Kartenrücken und Holz wählt der Gastgeber; die
+   Klassen hängen am Spiel und setzen nur Farben (--felt-*, --rim-*, --back, --wood-*, --inlay). */
 .bj[hidden] { display: none; }
-.ks-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 2px 4px; }
-.ks-bar select { max-width: 180px; }
-.ks-bar .spacer { flex: 1; }
+.bj button.def { box-shadow: 0 0 0 1px var(--dark), inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--lo), inset 2px 2px rgba(255,255,255,.5); }
+.bj button.def:active { box-shadow: 0 0 0 1px var(--dark), inset 1px 1px var(--dark), inset -1px -1px var(--hi), inset 2px 2px var(--lo); }
 .ks-games { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 6px 0 10px; }
 .ks-games button { padding: 10px 6px; font-size: 14px; }
-.ks-swatch { display: inline-block; width: 26px; height: 18px; vertical-align: middle; margin-left: 4px; box-shadow: 0 0 0 1px #000; }
-.ks-swatch.bj-felt { min-height: 0; background-size: 100% 100%; }
-.ks-swatch.bj-card { width: 14px; height: 20px; margin: 0 0 0 4px; animation: none; border-width: 2px; }
 .ks-preview { display: flex; gap: 10px; align-items: center; margin: 4px 0 8px; }
 .ks-preview .bj-felt { flex: none; width: 150px; min-height: 0; height: 70px; display: flex; align-items: center; justify-content: center; border-radius: 35px; --c: 30px; }
 .ks-preview .bj-card { margin: 0 2px; animation: none; }
+.ks-preview.ks-tisch .bj-felt { --rim: 8px; --ks-r: 32px; border-radius: 0; width: 170px; height: 80px; }
 .ks-felt-blau { --felt-hi: #2058a8; --felt-lo: #0c2b62; }
 .ks-felt-rot { --felt-hi: #a8242e; --felt-lo: #5e0c14; }
 .ks-felt-lila { --felt-hi: #6e2c92; --felt-lo: #3a1052; }
 .ks-felt-schwarz { --felt-hi: #3c3c3c; --felt-lo: #121212; --rim-hi: #2a2a2a; --rim-lo: #050505; --rim-bg: #000; }
 .ks-felt-petrol { --felt-hi: #1d8080; --felt-lo: #0b4646; --rim-hi: #8a8a8a; --rim-lo: #4a4a4a; --rim-bg: #2a2a2a; }
-.ks-back-rot { --back: repeating-linear-gradient(45deg, #a00000 0 4px, #e03030 4px 8px); }
-.ks-back-blau { --back: repeating-linear-gradient(45deg, #002a66 0 4px, #3366cc 4px 8px); }
-.ks-back-gruen { --back: repeating-linear-gradient(-45deg, #05502a 0 4px, #2a9a5a 4px 8px); }
+.ks-felt-bordeaux { --felt-hi: #8e1d3e; --felt-lo: #3c0616; }
+.ks-felt-sternfilz { --felt-hi: #1d2b5e; --felt-lo: #060a1e;
+  --felt-pat: radial-gradient(circle, rgba(255,255,255,.85) 0 1px, transparent 1.6px) 0 0 / 23px 19px, radial-gradient(circle, rgba(255,236,170,.7) 0 1px, transparent 1.6px) 11px 9px / 31px 27px; }
+.ks-back-streifen { --back: repeating-linear-gradient(45deg, #a00000 0 4px, #e03030 4px 8px); }
+.ks-back-blaustreifen { --back: repeating-linear-gradient(45deg, #002a66 0 4px, #3366cc 4px 8px); }
+.ks-back-gruenstreifen { --back: repeating-linear-gradient(-45deg, #05502a 0 4px, #2a9a5a 4px 8px); }
 .ks-back-gold { --back: radial-gradient(circle, #ffd700 0 22%, transparent 24%) 50% 50% / 100% 100% no-repeat, repeating-linear-gradient(45deg, #151515 0 5px, #3a2a00 5px 10px); }
 .ks-back-karo { --back: conic-gradient(#c00000 25%, #fff 0 50%, #c00000 0 75%, #fff 0) 0 0 / 8px 8px; }
 .ks-back-retro { --back: radial-gradient(circle, #fff 0 18%, transparent 20%) 0 0 / 7px 7px, #00007f; }
+.ks-back-sterne { --back: radial-gradient(circle, #fff 0 1px, transparent 1.6px) 0 0 / 7px 7px, radial-gradient(circle, #ffd700 0 1px, transparent 1.6px) 3px 4px / 9px 9px, #0a1240; }
+.ks-back-regenbogen { --back: linear-gradient(135deg, #e53935, #fb8c00 20%, #fdd835 40%, #43a047 60%, #1e88e5 80%, #8e24aa); }
 /* Der Tisch am Spieltisch (.ks-tisch): schmaler Holzrand mit Einlage als ::before, Filz als ::after; die Maße (--rim, --ks-r)
-   setzt public/kartenspiele.js. Verzierungen und Ablagen liegen in .ks-layer, Avatar und Glücksbringer an den Plätzen. */
+   setzt public/kartenspiele.js. Verzierungen, Getränke und Glücksbringer liegen in .ks-layer. */
 .ks-wood-eiche { --wood-hi: #b98250; --wood-lo: #6b4321; --inlay: #e2c06a; }
 .ks-wood-walnuss { --wood-hi: #7a5638; --wood-lo: #3a2616; --inlay: #d4d4d4; }
 .ks-wood-mahagoni { --wood-hi: #8a3a22; --wood-lo: #4a1a0c; --inlay: #d9b25a; }
@@ -1522,7 +1524,7 @@ tr.me td { background: #ffffcc; color: #000; }
     linear-gradient(180deg, var(--wood-hi, #b98250), var(--wood-lo, #6b4321));
   box-shadow: 0 10px 24px rgba(0,0,0,.6), inset 0 2px 1px rgba(255,255,255,.3), inset 0 -3px 2px rgba(0,0,0,.5); }
 .ks-tisch .bj-felt::after { inset: calc(4% + var(--rim, 16px)) calc(2.5% + var(--rim, 16px)); border-radius: calc(var(--ks-r, 120px) - var(--rim, 16px));
-  background: radial-gradient(ellipse at 50% 35%, var(--felt-hi, #1f7a3a), var(--felt-lo, #0d4d22) 80%);
+  background: var(--felt-pat, none), radial-gradient(ellipse at 50% 35%, var(--felt-hi, #1f7a3a), var(--felt-lo, #0d4d22) 80%);
   box-shadow: inset 0 0 0 2px rgba(0,0,0,.35), inset 0 6px 18px rgba(0,0,0,.55);
   outline: 2px solid var(--inlay, #e2c06a); outline-offset: calc(var(--rim, 16px) / 2 - 1px); }
 .ks-layer { position: absolute; inset: 0; pointer-events: none; }
@@ -1530,35 +1532,256 @@ tr.me td { background: #ffffcc; color: #000; }
 .ks-orn svg { display: block; width: 100%; height: 100%; }
 .ks-orn path, .ks-orn circle { fill: none; stroke: var(--inlay, #e2c06a); stroke-width: 1.8; stroke-linecap: round; }
 .ks-orn .dot { fill: var(--inlay, #e2c06a); stroke: none; }
-.ks-at { position: absolute; transform: translate(-50%, -50%); }
-.ks-cup { display: inline-flex; align-items: center; justify-content: center; width: calc(var(--rim, 16px) * 1.9); height: calc(var(--rim, 16px) * 1.9); border-radius: 50%;
-  font-size: calc(var(--rim, 16px) * 1.1); line-height: 1; background: radial-gradient(circle at 50% 45%, #1b120a 0 55%, #000 72%);
-  box-shadow: inset 0 3px 5px rgba(0,0,0,.9), 0 0 0 2px var(--inlay, #e2c06a), 0 1px 0 3px rgba(255,255,255,.12); pointer-events: auto; }
-.ks-cup.empty { font-size: 0; }
-.ks-who { display: flex; align-items: flex-end; justify-content: center; gap: 4px; margin: 2px auto 1px; --ava: clamp(22px, calc(var(--c, 40px) * .55), 36px); }
 .ks-ava { display: inline-flex; align-items: center; justify-content: center; width: var(--ava, 28px); height: var(--ava, 28px); border-radius: 50%; object-fit: cover; flex: none;
   box-shadow: 0 0 0 2px #fff, 0 1px 3px rgba(0,0,0,.6); background: #445; color: #fff; font-weight: bold; }
-.ks-charm { font-size: calc(var(--ava, 28px) * .85); line-height: 1; filter: drop-shadow(1px 2px 1px rgba(0,0,0,.6)); }
-.ks-pet { position: relative; width: calc(var(--ava, 28px) * 1.5); height: calc(var(--ava, 28px) * 1.5); flex: none; }
-.ks-pet .pet-svg { position: absolute; left: 0; bottom: 22%; width: 100%; height: auto; filter: drop-shadow(1px 2px 1px rgba(0,0,0,.5)); }
-.ks-basket { position: absolute; left: 0; right: 0; bottom: -6%; text-align: center; font-size: calc(var(--ava, 28px) * 1.05); line-height: 1; }
-.ks-pet .pet-svg ~ .ks-basket { clip-path: inset(40% 0 0 0); }
-.ks-preview.ks-tisch .bj-felt { --rim: 8px; --ks-r: 32px; border-radius: 0; width: 170px; height: 80px; }
-/* Shop */
-.ks-shophead { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-.ks-big { font-size: 20px; }
-.ks-shop { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 4px 0 12px; }
-.ks-item { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 6px; text-align: center; background: var(--field); color: var(--field-text);
-  box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); }
-.ks-item.owned { background: color-mix(in srgb, var(--field) 85%, #2a9a5a); }
-.ks-item.on { outline: 2px solid #2a9a5a; outline-offset: -3px; }
-.ks-ic { font-size: 32px; line-height: 1.2; }
-.ks-woodchip { display: block; width: 90px; height: 34px; border-radius: 17px; margin: 4px 0;
-  background: linear-gradient(180deg, var(--wood-hi), var(--wood-lo)); box-shadow: inset 0 0 0 5px transparent, inset 0 0 0 7px var(--inlay), 0 2px 4px rgba(0,0,0,.4); }
-.ks-myseat { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 30px; color: #fff; text-shadow: 1px 1px #000;
-  background: linear-gradient(180deg, var(--wood-hi), var(--wood-lo)); box-shadow: 0 2px 6px rgba(0,0,0,.5), inset 0 0 0 4px transparent, inset 0 0 0 6px var(--inlay); --rim: 18px; --c: 50px; }
-.ks-myseat-me { display: flex; align-items: center; gap: 8px; }
-.ks-myseat .ks-who { margin: 0; --ava: 36px; }
+
+/* Fenster am Tisch: oben eine Werkzeugleiste statt Menüleiste, darunter Spielfläche und Seitenfach, unten die Statusleiste */
+.ks-body { position: relative; flex: 1; min-height: 0; display: flex; }
+.ks-body > .bj-main { flex: 1; min-width: 0; }
+.ks-room { gap: 0; }
+.ks-room.ks-am-tisch > .bj-nav { display: none; }
+.ks-room:not(.ks-am-tisch) > .ks-tbar, .ks-room:not(.ks-am-tisch) .ks-pane, .ks-room:not(.ks-am-tisch) .ks-fx { display: none; }
+.ks-room > .statusbar { margin-top: 2px; }
+.ks-room .ks-last { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ks-tbar { display: flex; align-items: center; gap: 2px; min-height: 32px; padding: 2px 4px; margin-bottom: 3px; overflow: hidden; border-bottom: 1px solid var(--lo); box-shadow: 0 1px var(--hi); }
+.ks-tbar::before { content: ''; flex: 0 0 3px; height: 22px; margin: 0 4px 0 1px; box-shadow: inset 1px 1px var(--hi), inset -1px -1px var(--lo); }
+.ks-tb { flex: none; display: inline-flex; align-items: center; gap: 4px; min-width: 0; padding: 3px 7px; white-space: nowrap; background: none; box-shadow: none; color: var(--text); }
+.ks-tb:hover { box-shadow: inset 1px 1px var(--hi), inset -1px -1px var(--lo); }
+.ks-tb:active, .ks-tb.on { box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); }
+.ks-tb.on { background: repeating-conic-gradient(var(--win) 0 25%, var(--field) 0 50%) 0 0 / 2px 2px; }
+.ks-tsep { flex: 0 0 2px; align-self: stretch; margin: 3px 4px; border-left: 1px solid var(--lo); border-right: 1px solid var(--hi); }
+.ks-tname { flex: 0 1 auto; min-width: 40px; max-width: 220px; padding: 0 6px 0 2px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ks-tbar select { flex: none; max-width: 170px; }
+.ks-gname { flex: none; white-space: nowrap; padding: 0 4px; }
+.ks-info { flex: 0 1 auto; min-width: 0; padding-left: 6px; font-size: 12px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ks-info .tag, .ks-taglist .tag { display: inline; border: 0; background: none; color: inherit; padding: 0; margin: 0; font-size: inherit; }
+.ks-info .tag + .tag::before, .ks-taglist .tag + .tag::before { content: ' · '; }
+.ks-faces { flex: none; display: inline-flex; align-items: center; gap: 2px; margin-left: 8px; }
+.ks-mface { display: inline-flex; width: 24px; height: 24px; min-width: 0; padding: 2px; overflow: hidden; background: none; box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); }
+.ks-mface .ks-ava { width: 100%; height: 100%; border-radius: 0; box-shadow: none; font-size: 11px; }
+.ks-watchers { margin-left: 4px; font-size: 12px; white-space: nowrap; }
+.ks-tbar .spacer { flex: 1; }
+
+/* Die Spielfläche: dunkler Raum mit dem Tisch, darunter die Leiste für die Züge */
+.ks-room .bj-table { height: 100%; min-height: 0; }
+.ks-room .pk-col { gap: 0; background: radial-gradient(ellipse at 50% 40%, #3a2c22, #1a120c 85%); box-shadow: inset 1px 1px var(--lo), inset 2px 2px var(--dark), inset -1px -1px var(--hi); }
+.ks-room.ks-tisch .bj-felt { background: none; box-shadow: none; }
+.ks-dock { flex: none; align-self: center; display: flex; align-items: center; gap: 4px; max-width: calc(100% - 16px); margin: 0 8px 8px; padding: 4px 6px; background: var(--win); color: var(--text);
+  box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--lo), inset 2px 2px rgba(255,255,255,.5), 3px 3px 0 rgba(0,0,0,.45); }
+.ks-dock .pk-bar { flex: 1; min-width: 0; min-height: 0; padding: 0; background: none; box-shadow: none; }
+.ks-dock .bj-row { align-items: center; }
+.ks-dock .ks-picks { flex-wrap: wrap; justify-content: center; gap: 4px; }
+.ks-dock .ks-picks button { padding: 4px 8px; }
+.ks-dock button { min-width: 0; padding: 4px 12px; }
+.ks-dock small, .ks-dock .bj-controls small { text-shadow: none; }
+.ks-dock-x { flex: none; display: flex; align-items: center; align-self: stretch; }
+.ks-dock-x .ks-tsep { margin: 2px 4px 2px 0; }
+.ks-dock-x button { padding: 4px 8px; white-space: nowrap; }
+
+/* Platz-Plakette: Bild im grauen Rahmen mit Abzeichen, darunter ein graues Namensschild. Wer dran ist, hat ein blaues
+   Schild wie ein aktives Fenster und darunter die Bedenkzeit als Fortschrittsbalken; wer nicht mitspielt, ist grau. */
+.ks-room .pk-seat { width: auto; min-width: 0; padding: 0; gap: 4px; background: none; border-radius: 0; z-index: 2; }
+/* Oben am Tisch hängt die Plakette am Platz und die Karten darunter, sonst ragt das Bild über den Rand */
+.ks-room .pk-seat.up { flex-direction: column-reverse; transform: translate(-50%, -46px); }
+.ks-room .pk-seat.turn { outline: 0; }
+.ks-room .pk-seat.won, .ks-room .dk-seat.lost { box-shadow: none; }
+.ks-room .bj-seat { width: auto; min-width: 0; display: flex; flex-direction: column; align-items: center; z-index: 2; }
+.ks-room .pk-best { margin-top: 3px; }
+.ks-plaque { position: relative; display: flex; flex-direction: column; align-items: center; --face: clamp(30px, calc(var(--c, 40px) * .82), 50px); }
+.ks-face { position: relative; display: inline-flex; flex: none; width: var(--face, 40px); height: var(--face, 40px); background: var(--win);
+  box-shadow: 0 0 0 1px var(--dark), 0 0 0 3px var(--win), 0 0 0 4px #000, 3px 3px 0 4px rgba(0,0,0,.45); margin: 4px; }
+.ks-face .ks-ava { width: 100%; height: 100%; border-radius: 0; box-shadow: none; font-size: calc(var(--face, 40px) * .5); }
+.ks-crown { position: absolute; left: -.75em; top: -.95em; font-size: calc(var(--face, 40px) * .38); font-style: normal; line-height: 1; filter: drop-shadow(1px 1px 1px rgba(0,0,0,.6)); }
+.ks-tags { position: absolute; right: -12px; bottom: -7px; display: flex; gap: 2px; }
+.ks-tag { padding: 2px 3px; font: bold 10px/1 var(--font); font-style: normal; white-space: nowrap; background: #fff; color: #000; border: 1px solid #000; text-shadow: none; }
+.ks-plate, .pk-seat .ks-plate, .bj-seat .ks-plate { display: block; min-width: 76px; max-width: 150px; margin-top: 4px; padding: 2px 8px 3px; line-height: 1.2; text-align: center;
+  font-weight: normal; text-shadow: none; text-decoration: none; background: var(--win); color: var(--text);
+  box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--lo), 2px 2px 0 rgba(0,0,0,.45); }
+.ks-plate b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ks-plate small { display: block; font-size: 11px; white-space: nowrap; }
+.pk-seat .ks-plate:hover, .bj-seat .ks-plate:hover { background: var(--win); }
+.pk-seat.turn .ks-plate, .bj-seat.turn .ks-plate { background: linear-gradient(90deg, var(--title-from), var(--title-to)); color: #fff; }
+.pk-seat.folded .ks-ava, .pk-seat.out .ks-ava, .bj-seat.out .ks-ava { filter: grayscale(1) brightness(.75); }
+.pk-seat.folded .ks-plate, .pk-seat.out .ks-plate, .bj-seat.out .ks-plate { color: #808080; text-shadow: 1px 1px var(--hi); }
+.pk-seat.won .ks-face { box-shadow: 0 0 0 1px var(--dark), 0 0 0 3px #ffd700, 0 0 0 4px #000, 0 0 16px 4px #ffd700; }
+.dk-seat.lost .ks-face { box-shadow: 0 0 0 1px var(--dark), 0 0 0 3px #ff5050, 0 0 0 4px #000, 0 0 16px 4px #ff5050; }
+.ks-prog { display: block; width: 80px; height: 11px; margin-top: 3px; padding: 2px; background: var(--field); box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi), 2px 2px 0 rgba(0,0,0,.45); }
+.ks-prog i { display: block; height: 100%; width: var(--p, 100%); background: repeating-linear-gradient(90deg, var(--title-from) 0 5px, transparent 5px 7px); animation: ks-drain linear forwards; }
+@keyframes ks-drain { from { width: var(--p, 100%); } to { width: 0; } }
+.ks-note { margin-top: 2px; font-size: .85em; white-space: nowrap; color: #fff; text-shadow: 1px 1px #000; }
+.ks-free { display: inline-flex; flex-direction: column; align-items: center; min-width: 0; padding: 3px 10px 4px; font-size: 12px; line-height: 1.25; }
+.ks-free > span { font-size: 20px; }
+span.ks-free { color: rgba(255,255,255,.55); box-shadow: 0 0 0 1px rgba(255,255,255,.3); padding: 6px 10px; font-style: italic; white-space: nowrap; }
+
+/* Dinge auf dem Holz: rechts das Getränk auf dem Untersetzer, links der Glücksbringer oder das Tier auf seinem Platz */
+.ks-at { position: absolute; transform: translate(-50%, -50%); }
+.ks-drink { position: relative; display: inline-flex; align-items: center; justify-content: center; width: calc(var(--rim, 16px) * 2.2); height: calc(var(--rim, 16px) * 2.2);
+  font-size: calc(var(--rim, 16px) * 1.45); line-height: 1; pointer-events: auto; }
+.ks-drink::before { content: ''; position: absolute; left: 50%; top: 66%; width: 80%; height: 30%; transform: translate(-50%, -50%); border-radius: 50%; background: rgba(0,0,0,.35); }
+.ks-drink > span { position: relative; filter: drop-shadow(0 3px 2px rgba(0,0,0,.55)); }
+.ks-drink.mine { cursor: pointer; }
+.ks-coaster { position: absolute; left: 50%; top: 68%; width: 112%; height: 46%; transform: translate(-50%, -50%); border-radius: 50%; box-shadow: 0 2px 2px rgba(0,0,0,.5); }
+.ks-co-bierdeckel { background: radial-gradient(ellipse, #fff 0 42%, #c62828 44% 56%, #fff 58%); }
+.ks-co-kork { background: radial-gradient(circle, rgba(70,40,10,.45) 0 1px, transparent 1.5px) 0 0 / 4px 3px, radial-gradient(ellipse at 40% 35%, #d6a468, #8a5a2a); }
+.ks-co-marmor { background: linear-gradient(125deg, #fafafa, #d2d2d2 35%, #f6f6f6 50%, #c4c4c4 70%, #f0f0f0); }
+.ks-co-goldrand { background: radial-gradient(ellipse, #262626 0 56%, #ffe27a 58%, #c9971c 70%, #8a6410 74%); }
+.ks-charm { display: inline-block; font-size: calc(var(--rim, 16px) * 1.55); line-height: 1; pointer-events: auto; filter: drop-shadow(0 3px 2px rgba(0,0,0,.6)); }
+.ks-pet { position: relative; display: inline-block; width: calc(var(--rim, 16px) * 3.3); height: calc(var(--rim, 16px) * 3.3); pointer-events: auto; cursor: pointer; }
+.ks-pet .pet-svg { position: absolute; left: 0; bottom: 16%; width: 100%; height: auto; filter: drop-shadow(1px 2px 1px rgba(0,0,0,.5)); }
+.ks-base { position: absolute; left: 4%; right: 4%; bottom: 2%; height: 36%; border-radius: 50%; }
+.ks-base-kissen .ks-base { background: radial-gradient(ellipse at 50% 35%, #e46a88, #8a1f3c 78%); box-shadow: 0 3px 3px rgba(0,0,0,.5); }
+.ks-base-korb .ks-base { z-index: 1; height: 42%; border-radius: 0 0 50% 50% / 0 0 100% 100%; background: repeating-linear-gradient(90deg, #9a6228 0 3px, #c48c4a 3px 6px);
+  box-shadow: inset 0 3px 0 #6b4321, 0 3px 3px rgba(0,0,0,.5); }
+.ks-base-thron .ks-base { background: radial-gradient(ellipse at 50% 35%, #c8243e, #5a0a18 78%); box-shadow: 0 0 0 2px #e2c06a, 0 3px 4px rgba(0,0,0,.6); }
+.ks-base-thron::before { content: ''; position: absolute; left: 14%; right: 14%; top: 0; bottom: 30%; border-radius: 40% 40% 0 0; background: linear-gradient(180deg, #e2c06a, #8a6410); box-shadow: inset 0 0 0 3px #5a0a18; }
+.ks-idle .ks-pet::after { content: '💤'; position: absolute; right: -6px; top: -4px; font-size: calc(var(--rim, 16px) * .9); animation: ks-zz 2.4s ease-in-out infinite; }
+@keyframes ks-zz { 50% { transform: translate(3px, -4px); opacity: .6; } }
+@keyframes ks-wig { 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+.ks-wiggle { animation: ks-wig .3s ease-in-out 3; }
+.ks-clink { animation: ks-wig .2s ease-in-out 2; }
+
+/* Leben am Tisch: Reaktionen steigen über dem Platz auf, „Prost!“ ist eine gelbe Sprechblase wie ein Windows-Hinweis */
+.ks-fx { position: absolute; inset: 0; z-index: 5; overflow: hidden; pointer-events: none; }
+.ks-float, .ks-heart { position: absolute; transform: translate(-50%, -100%); font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); animation: ks-up 2.6s ease-out forwards; }
+.ks-heart { font-size: 18px; animation-duration: 1.6s; }
+@keyframes ks-up { 0% { opacity: 0; transform: translate(-50%, -60%) scale(.6); } 15% { opacity: 1; transform: translate(-50%, -110%) scale(1.1); }
+  75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -280%); } }
+.ks-balloon { position: absolute; transform: translate(-50%, calc(-100% - 10px)); padding: 3px 9px; white-space: nowrap; font-size: 12px; font-weight: bold;
+  background: #ffffe1; color: #000; border: 1px solid #000; border-radius: 6px; box-shadow: 2px 2px 0 rgba(0,0,0,.3); animation: ks-fade 3.4s forwards; }
+.ks-balloon::before, .ks-balloon::after { content: ''; position: absolute; left: 50%; transform: translateX(-50%); border: 7px solid transparent; border-bottom: 0; }
+.ks-balloon::before { bottom: -8px; border-top-color: #000; }
+.ks-balloon::after { bottom: -6px; border-top-color: #ffffe1; }
+@keyframes ks-fade { 0% { opacity: 0; } 8%, 85% { opacity: 1; } 100% { opacity: 0; } }
+.ks-emopop { position: absolute; z-index: 8; display: flex; gap: 1px; padding: 3px; background: var(--win);
+  box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--lo), 2px 2px 0 rgba(0,0,0,.45); }
+.ks-emopop button { width: 32px; height: 30px; min-width: 0; padding: 0; font-size: 19px; background: none; box-shadow: none; }
+.ks-emopop button:hover, .ks-emopop button:focus-visible { box-shadow: inset 1px 1px var(--hi), inset -1px -1px var(--lo); outline: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .ks-float, .ks-heart, .ks-balloon, .ks-prog i, .ks-wiggle, .ks-clink, .ks-idle .ks-pet::after { animation: none; }
+  .ks-float, .ks-heart { transform: translate(-50%, -140%); }
+}
+
+/* Seitenfach rechts: Reiter wie in der Systemsteuerung, unten die Knöpfe */
+.ks-pane { position: relative; flex: 0 0 340px; display: flex; flex-direction: column; min-height: 0; padding: 4px 2px 0 11px; }
+.ks-pane.shop { flex-basis: 440px; }
+.ks-pane[hidden] { display: none; }
+.ks-pane::before { content: ''; position: absolute; left: 2px; top: 0; bottom: 0; width: 5px; box-shadow: inset 1px 0 var(--hi), inset -1px 0 var(--lo); }
+.ks-pane-x { position: absolute; right: 4px; top: 7px; z-index: 2; width: 18px; height: 16px; min-width: 0; padding: 0; font: bold 12px/14px var(--font); }
+.ks-pane-in { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ks-pane-in > .tabs { padding-right: 24px; }
+.ks-pane-in > .tabs button { padding: 3px 7px; font-size: 12px; white-space: nowrap; }
+.ks-pane .tab-page { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.ks-pane .groupbox { margin: 2px 0 0; padding: 6px 8px 8px; }
+.ks-pane .bj-log { flex: 1; min-height: 140px; }
+.ks-pane .bj-link { color: var(--link); }
+.ks-pane .actions { margin-top: 0; gap: 4px; }
+.ks-pane-foot { flex: none; display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 0 4px; }
+.ks-pane-foot button { min-width: 0; padding: 4px 9px; }
+table.ks-people { width: 100%; border-collapse: collapse; }
+.ks-people td { vertical-align: middle; }
+.ks-people .ks-pname { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; }
+.ks-pane .ks-people .bj-link { color: inherit; }
+.ks-people .ks-ava { width: 22px; height: 22px; border-radius: 0; box-shadow: 0 0 0 1px var(--lo); font-size: 11px; }
+.ks-people td small { display: block; padding-left: 28px; font-size: 11px; opacity: .8; }
+.ks-people tr.sel td { background: var(--title-from); color: #fff; }
+.ks-people tr.sel .pos, .ks-people tr.sel .neg { color: #fff; }
+
+/* Tischliste: „Schnell spielen“ und jeder Tisch als Karte mit einem kleinen Tisch in Holz und Filz */
+.ks-list { display: flex; flex-direction: column; gap: 8px; }
+.ks-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 0; }
+.ks-quick > span:first-of-type { flex: 1 1 200px; }
+.ks-quick-go { display: flex; flex-wrap: wrap; gap: 4px; }
+.ks-quick-go button { min-width: 0; padding: 4px 10px; }
+.ks-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.ks-card { display: flex; flex-direction: column; padding: 5px; text-align: left; background: var(--win); color: var(--text);
+  box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--lo), inset 2px 2px rgba(255,255,255,.5); }
+.ks-card-bd { flex: 1; display: flex; flex-direction: column; gap: 1px; padding: 6px 3px 1px; }
+.ks-card-bd > b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ks-card-bd small { font-size: 12px; opacity: .85; }
+.ks-card-act { display: flex; gap: 6px; margin-top: auto; padding-top: 6px; }
+.ks-card-act button { flex: 1; min-width: 0; }
+button.ks-new { align-items: center; justify-content: center; gap: 4px; min-height: 200px; padding: 14px; text-align: center; }
+.ks-plus { font-size: 40px; line-height: 1; }
+.ks-friendline { margin: 0; }
+.ks-pv { position: relative; height: 124px; overflow: hidden; background: radial-gradient(ellipse at 50% 40%, #3d2e23, #150e09 85%);
+  box-shadow: inset 1px 1px var(--lo), inset 2px 2px var(--dark), inset -1px -1px var(--hi); }
+.ks-pv-rim { position: absolute; inset: 18px 26px; border-radius: 50px; background: linear-gradient(180deg, var(--wood-hi, #b98250), var(--wood-lo, #6b4321)); box-shadow: 0 6px 12px rgba(0,0,0,.5); }
+.ks-pv-felt { position: absolute; inset: 26px 34px; border-radius: 42px; background: var(--felt-pat, none), radial-gradient(ellipse at 50% 38%, var(--felt-hi, #1f7a3a), var(--felt-lo, #0d4d22) 82%);
+  outline: 1px solid var(--inlay, #e2c06a); outline-offset: 3px; }
+.ks-pv-game { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 30px; line-height: 1; }
+.ks-pv-seat { position: absolute; display: flex; width: 24px; height: 24px; transform: translate(-50%, -50%); background: #445; box-shadow: 0 0 0 1px #000, 0 0 0 2px var(--win); }
+.ks-pv-seat .ks-ava { width: 100%; height: 100%; border-radius: 0; box-shadow: none; font-size: 12px; }
+.ks-pv-seat.free { background: transparent; box-shadow: 0 0 0 1px rgba(255,255,255,.5); }
+.ks-pv-live { position: absolute; left: 6px; top: 6px; padding: 0 5px; font-size: 11px; font-weight: bold; background: #fff; color: #c00; border: 1px solid #000; }
+.ks-pv-lock { position: absolute; right: 7px; top: 5px; }
+
+/* Shop: Vorschau zum Anprobieren und große Symbole wie im Explorer */
+.ks-shopwin { max-width: 780px; }
+.ks-shopwin .tab-page { min-height: 0; }
+.ks-shoppage { display: flex; flex-direction: column; gap: 8px; }
+.ks-shoppage h4 { margin: 2px 0 -4px; font-size: 12px; font-weight: normal; }
+.ks-trybox { display: flex; gap: 12px; align-items: stretch; }
+.ks-try { position: relative; flex: 0 0 210px; height: 128px; overflow: hidden; color: #fff; --rim: 14px; --c: 30px;
+  background: radial-gradient(ellipse at 50% 40%, #3d2e23, #150e09 85%); box-shadow: inset 1px 1px var(--lo), inset 2px 2px var(--dark), inset -1px -1px var(--hi); }
+.ks-try-rim { position: absolute; left: -40px; right: -40px; bottom: -140px; height: 214px; border-radius: 50%;
+  background: linear-gradient(180deg, var(--wood-hi, #b98250), var(--wood-lo, #6b4321)); box-shadow: 0 -4px 12px rgba(0,0,0,.5); }
+.ks-try-felt { position: absolute; left: -18px; right: -18px; bottom: -140px; height: 186px; border-radius: 50%;
+  background: var(--felt-pat, none), radial-gradient(ellipse at 50% 30%, var(--felt-hi, #1f7a3a), var(--felt-lo, #0d4d22) 80%); outline: 2px solid var(--inlay, #e2c06a); outline-offset: 5px; }
+.ks-try-me { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; --face: 40px; }
+.ks-try-me .ks-plate { margin-top: 2px; }
+.ks-try-drink, .ks-try-charm { position: absolute; top: 80px; transform: translate(-50%, -50%); }
+.ks-try-drink { left: 79%; }
+.ks-try-charm { left: 21%; }
+.ks-try-cards { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: 4px; }
+.ks-try-cards .bj-card { margin: 0; animation: none; }
+.ks-tryinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ks-tryinfo > b { font-size: 14px; }
+.ks-tryinfo small { opacity: .85; }
+.ks-tryinfo .actions { margin-top: auto; padding-top: 4px; gap: 6px; }
+.ks-tryinfo .actions button { min-width: 0; padding: 4px 12px; }
+.ks-rar { font-size: 12px; font-weight: normal; color: #b07800; white-space: nowrap; }
+.ks-deal { display: inline-block; padding: 0 4px; font-size: 11px; color: #fff; background: #b00000; white-space: nowrap; }
+.ks-dealline { margin: 0; }
+.ks-icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 4px 6px; padding: 8px 6px; background: var(--field); color: var(--field-text);
+  box-shadow: inset 1px 1px var(--lo), inset 2px 2px var(--dark), inset -1px -1px var(--hi); }
+.ks-ic { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 2px 0; text-align: center; background: none; box-shadow: none; color: inherit; }
+.ks-ic:active { box-shadow: none; }
+.ks-ic .i { display: inline-flex; align-items: center; justify-content: center; height: 40px; font-size: 30px; line-height: 1; }
+.ks-ic .n { display: inline-block; max-width: 100%; padding: 0 3px; font-size: 12px; line-height: 15px; overflow-wrap: break-word; }
+.ks-ic .p { display: block; font-size: 11px; opacity: .7; }
+.ks-ic.deal .p { color: #b00000; opacity: 1; font-weight: bold; }
+.ks-ic.sel .n { background: var(--title-from); color: #fff; outline: 1px dotted #ffff80; }
+.ks-ic.sel .i { filter: brightness(.75) sepia(.6) hue-rotate(190deg) saturate(2); }
+.ks-ic .ov { position: absolute; left: calc(50% - 26px); top: 26px; width: 13px; height: 13px; font: bold 10px/11px var(--font); color: #087a2a; background: #fff; border: 1px solid #000; }
+.ks-ic .rar { position: absolute; right: 4px; top: 0; font-size: 11px; font-weight: bold; color: #b07800; }
+.ks-chip-wood { display: block; width: 54px; height: 22px; border-radius: 11px; background: linear-gradient(180deg, var(--wood-hi), var(--wood-lo));
+  box-shadow: inset 0 0 0 3px transparent, inset 0 0 0 4px var(--inlay), 0 2px 3px rgba(0,0,0,.4); }
+.ks-chip-felt { display: block; width: 46px; height: 28px; border-radius: 14px; box-shadow: 0 0 0 2px #6b4321, 0 2px 3px rgba(0,0,0,.4);
+  background: var(--felt-pat, none), radial-gradient(ellipse at 50% 35%, var(--felt-hi, #1f7a3a), var(--felt-lo, #0d4d22) 80%); }
+.ks-chip-back.bj-card { --c: 24px; margin: 0; animation: none; }
+.ks-chip-coaster { display: block; width: 34px; height: 34px; border-radius: 50%; box-shadow: 0 2px 3px rgba(0,0,0,.4); }
+.ks-roundbox { display: flex; align-items: flex-start; gap: 10px; }
+.ks-round-ic { font-size: 30px; line-height: 1; }
+.ks-roundbox small { display: block; }
+.ks-roundbox .actions { margin-top: 6px; gap: 6px; }
+
+@media (max-width: 760px) {
+  .ks-tb > span { display: none; }
+  .ks-info, .ks-faces { display: none; }
+  .ks-tname { max-width: 110px; }
+  .ks-tbar select { max-width: 120px; }
+  .ks-dock { align-self: stretch; max-width: none; margin: 0 4px 4px; }
+  .ks-pane, .ks-pane.shop { position: absolute; left: 0; right: 0; bottom: 0; z-index: 9; height: min(70%, 560px); padding: 6px 4px 0; background: var(--win);
+    box-shadow: 0 -1px var(--hi), 0 -2px var(--lo), 0 -8px 16px rgba(0,0,0,.45); }
+  .ks-pane::before { display: none; }
+  .ks-trybox { flex-direction: column; }
+  .ks-try { flex-basis: auto; }
+  .ks-cards { grid-template-columns: minmax(0, 1fr); }
+  span.ks-free { max-width: 56px; padding: 3px 4px; font-size: 10px; white-space: normal; text-align: center; }
+  .ks-dock .ks-picks > span { display: none; }
+  button.ks-new { min-height: 0; }
+  .ks-plus { font-size: 24px; }
+}
 
 /* Werwolf (views/werwolf.ejs, public/werwolf.js); Grundgerüst und Avatare wie beim Quiz */
 .ww-how { margin: 4px 0; padding-left: 22px; line-height: 1.5; }

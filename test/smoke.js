@@ -1350,6 +1350,14 @@ async function main() {
       const seen = await api(anna, `/kartenspiele/tisch/${cardTable}`, undefined, 'GET');
       assert.ok(Object.values(seen.json.deco).some(d => d.drink && d.drink.id === 'saft'));
       assert.match((await at(anna, { action: 'design', wood: 'ebenholz' })).json.error, /erst im Shop/);
+      // Leben am Tisch: Reaktionen mit Pause, Runde schmeißen, Schnell spielen bringt einen an den eigenen Tisch zurück
+      assert.equal((await at(anna, { action: 'emote', emoji: '👏' })).status, 200);
+      assert.match((await at(anna, { action: 'emote', emoji: '👏' })).json.error, /schnell/);
+      assert.equal((await at(guest, { action: 'emote', emoji: '👏' })).status, 401);
+      const round = await api(anna, '/kartenspiele/shop', { action: 'round', item: 'saft' });
+      assert.equal(round.status, 200);
+      assert.ok(Object.values((await api(bernd, `/kartenspiele/tisch/${cardTable}`, undefined, 'GET')).json.deco).every(d => d.drink.id === 'saft' && d.drink.from));
+      assert.equal((await api(anna, '/kartenspiele/schnell', { game: 'uno' })).json.id, cardTable);
       assert.equal((await at(bernd, { action: 'close' })).status, 403);
       assert.equal((await at(anna, { action: 'close' })).status, 200);
       assert.equal((await at(anna, { action: 'sit' })).status, 404);

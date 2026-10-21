@@ -30,17 +30,28 @@ function wallet(user) {
 
 router.get('/', (req, res) => {
   if (req.user) profiles.countStart(req.user, 'kartenspiele');
-  res.render('kartenspiele', { title: 'Kartenspiele', games: ks.games(), felts: ks.FELTS, backs: ks.BACKS, woods: ks.WOODS, kasse: kasse.config() });
+  res.render('kartenspiele', { title: 'Kartenspiele', games: ks.games(), looks: ks.looks(), emotes: ks.EMOTES, kasse: kasse.config() });
 });
 
+// Offene Spieltische als Karten; dazu, welche Freunde wo sitzen, und welches Holz, welchen Filz und welche Kartenrücken man hat
+function owned(user) {
+  return [...kasse.owned(user.id)].filter(id => ['wood', 'felt', 'back'].includes(kasse.SHOP[id].kind));
+}
 router.get('/tische', gate, (req, res) => {
   const mine = ks.seatedAt(req.user.id);
-  const owned = kasse.owned(req.user.id);
-  res.json({ tables: ks.list(req.user), mine: mine ? mine.id : null, games: ks.games(), kasse: wallet(req.user), woods: ks.WOODS.filter(w => owned.has(w)), me: { id: req.user.id, name: req.user.name, user: req.user.username, admin: req.user.isAdmin } });
+  const friends = new Set(profiles.friendsOf(req.user.id).map(u => u.id));
+  const tables = ks.list(req.user).map(t => ({ ...t, friends: t.faces.filter(f => f && friends.has(f.id)).map(f => f.name) }));
+  res.json({ tables, mine: mine ? mine.id : null, games: ks.games(), kasse: wallet(req.user), owned: owned(req.user), me: { id: req.user.id, name: req.user.name, user: req.user.username, admin: req.user.isAdmin } });
 });
 router.post('/tische', gate, auth.rateLimit('kstable', 20, 600), (req, res) => {
   const b = req.body || {};
   const r = ks.create(req.user, { name: b.name, hidden: !!b.hidden, seats: b.seats, game: b.game, felt: b.felt, back: b.back, wood: b.wood });
+  if (r.error) return fail(res, 503, r.error);
+  res.json({ id: r.table.id });
+});
+// Schnell spielen: der Server sucht den Tisch aus (oder macht einen auf), das Fenster setzt sich dort hin
+router.post('/schnell', gate, auth.rateLimit('kstable', 20, 600), (req, res) => {
+  const r = ks.quick(req.user, String((req.body || {}).game || ''));
   if (r.error) return fail(res, 503, r.error);
   res.json({ id: r.table.id });
 });
@@ -60,12 +71,14 @@ router.post('/kasse', gate, auth.rateLimit('kskasse', 30, 600), (req, res) => {
   res.json({ kasse: wallet(req.user) });
 });
 
-// Shop: Getränke, Glücksbringer und Tischränder für Spielgeld
+// Shop: Getränke, Untersetzer, Glücksbringer, Holz, Filz und Kartenrücken für Spielgeld; ein Artikel pro Woche im Angebot
 function shop(user) {
-  const owned = kasse.owned(user.id), l = kasse.loadout(user.id);
+  const has = kasse.owned(user.id), l = kasse.loadout(user.id), offer = kasse.offer();
   return {
-    kasse: wallet(user), drink: l.drink, charm: l.charm, deco: ks.deco(user.id),
-    items: Object.entries(kasse.SHOP).map(([id, it]) => ({ id, kind: it.kind, title: it.title, icon: it.icon, price: it.price, owned: owned.has(id) })),
+    kasse: wallet(user), drink: l.drink, charm: l.charm, coaster: l.coaster, deco: ks.deco(user.id, ks.seatedAt(user.id)), pet: ks.pet(user.id), offer,
+    items: Object.entries(kasse.SHOP).map(([id, it]) => ({
+      id, kind: it.kind, title: it.title, icon: it.icon, price: kasse.price(id), was: id === offer ? it.price : undefined, rarity: it.rarity || 0, pet: !!it.pet, owned: has.has(id),
+    })),
   };
 }
 router.get('/shop', gate, (req, res) => res.json(shop(req.user)));
@@ -74,6 +87,7 @@ router.post('/shop', gate, auth.rateLimit('ksshop', 60, 600), (req, res) => {
   let err;
   if (b.action === 'buy') err = ks.buy(req.user, item);
   else if (b.action === 'equip') err = ks.equip(req.user, item, String(b.kind || ''));
+  else if (b.action === 'round') err = ks.round(req.user, item);
   else err = 'Unbekannte Aktion.';
   if (err) return fail(res, 400, err);
   res.json(shop(req.user));
@@ -106,6 +120,11 @@ router.post('/tisch/:id', gate, loadTable, auth.rateLimit('ksctl', 300, 60), (re
     if (!ks.isHost(s, req.user)) return fail(res, 403, 'Nur der Gastgeber kann den Spieltisch schließen.');
     ks.close(s);
     return res.json({ ok: true });
+  }
+  // Reaktionen, Anstoßen, Tier streicheln: gehen nur als „fx“ an die offenen Fenster, am Tisch selbst ändert sich nichts
+  if (ks.FX.includes(b.action)) {
+    err = ks.fx(s, req.user, b);
+    return err ? fail(res, 400, err) : res.json({ ok: true });
   }
   if (b.action === 'game') err = ks.switchGame(s, req.user, String(b.game || ''));
   else if (b.action === 'design') err = ks.settings(s, req.user, b);

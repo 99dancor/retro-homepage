@@ -147,8 +147,10 @@ test('Shop: kaufen, hinstellen, am Geldtisch bezahlen, Holzrand und Tier am Plat
   assert.match(String(kasse.buy(anna.id, 'kaffee')), /schon/);
   assert.match(String(kasse.buy(anna.id, 'krone')), /reicht/);
   assert.match(String(kasse.equip(anna.id, 'bier')), /erst kaufen/);
+  // Preise über kasse.price: das Angebot der Woche ist billiger
+  const bier = kasse.price('bier'), korb = kasse.price('korb');
   assert.equal(ks.buy(anna, 'bier'), null);
-  assert.deepEqual(kasse.view(kasse.wallet(anna.id)), { balance: 850, bought: 1000, buyins: 1, spent: 150, net: 0 });
+  assert.deepEqual(kasse.view(kasse.wallet(anna.id)), { balance: 1000 - bier, bought: 1000, buyins: 1, spent: bier, net: 0 });
   assert.equal(kasse.loadout(anna.id).drink, 'bier');
   assert.equal(kasse.equip(anna.id, '', 'drink'), null);
   assert.equal(kasse.loadout(anna.id).drink, null);
@@ -161,9 +163,9 @@ test('Shop: kaufen, hinstellen, am Geldtisch bezahlen, Holzrand und Tier am Plat
   const t = ks.tableOf(s);
   t.seats[0].chips += 200;
   assert.equal(ks.buy(anna, 'korb'), null);
-  assert.equal(t.seats[0].chips, 550);
+  assert.equal(t.seats[0].chips, 1200 - bier - korb);
   assert.equal(t.seats[0].chips - t.seats[0].bought, 200);
-  assert.equal(kasse.wallet(anna.id).balance, 550);
+  assert.equal(kasse.wallet(anna.id).balance, 1200 - bier - korb);
   assert.equal(kasse.view(kasse.wallet(anna.id)).net, 200);
 
   // Holzrand nur, wenn der Gastgeber ihn gekauft hat
@@ -184,5 +186,126 @@ test('Shop: kaufen, hinstellen, am Geldtisch bezahlen, Holzrand und Tier am Plat
   m = ks.meta(s);
   assert.equal(m.deco[anna.id].pet.name, 'Bello');
   assert.match(m.deco[anna.id].pet.svg, /^<svg class="pet-svg species-dog/);
+  ks.close(s);
+});
+
+test('Shop: Angebot der Woche, Untersetzer, Filz und Kartenrücken erst kaufen', () => {
+  setSetting('ks_buyin', '20000');
+  const anna = user('Anna');
+  // Jede Woche ein anderes Angebot, ein Viertel billiger
+  const week = 7 * 864e5, t0 = Date.UTC(2026, 9, 21);
+  const a = kasse.offer(t0), b = kasse.offer(t0 + week);
+  assert.notEqual(a, b);
+  assert.ok(kasse.SHOP[a].price >= 100);
+  assert.equal(kasse.price(a, t0), Math.round(kasse.SHOP[a].price * 0.75 / 10) * 10);
+  assert.equal(kasse.price(a, t0 + week), kasse.SHOP[a].price);
+
+  // Untersetzer kommt gleich unters Getränk
+  assert.equal(ks.buy(anna, 'kork'), null);
+  assert.equal(kasse.loadout(anna.id).coaster, 'kork');
+  assert.equal(kasse.equip(anna.id, '', 'coaster'), null);
+  assert.equal(kasse.loadout(anna.id).coaster, null);
+  assert.equal(kasse.equip(anna.id, 'kork'), null);
+
+  // Neue Filze und Kartenrücken muss der Gastgeber besitzen; die alten hat jeder
+  const { table: s } = ks.create(anna, { felt: 'bordeaux', back: 'sterne' });
+  assert.equal(s.felt, 'gruen');
+  assert.equal(s.back, 'klassisch');
+  assert.match(String(ks.settings(s, anna, { felt: 'bordeaux' })), /Filz .*erst im Shop/);
+  assert.match(String(ks.settings(s, anna, { back: 'sterne' })), /erst im Shop/);
+  assert.equal(ks.buy(anna, 'bordeaux'), null);
+  assert.equal(ks.buy(anna, 'sterne'), null);
+  assert.equal(ks.settings(s, anna, { felt: 'bordeaux', back: 'sterne' }), null);
+  ok(s, anna, { action: 'sit', seat: 0 });
+  const m = ks.meta(s);
+  assert.equal(m.felt, 'bordeaux');
+  assert.equal(m.back, 'sterne');
+  assert.equal(m.deco[anna.id].coaster.id, 'kork');
+  ks.close(s);
+});
+
+test('Schnell spielen: an den vollsten Tisch mit freiem Platz, sonst ein neuer', () => {
+  const [anna, bernd, carla, dora] = ['Anna', 'Bernd', 'Carla', 'Dora'].map(user);
+  const { table: a } = ks.create(anna, { game: 'durak', seats: 2 });
+  ok(a, anna, { action: 'sit' });
+  const { table: b } = ks.create(bernd, { game: 'durak', seats: 4 });
+  ok(b, bernd, { action: 'sit' });
+  const { table: hidden } = ks.create(dora, { game: 'durak', hidden: true });
+  // Beide haben einen freien Platz und einen Spieler: der erste passt, versteckte Tische nie
+  assert.notEqual(ks.quick(carla, 'durak').table, hidden);
+  ok(b, carla, { action: 'sit' });
+  assert.equal(ks.quick(dora, 'durak').table, b);
+  // Wer schon sitzt, kommt an seinen Tisch zurück
+  assert.equal(ks.quick(anna, 'uno').table, a);
+  // Kein Tisch mit dem Spiel frei: ein neuer mit diesem Spiel; „egal“ nimmt irgendeinen
+  const fresh = ks.quick(dora, 'uno').table;
+  assert.equal(fresh.game, 'uno');
+  assert.notEqual(fresh, hidden);
+  assert.ok([a, b, fresh].includes(ks.quick(dora, 'egal').table));
+  assert.match(String(ks.quick(dora, 'gibtsnicht').error), /gibt es/);
+  for (const s of [a, b, hidden, fresh]) ks.close(s);
+});
+
+test('Runde schmeißen: alle bekommen das Getränk, bezahlt wird für alle', () => {
+  setSetting('ks_buyin', '1000');
+  const [anna, bernd, carla] = ['Anna', 'Bernd', 'Carla'].map(user);
+  const { table: s } = ks.create(anna, { game: 'poker' });
+  ok(s, anna, { action: 'sit' });
+  assert.match(String(ks.round(anna, 'bier')), /noch jemand/);
+  assert.match(String(ks.round(bernd, 'bier')), /Setz dich/);
+  ok(s, bernd, { action: 'sit' });
+  ok(s, carla, { action: 'sit' });
+  assert.match(String(ks.round(anna, 'krone')), /Getränk/);
+  assert.match(String(ks.round(anna, 'champagner')), /reicht/);
+  const t = ks.tableOf(s), res = client();
+  const leave = ks.engine(s.game).join(t, carla, res);
+  const before = t.seats[0].chips, cost = kasse.price('bier') * 3;
+  assert.equal(ks.round(anna, 'bier'), null);
+  assert.equal(t.seats[0].chips, before - cost);
+  assert.equal(kasse.wallet(anna.id).spent, cost);
+  assert.ok(res.events.includes('fx'));
+  assert.match(t.log[0], /Anna schmeißt eine Runde Bier/);
+  const m = ks.meta(s);
+  for (const u of [anna, bernd, carla]) assert.deepEqual([m.deco[u.id].drink.id, m.deco[u.id].drink.from], ['bier', 'Anna']);
+  leave();
+  ks.close(s);
+});
+
+test('Leben am Tisch: Reaktionen mit Pause, Anstoßen, Tiere streicheln', () => {
+  setSetting('ks_buyin', '1000');
+  const [anna, bernd, carla] = ['Anna', 'Bernd', 'Carla'].map(user);
+  const { table: s } = ks.create(anna, { game: 'uno' });
+  ok(s, anna, { action: 'sit' });
+  ok(s, bernd, { action: 'sit' });
+  const t = ks.tableOf(s), sent = [];
+  const res = { write(chunk) { const m = /^event: fx\ndata: (.*)/m.exec(chunk); if (m) sent.push(JSON.parse(m[1])); }, end() {} };
+  const leave = ks.engine(s.game).join(t, carla, res);
+
+  // Reaktionen nur am Platz, nur die sechs, und nicht zu oft
+  assert.match(String(ks.fx(s, carla, { action: 'emote', emoji: '👏' })), /Setz dich/);
+  assert.match(String(ks.fx(s, anna, { action: 'emote', emoji: '💩' })), /gibt es nicht/);
+  assert.equal(ks.fx(s, anna, { action: 'emote', emoji: '👏' }), null);
+  assert.match(String(ks.fx(s, anna, { action: 'emote', emoji: '😂' })), /schnell/);
+  assert.equal(ks.fx(s, bernd, { action: 'emote', emoji: '😂' }), null);
+
+  // Wer kurz nach dem ersten Glas auch anstößt, stößt mit an
+  assert.equal(ks.fx(s, anna, { action: 'cheers' }), null);
+  assert.equal(ks.fx(s, bernd, { action: 'cheers' }), null);
+
+  // Streicheln geht auch vom Zuschauen aus, aber nur, wo ein Tier sitzt
+  assert.match(String(ks.fx(s, carla, { action: 'pet', uid: anna.id })), /kein Tier/);
+  assert.equal(ks.buy(anna, 'kissen'), null);
+  assert.equal(ks.fx(s, carla, { action: 'pet', uid: anna.id }), null);
+  assert.match(String(ks.fx(s, carla, { action: 'pet', uid: anna.id })), /schnell/);
+  assert.match(String(ks.fx(s, anna, { action: 'tanzen' })), /Unbekannt/);
+
+  assert.deepEqual(sent, [
+    { kind: 'emote', uid: anna.id, emoji: '👏' },
+    { kind: 'emote', uid: bernd.id, emoji: '😂' },
+    { kind: 'cheers', uid: anna.id, join: false },
+    { kind: 'cheers', uid: bernd.id, join: true },
+    { kind: 'pet', uid: anna.id, by: carla.id },
+  ]);
+  leave();
   ks.close(s);
 });

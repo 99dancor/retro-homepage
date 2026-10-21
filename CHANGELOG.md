@@ -1,5 +1,17 @@
 # Changelog
 
+## 21.10.2026 – Kartenspiele aufgeräumt: mehr Tisch, weniger Kästen
+
+- **Eine Leiste:** Über dem Tisch steht nur noch eine Werkzeugleiste: ◀ Tische, Tischname, das Spiel als Klappliste, die Gesichter am Tisch und rechts 🛒 Shop, 🎨 Gestalten, 🔗 Einladen und ☰ Mehr. Der Tisch bekommt fast das ganze Fenster.
+- **Seitenfach:** ☰ Mehr klappt rechts ein Fach mit den Reitern „Am Tisch“ (Spieler mit Chips, Zuschauer, Tisch-Infos), „Verlauf“ und „Ich“ auf. Das letzte Ereignis steht unten in der Statusleiste, ein Klick darauf öffnet den Verlauf.
+- **Ruhige Plätze:** Am Platz sitzen nur noch dein Bild im grauen Rahmen und ein kleines Namensschild. 👑, D, SB/BB, ✓ bereit und „aus“ hängen als Abzeichen am Bild. Wer dran ist, hat ein blaues Schild, darunter läuft die Zeit ab. Freie Plätze sind ein Knopf „🪑 Platz frei“.
+- **Leiste für die Züge:** Deine Züge liegen in einem grauen Kasten unter dem Tisch, der übliche Zug geht auch mit Enter. In der Lobby wählt der Gastgeber dort das Spiel mit einem Klick.
+- **Auf dem Holz:** Getränk (mit Untersetzer) und Glücksbringer oder Tier stehen neben deinem Platz auf dem Holzrand, freie Plätze bleiben leer.
+- **Tischliste:** Tische sind jetzt Karten mit einem kleinen Tisch und den Gesichtern. „⚡ Schnell spielen“ setzt dich mit einem Klick an den vollsten Tisch mit freiem Platz, „➕ Neuer Spieltisch“ macht sofort einen auf.
+- **Shop im Fach:** Der Shop öffnet neben dem Tisch, du bleibst sitzen. Ein Klick auf ein Teil zeigt deinen Platz damit, erst dann kaufst du. Neu: Untersetzer, Kissen und Thron fürs Tier, Filze und Kartenrücken zu kaufen, seltene (★) und legendäre (★★) Teile und jede Woche ein Angebot. Unter „Meine Sachen“ stellst du hin und räumst weg.
+- **Leben am Tisch:** 😀 ▾ schickt eine Reaktion, die über deinem Platz aufsteigt. Ein Klick auf dein Glas stößt an, wer gleich danach klickt, stößt mit an. Tiere am Tisch lassen sich streicheln und schlafen zwischen den Runden. Mit „Runde schmeißen“ bekommt jeder am Tisch ein Getränk von dir.
+- **Handy:** Die Leiste zeigt nur Symbole, das Fach kommt als Blatt von unten, die Züge gehen über die ganze Breite.
+
 ## 21.10.2026 – Aufgeräumt: Eigene Dateien, Systemsteuerung im Fenster, neuer Texteditor
 
 - **Eigene Dateien:** Unter Startmenü → Dokumente → 🗂️ Eigene Dateien steht alles, was du hochgeladen oder gespeichert hast: Downloads, Musik, Videos und YouTube-Links, Playlists, Paint-Bilder, Quizze und Bilder aus Forum und Blog. Dort benennst du sie um, änderst, wer sie sehen darf, und löschst sie. Oben siehst du, wie viel Platz belegt ist.

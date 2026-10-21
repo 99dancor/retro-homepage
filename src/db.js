@@ -410,12 +410,13 @@ CREATE TABLE IF NOT EXISTS ks_wallets (
   bought INTEGER NOT NULL,                  -- insgesamt eingekauft (Start + Nachkäufe)
   buyins INTEGER NOT NULL DEFAULT 1,
   spent INTEGER NOT NULL DEFAULT 0,         -- im Shop ausgegeben (zählt nicht als Verlust)
-  drink TEXT,                               -- was in der Ablage am Platz steht (Shop-Artikel)
-  charm TEXT,                               -- Glücksbringer neben dem Namen (Shop-Artikel)
+  drink TEXT,                               -- Getränk links vom Platz (Shop-Artikel)
+  charm TEXT,                               -- Glücksbringer rechts vom Platz (Shop-Artikel)
+  coaster TEXT,                             -- Untersetzer unter dem Getränk (Shop-Artikel)
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
--- Kartenspiele-Shop (src/kasse.js): was ein Mitglied mit Spielgeld gekauft hat (Getränke, Glücksbringer, Tischränder)
+-- Kartenspiele-Shop (src/kasse.js): was ein Mitglied mit Spielgeld gekauft hat (Getränke, Glücksbringer, Untersetzer, Holz, Filz, Kartenrücken)
 CREATE TABLE IF NOT EXISTS ks_items (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   item TEXT NOT NULL,
@@ -617,6 +618,7 @@ addColumn('users', 'avatar', 'TEXT');
 addColumn('ks_wallets', 'spent', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('ks_wallets', 'drink', 'TEXT');
 addColumn('ks_wallets', 'charm', 'TEXT');
+addColumn('ks_wallets', 'coaster', 'TEXT');
 addColumn('users', 'about', 'TEXT');
 addColumn('users', 'profile_visibility', "TEXT NOT NULL DEFAULT 'members'");
 addColumn('users', 'pm_from', "TEXT NOT NULL DEFAULT 'all'");

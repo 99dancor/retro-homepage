@@ -1,6 +1,6 @@
 <%- include('partials/head') %>
-<%# Kartenspiele: Spieltische, Kasse und Bestenlisten laufen in public/kartenspiele.js; am Tisch baut es das Skript des gewählten Spiels auf (public/blackjack.js, poker.js, durak.js, cardtable.js mit uno.js, flip7.js, pilli.js) %>
-<div class="bj ks" id="ks" data-csrf="<%= csrf %>" data-user="<%= user ? user.id : '' %>" data-games="<%= JSON.stringify(games) %>" data-felts="<%= felts.join(',') %>" data-backs="<%= backs.join(',') %>" data-woods="<%= woods.join(',') %>">
+<%# Kartenspiele: Spieltische, Kasse, Shop und Bestenlisten laufen in public/kartenspiele.js; am Tisch baut es das Skript des gewählten Spiels auf (public/blackjack.js, poker.js, durak.js, cardtable.js mit uno.js, flip7.js, pilli.js) und legt Werkzeugleiste und Seitenfach darum %>
+<div class="bj ks" id="ks" data-csrf="<%= csrf %>" data-user="<%= user ? user.id : '' %>" data-games="<%= JSON.stringify(games) %>" data-looks="<%= JSON.stringify(looks) %>" data-emotes="<%= JSON.stringify(emotes) %>">
   <nav class="menubar bj-nav" role="tablist">
     <a href="#tische" data-view="tische">🂡 Spieltische</a><a href="#kasse" data-view="kasse">💰 Kasse</a><a href="#shop" data-view="shop">🛒 Shop</a><a href="#statistik" data-view="statistik">📊 Bestenlisten und Regeln</a>
     <span class="spacer"></span><span class="bj-me" id="ks-me"></span>

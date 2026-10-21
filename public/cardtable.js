@@ -3,7 +3,7 @@
 // seinen eigenen Handkarten; Züge gehen per POST mit dem Formular-Token im Kopf x-csrf-token. Aufbau wie public/durak.js.
 // Das Spiel selbst (public/uno.js, flip7.js, pilli.js) ruft window.CardTable({ … }) mit seinen Haken auf:
 //   center(s, ctx)  Mitte des Tisches während des Spiels      bar(s, seat, ctx)  eigene Karten und Knöpfe unten
-//   seat(s, p, ctx) { hole, line, badge } pro Platz          click(el, ctx)     eigene Klicks (true = erledigt)
+//   seat(s, p, ctx) { hole, line, badge, dealer } pro Platz  click(el, ctx)     eigene Klicks (true = erledigt)
 //   options(o) / read(field)  Regeln im Tisch-Dialog          rules(r), stats, sounds(prev, s, ctx), tags(s), keys(e, ctx)
 //   idle(s, ctx)    Text statt „Bereit“, solange nie gegeben wird (Lobby eines Spieltisches); noStats: ohne Statistik
 (function () {
@@ -132,6 +132,7 @@
         // Der Gastgeber hat ein anderes Spiel gewählt: das Fenster baut den Tisch neu auf
         tab.es.addEventListener('switch', function () { leaveView(); K.switched(); });
         tab.es.addEventListener('salon', function (e) { K.salon(JSON.parse(e.data)); });
+        tab.es.addEventListener('fx', function (e) { K.fx(JSON.parse(e.data)); });
         tab.es.addEventListener('error', function () {
           if (!tab) return;
           if (tab.es.readyState === 2) gone('Diesen Tisch gibt es nicht mehr.');
@@ -195,32 +196,30 @@
         var a = Math.PI / 2 + slot * 2 * Math.PI / n;
         return { x: 50 + 41 * Math.cos(a), y: 47 + 37 * Math.sin(a) };
       }
+      // Platz: Karten zur Tischmitte, dazu die Plakette (K.plaque); Geber und „bereit“ stehen als Abzeichen am Bild
       function seatHtml(p, i, st, slot) {
         var pos = spot(slot, st.seatCount);
         var style = 'left:' + pos.x.toFixed(1) + '%;top:' + pos.y.toFixed(1) + '%';
-        if (!p) {
-          return '<div class="pk-seat empty" style="' + style + '">' + (mySeat() ? '<span class="bj-free">frei</span>' : '<button type="button" class="small" data-sit="' + i + '">🪑 Hier hinsetzen</button>') + '</div>';
-        }
+        if (!p) return '<div class="pk-seat empty" style="' + style + '">' + K.free(i, !mySeat()) + '</div>';
         var mine = p.id === ME, playing = st.phase === 'playing';
         var turn = playing && st.turn && st.turn.seat === i;
         var won = st.phase === 'result' && st.result && st.result.order.some(function (o) { return o.user === p.user && o.won; });
         var g = playing && p.inGame && G.seat ? G.seat(st, p, ctx) : {};
-        var note = playing ? (p.inGame ? (turn ? '⏳ ' + ctx.count(st) + (G.turnText ? ' ' + G.turnText(st.turn.kind) : '') : g.note || '') : 'spielt nächstes Spiel mit')
-          : G.idle ? '' : p.ready ? '✓ bereit' : 'noch nicht bereit';
-        return '<div class="pk-seat cg-seat' + (turn ? ' turn' : '') + (mine ? ' mine' : '') + (g.cls ? ' ' + g.cls : '') + (won ? ' won' : '') + '" style="' + style + '">' +
+        var tags = [g.dealer ? 'Geber' : '', !playing && !G.idle && p.ready ? '✓ bereit' : ''];
+        var note = [g.badge, turn && G.turnText ? G.turnText(st.turn.kind) : g.note].filter(Boolean).join(' ');
+        var left = st.turn ? st.turn.left - (Date.now() + (tab.offset || 0) - st.now) : 0;
+        return '<div class="pk-seat cg-seat' + (turn ? ' turn' : '') + (mine ? ' mine' : '') + (g.cls ? ' ' + g.cls : '') + (won ? ' won' : '') + (playing && !p.inGame ? ' out' : '') + (pos.y < 45 ? ' up' : '') + '" style="' + style + '">' +
           '<div class="pk-hole">' + (g.hole || '') + '</div>' +
-          '<button type="button" class="bj-name" data-user="' + esc(p.user) + '" data-uid="' + p.id + '">' + (st.hostId === p.id ? '👑 ' : '') + esc(p.name) + (mine ? ' (du)' : '') + (p.away ? ' 💤' : '') + (p.leaving ? ' 🚪' : '') + '</button>' +
-          '<div class="bj-chips">' + (g.line || '&nbsp;') + '</div>' +
-          '<div>' + (g.badge || '') + '</div><div class="pk-act">' + note + '</div></div>';
+          K.plaque({ p: p, host: st.hostId === p.id, turn: turn, left: left, total: rules().turn * 1000, tags: tags, note: note,
+            line: g.line || (G.idle ? '' : playing ? 'spielt nächstes Spiel mit' : p.session.wins + '× gewonnen') }) + '</div>';
       }
       function renderTable() {
         if (!tab || !tab.state) { main.innerHTML = '<p class="bj-empty">Verbinde mit dem Tisch …</p>'; return; }
         var s = tab.state, seat = mySeat();
         if (!$('cg-felt')) {
-          main.innerHTML = '<div class="bj-tools" id="cg-tools"></div><div class="bj-table"><div class="pk-col"><div class="bj-felt pk-felt dk-felt cg-felt" id="cg-felt"></div>' +
-            '<div class="pk-bar dk-bar cg-bar sunken" id="cg-bar"></div></div><div class="bj-side" id="cg-side"></div></div>';
+          main.innerHTML = '<div class="bj-table"><div class="pk-col"><div class="bj-felt pk-felt dk-felt cg-felt" id="cg-felt"></div><div class="ks-dock"><div class="pk-bar dk-bar cg-bar" id="cg-bar"></div></div></div></div>';
         }
-        $('cg-tools').innerHTML = '<b>' + (s.hidden ? '🔒 ' : ICON + ' ') + esc(s.name) + '</b>' + (s.game ? '<span class="tag">Spiel ' + s.game + '</span>' : '') + (G.tags ? G.tags(s) : '');
+        K.info((G.tags ? G.tags(s) : '') + (s.game ? '<span class="tag">Spiel ' + s.game + '</span>' : ''));
         var shift = seat ? seat.i : 0;
         var seats = s.seats.map(function (x, i) { return seatHtml(x, i, s, (i - shift + s.seatCount) % s.seatCount); }).join('');
         $('cg-felt').innerHTML = (s.phase === 'playing' ? '' : '<div class="bj-motto pk-motto">' + esc(G.motto) + '</div>') + '<div class="pk-center dk-center cg-center">' + center(s) + '</div>' + seats;
@@ -239,37 +238,32 @@
         if (G.idle) return '<div class="pk-result">' + G.idle(s, ctx) + '</div>';
         return '<div class="pk-result">' + (n < SEATS[0] ? 'Wartet auf einen zweiten Spieler …' : s.seats.every(function (x) { return !x || x.ready; }) ? 'Gleich wird gegeben …' : 'Gegeben wird, wenn alle bereit sind.') + '</div>';
       }
+      // Seitenfach (☰ Mehr): wer sitzt, Verlauf und die eigenen Zahlen
       function renderSide(s, seat) {
-        var host = isHost(), html = '';
-        if (seat) {
-          html += '<fieldset class="groupbox"><legend>Mein Platz</legend><table class="kv">' +
+        var playing = s.phase === 'playing';
+        K.side({
+          players: s.seats.filter(Boolean).map(function (p) {
+            var turn = playing && s.turn && s.seats[s.turn.seat] === p;
+            var sub = playing ? (p.inGame ? (turn ? 'am Zug' : '') : 'spielt nächstes Spiel mit') : G.idle ? '' : p.ready ? 'bereit' : 'noch nicht bereit';
+            return { p: p, sub: sub, cells: G.idle ? [] : [playing && p.inGame && G.score ? G.score(p) : '–', p.session.wins + '×'] };
+          }),
+          cols: G.idle ? [] : ['Punkte', 'Siege'], viewers: s.viewers, hostId: s.hostId, log: s.log, playing: playing,
+          info: ICON + ' ' + esc(TITLE) + (G.tags ? ' <span class="ks-taglist">' + G.tags(s) + '</span>' : ''),
+          me: seat && !G.idle ? '<fieldset class="groupbox"><legend>Mein Platz</legend><table class="kv">' +
             '<tr><td>Spiele hier</td><td class="num">' + seat.session.games + '</td></tr>' +
-            '<tr><td>Gewonnen</td><td class="num">' + seat.session.wins + '</td></tr>' + (G.sideRows && seat.inGame && s.phase === 'playing' ? G.sideRows(s, seat, ctx) : '') + '</table>' +
-            '<div class="actions">' + (s.phase !== 'playing' && !G.idle ? '<button type="button" class="small" data-act="ready">' + (seat.ready ? '✋ Doch nicht bereit' : '<b>✓ Bereit</b>') + '</button>' : '') +
-            '<button type="button" class="small" data-act="leave">🚪 Aufstehen</button></div></fieldset>';
-        }
-        var players = s.seats.filter(Boolean);
-        html += '<fieldset class="groupbox"><legend>Am Tisch (' + players.length + (s.viewers.length ? ' + ' + s.viewers.length + ' 👁' : '') + ')</legend><table class="kv">' +
-          players.map(function (p) {
-            return '<tr><td><button type="button" class="bj-link" data-user="' + esc(p.user) + '" data-uid="' + p.id + '">' + (s.hostId === p.id ? '👑 ' : '') + esc(p.name) + '</button></td><td class="num">' +
-              (s.phase === 'playing' && p.inGame && G.score ? G.score(p) : p.session.wins + '× gewonnen') + '</td></tr>';
-          }).join('') +
-          (s.viewers.length ? '<tr><td colspan="2"><small>👁 ' + s.viewers.map(function (v) { return '<button type="button" class="bj-link" data-user="' + esc(v.user) + '" data-uid="' + v.id + '">' + esc(v.name) + '</button>'; }).join(', ') + '</small></td></tr>' : '') +
-          '</table><div class="actions"><button type="button" class="small" data-act="link">🔗 Einladen</button>' +
-          (host ? '<button type="button" class="small" data-act="settings">⚙️</button><button type="button" class="small danger" data-act="close" title="Tisch schließen">✖</button>' : '') +
-          (!seat ? '<button type="button" class="small" data-act="leave-view">🚪 Weggehen</button>' : '') + '</div></fieldset>';
-        html += '<div class="sunken bj-log">' + s.log.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</div>';
-        $('cg-side').innerHTML = html;
+            '<tr><td>Gewonnen</td><td class="num">' + seat.session.wins + '</td></tr>' + (G.sideRows && seat.inGame && playing ? G.sideRows(s, seat, ctx) : '') + '</table></fieldset>' : '',
+          acts: seat ? (!playing && !G.idle ? '<button type="button" data-act="ready">' + (seat.ready ? '✋ Doch nicht bereit' : '✓ Bereit') + '</button>' : '') + '<button type="button" data-act="leave">🚪 Aufstehen</button>' : '',
+        });
       }
       function renderBar(s, seat) {
         var html;
         if (!seat) {
-          html = '<span>' + (s.seats.some(function (x) { return !x; }) ? 'Klick auf einen freien Platz, um mitzuspielen.' : 'Alle Plätze sind besetzt. Du siehst zu.') + '</span>';
+          html = '<span>' + (s.seats.some(function (x) { return !x; }) ? 'Klick auf „🪑 Platz frei“, um mitzuspielen.' : 'Alle Plätze sind besetzt. Du siehst zu.') + '</span>';
         } else if (G.idle) {
-          html = '<span>' + G.idle(s, ctx) + '</span>';
+          html = G.bar(s, seat, ctx);
         } else if (s.phase !== 'playing' || !seat.inGame) {
           html = '<div class="bj-row"><span>' + (s.phase === 'playing' ? 'Das Spiel läuft schon. Du spielst ab dem nächsten mit.' : seat.ready ? 'Du bist bereit. Gegeben wird, wenn alle bereit sind.' : 'Bereit für ein Spiel?') + '</span>' +
-            (s.phase !== 'playing' ? '<button type="button" data-act="ready">' + (seat.ready ? '✋ Doch nicht' : '<b>✓ Bereit</b>') + '</button>' : '') + '</div>';
+            (s.phase !== 'playing' ? '<button type="button"' + (seat.ready ? '' : ' class="def"') + ' data-act="ready">' + (seat.ready ? '✋ Doch nicht' : '✓ Bereit') + '</button>' : '') + '</div>';
         } else html = G.bar(s, seat, ctx);
         $('cg-bar').innerHTML = html;
       }
@@ -346,7 +340,8 @@
       }
 
       // ---------- Klicks und Tasten ----------
-      main.addEventListener('click', function (e) {
+      // Klicks im ganzen Fenster: auch Werkzeugleiste und Seitenfach (public/kartenspiele.js) tragen data-act
+      root.addEventListener('click', function (e) {
         if (view === 'tisch' && tab && tab.state && G.click && G.click(e.target, ctx, e)) return;
         var b = e.target.closest('button, a');
         if (!b) return;
@@ -372,6 +367,7 @@
       function onKey(e) {
         if (view !== 'tisch' || dlg.open || e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
         if (e.key === 'Enter' && e.target.closest && e.target.closest('[data-card]')) { e.preventDefault(); e.target.click(); return; }
+        if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { var def = main.querySelector('.ks-dock .def:not([disabled])'); if (def) { e.preventDefault(); def.click(); return; } }
         if (G.keys) G.keys(e, ctx);
       }
       document.addEventListener('keydown', onKey);

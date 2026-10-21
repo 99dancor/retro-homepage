@@ -64,7 +64,6 @@
       var c = n >= 1000 ? 'c1000' : n >= 500 ? 'c500' : n >= 100 ? 'c100' : n >= 50 ? 'c50' : n >= 25 ? 'c25' : n >= 10 ? 'c10' : 'c5';
       return '<span class="bj-chip ' + c + '">' + (n >= 1000 ? Math.floor(n / 100) / 10 + 'k' : n) + '</span>';
     }
-    function secs(ms) { return Math.ceil(ms / 1000); }
 
     // ---------- Navigation ----------
     function show(v) {
@@ -118,6 +117,7 @@
       // Der Gastgeber hat ein anderes Spiel gewählt: das Fenster baut den Tisch neu auf
       tab.es.addEventListener('switch', function () { leaveView(); K.switched(); });
       tab.es.addEventListener('salon', function (e) { K.salon(JSON.parse(e.data)); });
+      tab.es.addEventListener('fx', function (e) { K.fx(JSON.parse(e.data)); });
       tab.es.addEventListener('error', function () {
         if (!tab) return;
         if (tab.es.readyState === 2) gone('Diesen Tisch gibt es nicht mehr.');
@@ -196,27 +196,22 @@
       var a = Math.PI / 2 + slot * 2 * Math.PI / n;
       return { x: 50 + 41 * r * Math.cos(a), y: 47 + 36 * r * Math.sin(a) };
     }
+    function turnLeft(st) { return st.turn ? st.turn.left - (Date.now() + (tab.offset || 0) - st.now) : 0; }
+    // Platz: Karten zur Tischmitte, dazu die Plakette (K.plaque) mit D, SB/BB und „aus“ am Bild
     function seatHtml(s, i, st, slot) {
       var p = spot(slot, st.seatCount, 1);
       var style = 'left:' + p.x.toFixed(1) + '%;top:' + p.y.toFixed(1) + '%';
-      if (!s) {
-        return '<div class="pk-seat empty" style="' + style + '">' + (mySeat() ? '<span class="bj-free">frei</span>' : '<button type="button" class="small" data-sit="' + i + '">🪑 Hier hinsetzen</button>') + '</div>';
-      }
+      if (!s) return '<div class="pk-seat empty" style="' + style + '">' + K.free(i, !mySeat()) + '</div>';
       var turn = st.turn && st.turn.seat === i, mine = s.id === ME;
-      var won = st.phase === 'showdown' && s.win > 0;
-      var html = '<div class="pk-seat' + (turn ? ' turn' : '') + (mine ? ' mine' : '') + (s.folded ? ' folded' : '') + (won ? ' won' : '') + (s.sittingOut ? ' out' : '') + '" style="' + style + '">' +
-        '<div class="pk-hole">' + (s.cards.length ? cards(s.cards) : '') + '</div>' +
-        '<button type="button" class="bj-name" data-user="' + esc(s.user) + '" data-uid="' + s.id + '">' + (st.hostId === s.id ? '👑 ' : '') + esc(s.name) + (mine ? ' (du)' : '') + (s.away ? ' 💤' : '') + (s.leaving ? ' 🚪' : '') + '</button>' +
-        '<div class="bj-chips">' + euro(s.chips) + (s.allIn ? ' · <b>All-in</b>' : '') + '</div>' +
-        '<div class="pk-act">' + (turn ? '⏳ <span data-count="turn">' + secs(st.turn.left) + '</span> s' : s.sittingOut && !s.inHand ? 'setzt aus' : esc(s.action)) + '</div>' +
-        (s.best && !s.folded ? '<div class="pk-best">' + esc(s.best) + '</div>' : '') + '</div>';
+      var won = st.phase === 'showdown' && s.win > 0, pause = s.sittingOut && !s.inHand;
+      var tags = [st.button === i && st.phase !== 'waiting' ? 'D' : '', s.action === 'Small Blind' ? 'SB' : s.action === 'Big Blind' ? 'BB' : '', s.folded ? 'aus' : pause ? 'Pause' : '', s.allIn ? 'All-in' : ''];
+      var note = /^(Small Blind|Big Blind|Aussteigen)$/.test(s.action) ? '' : esc(s.action);
+      var html = '<div class="pk-seat' + (turn ? ' turn' : '') + (mine ? ' mine' : '') + (s.folded ? ' folded' : '') + (won ? ' won' : '') + (pause ? ' out' : '') + (p.y < 45 ? ' up' : '') + '" style="' + style + '">' +
+        '<div class="pk-hole">' + (s.cards.length ? cards(s.cards) : '') + (s.best && !s.folded ? '<div class="pk-best">' + esc(s.best) + '</div>' : '') + '</div>' +
+        K.plaque({ p: s, host: st.hostId === s.id, turn: turn, left: turnLeft(st), total: rules().turn * 1000, tags: tags, line: euro(s.chips), note: note }) + '</div>';
       if (s.bet) {
         var b = spot(slot, st.seatCount, .55);
         html += '<div class="pk-bet" style="left:' + b.x.toFixed(1) + '%;top:' + b.y.toFixed(1) + '%">' + chip(s.bet) + ' ' + euro(s.bet) + '</div>';
-      }
-      if (st.button === i && st.phase !== 'waiting') {
-        var d = spot(slot + .38, st.seatCount, .78);
-        html += '<span class="pk-button" style="left:' + d.x.toFixed(1) + '%;top:' + d.y.toFixed(1) + '%" title="Dealer-Button">D</span>';
       }
       return html;
     }
@@ -224,12 +219,10 @@
       if (!tab || !tab.state) { main.innerHTML = '<p class="bj-empty">Verbinde mit dem Tisch …</p>'; tab && (tab.barSig = ''); return; }
       var s = tab.state, seat = mySeat();
       if (!$('pk-felt')) {
-        main.innerHTML = '<div class="bj-tools" id="pk-tools"></div><div class="bj-table"><div class="pk-col"><div class="bj-felt pk-felt" id="pk-felt"></div>' +
-          '<div class="pk-bar sunken" id="pk-bar"></div></div><div class="bj-side" id="pk-side"></div></div>';
+        main.innerHTML = '<div class="bj-table"><div class="pk-col"><div class="bj-felt pk-felt" id="pk-felt"></div><div class="ks-dock"><div class="pk-bar" id="pk-bar"></div></div></div></div>';
         tab.barSig = '';
       }
-      $('pk-tools').innerHTML = '<b>' + (s.hidden ? '🔒 ' : '♠️ ') + esc(s.name) + '</b><span class="tag">Hand ' + s.hand + '</span><span class="tag">Blinds ' + euro(s.sb) + ' / ' + euro(s.bb) + '</span>' +
-        '<span class="tag">Texas Hold\'em ohne Limit</span>';
+      K.info('<span class="tag">Blinds ' + euro(s.sb) + ' / ' + euro(s.bb) + '</span><span class="tag">Hand ' + s.hand + '</span>');
       // Eigener Platz unten: alle Plätze so drehen, dass er auf Position 0 landet
       var shift = seat ? seat.i : 0;
       var seats = s.seats.map(function (x, i) { return seatHtml(x, i, s, (i - shift + s.seatCount) % s.seatCount); }).join('');
@@ -241,27 +234,26 @@
       renderBar(s, seat);
       renderSide(s, seat);
     }
+    // Seitenfach (☰ Mehr): wer sitzt, Verlauf und die eigenen Zahlen
     function renderSide(s, seat) {
-      var host = isHost(), r = s.rules, html = '';
-      if (seat) {
-        html += '<fieldset class="groupbox"><legend>Mein Platz</legend><table class="kv">' +
+      var r = s.rules;
+      K.side({
+        players: s.seats.filter(Boolean).map(function (p) {
+          var turn = s.turn && s.seats[s.turn.seat] === p;
+          var sub = turn ? 'am Zug' : p.folded ? 'ausgestiegen' : p.sittingOut ? 'setzt aus' : /Blind$/.test(p.action) ? esc(p.action) : s.phase !== 'waiting' && s.seats[s.button] === p ? 'Geber' : '';
+          return { p: p, sub: sub, cells: [euro(p.chips), '<span class="' + cls(p.balance) + '">' + euro(p.balance, true) + '</span>'] };
+        }),
+        cols: ['Chips', 'Heute'], viewers: s.viewers, hostId: s.hostId, log: s.log, playing: s.phase === 'playing',
+        info: '♠️ Texas Hold\'em ohne Limit · Blinds ' + euro(s.sb) + ' / ' + euro(s.bb),
+        me: seat ? '<fieldset class="groupbox"><legend>Mein Platz</legend><table class="kv">' +
           '<tr><td>Chips</td><td class="num"><b>' + euro(seat.chips) + '</b></td></tr>' +
           '<tr><td>Nachgekauft</td><td class="num">' + seat.buyins + '×</td></tr>' +
           '<tr><td>Bilanz hier</td><td class="num ' + cls(seat.balance) + '">' + euro(seat.balance, true) + '</td></tr>' +
-          '<tr><td>Hände hier</td><td class="num">' + seat.session.hands + ' · ' + seat.session.wins + ' gewonnen</td></tr></table>' +
-          '<div class="actions"><button type="button" class="small" data-act="rebuy"' + (seat.chips < r.rebuyBelow && !(s.phase === 'playing' && seat.inHand) ? '' : ' disabled title="Nachkaufen geht unter ' + esc(euro(r.rebuyBelow)) + ' und zwischen zwei Händen"') + '>💰 Nachkaufen</button>' +
-          '<button type="button" class="small" data-act="sitout" title="Ab der nächsten Hand aussetzen oder wieder mitspielen">' + (seat.sittingOut ? '▶ Mitspielen' : '⏸ Aussetzen') + '</button>' +
-          '<button type="button" class="small" data-act="leave">🚪 Aufstehen</button></div></fieldset>';
-      }
-      var players = s.seats.filter(Boolean);
-      html += '<fieldset class="groupbox"><legend>Am Tisch (' + players.length + (s.viewers.length ? ' + ' + s.viewers.length + ' 👁' : '') + ')</legend><table class="kv">' +
-        players.map(function (p) { return '<tr><td><button type="button" class="bj-link" data-user="' + esc(p.user) + '" data-uid="' + p.id + '">' + (s.hostId === p.id ? '👑 ' : '') + esc(p.name) + '</button></td><td class="num ' + cls(p.balance) + '">' + euro(p.balance, true) + '</td></tr>'; }).join('') +
-        (s.viewers.length ? '<tr><td colspan="2"><small>👁 ' + s.viewers.map(function (v) { return '<button type="button" class="bj-link" data-user="' + esc(v.user) + '" data-uid="' + v.id + '">' + esc(v.name) + '</button>'; }).join(', ') + '</small></td></tr>' : '') +
-        '</table><div class="actions"><button type="button" class="small" data-act="link">🔗 Einladen</button>' +
-        (host ? '<button type="button" class="small" data-act="settings">⚙️</button><button type="button" class="small danger" data-act="close" title="Tisch schließen">✖</button>' : '') +
-        (!seat ? '<button type="button" class="small" data-act="leave-view">🚪 Weggehen</button>' : '') + '</div></fieldset>';
-      html += '<div class="sunken bj-log">' + s.log.map(function (l) { return '<div>' + esc(l) + '</div>'; }).join('') + '</div>';
-      $('pk-side').innerHTML = html;
+          '<tr><td>Hände hier</td><td class="num">' + seat.session.hands + ' · ' + seat.session.wins + ' gewonnen</td></tr></table></fieldset>' : '',
+        acts: seat ? '<button type="button" data-act="rebuy"' + (seat.chips < r.rebuyBelow && !(s.phase === 'playing' && seat.inHand) ? '' : ' disabled title="Nachkaufen geht unter ' + esc(euro(r.rebuyBelow)) + ' und zwischen zwei Händen"') + '>💶 Nachkaufen</button>' +
+          '<button type="button" data-act="sitout" title="Ab der nächsten Hand aussetzen oder wieder mitspielen">' + (seat.sittingOut ? '▶ Mitspielen' : '⏸ Aussetzen') + '</button>' +
+          '<button type="button" data-act="leave">🚪 Aufstehen</button>' : '',
+      });
     }
 
     // Die Leiste mit den Zügen wird nur neu gebaut, wenn sich dafür etwas ändert, damit der Regler beim Ziehen nicht springt
@@ -271,7 +263,7 @@
       if (sig === tab.barSig) return;
       tab.barSig = sig;
       var bar = $('pk-bar'), html;
-      if (!seat) html = s.seats.some(function (x) { return !x; }) ? 'Klick auf einen freien Platz, um mitzuspielen. Du bringst dein Geld aus der Kasse mit.' : 'Alle Plätze sind besetzt. Du siehst zu.';
+      if (!seat) html = '<span>' + (s.seats.some(function (x) { return !x; }) ? 'Klick auf „🪑 Platz frei“, um mitzuspielen. Du bringst dein Geld aus der Kasse mit.' : 'Alle Plätze sind besetzt. Du siehst zu.') + '</span>';
       else if (!o) {
         var t = s.turn && s.seats[s.turn.seat];
         html = s.phase === 'playing' ? (seat.inHand && !seat.folded ? (t ? esc(t.name) + ' ist dran …' : 'Karten werden aufgedeckt …') : 'Du bist in dieser Hand nicht dabei.') :
@@ -281,11 +273,11 @@
         var pot = s.pot, raise = Math.max(o.minTo, Math.min(o.maxTo, tab.raise || o.minTo));
         var quick = function (label, to) { to = Math.max(o.minTo, Math.min(o.maxTo, Math.floor(to))); return '<button type="button" class="small" data-to="' + to + '">' + label + '</button>'; };
         html = '<div class="bj-row"><button type="button" data-act="fold" title="Taste F"><u>A</u>ussteigen</button>' +
-          (o.canCheck ? '<button type="button" data-act="check" title="Taste C"><u>C</u>heck</button>' : '<button type="button" data-act="call" title="Taste C"><b>Mitgehen ' + euro(o.toCall) + '</b>' + (o.toCall >= seat.chips ? ' (All-in)' : '') + '</button>') + '</div>' +
+          (o.canCheck ? '<button type="button" class="def" data-act="check" title="Taste C oder Enter"><u>C</u>heck</button>' : '<button type="button" class="def" data-act="call" title="Taste C oder Enter">Mitgehen ' + euro(o.toCall) + (o.toCall >= seat.chips ? ' (All-in)' : '') + '</button>') + '</div>' +
           (o.canRaise ? '<div class="bj-row pk-raise">' +
             '<input type="range" id="pk-range" min="' + o.minTo + '" max="' + o.maxTo + '" step="' + Math.max(1, s.sb) + '" value="' + raise + '" aria-label="Erhöhen auf">' +
             '<input type="number" id="pk-amount" min="' + o.minTo + '" max="' + o.maxTo + '" value="' + raise + '" aria-label="Betrag">' +
-            '<button type="button" data-act="raise" id="pk-raise-btn" title="Taste R oder Enter im Betrag"><b>' + raiseLabel(s, raise, o) + '</b></button></div>' +
+            '<button type="button" data-act="raise" id="pk-raise-btn" title="Taste R oder Enter im Betrag">' + raiseLabel(s, raise, o) + '</button></div>' +
             '<div class="bj-row pk-quick">' + quick('Min', o.minTo) + quick('½ Pot', s.currentBet + (pot + o.toCall) / 2) + quick('Pot', s.currentBet + pot + o.toCall) + quick('All-in', o.maxTo) + '</div>' : '');
       }
       bar.innerHTML = html;
@@ -300,7 +292,7 @@
       var shown = Math.max(o.minTo, Math.min(o.maxTo, v));
       if (r && document.activeElement !== r) r.value = shown;
       if (a && document.activeElement !== a) a.value = shown;
-      if (b) b.innerHTML = '<b>' + raiseLabel(tab.state, shown, o) + '</b>';
+      if (b) b.textContent = raiseLabel(tab.state, shown, o);
     }
     main.addEventListener('input', function (e) {
       if (e.target.id === 'pk-range' || e.target.id === 'pk-amount') setRaise(e.target.value);
@@ -314,13 +306,6 @@
       var to = Math.max(o.minTo, Math.min(o.maxTo, Math.floor(Number(tab.raise) || o.minTo)));
       ctl(to >= o.maxTo ? 'allin' : 'raise', { amount: to });
     }
-
-    // Countdown ohne neu zu zeichnen
-    var tick = setInterval(function () {
-      if (!tab || !tab.state || view !== 'tisch') return;
-      var s = tab.state, passed = Date.now() + (tab.offset || 0) - s.now;
-      main.querySelectorAll('[data-count]').forEach(function (el) { el.textContent = Math.max(0, secs((s.turn ? s.turn.left : 0) - passed)); });
-    }, 250);
 
     function settings() {
       var s = tab.state;
@@ -414,7 +399,8 @@
     }
 
     // ---------- Klicks und Tasten ----------
-    main.addEventListener('click', function (e) {
+    // Klicks im ganzen Fenster: auch Werkzeugleiste und Seitenfach (public/kartenspiele.js) tragen data-act
+    root.addEventListener('click', function (e) {
       var b = e.target.closest('button, a');
       if (!b) return;
       if (b.dataset.sit) { ctl('sit', { seat: Number(b.dataset.sit) }); return; }
@@ -437,6 +423,7 @@
     function onKey(e) {
       if (view !== 'tisch' || dlg.open || e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
       var k = e.key.toLowerCase();
+      if (k === 'enter' && e.target.tagName !== 'BUTTON') { var def = main.querySelector('.ks-dock .def:not([disabled])'); if (def) { e.preventDefault(); def.click(); } return; }
       if (k === 'r') { var amt = $('pk-amount'); if (amt) { e.preventDefault(); amt.focus(); amt.select(); } return; }
       var map = { a: 'fold', f: 'fold', c: main.querySelector('[data-act=check]') ? 'check' : 'call' }, act = map[k];
       var btn = act && main.querySelector('[data-act=' + act + ']:not([disabled])');
@@ -449,6 +436,6 @@
     if (K.table) enter(K.table, K.sit);
     else show(K.view || 'statistik');
     // Abbauen, wenn das Fenster ein anderes Spiel zeigt
-    return function destroy() { leaveView(); clearInterval(tick); document.removeEventListener('keydown', onKey); };
+    return function destroy() { leaveView(); document.removeEventListener('keydown', onKey); };
   };
 })();

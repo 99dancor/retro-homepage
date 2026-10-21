@@ -216,15 +216,18 @@
   <li>Alle Kartenspiele laufen in einem Fenster an <b>Spieltischen</b>. Ein Spieltisch, das gewählte Spiel, Name, Tischfarbe und Kartenrücken leben nur im Arbeitsspeicher und sind nach einem Neustart weg.</li>
   <li>Für die Spiele mit Geld (Blackjack und Poker) hat jedes Mitglied eine <b>Kasse</b> mit Spielgeld. Gespeichert werden dein Konto, dein Kontostand, wie viel und wie oft du insgesamt eingekauft hast und wann die Kasse angelegt und zuletzt geändert wurde. Angelegt wird sie erst, wenn du die Kartenspiele öffnest.</li>
   <li>Kontostand, Bilanz und Buy-ins stehen in deinem Profil (sieht, wer dein Profil sehen darf) und in der Bestenliste der Kasse; dort erscheinst du nur für Mitglieder, die dein Profil sehen dürfen.</li>
-  <li>Im <b>Shop</b> kaufst du mit diesem Spielgeld Getränke, Glücksbringer und Holzränder. Gespeichert wird, was du gekauft hast, zu welchem Preis und wann, außerdem in der Kasse, wie viel du im Shop ausgegeben hast und was du gerade an deinen Platz gestellt hast.</li>
-  <li>Wer an einem Spieltisch sitzt, zeigt allen am Tisch (auch Zuschauern) sein <b>Profilbild</b>, sein Getränk und seinen Glücksbringer. Hast du das Körbchen hingestellt, sehen sie auch dein Pixelpfoten-Tier mit Namen, Aussehen und Accessoires; dafür liest der Server deinen gespeicherten Pixelpfoten-Spielstand, egal wer dein Tier sonst besuchen darf. Räumst du das Körbchen weg, ist das Tier nicht mehr zu sehen.</li>
+  <li>Im <b>Shop</b> kaufst du mit diesem Spielgeld Getränke, Untersetzer, Glücksbringer, Plätze für dein Tier, Holzränder, Filze und Kartenrücken. Gespeichert wird, was du gekauft hast, zu welchem Preis und wann, außerdem in der Kasse, wie viel du im Shop ausgegeben hast und was du gerade an deinen Platz gestellt hast (Getränk, Untersetzer, Glücksbringer).</li>
+  <li>Schmeißt du eine <b>Runde</b>, wird der Preis wie ein Einkauf von deinem Spielgeld abgezogen. Wer das Getränk bekommen hat und von wem, steht nur im Arbeitsspeicher des Spieltischs und im Verlauf am Tisch und ist weg, wenn der Tisch schließt.</li>
+  <li><b>Reaktionen</b>, <b>Anstoßen</b> und <b>Tier streicheln</b> sehen alle, die den Tisch gerade offen haben. Gespeichert wird davon nichts, der Server merkt sich nur für ein paar Sekunden, wann du zuletzt reagiert hast, damit es nicht zu viel wird.</li>
+  <li>Wer an einem Spieltisch sitzt, zeigt allen am Tisch (auch Zuschauern) sein <b>Profilbild</b>, sein Getränk und seinen Glücksbringer. Name und Profilbild stehen außerdem auf der Karte des Tisches in der Tischliste, die alle angemeldeten Mitglieder sehen, außer der Tisch ist versteckt. Hast du Kissen, Körbchen oder Thron hingestellt, sehen sie auch dein Pixelpfoten-Tier mit Namen, Aussehen und Accessoires; dafür liest der Server deinen gespeicherten Pixelpfoten-Spielstand, egal wer dein Tier sonst besuchen darf. Räumst du den Platz fürs Tier weg, ist das Tier nicht mehr zu sehen.</li>
   <li>Der Admin kann deine Kasse oder die aller Mitglieder zurücksetzen, damit verschwinden auch deine Einkäufe. Löschst du dein Konto, verschwinden Kasse und Einkäufe mit.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('ksWallets', 'Eine Zeile pro Mitglied: Kontostand, was insgesamt eingekauft und im Shop ausgegeben wurde und was am Platz steht. Bilanz = Kontostand + im Shop ausgegeben − eingekauft.') %>
   <%- code('ksItems', 'Eine Zeile pro gekauftem Artikel aus dem Shop.') %>
   <%- code('ksMeta', 'Das bekommt das Fenster über einen Spieltisch: Name, Aussehen, gewähltes Spiel, wer Gastgeber ist und was an den Plätzen zu sehen ist.') %>
-  <%- code('ksDeco', 'Das sehen alle am Tisch an deinem Platz: Profilbild, Getränk, Glücksbringer und mit dem Körbchen dein Tier.') %>
+  <%- code('ksDeco', 'Das sehen alle am Tisch an deinem Platz: Profilbild, Getränk (oder das aus einer Runde, mit dem Namen, wer sie geschmissen hat), Untersetzer, Glücksbringer und mit Kissen, Körbchen oder Thron dein Tier.') %>
+  <%- code('ksFx', 'Reaktionen, Anstoßen und Streicheln gehen nur an die offenen Fenster am Tisch. Gemerkt wird nur, wann du zuletzt etwas geschickt hast.') %>
 </details>
 
 <h2 id="blackjack">🃏 Blackjack</h2>

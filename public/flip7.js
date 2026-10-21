@@ -35,7 +35,8 @@
       return {
         hole: '<span class="f7-row">' + cards(p, 'mini') + '</span>',
         line: (p.status === 'bust' ? '0' : p.points) + ' P. diese Runde · ' + p.total + ' gesamt',
-        badge: (STATUS[p.status] || '') + (p.flip7 ? ' <span class="bj-badge win">FLIP 7!</span>' : '') + (s.f7 && s.f7.dealer === p.i ? ' <span class="bj-badge">Geber</span>' : ''),
+        badge: (STATUS[p.status] || '') + (p.flip7 ? ' <span class="bj-badge win">FLIP 7!</span>' : ''),
+        dealer: !!s.f7 && s.f7.dealer === p.i,
         cls: p.status === 'bust' || p.status === 'frozen' || p.status === 'stayed' ? 'folded' : '',
       };
     },

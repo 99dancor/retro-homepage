@@ -41,16 +41,23 @@
       var b = bands(freq, n), bw = w / n;
       fade(ctx, w, h, 1);
       if (!v.peaks || v.peaks.length !== n) v.peaks = new Array(n).fill(0);
-      var g = ctx.createLinearGradient(0, h, 0, 0);
-      g.addColorStop(0, '#00c000'); g.addColorStop(0.55, '#e0e000'); g.addColorStop(1, '#ff2000');
+      // Eine Säule mit allen LED-Segmenten wird einmal vorgezeichnet und pro Balken nur ausgeschnitten.
+      // Vorher waren es tausende Rechtecke mit Farbverlauf pro Bild, das schaffte kein Handy flüssig.
+      var step = 6 * v.dpr, cw = Math.max(1, Math.floor(bw - 3));
+      if (!v.led || v.led.width !== cw || v.led.height !== h) {
+        v.led = v.led || document.createElement('canvas');
+        v.led.width = cw; v.led.height = h;
+        var lc = v.led.getContext('2d'), g = lc.createLinearGradient(0, h, 0, 0);
+        g.addColorStop(0, '#00c000'); g.addColorStop(0.55, '#e0e000'); g.addColorStop(1, '#ff2000');
+        lc.fillStyle = g;
+        for (var y = 0; y < h; y += step) lc.fillRect(0, h - y - 4 * v.dpr, cw, 4 * v.dpr);
+      }
+      ctx.fillStyle = '#fff';
       for (var i = 0; i < n; i++) {
-        var bh = Math.min(1, b[i] * 1.15) * h * 0.92;
-        ctx.fillStyle = g;
-        // Segmente wie bei einer LED-Anzeige
-        for (var y = 0; y < bh; y += 6 * v.dpr) ctx.fillRect(i * bw + 1, h - y - 4 * v.dpr, bw - 3, 4 * v.dpr);
+        var bh = Math.min(1, b[i] * 1.15) * h * 0.92, show = Math.min(h, Math.ceil(bh / step) * step);
+        if (show > 0) ctx.drawImage(v.led, 0, h - show, cw, show, Math.round(i * bw + 1), h - show, cw, show);
         v.peaks[i] = Math.max(bh, v.peaks[i] - h * 0.008);
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(i * bw + 1, h - v.peaks[i] - 6 * v.dpr, bw - 3, 2 * v.dpr);
+        ctx.fillRect(Math.round(i * bw + 1), h - v.peaks[i] - 6 * v.dpr, cw, 2 * v.dpr);
       }
     } },
     { id: 'scope', name: 'Balken und Wellen: Oszilloskop', draw: function (v, freq, wave) {
@@ -154,7 +161,13 @@
   function create(canvas) {
     var v = { canvas: canvas, ctx: canvas.getContext('2d'), buf: document.createElement('canvas'), mode: MODES[0], w: 0, h: 0, dpr: 1 };
     v.bctx = v.buf.getContext('2d');
+    // Die Größe nur neu messen, wenn sie sich ändert (Messen in jedem Bild bremst Handys)
+    var dirty = true;
+    if (window.ResizeObserver) new ResizeObserver(function () { dirty = true; }).observe(canvas);
+    window.addEventListener('resize', function () { dirty = true; });
     function resize() {
+      if (!dirty) return;
+      dirty = !window.ResizeObserver;
       var r = canvas.getBoundingClientRect();
       // Höchstens 1280 Bildpunkte breit, sonst kommt älteres Gerät im Vollbild nicht mit
       v.dpr = Math.min(window.devicePixelRatio || 1, 1.5, 1280 / Math.max(1, r.width));

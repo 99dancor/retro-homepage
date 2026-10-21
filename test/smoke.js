@@ -533,6 +533,8 @@ async function main() {
       assert.match(page.headers.get('content-security-policy'), /media-src 'self' blob:/);
       assert.doesNotMatch((await guest.req('/blog')).headers.get('content-security-policy'), /youtube/, 'nur der Player darf YouTube einbetten');
       assert.match(page.text_, /<script src="\/static\/visualizer\.js\?v=\w+"><\/script>/);
+      assert.match(page.text_, /<video id="mp-media" playsinline/, 'Musik und Videos laufen über ein Element');
+      assert.match(page.text_, /data-act="mini"[\s\S]*data-act="mini-off"/);
       const desk = (await guest.req('/', { top: true })).text_;
       assert.match(desk, /<div class="startmenu"[\s\S]*href="\/musik"/);
       assert.match(desk, /id="displaybtn"[\s\S]*id="volumebtn"[\s\S]*id="clock"/, '🔊 neben der Uhr');
@@ -582,6 +584,40 @@ async function main() {
       assert.equal(other.owner, 'anna');
       assert.deepEqual(other.tracks, [...ids].reverse());
       assert.equal((await api(guest, '/musik/playlists', { title: 'x' })).status, 401);
+    });
+
+    await step('Mediaplayer: Videos hochladen, YouTube-Links ohne Konto abspielen und mit Konto speichern', async () => {
+      const { anna, bernd } = members;
+      const fd = new FormData();
+      fd.append('visibility', 'members');
+      fd.append('duration', '61');
+      fd.append('file', new Blob(['\0\0\0\x18ftypmp42'], { type: 'video/mp4' }), 'Urlaub 2025.mp4');
+      const up = await anna.req('/musik/hochladen', { method: 'POST', body: fd, headers: { 'x-csrf-token': anna.jar.get('csrf') } });
+      assert.equal(up.status, 200, up.text_);
+      const video = JSON.parse(up.text_).track;
+      assert.deepEqual([video.kind, video.title, video.duration], ['video', 'Urlaub 2025', 61]);
+      const vs = await bernd.req('/musik/stream/' + video.id, { headers: { range: 'bytes=0-3' } });
+      assert.equal(vs.status, 206);
+      assert.match(vs.headers.get('content-type'), /video\/mp4/);
+      // Ohne Konto kommen nur die Angaben zurück, gespeichert wird nichts
+      const g = await api(guest, '/musik/youtube', { ids: ['dQw4w9WgXcQ', 'kaputt'] });
+      assert.equal(g.status, 200);
+      assert.deepEqual(g.json.items.map(i => [i.type, i.videoId]), [['yt', 'dQw4w9WgXcQ']]);
+      assert.ok(!g.json.tracks);
+      assert.equal((await api(guest, '/musik/youtube', { ids: ['kaputt'] })).status, 400);
+      // Mit Konto als Link in der Bibliothek; ein schon gespeichertes Video bleibt ein Eintrag
+      const s1 = await api(anna, '/musik/youtube', { ids: ['dQw4w9WgXcQ', 'jNQXAC9IVRw'], save: true, visibility: 'members' });
+      assert.equal(s1.status, 200);
+      assert.deepEqual(s1.json.tracks.map(t => [t.kind, t.videoId, t.mine]), [['youtube', 'dQw4w9WgXcQ', true], ['youtube', 'jNQXAC9IVRw', true]]);
+      const s2 = await api(anna, '/musik/youtube', { ids: ['dQw4w9WgXcQ'], save: true });
+      assert.equal(s2.json.tracks[0].id, s1.json.tracks[0].id, 'schon gespeichert');
+      const seen = (await lib(bernd)).tracks.filter(t => t.kind === 'youtube');
+      assert.equal(seen.length, 2);
+      assert.equal(seen[0].by, 'anna');
+      assert.ok(!(await lib(guest)).tracks.some(t => t.kind === 'youtube'), 'nur für Mitglieder');
+      assert.equal((await bernd.req('/musik/stream/' + seen[0].id)).status, 404, 'ein Link hat keine Datei');
+      assert.equal((await api(anna, '/musik/titel/' + seen[0].id + '/gespielt', { duration: 212.6 })).status, 200);
+      assert.equal((await lib(anna)).tracks.find(t => t.id === seen[0].id).duration, 212.6, 'Länge kommt vom YouTube-Player');
     });
 
     await step('Musik-Lobby: gemeinsam hören, Live-Verbindung und YouTube', async () => {
@@ -662,6 +698,20 @@ async function main() {
       const skip = await api(admin, `/musik/lobby/${id}`, { action: 'add', tracks: [secretId] });
       assert.equal(skip.json.added, 0);
       assert.match(skip.json.msg, /nicht für alle hörbar/);
+
+      // Videos spielen wie Musik über den eigenen Server, gespeicherte YouTube-Links wie eingefügte
+      const media = (await lib(anna)).tracks;
+      const vid = media.find(x => x.kind === 'video'), link = media.find(x => x.kind === 'youtube');
+      const add2 = await api(anna, `/musik/lobby/${id}`, { action: 'add', tracks: [vid.id, link.id] });
+      assert.equal(add2.json.added, 2);
+      st = await nextState();
+      assert.deepEqual(st.queue.slice(-2).map(q => [q.type, q.video || false, q.videoId || null]), [['track', true, null], ['yt', false, link.videoId]]);
+      // Mischen: Bis zum laufenden Titel bleibt alles, danach kommt dasselbe in neuer Reihenfolge
+      const before = st.queue.map(q => q.key), at = st.index;
+      assert.equal((await api(anna, `/musik/lobby/${id}`, { action: 'shuffle' })).status, 200);
+      st = await nextState();
+      assert.deepEqual(st.queue.slice(0, at + 1).map(q => q.key), before.slice(0, at + 1));
+      assert.deepEqual(st.queue.map(q => q.key).sort(), [...before].sort());
       assert.equal((await api(bernd, `/musik/lobby/${id}`, { action: 'close' })).status, 403);
       assert.equal((await api(anna, `/musik/lobby/${id}`, { action: 'close' })).status, 200);
       ctrl.abort();

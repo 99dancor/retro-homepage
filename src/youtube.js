@@ -1,5 +1,5 @@
 'use strict';
-// YouTube-Lieder in Musik-Lobbys. Abgespielt wird im Browser über den eingebetteten Player von
+// YouTube-Videos im Mediaplayer und in Lobbys. Abgespielt wird im Browser über den eingebetteten Player von
 // youtube-nocookie.com. Der Server holt nur die Titel über die öffentliche oEmbed-Schnittstelle,
 // dabei geht keine Angabe über den Besucher an YouTube.
 const VIDEO_ID = /^[\w-]{11}$/;

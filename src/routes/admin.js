@@ -193,13 +193,13 @@ router.get('/musik', (req, res) => res.render('admin/music', {
 }));
 router.post('/musik/upload', music.adminUpload.array('files'), multipartCsrf, (req, res) => {
   const b = req.body;
-  const ins = db.prepare(`INSERT INTO tracks(title, artist, album, original_name, stored_name, size, mime, visibility, uploader_id, created_at)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const ins = db.prepare(`INSERT INTO tracks(title, artist, album, original_name, stored_name, size, mime, visibility, uploader_id, created_at, kind)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   tx(() => {
     for (const f of req.files || []) {
       const tags = music.readTags(f.path), guess = music.fromFilename(f.originalname);
       const id = Number(ins.run(tags.title || guess.title || f.originalname, str(b.artist, 200) || tags.artist || guess.artist || null, tags.album || null,
-        f.originalname, f.filename, f.size, f.mimetype, visibilityFrom(b), req.user.id, now()).lastInsertRowid);
+        f.originalname, f.filename, f.size, f.mimetype, visibilityFrom(b), req.user.id, now(), music.kindOf(f)).lastInsertRowid);
       saveVisibility('track', id, b);
     }
   });

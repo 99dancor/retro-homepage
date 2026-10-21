@@ -42,7 +42,7 @@ const SNIPPETS = {
   volume: ['public/sound.js', "var KEY = 'lautstaerke'", 1],
   musicPrefs: ['public/music.js', "var PREF_KEY = 'musik-player'", 1],
   youtubeKey: ['public/music.js', "var YT = 'https://www.youtube-nocookie.com', YT_KEY", 1],
-  tracks: ['src/db.js', 'CREATE TABLE IF NOT EXISTS tracks (', 15],
+  tracks: ['src/db.js', 'CREATE TABLE IF NOT EXISTS tracks (', 17],
   playlists: ['src/db.js', 'CREATE TABLE IF NOT EXISTS playlists (', 8],
   plays: ['src/routes/music.js', "db.prepare('UPDATE tracks SET plays = plays + 1", 1],
   lobbyState: ['src/lobby.js', 'function state(l) {', 7],

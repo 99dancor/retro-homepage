@@ -1,10 +1,10 @@
 <%- include('../partials/head') %>
 <p>🎵 <b><%= tracks.length %></b> Titel · <%= fmtSize(tracks.reduce((n, t) => n + t.size, 0)) %> · <%= playlists %> Playlists der Mitglieder ·
   <a href="/musik" target="_blank">Zum Player</a> · Wer hochladen darf und wie viel, stellst du unter <a href="/admin/settings">Einstellungen</a> ein (Mitglieder: je <%= quotaMb %> MB).</p>
-<fieldset class="groupbox"><legend>📤 Musik hochladen</legend>
+<fieldset class="groupbox"><legend>📤 Musik und Videos hochladen</legend>
 <form method="post" action="/admin/musik/upload" enctype="multipart/form-data">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
-  <label>Audiodateien (MP3, OGG, WAV, FLAC, M4A …):<input type="file" name="files" accept="audio/*,.mp3,.ogg,.oga,.opus,.wav,.flac,.m4a,.aac" multiple required></label>
+  <label>Musik oder Videos (MP3, OGG, WAV, FLAC, M4A, MP4, WebM …):<input type="file" name="files" accept="audio/*,video/*,.mp3,.ogg,.oga,.opus,.wav,.flac,.m4a,.aac,.mp4,.m4v,.webm,.ogv,.mov" multiple required></label>
   <label>Interpret für alle (optional, sonst aus der Datei oder dem Dateinamen „Interpret - Titel.mp3“):<input type="text" name="artist" class="w100"></label>
   <%- include('../partials/visibility', { item: { visibility: 'public' }, acl: [] }) %>
   <div class="actions"><button>Hochladen</button><span class="muted" data-progress></span></div>
@@ -15,7 +15,7 @@
   <tr><th>Titel</th><th>Interpret</th><th>Sichtbarkeit</th><th class="num">Länge</th><th class="num">Größe</th><th class="num">▶</th><th>Von</th></tr>
   <% for (const t of tracks) { %>
   <tr>
-    <td><a href="/admin/musik/<%= t.id %>"><b><%= t.title %></b></a><br><small><%= t.original_name %></small></td>
+    <td><%= t.kind === 'video' ? '🎬' : t.kind === 'youtube' ? '▶️' : '🎵' %> <a href="/admin/musik/<%= t.id %>"><b><%= t.title %></b></a><br><small><%= t.kind === 'youtube' ? 'YouTube-Link' : t.original_name %></small></td>
     <td><%= t.artist || '–' %></td>
     <td><%= VISIBILITY[t.visibility] %></td>
     <td class="num"><%= t.duration ? Math.floor(t.duration / 60) + ':' + String(Math.round(t.duration % 60)).padStart(2, '0') : '–' %></td>

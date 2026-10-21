@@ -1,5 +1,5 @@
 'use strict';
-// Musik: Hochladen, Rechte und Titelangaben aus den Dateien (ID3-Tags bei MP3).
+// Mediaplayer: Hochladen von Musik und Videos, Rechte und Titelangaben aus den Dateien (ID3-Tags bei MP3).
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -7,7 +7,12 @@ const multer = require('multer');
 const { db, getSetting, MUSIC_DIR } = require('./db');
 
 const AUDIO_EXT = ['.mp3', '.ogg', '.oga', '.opus', '.wav', '.flac', '.m4a', '.aac', '.webm', '.weba'];
-const isAudio = file => file.mimetype.startsWith('audio/') || AUDIO_EXT.includes(path.extname(file.originalname).toLowerCase());
+const VIDEO_EXT = ['.mp4', '.m4v', '.webm', '.ogv', '.mov'];
+const ext = file => path.extname(file.originalname).toLowerCase();
+const isAudio = file => file.mimetype.startsWith('audio/') || AUDIO_EXT.includes(ext(file));
+const isVideo = file => file.mimetype.startsWith('video/') || (VIDEO_EXT.includes(ext(file)) && !file.mimetype.startsWith('audio/'));
+// .webm kann beides sein: der Browser sagt es mit dem Dateityp
+const kindOf = file => (isVideo(file) && !(ext(file) === '.webm' && file.mimetype.startsWith('audio/')) ? 'video' : 'audio');
 
 function fixName(name) {
   const fixed = Buffer.from(name, 'latin1').toString('utf8');
@@ -17,14 +22,15 @@ const storage = multer.diskStorage({
   destination: MUSIC_DIR,
   filename: (req, file, cb) => {
     file.originalname = fixName(file.originalname);
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, crypto.randomBytes(16).toString('hex') + (AUDIO_EXT.includes(ext) ? ext : ''));
+    const e = ext(file);
+    cb(null, crypto.randomBytes(16).toString('hex') + (AUDIO_EXT.includes(e) || VIDEO_EXT.includes(e) ? e : ''));
   },
 });
-const fileFilter = (req, file, cb) => cb(null, isAudio(file));
-// Admin: große Dateien (z. B. lange Mixe), Mitglieder: ein Titel bis 50 MB
-const adminUpload = multer({ storage, fileFilter, limits: { fileSize: 1024 * 1024 * 1024, files: 50 } });
-const memberUpload = multer({ storage, fileFilter, limits: { fileSize: 50 * 1024 * 1024, files: 1 } });
+const fileFilter = (req, file, cb) => cb(null, isAudio(file) || isVideo(file));
+// Admin: große Dateien (lange Mixe, Filme), Mitglieder: eine Datei bis 200 MB (für kurze Videos), insgesamt bis zur Speichergrenze
+const MEMBER_FILE_MB = 200;
+const adminUpload = multer({ storage, fileFilter, limits: { fileSize: 4 * 1024 * 1024 * 1024, files: 50 } });
+const memberUpload = multer({ storage, fileFilter, limits: { fileSize: MEMBER_FILE_MB * 1024 * 1024, files: 1 } });
 
 // Wer darf Musik hochladen? Einstellung unter Admin → Einstellungen
 function canUpload(user) {
@@ -98,4 +104,4 @@ function fromFilename(name) {
   return m ? { artist: m[1].trim(), title: m[2].trim() } : { title: base };
 }
 
-module.exports = { adminUpload, memberUpload, canUpload, quotaBytes, usedBytes, readTags, fromFilename, MUSIC_DIR, AUDIO_EXT };
+module.exports = { adminUpload, memberUpload, canUpload, quotaBytes, usedBytes, readTags, fromFilename, kindOf, MEMBER_FILE_MB, MUSIC_DIR, AUDIO_EXT, VIDEO_EXT };

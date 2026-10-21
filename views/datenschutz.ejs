@@ -28,7 +28,7 @@
   <li>Bei Downloads kommen die Datei, die übertragene Datenmenge und „fertig“ oder „abgebrochen“ dazu.</li>
   <li>Gelöscht wird das automatisch nach <b><%= retentionDays %> Tagen</b>. Erkennbare Bots und Suchmaschinen werden gar nicht gezählt.</li>
   <li>Gegen Passwort-Raten und Spam merkt sich der Server deine IP-Adresse kurz im Arbeitsspeicher (höchstens eine Stunde), nie auf der Festplatte.</li>
-  <li>Die Seite lädt keine Skripte, Schriften oder Tracker von fremden Servern. Nur Bilder, die der Admin aus dem Netz in einen Text einbindet, holt dein Browser von dort, und den YouTube-Player nur, wenn du ihn im Musik-Player selbst lädst (siehe <a href="#musik">Musik</a>).</li>
+  <li>Die Seite lädt keine Skripte, Schriften oder Tracker von fremden Servern. Nur Bilder, die der Admin aus dem Netz in einen Text einbindet, holt dein Browser von dort, und den YouTube-Player nur, wenn du ihn im Mediaplayer selbst lädst (siehe <a href="#musik">Musik und Videos</a>).</li>
   <li>Vor der Website läuft ein Weiterleitungsserver (Nginx Proxy Manager). Wie fast jeder Webserver führt er ein technisches
     Zugriffsprotokoll mit IP-Adresse, Zeit und Adresse. Das dient nur der Fehlersuche. Die Website selbst führt kein solches Protokoll.</li>
 </ul>
@@ -75,7 +75,7 @@
   <li>Sudoku: die zuletzt gewählte Stufe, deine Notizen und welche Ziffern aufgedeckt wurden, ohne Konto auch deine Ziffern, Zeit und Hilfen der letzten 40 Tage.</li>
   <li>Quiz ohne Konto: der zuletzt gewählte Name, das Bild und die Farbe, damit du sie beim nächsten Mal nicht neu eingeben musst.</li>
   <li>Werwolf: ohne Konto der zuletzt gewählte Name und das Bild, außerdem ob der Erzähler auf diesem Gerät vorlesen soll. Die Stimme erzeugt dein Browser bzw. dein Gerät selbst.</li>
-  <li>Die Lautstärke für Musik und Effekte (🔊 neben der Uhr), die gewählte Visualisierung im Musik-Player, Zufall und Wiederholen, die Größe von Bibliothek und Bild, und ob du „YouTube laden“ für diesen Browser merken wolltest.</li>
+  <li>Die Lautstärke für Musik und Effekte (🔊 neben der Uhr), im Mediaplayer die gewählte Visualisierung, ob Videos als Bild oder Visualisierung laufen, Zufall und Wiederholen, die Breite von Aufgabenleiste und Wiedergabeliste und die Höhe des Bilds, und ob du „YouTube laden“ für diesen Browser merken wolltest. Die eigene Wiedergabeliste liegt nur im offenen Fenster und ist nach dem Schließen weg.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('desk', '<code>sessionStorage</code> vergisst alles, sobald der Tab geschlossen wird.') %>
@@ -88,8 +88,8 @@
   <%- code('guide', 'Die Startseite merkt sich nur, dass du den Rundgang schon gesehen hast.') %>
   <%- code('editor', 'Der Editor merkt sich nur, ob du Text, Vorschau oder beides siehst.') %>
   <%- code('pet', 'Unter diesen Namen speichert das Haustier-Spiel im Browser.') %>
-  <%- code('volume', 'Die Lautstärke liegt unter diesem Namen im Browser. Musik-Player und Haustier-Spiel lesen sie von dort.') %>
-  <%- code('musicPrefs', 'Der Musik-Player merkt sich Visualisierung, Zufall, Wiederholen und die Größe der Bereiche.') %>
+  <%- code('volume', 'Die Lautstärke liegt unter diesem Namen im Browser. Mediaplayer und Haustier-Spiel lesen sie von dort.') %>
+  <%- code('musicPrefs', 'Der Mediaplayer merkt sich Visualisierung, Bild oder Visualisierung bei Videos, Zufall, Wiederholen und die Größe der Bereiche.') %>
   <%- code('youtubeKey', 'Hier steht nur „1“, wenn du „Für diesen Browser merken“ angekreuzt hast.') %>
 </details>
 
@@ -161,16 +161,17 @@
   <%- shot('forum-anonym-admin.png', 'Derselbe Beitrag, wie der Admin ihn sieht') %></div>
 </details>
 
-<h2 id="musik">🎵 Musik</h2>
+<h2 id="musik">🎵 Musik und Videos</h2>
 <ul>
-  <li><b>Hochgeladene Musik:</b> Die Datei mit ihrem ursprünglichen Namen, Titel, Interpret und Album (auch aus den Angaben in der Datei, z. B. ID3-Tags), Länge, Größe, Sichtbarkeit, Zeit und dein Konto. Neben Titeln von Mitgliedern steht für alle, die den Titel hören dürfen, dein Name mit Link zum Profil. Die Datei bleibt unverändert, auch eingebettete Angaben wie ein Cover-Bild.</li>
+  <li><b>Hochgeladene Musik und Videos:</b> Die Datei mit ihrem ursprünglichen Namen, Titel, Interpret und Album (bei Musik auch aus den Angaben in der Datei, z. B. ID3-Tags), Art (Musik oder Video), Länge, Größe, Sichtbarkeit, Zeit und dein Konto. Neben Titeln von Mitgliedern steht für alle, die den Titel hören oder sehen dürfen, dein Name mit Link zum Profil. Die Datei bleibt unverändert, auch eingebettete Angaben wie ein Cover-Bild oder bei Videos Aufnahmeort und -gerät, falls dein Handy sie hineinschreibt.</li>
+  <li><b>Gespeicherte YouTube-Links:</b> Speicherst du mit Konto einen YouTube-Link in der Bibliothek, liegen dort nur die Video-Kennung, Titel und Kanal, Sichtbarkeit, Zeit und dein Konto, keine Datei. Spielst du einen Link nur in der Wiedergabeliste ab, wird nichts gespeichert.</li>
   <li>Wie oft ein Titel gespielt wurde, wird nur als Zahl gezählt, nicht wer ihn gehört hat.</li>
   <li><b>Playlists:</b> Name, Sichtbarkeit, Titel und dein Konto. Private Playlists sehen nur du und der Admin.</li>
   <li><b>Lobbys:</b> Wer in einer Lobby ist, sieht die Namen der anderen Zuhörer (mit Link zum Profil), wer davon den Player steuern darf, wer ein Lied hinzugefügt hat und die Warteschlange. Lobbys liegen nur im Arbeitsspeicher des Servers und sind nach einem Neustart oder zehn Minuten ohne Zuhörer weg.</li>
-  <li><b>YouTube:</b> Lieder von YouTube spielt der eingebettete Player von youtube-nocookie.com. Den lädt dein Browser erst, wenn du auf „YouTube laden“ klickst. Ab dann bekommt YouTube (Google) deine IP-Adresse und Angaben zu deinem Browser, und es gelten die Datenschutzregeln von Google. Für die Titel fragt der Server selbst bei YouTube nach, dabei geht nichts über dich mit.</li>
+  <li><b>YouTube:</b> Videos von YouTube spielt der eingebettete Player von youtube-nocookie.com, in Lobbys und in der eigenen Wiedergabeliste. Den lädt dein Browser erst, wenn du auf „YouTube laden“ klickst. Ab dann bekommt YouTube (Google) deine IP-Adresse und Angaben zu deinem Browser, und es gelten die Datenschutzregeln von Google. Für die Titel fragt der Server selbst bei YouTube nach, dabei geht nichts über dich mit.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
-  <%- code('tracks', 'Diese Spalten speichert die Seite zu jedem hochgeladenen Titel.') %>
+  <%- code('tracks', 'Diese Spalten speichert die Seite zu jedem Titel, Video und YouTube-Link.') %>
   <%- code('playlists', 'Eine Playlist gehört genau einem Konto und verschwindet mit ihm.') %>
   <%- code('plays', 'Der Abspiel-Zähler erhöht nur eine Zahl am Titel.') %>
   <%- code('lobbyState', 'Das bekommen alle Zuhörer einer Lobby: Name, Gastgeber, Warteschlange, Stelle im Lied und die Namen der Zuhörer.') %>

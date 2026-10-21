@@ -1,5 +1,14 @@
 # Changelog
 
+## 21.10.2026 – Mediaplayer: Videos, YouTube ohne Lobby, Theater und Mini-Player
+
+- **Neuer Aufbau:** Der Musik-Player heißt jetzt Mediaplayer und sieht aus wie der Windows Media Player 9. Links die Aufgabenleiste mit „Wiedergabe läuft“, der Medienbibliothek (Musik, Videos, YouTube-Links, Playlists), Lobbys, Hochladen und Visualisierungen. In der Mitte das Bild, rechts die Wiedergabeliste. Alle drei Trennlinien lassen sich ziehen.
+- **Videos:** Lade eigene Videos hoch (MP4 oder WebM, bei Mitgliedern bis 200 MB pro Datei). Sie laufen im Bild, auch in Lobbys für alle gleichzeitig. Oben rechts im Bild schaltest du zwischen Video und Visualisierung um.
+- **YouTube ohne Lobby:** Füg unten in der Wiedergabeliste einen YouTube-Link ein (Video oder Playlist), und er läuft gleich im Player, auch ohne Konto. Mit Konto kannst du Links unter „YouTube-Links“ in der Bibliothek speichern und in Playlists packen.
+- **Wiedergabeliste:** Rechts steht, was als Nächstes kommt, deine eigene Liste oder die der Lobby. Titel lassen sich verschieben und entfernen, dazu Mischen, als Playlist speichern und Leeren. ➕ in der Bibliothek hängt einen Titel hinten an.
+- **Theater und Mini-Player:** 🎭 Theater lässt das Bild das ganze Fenster füllen, die Steuerung blendet sich aus, bis du die Maus bewegst (Esc beendet es). „▭ Mini“ macht das Fenster zu einer kleinen Leiste mit Vorschau, Zurück, Abspielen, Weiter und Anzeige. ⤢ macht es wieder groß.
+- **Handy:** Oben das Bild, darunter die Reiter Warteschlange, Bibliothek und Lobby, unten die Steuerung mit großem Abspielknopf.
+
 ## 21.10.2026 – Musik-Player: flüssiger und verstellbar
 
 - **Balken auf dem Handy:** Die Visualisierung „Balken und Wellen: Balken“ zeichnet jetzt etwa viermal schneller und läuft auch auf dem Handy flüssig.

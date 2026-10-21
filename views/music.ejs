@@ -1,41 +1,57 @@
 <%- include('partials/head') %>
-<%# Musik-Player: Logik in public/music.js, Visualisierungen in public/visualizer.js %>
-<div class="mp" id="mp" data-csrf="<%= csrf %>" data-upload="<%= canUploadMusic ? '1' : '' %>" data-lobby="<%= lobbyOn ? '1' : '' %>" data-youtube="<%= lobbyOn && youtubeOn ? '1' : '' %>">
-  <div class="menubar mp-toolbar">
-    <% if (canUploadMusic) { %><button type="button" class="small" data-act="upload">📤 Hochladen</button><% } %>
-    <% if (user) { %><button type="button" class="small" data-act="new-playlist">📃 Neue Playlist</button><% } %>
-    <% if (lobbyOn && user) { %><button type="button" class="small" data-act="lobbys">🎧 Lobbys</button><% } %>
-    <span class="spacer"></span>
-    <label class="inline mp-vis-pick">Visualisierung:
-      <select id="mp-vis-select" aria-label="Visualisierung"></select></label>
-    <button type="button" class="small" data-act="fullscreen" title="Vollbild (oder Doppelklick auf das Bild)">⛶</button>
-  </div>
+<%# Mediaplayer: Logik in public/music.js, Visualisierungen in public/visualizer.js %>
+<div class="mp" id="mp" data-csrf="<%= csrf %>" data-upload="<%= canUploadMusic ? '1' : '' %>" data-lobby="<%= lobbyOn ? '1' : '' %>" data-youtube="<%= youtubeOn ? '1' : '' %>" data-view="all" data-tab="queue">
   <div class="mp-main">
-    <nav class="mp-side sunken" id="mp-side" aria-label="Bibliothek"></nav>
-    <div class="mp-split mp-split-side" data-split="side" role="separator" tabindex="0" aria-label="Breite der Bibliothek ändern (Doppelklick: zurücksetzen)"></div>
+    <nav class="mp-side sunken" id="mp-side" aria-label="Aufgaben und Medienbibliothek"></nav>
+    <div class="mp-split mp-split-side" data-split="side" role="separator" tabindex="0" aria-label="Breite der Aufgabenleiste ändern (Doppelklick: zurücksetzen)"></div>
     <section class="mp-center">
       <div class="mp-stage" id="mp-stage">
         <canvas id="mp-canvas"></canvas>
+        <video id="mp-media" playsinline preload="metadata"></video>
         <div class="mp-yt" id="mp-yt" hidden></div>
         <div class="mp-overlay" id="mp-overlay" hidden></div>
         <div class="mp-now" id="mp-now"></div>
+        <div class="mp-modes" role="group" aria-label="Bild">
+          <select id="mp-vis-select" aria-label="Visualisierung" title="Visualisierung wählen"></select>
+          <button type="button" class="small" data-act="pic-video" aria-pressed="false" title="Bei Videos das Bild zeigen">🎬<span class="lbl"> Video</span></button>
+          <button type="button" class="small" data-act="pic-vis" aria-pressed="true" title="Visualisierung statt Bild zeigen">🌈<span class="lbl"> Visualisierung</span></button>
+          <button type="button" class="small" data-act="theater" aria-pressed="false" title="Theater: Das Bild füllt das Fenster (Esc: zurück)">🎭<span class="lbl"> Theater</span></button>
+        </div>
       </div>
-      <div class="mp-split mp-split-stage" data-split="stage" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Höhe von Bild und Video ändern (Doppelklick: zurücksetzen)"></div>
+      <div class="mp-split mp-split-stage" data-split="stage" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Höhe des Bilds ändern (Doppelklick: zurücksetzen)"></div>
       <div class="mp-head" id="mp-head"></div>
       <div class="mp-list sunken" id="mp-list"></div>
     </section>
+    <div class="mp-split mp-split-queue" data-split="queue" role="separator" tabindex="0" aria-label="Breite der Wiedergabeliste ändern (Doppelklick: zurücksetzen)"></div>
+    <aside class="mp-queue" id="mp-queue" aria-label="Wiedergabeliste">
+      <div class="mp-qhead" id="mp-qhead"></div>
+      <div class="mp-qlist sunken" id="mp-qlist"></div>
+      <div class="mp-qtools" id="mp-qtools"></div>
+    </aside>
+    <div class="mp-tabs" role="tablist" aria-label="Bereiche">
+      <button type="button" role="tab" data-tab="queue" aria-selected="true">Warteschlange</button>
+      <button type="button" role="tab" data-tab="lib" aria-selected="false">Bibliothek</button>
+      <% if (lobbyOn && user) { %><button type="button" role="tab" data-tab="lobby" aria-selected="false">Lobby</button><% } %>
+    </div>
   </div>
   <div class="mp-controls">
-    <button type="button" data-act="prev" title="Zurück" aria-label="Zurück">⏮</button>
-    <button type="button" data-act="play" class="mp-play" title="Abspielen" aria-label="Abspielen">▶</button>
-    <button type="button" data-act="stop" title="Stopp" aria-label="Stopp">⏹</button>
-    <button type="button" data-act="next" title="Weiter" aria-label="Weiter">⏭</button>
+    <button type="button" data-act="play" class="mp-play" title="Abspielen" aria-label="Abspielen">
+      <svg class="i-play" width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 3v14l11-7z" fill="#fff"/></svg>
+      <svg class="i-pause" width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="3" width="4" height="14" fill="#fff"/><rect x="12" y="3" width="4" height="14" fill="#fff"/></svg>
+    </button>
+    <button type="button" data-act="stop" title="Stopp" aria-label="Stopp"><svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><rect width="12" height="12" fill="currentColor"/></svg></button>
+    <button type="button" data-act="prev" title="Zurück" aria-label="Zurück"><svg width="13" height="11" viewBox="0 0 14 12" aria-hidden="true"><rect width="2" height="12" fill="currentColor"/><path d="M14 0v12L3 6z" fill="currentColor"/></svg></button>
+    <button type="button" data-act="next" title="Weiter" aria-label="Weiter"><svg width="13" height="11" viewBox="0 0 14 12" aria-hidden="true"><path d="M0 0v12l11-6z" fill="currentColor"/><rect x="12" width="2" height="12" fill="currentColor"/></svg></button>
     <button type="button" data-act="shuffle" title="Zufällige Reihenfolge" aria-label="Zufällige Reihenfolge" aria-pressed="false">🔀</button>
     <button type="button" data-act="repeat" title="Wiederholen: aus" aria-label="Wiederholen" data-mode="aus">🔁</button>
     <span class="mp-time" id="mp-time">0:00</span>
-    <input type="range" id="mp-seek" min="0" max="1000" value="0" aria-label="Stelle im Lied">
+    <input type="range" id="mp-seek" min="0" max="1000" value="0" aria-label="Stelle im Titel">
     <span class="mp-time" id="mp-dur">0:00</span>
     <span class="mp-vol" title="Lautstärke Musik (gilt für die ganze Seite, wie 🔊 neben der Uhr)">🔊<input type="range" id="mp-vol" min="0" max="100" aria-label="Lautstärke Musik"></span>
+    <div class="mp-lcd" id="mp-lcd" aria-live="off"><span id="mp-lcd-title">Mediaplayer</span><span id="mp-lcd-time">0:00</span></div>
+    <button type="button" data-act="fullscreen" class="mp-fs" title="Vollbild (oder Doppelklick auf das Bild)" aria-label="Vollbild">⛶</button>
+    <button type="button" data-act="mini" class="mp-mini-btn" title="Mini-Player: Das Fenster wird zur kleinen Leiste" aria-label="Mini-Player">▭ Mini</button>
+    <button type="button" data-act="mini-off" class="mp-mini-off" title="Wieder groß" aria-label="Wieder groß">⤢</button>
   </div>
   <div class="statusbar"><span id="mp-status">Bereit</span><span class="fixed" id="mp-mode">💿 Eigene Wiedergabe</span></div>
 </div>
@@ -46,7 +62,6 @@
     <div class="actions" id="mp-dlg-actions"></div>
   </form>
 </dialog>
-<audio id="mp-audio" preload="metadata"></audio>
 <script src="<%= asset('visualizer.js') %>"></script>
 <script src="<%= asset('usermenu.js') %>"></script>
 <script src="<%= asset('music.js') %>"></script>

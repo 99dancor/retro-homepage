@@ -1,5 +1,5 @@
 'use strict';
-// Musik-Player (Startmenü → 🎵 Musik), Playlists, Hochladen für Mitglieder und Lobbys zum gemeinsamen Hören.
+// Mediaplayer (Startmenü → 🎵 Musik): Musik, Videos und YouTube-Links, Playlists, Hochladen für Mitglieder und Lobbys zum gemeinsamen Hören.
 // Die Seite holt sich ihre Daten als JSON; Schreiben geht per POST mit dem Formular-Token im Kopf x-csrf-token.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -27,10 +27,10 @@ function needLogin(req, res, next) { return req.user ? next() : fail(res, 401, '
 router.get('/', (req, res) => {
   // blob: für das Messen der Länge vor dem Hochladen. Nur diese Seite darf den YouTube-Player einbetten,
   // und das erst nach einem Klick (siehe public/music.js).
-  const extra = "media-src 'self' blob:;" + (lobbyOn() && youtubeOn() ? " frame-src 'self' https://www.youtube-nocookie.com;" : '');
+  const extra = "media-src 'self' blob:;" + (youtubeOn() ? " frame-src 'self' https://www.youtube-nocookie.com;" : '');
   res.set('Content-Security-Policy', res.get('Content-Security-Policy').replace("default-src 'self';", "default-src 'self'; " + extra));
   res.render('music', {
-    title: 'Musik',
+    title: 'Mediaplayer',
     canUploadMusic: music.canUpload(req.user),
     lobbyOn: lobbyOn(), youtubeOn: youtubeOn(),
   });
@@ -38,7 +38,8 @@ router.get('/', (req, res) => {
 
 function trackRow(t, user) {
   return {
-    id: t.id, title: t.title, artist: t.artist || '', album: t.album || '', duration: t.duration || 0, plays: t.plays,
+    id: t.id, kind: t.kind || 'audio', videoId: t.kind === 'youtube' ? t.youtube_id : undefined,
+    title: t.title, artist: t.artist || '', album: t.album || '', duration: t.duration || 0, plays: t.plays,
     visibility: t.visibility, by: t.username ? t.display_name || t.username : null, byUser: t.username || null, byAdmin: t.role === 'admin',
     mine: !!user && t.uploader_id === user.id,
     canEdit: !!user && (user.isAdmin || t.uploader_id === user.id),
@@ -51,7 +52,9 @@ router.get('/bibliothek', (req, res) => {
   const u = req.user;
   const tv = auth.visibilitySql(u, 'track', 't');
   const tracks = db.prepare(`SELECT t.*, us.username, us.display_name, us.role FROM tracks t LEFT JOIN users us ON us.id = t.uploader_id
-                             WHERE ${tv.sql} ORDER BY t.artist COLLATE NOCASE, t.title COLLATE NOCASE`).all(...tv.params).map(t => trackRow(t, u));
+                             WHERE ${tv.sql} ORDER BY t.artist COLLATE NOCASE, t.title COLLATE NOCASE`).all(...tv.params)
+    // Gespeicherte YouTube-Links verschwinden, solange YouTube in der Systemsteuerung aus ist
+    .filter(t => t.kind !== 'youtube' || youtubeOn()).map(t => trackRow(t, u));
   const visible = new Set(tracks.map(t => t.id));
   let playlists = [];
   if (u) {
@@ -66,7 +69,7 @@ router.get('/bibliothek', (req, res) => {
   res.json({
     me: u ? { id: u.id, name: u.name, admin: u.isAdmin } : null,
     canUpload,
-    quota: canUpload && !u.isAdmin ? { used: music.usedBytes(u.id), total: music.quotaBytes() } : null,
+    quota: canUpload && !u.isAdmin ? { used: music.usedBytes(u.id), total: music.quotaBytes(), fileMb: music.MEMBER_FILE_MB } : null,
     tracks, playlists,
   });
 });
@@ -74,7 +77,7 @@ router.get('/bibliothek', (req, res) => {
 // Abspielen: Spulen klappt über Range-Anfragen, die sendFile beherrscht
 router.get('/stream/:id', (req, res, next) => {
   const t = db.prepare('SELECT * FROM tracks WHERE id = ?').get(Number(req.params.id));
-  if (!t || !auth.canSee(req.user, 'track', t)) return res.status(404).end();
+  if (!t || !t.stored_name || !auth.canSee(req.user, 'track', t)) return res.status(404).end();
   res.sendFile(path.join(music.MUSIC_DIR, t.stored_name), {
     headers: { 'Content-Security-Policy': "default-src 'none'", 'Cache-Control': 'private, max-age=86400' },
   }, err => err && !res.headersSent && res.status(404).end());
@@ -95,27 +98,47 @@ router.post('/titel/:id/gespielt', auth.rateLimit('plays', 120, 600), (req, res)
 function pickUpload(req, res, next) {
   if (!music.canUpload(req.user)) return fail(res, 403, 'Du darfst keine Musik hochladen.');
   return (req.user.isAdmin ? music.adminUpload : music.memberUpload).single('file')(req, res, err => {
-    if (err) return fail(res, err.code === 'LIMIT_FILE_SIZE' ? 413 : 400, err.code === 'LIMIT_FILE_SIZE' ? 'Die Datei ist zu groß (höchstens 50 MB).' : 'Hochladen fehlgeschlagen.');
+    if (err) return fail(res, err.code === 'LIMIT_FILE_SIZE' ? 413 : 400, err.code === 'LIMIT_FILE_SIZE' ? `Die Datei ist zu groß (höchstens ${music.MEMBER_FILE_MB} MB).` : 'Hochladen fehlgeschlagen.');
     next();
   });
 }
 router.post('/hochladen', needLogin, pickUpload, auth.csrfCheck, (req, res) => {
   const f = req.file;
-  if (!f) return fail(res, 400, 'Das ist keine Audiodatei (MP3, OGG, WAV, FLAC, M4A …).');
+  if (!f) return fail(res, 400, 'Das ist keine Musik- oder Videodatei (MP3, OGG, WAV, FLAC, M4A, MP4, WebM …).');
   const u = req.user;
   if (!u.isAdmin && music.usedBytes(u.id) + f.size > music.quotaBytes()) {
     fs.rm(f.path, { force: true }, () => {});
-    return fail(res, 413, `Dein Speicher für Musik ist voll (${getSetting('music_quota_mb', '500')} MB). Lösche alte Titel, um Platz zu schaffen.`);
+    return fail(res, 413, `Dein Speicher für Musik und Videos ist voll (${getSetting('music_quota_mb', '500')} MB). Lösche alte Titel, um Platz zu schaffen.`);
   }
-  const tags = music.readTags(f.path), guess = music.fromFilename(f.originalname);
+  const kind = music.kindOf(f);
+  const tags = kind === 'audio' ? music.readTags(f.path) : {}, guess = music.fromFilename(f.originalname);
   const b = req.body || {};
   const duration = Number(b.duration) > 0 && Number(b.duration) < 24 * 3600 ? Math.round(Number(b.duration) * 10) / 10 : null;
-  const id = Number(db.prepare(`INSERT INTO tracks(title, artist, album, duration, original_name, stored_name, size, mime, visibility, uploader_id, created_at)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+  const id = Number(db.prepare(`INSERT INTO tracks(title, artist, album, duration, original_name, stored_name, size, mime, visibility, uploader_id, created_at, kind)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
     str(b.title) || tags.title || guess.title || f.originalname, str(b.artist) || tags.artist || guess.artist || null, tags.album || null,
-    duration, f.originalname, f.filename, f.size, f.mimetype, ownVis(b.visibility, u.isAdmin ? 'public' : 'members'), u.id, now()).lastInsertRowid);
-  const t = db.prepare('SELECT t.*, us.username, us.display_name, us.role FROM tracks t LEFT JOIN users us ON us.id = t.uploader_id WHERE t.id = ?').get(id);
-  res.json({ track: trackRow(t, u) });
+    duration, f.originalname, f.filename, f.size, f.mimetype, ownVis(b.visibility, u.isAdmin ? 'public' : 'members'), u.id, now(), kind).lastInsertRowid);
+  res.json({ track: trackRow(oneTrack(id), u) });
+});
+const oneTrack = id => db.prepare('SELECT t.*, us.username, us.display_name, us.role FROM tracks t LEFT JOIN users us ON us.id = t.uploader_id WHERE t.id = ?').get(id);
+
+// YouTube-Links: Titel über oEmbed holen und, mit Konto, als Einträge in der Bibliothek speichern (ohne Datei).
+// Ohne Konto oder mit save: false kommen nur die Angaben zurück, abgespielt wird dann nur im eigenen Browser.
+router.post('/youtube', auth.rateLimit('ytlinks', 60, 600), async (req, res) => {
+  if (!youtubeOn()) return fail(res, 404, 'YouTube ist ausgeschaltet.');
+  const b = req.body || {}, u = req.user;
+  const items = await youtube.items(Array.isArray(b.ids) ? b.ids : []);
+  if (!items.length) return fail(res, 400, 'Das sieht nicht nach einem YouTube-Link aus.');
+  if (!u || b.save === false) return res.json({ items });
+  const vis = ownVis(b.visibility, 'members');
+  const tracks = tx(() => items.map(it => {
+    // Hat man das Video schon gespeichert, bleibt es bei dem einen Eintrag
+    const had = db.prepare("SELECT id FROM tracks WHERE kind = 'youtube' AND youtube_id = ? AND uploader_id = ?").get(it.videoId, u.id);
+    if (had) return had.id;
+    return Number(db.prepare(`INSERT INTO tracks(title, artist, original_name, stored_name, size, visibility, uploader_id, created_at, kind, youtube_id)
+                              VALUES (?, ?, ?, '', 0, ?, ?, ?, 'youtube', ?)`).run(it.title, it.artist || null, 'youtube:' + it.videoId, vis, u.id, now(), it.videoId).lastInsertRowid);
+  }));
+  res.json({ tracks: tracks.map(id => trackRow(oneTrack(id), u)) });
 });
 
 function ownTrack(req, res, next) {
@@ -138,7 +161,7 @@ router.post('/titel/:id/loeschen', needLogin, ownTrack, (req, res) => {
   res.json({ ok: true });
 });
 function deleteTrack(t) {
-  fs.rm(path.join(music.MUSIC_DIR, t.stored_name), { force: true }, () => {});
+  if (t.stored_name) fs.rm(path.join(music.MUSIC_DIR, t.stored_name), { force: true }, () => {});
   tx(() => {
     db.prepare('DELETE FROM tracks WHERE id = ?').run(t.id);
     db.prepare("DELETE FROM acl WHERE item_type = 'track' AND item_id = ?").run(t.id);
@@ -217,7 +240,10 @@ async function itemsFor(req) {
   const b = req.body, u = req.user;
   const tv = auth.visibilitySql(u, 'track', 't');
   const visible = id => db.prepare(`SELECT t.* FROM tracks t WHERE t.id = ? AND ${tv.sql}`).get(Number(id), ...tv.params);
-  const local = t => ({ type: 'track', trackId: t.id, title: t.title, artist: t.artist || '', duration: t.duration || 0 });
+  // Gespeicherte YouTube-Links spielen in der Lobby wie eingefügte Links, Videos wie Musik über den eigenen Server
+  const local = t => (t.kind === 'youtube'
+    ? { type: 'yt', videoId: t.youtube_id, title: t.title, artist: t.artist || '', duration: t.duration || 0 }
+    : { type: 'track', trackId: t.id, video: t.kind === 'video', title: t.title, artist: t.artist || '', duration: t.duration || 0 });
   let ids = [];
   if (Array.isArray(b.tracks)) ids = b.tracks;
   if (b.playlist) {
@@ -225,7 +251,7 @@ async function itemsFor(req) {
     if (!p || !auth.canSee(u, 'playlist', p)) throw new Error('Diese Playlist gibt es nicht.');
     ids = db.prepare('SELECT track_id FROM playlist_tracks WHERE playlist_id = ? ORDER BY position').all(p.id).map(r => r.track_id);
   }
-  const tracks = ids.slice(0, lobby.MAX_QUEUE).map(visible).filter(Boolean);
+  const tracks = ids.slice(0, lobby.MAX_QUEUE).map(visible).filter(t => t && (t.kind !== 'youtube' || youtubeOn()));
   const skipped = tracks.filter(t => t.visibility !== 'public' && t.visibility !== 'members').length;
   const items = tracks.filter(t => t.visibility === 'public' || t.visibility === 'members').map(local);
   if (Array.isArray(b.youtube) && b.youtube.length) {

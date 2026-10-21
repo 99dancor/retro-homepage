@@ -154,6 +154,13 @@ function control(l, user, b) {
       if (cur) l.index = l.queue.indexOf(cur);
       return null;
     }
+    case 'shuffle': {
+      // Mischen: alles nach dem laufenden Lied kommt in eine neue Reihenfolge
+      const rest = l.queue.splice(l.index + 1);
+      for (let i = rest.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+      l.queue.push(...rest);
+      return null;
+    }
     case 'clear': l.queue = []; l.index = -1; l.playing = false; l.pausedPos = 0; return null;
     case 'rights': {
       // Gastgeber und Admin geben einzelnen Zuhörern Player-Rechte oder nehmen sie ihnen

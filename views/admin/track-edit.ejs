@@ -1,7 +1,9 @@
 <%- include('../partials/head') %>
 <p><a href="/admin/musik">« Alle Titel</a></p>
-<p>🎵 <b><%= t.original_name %></b> · <%= fmtSize(t.size) %> · <%= t.plays %>× gespielt · hochgeladen am <%= fmtDate(t.created_at, true) %><%= t.username ? ' von ' + t.username : '' %></p>
-<audio controls preload="none" src="/musik/stream/<%= t.id %>"></audio>
+<p><%= t.kind === 'video' ? '🎬' : t.kind === 'youtube' ? '▶️' : '🎵' %> <b><%= t.kind === 'youtube' ? t.title : t.original_name %></b> · <%= fmtSize(t.size) %> · <%= t.plays %>× gespielt · hochgeladen am <%= fmtDate(t.created_at, true) %><%= t.username ? ' von ' + t.username : '' %></p>
+<% if (t.kind === 'video') { %><video controls preload="none" style="max-width:100%;max-height:320px" src="/musik/stream/<%= t.id %>"></video>
+<% } else if (t.kind === 'youtube') { %><p>▶️ YouTube-Video <code><%= t.youtube_id %></code>: <a href="https://www.youtube.com/watch?v=<%= t.youtube_id %>" target="_blank" rel="noopener noreferrer">bei YouTube öffnen</a></p>
+<% } else { %><audio controls preload="none" src="/musik/stream/<%= t.id %>"></audio><% } %>
 <form method="post" action="/admin/musik/<%= t.id %>">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <div class="row">

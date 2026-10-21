@@ -191,7 +191,7 @@ button.tb-btn { padding: 0; min-width: 0; border: 0; cursor: pointer; }
 .dwin.max { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; }
 .dwin.max .grip { display: none; }
 /* Fenster, die sich ihrem Inhalt anpassen (Minesweeper), sind wie im Original ohne Statusleiste und nicht aufziehbar */
-.dwin.fitted .statusbar, .dwin.fitted .grip { display: none; }
+.dwin.fitted .statusbar, .dwin.fitted .grip, .dwin.mini .statusbar, .dwin.mini .grip { display: none; }
 .dwin.fitted .titlebar { gap: 3px; font-size: 11px; }
 .dwin .grip { position: absolute; right: 3px; bottom: 3px; width: 14px; height: 14px; cursor: nwse-resize; touch-action: none;
   background: linear-gradient(135deg, transparent 0 55%, var(--lo) 55% 62%, transparent 62% 72%, var(--lo) 72% 79%, transparent 79% 89%, var(--lo) 89%); }
@@ -399,55 +399,68 @@ input[type=range].vertical { writing-mode: vertical-lr; direction: rtl; width: 2
 .volume-panel.muted .vol-cols { opacity: .5; }
 .volume-panel label.inline { margin: 6px 0 0; }
 
-/* Musik-Player (public/music.js) */
+/* Mediaplayer (public/music.js): links Aufgabenleiste, Mitte Bild, rechts Wiedergabeliste, wie beim Media Player 9 */
 .mp { display: flex; flex-direction: column; height: calc(100vh - 20px); min-height: 380px; gap: 4px; }
-.mp-toolbar { align-items: center; gap: 4px; padding: 2px 0 4px; }
-.mp-toolbar label.inline { margin: 0; }
-.mp-vis-pick select { max-width: 210px; }
-.mp-main { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--mp-side, 190px) 6px minmax(0, 1fr); }
+.mp-main { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--mp-side, 180px) 6px minmax(0, 1fr) 6px var(--mp-queue, 250px); }
 .mp-side { overflow: auto; padding: 4px; display: flex; flex-direction: column; align-items: stretch; }
-.mp-group { font-size: 11px; font-weight: bold; opacity: .7; margin: 8px 4px 2px; text-transform: uppercase; letter-spacing: .03em; }
-.mp-group:first-child { margin-top: 2px; }
+.mp-group { font-size: 11px; font-weight: bold; opacity: .75; margin: 8px 4px 2px; }
+.mp-sub { display: flex; flex-direction: column; padding-left: 10px; }
 button.mp-nav { display: block; width: 100%; text-align: left; background: none; box-shadow: none; min-width: 0; padding: 2px 6px; color: inherit;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+button.mp-nav.mp-task { font-weight: bold; margin-top: 4px; }
 button.mp-nav:hover { background: var(--hover); }
 button.mp-nav.active { background: var(--title-from); color: #fff; }
 .mp-hint { font-size: 12px; margin: 6px 4px; opacity: .85; }
+.mp-quota { margin-top: auto; padding-top: 8px; }
 .mp-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 4px; }
 /* Ziehleisten zum Ändern von Breite und Höhe */
 .mp-split { touch-action: none; user-select: none; position: relative; }
 .mp-split::after { content: ''; position: absolute; background: var(--lo); opacity: .0; }
 .mp-split:hover::after, .mp-split:focus-visible::after, .mp-split.dragging::after { opacity: .6; }
-.mp-split-side { cursor: col-resize; }
-.mp-split-side::after { top: 0; bottom: 0; left: 2px; width: 2px; }
+.mp-split-side, .mp-split-queue { cursor: col-resize; }
+.mp-split-side::after, .mp-split-queue::after { top: 0; bottom: 0; left: 2px; width: 2px; }
 .mp-split-stage { cursor: row-resize; height: 6px; margin: -3px 0; flex: none; z-index: 1; }
 .mp-split-stage::after { left: 0; right: 0; top: 2px; height: 2px; }
 .mp-dragging, .mp-dragging * { cursor: inherit !important; user-select: none; }
 .mp-dragging iframe { pointer-events: none; }
-.mp-stage { position: relative; height: var(--mp-stage, 38%); min-height: 80px; max-height: calc(100% - 90px); flex: none; background: #000; color: #fff;
-  box-shadow: inset 1px 1px var(--lo), inset 2px 2px var(--dark), inset -1px -1px var(--hi); overflow: hidden; }
-.mp-stage canvas { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); display: block; }
-.mp-stage:fullscreen { height: 100%; }
+/* Das Bild: Visualisierung, eigenes Video oder YouTube-Player */
+.mp-stage { position: relative; height: var(--mp-stage, 42%); min-height: 80px; max-height: calc(100% - 90px); flex: none; background: #000; color: #fff;
+  box-shadow: inset 1px 1px var(--lo), inset 2px 2px var(--dark), inset -1px -1px var(--hi); overflow: hidden; cursor: pointer; }
+.mp[data-view=now] .mp-stage { flex: 1; height: auto; max-height: none; }
+.mp[data-view=now] .mp-split-stage, .mp[data-view=now] .mp-list { display: none; }
+.mp-stage canvas, .mp-stage video { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); display: block; }
+.mp-stage video { display: none; object-fit: contain; background: #000; }
+.mp-stage[data-kind=video] video { display: block; }
+.mp-stage[data-kind=video] canvas, .mp-stage[data-kind=yt] canvas { visibility: hidden; }
 .mp-yt { position: absolute; inset: 2px; background: #000; }
 .mp-yt[hidden] { display: none; }
 .mp-yt iframe { width: 100%; height: 100%; border: 0; display: block; }
 .mp-yt-shield { position: absolute; inset: 0; cursor: pointer; }
-.mp-stage { cursor: pointer; }
 .mp-yt-probe { position: absolute; width: 1px; height: 1px; left: -9999px; border: 0; }
 .mp-now { position: absolute; left: 8px; right: 8px; bottom: 6px; font: bold 12px var(--font); text-shadow: 1px 1px 0 #000, 0 0 4px #000;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
-.mp-overlay { position: absolute; inset: 2px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.75); padding: 10px; text-align: center; }
+.mp-modes { position: absolute; top: 6px; right: 6px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; z-index: 2; opacity: .9; transition: opacity .25s; }
+.mp-modes button.small { padding: 1px 6px; font-size: 11px; }
+.mp-modes button:disabled { opacity: .55; cursor: default; }
+.mp-modes select { font-size: 11px; padding: 1px 2px; max-width: 150px; }
+.mp-stage:not([data-kind=vis]) #mp-vis-select { display: none; }
+.mp-overlay { position: absolute; inset: 2px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.75); padding: 10px; text-align: center; z-index: 1; }
 .mp-overlay[hidden] { display: none; }
 .mp-consent { max-width: 460px; font-size: 12px; }
 .mp-consent p { margin: 4px 0; }
 .mp-consent label.inline { color: #fff; margin-left: 8px; }
+/* Unter dem Bild: Angaben zum laufenden Titel oder Kopf der Bibliothek */
 .mp-head { display: flex; flex-direction: column; gap: 3px; }
+.mp[data-view=now] .mp-head { background: var(--field); color: var(--field-text); padding: 6px 8px; max-height: 45%; overflow: auto;
+  box-shadow: inset -1px -1px var(--hi), inset 1px 1px var(--lo), inset -2px -2px var(--win), inset 2px 2px var(--dark); }
+.mp-info-title { font-size: 15px; }
+.mp-info-sub { font-size: 12px; opacity: .8; }
+.mp-lobby { border-top: 1px solid var(--lo); margin-top: 4px; padding-top: 4px; }
 .mp-title small { opacity: .75; }
 .mp-users { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin: 2px 0 4px; font-size: 12px; }
 .mp-user.me { font-weight: bold; }
 .mp-tools { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .mp-tools input[type=search], .mp-tools input[type=text] { flex: 0 1 220px; min-width: 120px; }
-.mp-tools input.mp-yt-url { flex: 1 1 260px; }
 .mp-tools label.inline { margin: 0 6px 0 0; }
 .mp-head .mp-hint { margin: 0; }
 .mp-list { flex: 1; min-height: 0; overflow: auto; padding: 0; }
@@ -455,36 +468,137 @@ button.mp-nav.active { background: var(--title-from); color: #fff; }
 .mp-table td { vertical-align: middle; padding: 1px 6px; }
 .mp-table tr.playing td, .mp-table tr.playing:hover td { background: var(--title-from); color: #fff; }
 .mp-table tr.playing button.mp-track { color: #fff; font-weight: bold; }
-.mp-table tr.done td { opacity: .55; }
 .mp-table tr.locked td { opacity: .5; }
+.mp-ico { font-size: 11px; }
+.mp-artist { display: none; }
 button.mp-track { background: none; box-shadow: none; padding: 0; min-width: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; }
 button.mp-track:hover:not(:disabled) { text-decoration: underline; }
 button.mp-track:disabled { cursor: default; }
 .mp-acts { white-space: nowrap; text-align: right; }
 .mp-acts button.small { padding: 0 5px; }
 .mp-by { font-size: 12px; }
-.mp-ytbadge { background: #c00; color: #fff; padding: 0 4px; font-size: 10px; opacity: 1 !important; }
+.mp-kind { background: var(--title-from); color: #fff; padding: 0 4px; font-size: 10px; white-space: nowrap; }
+.mp-kind.video { background: #5a2d82; }
+.mp-kind.yt { background: #c00; }
 .mp-empty { padding: 12px; margin: 0; }
-.mp-controls { display: flex; align-items: center; gap: 3px; padding: 4px 2px; }
-.mp-controls button { min-width: 0; padding: 3px 8px; }
-.mp-controls button.mp-play { padding: 3px 14px; }
+.mp-vis-list { padding: 4px; max-height: none; }
+/* Wiedergabeliste rechts */
+.mp-queue { display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; }
+.mp-qhead { font-size: 12px; padding: 2px 2px 0; }
+.mp-qhead small { opacity: .75; }
+.mp-qlist { flex: 1; min-height: 0; overflow: auto; padding: 2px; }
+.mp-qrow { position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr) 52px 36px; align-items: center; gap: 4px; padding: 2px 4px; font-size: 12px; }
+.mp-qrow .mp-kind { justify-self: start; }
+.mp-qrow:hover { background: var(--hover); }
+.mp-qrow.playing, .mp-qrow.playing:hover { background: var(--title-from); color: #fff; }
+.mp-qrow.playing button.mp-track { font-weight: bold; }
+.mp-qrow.done { opacity: .55; }
+.mp-qrow .num { text-align: right; opacity: .8; }
+.mp-qrow button.mp-track { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-qrow button.mp-track small { opacity: .75; }
+.mp-qrow .dur { font: 11px "Courier New", monospace; }
+.mp-qrow .mp-acts button.small { padding: 0 3px; font-size: 10px; }
+/* Mit Maus erscheinen ▲▼✕ beim Drüberfahren über der Länge, auf Touch-Geräten stehen sie immer dabei */
+@media (hover: hover) {
+  .mp-qrow .mp-acts { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); background: inherit; display: none; }
+  .mp-qrow:hover .mp-acts, .mp-qrow:focus-within .mp-acts { display: block; }
+}
+@media (hover: none) {
+  .mp-qrow { grid-template-columns: 22px minmax(0, 1fr) 52px 36px auto; }
+}
+.mp-qtools { display: flex; flex-direction: column; gap: 4px; }
+.mp-ytfield { display: flex; gap: 3px; }
+.mp-ytfield input { flex: 1; min-width: 0; }
+.mp-qbtns { display: flex; flex-wrap: wrap; gap: 3px; }
+.mp-qbtns button.small { flex: 1 1 auto; padding: 2px 4px; white-space: nowrap; }
+.mp-qtools .mp-hint { margin: 0; }
+.mp-tabs { display: none; }
+/* Steuerung unten mit rundem Abspielknopf */
+.mp-controls { display: flex; align-items: center; gap: 3px; padding: 4px 4px; background: var(--win);
+  box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--lo); }
+.mp-controls button { min-width: 0; padding: 3px 8px; min-height: 26px; display: inline-flex; align-items: center; justify-content: center; }
+.mp-controls button.mp-play { width: 40px; height: 40px; padding: 0; margin: 0 6px 0 4px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 35% 30%, #6fa8ff, #0a3fa8); box-shadow: 0 0 0 2px #fff, 0 0 0 3px #808080; }
+.mp-controls button.mp-play:active { background: radial-gradient(circle at 40% 35%, #5a95f0, #08338a); }
+.mp-play .i-pause, .mp-play.on .i-play { display: none; }
+.mp-play.on .i-pause { display: block; }
 .mp-controls button:disabled { opacity: .5; cursor: default; }
 .mp-controls #mp-seek { flex: 1; min-width: 60px; }
 .mp-time { font: 12px "Courier New", monospace; min-width: 42px; text-align: center; }
 .mp-vol { display: inline-flex; align-items: center; gap: 2px; }
 .mp-vol input { width: 80px; }
+.mp-lcd, .mp-mini-off { display: none !important; }
+.mp.no-mini .mp-mini-btn { display: none; }
 .mp-dlg { width: min(440px, calc(100vw - 20px)); padding: 3px; border: 0; color: var(--text); }
 .mp-dlg::backdrop { background: rgba(0,0,0,.3); }
 .mp-picks { display: flex; flex-direction: column; gap: 3px; max-height: 50vh; overflow: auto; }
 .mp-picks button { text-align: left; }
-@media (max-width: 640px) {
-  .mp-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--mp-side-h, 110px) 6px minmax(0, 1fr); }
-  .mp-side { max-height: none; }
-  .mp-split-side { cursor: row-resize; }
-  .mp-split-side::after { left: 0; right: 0; top: 2px; bottom: auto; width: auto; height: 2px; }
-  .mp-by, .mp-table th:nth-child(5) { display: none; }
-  .mp-vis-pick { display: none; }
-  .mp-vol input { width: 50px; }
+/* Theater: Das Bild füllt das Fenster, die Steuerung liegt darüber und blendet sich aus */
+.mp.theater { position: relative; gap: 0; }
+.mp:fullscreen { height: 100%; background: #000; }
+.mp.theater .mp-side, .mp.theater .mp-split, .mp.theater .mp-queue, .mp.theater .mp-head, .mp.theater .mp-list, .mp.theater .mp-tabs,
+.mp.theater .statusbar { display: none; }
+.mp.theater .mp-main { display: flex; }
+.mp.theater .mp-center { flex: 1; }
+.mp.theater .mp-stage { flex: 1; height: auto; max-height: none; }
+.mp.theater .mp-controls { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; transition: opacity .25s; }
+.mp.theater .mp-now { bottom: 52px; transition: opacity .25s; }
+.mp.theater.idle { cursor: none; }
+.mp.theater.idle .mp-controls, .mp.theater.idle .mp-modes, .mp.theater.idle .mp-now { opacity: 0; }
+.mp.theater.idle .mp-stage { cursor: none; }
+/* Mini-Player: eine Leiste mit Vorschaubild, Knöpfen und Anzeige (das Desktop-Fenster schrumpft mit, public/retro.js) */
+body.mp-mini .body { padding: 4px; }
+.mp.mini { height: auto; min-height: 0; flex-direction: row; align-items: center; gap: 0; }
+.mp.mini .mp-main, .mp.mini .mp-center { display: contents; }
+.mp.mini .mp-side, .mp.mini .mp-split, .mp.mini .mp-queue, .mp.mini .mp-head, .mp.mini .mp-list, .mp.mini .mp-tabs, .mp.mini .mp-modes,
+.mp.mini .mp-now, .mp.mini .mp-overlay, .mp.mini .statusbar { display: none; }
+.mp.mini .mp-stage { width: 96px; height: 54px; min-height: 0; max-height: none; flex: none; cursor: default; }
+.mp.mini .mp-controls { flex: 1; min-width: 0; box-shadow: none; padding: 0 0 0 6px; }
+.mp.mini .mp-controls [data-act=stop], .mp.mini .mp-controls [data-act=shuffle], .mp.mini .mp-controls [data-act=repeat], .mp.mini #mp-seek,
+.mp.mini .mp-time, .mp.mini .mp-vol, .mp.mini .mp-fs, .mp.mini .mp-mini-btn { display: none; }
+.mp.mini .mp-controls button.mp-play { width: 36px; height: 36px; margin: 0 4px; order: 1; }
+.mp.mini .mp-controls [data-act=prev] { order: 0; }
+.mp.mini .mp-controls [data-act=next] { order: 2; }
+.mp.mini .mp-lcd { display: flex !important; order: 3; flex: 1; min-width: 0; flex-direction: column; gap: 1px; margin-left: 4px; padding: 5px 8px; background: #000; color: #40ff40;
+  font: 12px "Courier New", monospace; box-shadow: inset 1px 1px var(--lo), inset 2px 2px var(--dark), inset -1px -1px var(--hi); }
+.mp.mini .mp-lcd span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp.mini .mp-mini-off { display: inline-flex !important; order: 4; margin-left: 4px; }
+/* Handy (schmales Fenster): Bild oben im 16:9-Format, darunter Reiter statt Seitenleisten, Steuerung unten fest */
+.mp.phone .mp-main { display: flex; flex-direction: column; gap: 4px; }
+.mp.phone .mp-center { display: contents; }
+.mp.phone .mp-split { display: none; }
+.mp.phone .mp-stage { order: 1; flex: none; width: 100%; height: auto; aspect-ratio: 16 / 9; max-height: 38vh; min-height: 0; }
+.mp.phone .mp-tabs { order: 2; display: flex; gap: 2px; }
+.mp.phone .mp-tabs button { flex: 1; min-height: 36px; padding: 2px 4px; }
+.mp.phone .mp-tabs button.pressed { font-weight: bold; }
+.mp.phone .mp-side { order: 3; flex: none; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: 3px; padding: 3px; }
+.mp.phone .mp-sub { display: contents; }
+.mp.phone .mp-group, .mp.phone .mp-desk-only, .mp.phone .mp-side .mp-hint { display: none; }
+.mp.phone button.mp-nav { width: auto; flex: none; margin: 0; font-weight: normal; padding: 4px 8px; }
+.mp.phone .mp-head { order: 4; }
+.mp.phone .mp-list { order: 5; flex: 1; min-height: 0; }
+.mp.phone .mp-queue { order: 6; flex: 1; min-height: 0; }
+.mp.phone[data-view=now] .mp-head { flex: 1; max-height: none; }
+.mp.phone[data-tab=queue] .mp-side, .mp.phone[data-tab=queue] .mp-head, .mp.phone[data-tab=queue] .mp-list { display: none; }
+.mp.phone:not([data-tab=queue]) .mp-queue { display: none; }
+.mp.phone[data-tab=lobby] .mp-side { display: none; }
+.mp.phone .mp-by, .mp.phone .mp-table th:nth-child(5), .mp.phone .mp-table td:nth-child(3), .mp.phone .mp-table th:nth-child(3) { display: none; }
+.mp.phone .mp-artist { display: block; opacity: .75; }
+.mp.phone .mp-modes .lbl { display: none; }
+.mp.phone .mp-modes select { max-width: 120px; }
+.mp.phone .mp-qrow { padding: 6px 4px; font-size: 13px; }
+.mp.phone .mp-controls { flex-wrap: wrap; justify-content: center; gap: 6px; }
+.mp.phone .mp-controls #mp-seek { order: -1; flex: 1 1 60%; }
+.mp.phone .mp-controls .mp-time { order: -2; }
+.mp.phone .mp-controls #mp-dur { order: -1; }
+.mp.phone .mp-controls button { min-height: 40px; min-width: 40px; }
+.mp.phone .mp-controls button.mp-play { width: 56px; height: 56px; }
+/* Wie im Entwurf: Zeitleiste oben, darunter Zurück, Abspielen, Weiter und Vollbild; die Lautstärke regelt 🔊 neben der Uhr */
+.mp.phone .mp-controls [data-act=stop], .mp.phone .mp-controls [data-act=shuffle], .mp.phone .mp-controls [data-act=repeat], .mp.phone .mp-vol,
+.mp.phone .mp-mini-btn { display: none; }
+@media (max-width: 820px) {
+  .mp:not(.phone) .mp-main { grid-template-columns: var(--mp-side, 140px) 6px minmax(0, 1fr) 6px var(--mp-queue, 200px); }
+  .mp:not(.phone) .mp-by, .mp:not(.phone) .mp-table th:nth-child(5) { display: none; }
 }
 
 /* ---------- Zufallsgenerator (/zufall) ---------- */

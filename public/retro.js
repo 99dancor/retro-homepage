@@ -135,8 +135,10 @@
   function save() {
     if (reloading) return;
     var list = wins.filter(function (w) { return !w.drop; }).sort(function (a, b) { return a.z - b.z; }).map(function (w) {
-      return { url: w.url, x: w.el.offsetLeft, y: w.el.offsetTop, w: w.el.offsetWidth, h: w.el.offsetHeight,
-        min: w.el.classList.contains('min'), max: w.el.classList.contains('max') };
+      // Ein Mini-Player kommt nach dem Neuladen wieder in voller Größe
+      var b = w.before;
+      return { url: w.url, x: w.el.offsetLeft, y: w.el.offsetTop, w: b ? b.w : w.el.offsetWidth, h: b ? b.h : w.el.offsetHeight,
+        min: w.el.classList.contains('min'), max: b ? b.max : w.el.classList.contains('max') };
     });
     try { sessionStorage.setItem('desk', JSON.stringify(list)); } catch (e) { /* privat */ }
   }
@@ -162,7 +164,10 @@
   }
 
   function minimize(w) { w.el.classList.add('min'); sound('minimieren'); if (active === w) focusTopmost(); save(); }
-  function toggleMax(w) { w.el.classList.toggle('max'); sound('maximieren'); focus(w); }
+  function toggleMax(w) {
+    if (w.before) { w.el.classList.remove('mini'); w.before = null; } // der Mediaplayer merkt das und wird wieder groß
+    w.el.classList.toggle('max'); sound('maximieren'); focus(w);
+  }
   function close(w) {
     sound('schliessen');
     w.el.remove(); w.task.remove();
@@ -203,6 +208,8 @@
       return;
     }
     w.url = cleanUrl(w.iframe.contentWindow.location);
+    // Lädt ein Mini-Player neu, kommt das Fenster wieder in voller Größe
+    if (w.before) window.RetroDesk.mini(w.iframe.contentWindow, false);
     var t = doc.title, suffix = ' – ' + siteTitle;
     if (t.endsWith(suffix)) t = t.slice(0, -suffix.length);
     setTitle(w, t);
@@ -251,8 +258,8 @@
     handle.addEventListener('pointercancel', up);
   }
 
-  // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Musik-Player brauchen etwas mehr Platz
-  var SIZES = { haustier: [820, 700], musik: [900, 640], zufall: [760, 620], kartenspiele: [1080, 760], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], werwolf: [1000, 720], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], sudoku: [720, 640], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640] };
+  // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Mediaplayer brauchen etwas mehr Platz
+  var SIZES = { haustier: [820, 700], musik: [1080, 700], zufall: [760, 620], kartenspiele: [1080, 760], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], werwolf: [1000, 720], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], sudoku: [720, 640], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640] };
   function place(el, s, url) {
     var n = wins.length % 8, size = SIZES[section(url)] || [820, 580];
     var w = s && s.w || Math.min(size[0], deskEl.clientWidth - 40), h = s && s.h || Math.min(size[1], deskEl.clientHeight - 40);
@@ -306,6 +313,15 @@
     focus(w);
     return w;
   }
+  function byWin(win) { return wins.filter(function (o) { return o.iframe.contentWindow === win; })[0]; }
+  // Inhalt eines Fensters auf width × height bringen; Rahmen und Titelleiste kommen dazu
+  function sizeTo(w, width, height) {
+    var nw = Math.min(width + w.el.offsetWidth - w.iframe.clientWidth, deskEl.clientWidth);
+    var nh = Math.min(height + w.el.offsetHeight - w.iframe.clientHeight, deskEl.clientHeight);
+    w.el.style.width = nw + 'px'; w.el.style.height = nh + 'px';
+    w.el.style.left = Math.max(0, Math.min(w.el.offsetLeft, deskEl.clientWidth - nw)) + 'px';
+    w.el.style.top = Math.max(0, Math.min(w.el.offsetTop, deskEl.clientHeight - nh)) + 'px';
+  }
   function isAuthWin(w) { var k = winKey(w.url); return k === 'login' || k === 'register'; }
   window.RetroDesk = {
     open: open,
@@ -316,20 +332,37 @@
     },
     // Ein Fenster passt sich seinem Inhalt an (Minesweeper je nach Spielfeld), außer es ist maximiert oder auf dem Handy
     fit: function (win, width, height) {
-      var w = wins.filter(function (o) { return o.iframe.contentWindow === win; })[0];
+      var w = byWin(win);
       if (!w) return;
       w.el.classList.add('fitted');
       if (mobile.matches || w.el.classList.contains('max')) return;
-      var nw = Math.min(width + w.el.offsetWidth - w.iframe.clientWidth, deskEl.clientWidth);
-      var nh = Math.min(height + w.el.offsetHeight - w.iframe.clientHeight, deskEl.clientHeight);
-      w.el.style.width = nw + 'px'; w.el.style.height = nh + 'px';
-      w.el.style.left = Math.max(0, Math.min(w.el.offsetLeft, deskEl.clientWidth - nw)) + 'px';
-      w.el.style.top = Math.max(0, Math.min(w.el.offsetTop, deskEl.clientHeight - nh)) + 'px';
+      sizeTo(w, width, height);
       save();
+    },
+    // Mini-Player: Das Fenster wird zur Leiste und merkt sich die Größe davor, mit on = false kommt sie wieder
+    mini: function (win, on, width, height) {
+      var w = byWin(win);
+      if (!w || mobile.matches) return false;
+      if (on) {
+        if (!w.before) w.before = { w: w.el.offsetWidth, h: w.el.offsetHeight, max: w.el.classList.contains('max') };
+        w.el.classList.remove('max');
+        w.el.classList.add('mini');
+        sizeTo(w, width, height);
+      } else if (w.before) {
+        var b = w.before;
+        w.before = null;
+        w.el.classList.remove('mini');
+        w.el.classList.toggle('max', b.max);
+        w.el.style.width = Math.min(b.w, deskEl.clientWidth) + 'px'; w.el.style.height = Math.min(b.h, deskEl.clientHeight) + 'px';
+        w.el.style.left = Math.max(0, Math.min(w.el.offsetLeft, deskEl.clientWidth - w.el.offsetWidth)) + 'px';
+        w.el.style.top = Math.max(0, Math.min(w.el.offsetTop, deskEl.clientHeight - w.el.offsetHeight)) + 'px';
+      }
+      save();
+      return true;
     },
     // „Beenden“ im Menü eines Fensters
     close: function (win) {
-      var w = wins.filter(function (o) { return o.iframe.contentWindow === win; })[0];
+      var w = byWin(win);
       if (w) close(w);
     },
   };

@@ -34,8 +34,8 @@
       </select></label>
     <label>Speicher für Musik pro Mitglied (MB):<input type="number" name="music_quota_mb" value="<%= s.music_quota_mb %>" min="0"></label>
     <label class="inline"><input type="checkbox" name="lobby_enabled" value="1" <%= s.lobby_enabled === '1' ? 'checked' : '' %>> Lobbys zum gemeinsamen Hören</label>
-    <label class="inline"><input type="checkbox" name="youtube_enabled" value="1" <%= s.youtube_enabled === '1' ? 'checked' : '' %>> YouTube-Lieder in Lobbys erlauben</label>
-    <br><small>Ein Titel darf bei Mitgliedern höchstens 50 MB groß sein. Hochgeladene Musik verwaltest du unter <a href="/admin/musik">Musik</a>.</small>
+    <label class="inline"><input type="checkbox" name="youtube_enabled" value="1" <%= s.youtube_enabled === '1' ? 'checked' : '' %>> YouTube-Videos im Player und in Lobbys erlauben</label>
+    <br><small>Eine Datei (Musik oder Video) darf bei Mitgliedern höchstens 200 MB groß sein. Hochgeladene Musik und Videos verwaltest du unter <a href="/admin/musik">Musik</a>.</small>
   </fieldset>
   <fieldset class="groupbox" id="kasse"><legend>💰 Kartenspiele: Kasse</legend>
     <div class="row">

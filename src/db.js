@@ -281,7 +281,9 @@ CREATE TABLE IF NOT EXISTS tracks (
   visibility TEXT NOT NULL DEFAULT 'public',
   plays INTEGER NOT NULL DEFAULT 0,
   uploader_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'audio',     -- audio, video oder youtube (dann ohne Datei, nur youtube_id)
+  youtube_id TEXT
 );
 CREATE TABLE IF NOT EXISTS playlists (
   id INTEGER PRIMARY KEY,
@@ -619,6 +621,8 @@ addColumn('users', 'about', 'TEXT');
 addColumn('users', 'profile_visibility', "TEXT NOT NULL DEFAULT 'members'");
 addColumn('users', 'pm_from', "TEXT NOT NULL DEFAULT 'all'");
 addColumn('users', 'gb_from', "TEXT NOT NULL DEFAULT 'all'");
+addColumn('tracks', 'kind', "TEXT NOT NULL DEFAULT 'audio'");
+addColumn('tracks', 'youtube_id', 'TEXT');
 addColumn('artworks', 'draft', 'INTEGER NOT NULL DEFAULT 0');    // 1 = Entwurf, den eine Paint-Lobby von selbst sichert
 
 function now() { return Math.floor(Date.now() / 1000); }

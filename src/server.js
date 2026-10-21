@@ -76,6 +76,8 @@ app.use((req, res, next) => {
   });
   const v = auth.visibilitySql(req.user, 'page', 'p');
   res.locals.navPages = db.prepare(`SELECT slug, title FROM pages p WHERE in_nav = 1 AND ${v.sql} ORDER BY position, title`).all(...v.params);
+  // Regelkodex (eigene Seite mit der Adresse „regeln“) steht im Startmenü unter Info
+  res.locals.rulesPage = !!db.prepare(`SELECT 1 FROM pages p WHERE slug = 'regeln' AND ${v.sql}`).get(...v.params);
   next();
 });
 // Desktop: Seiten laufen als Fenster (iframes) auf einem Win98-Desktop. Direkt aufgerufen
@@ -88,9 +90,10 @@ app.use((req, res, next) => {
   if (embed || req.method !== 'GET') return next();
   const render = res.render.bind(res);
   res.render = (view, opts, cb) => {
-    if (view.startsWith('admin/')) return render(view, opts, cb);
     req.shell = true;
-    return render('desktop', { title: (opts && opts.title) || '', src: req.originalUrl }, cb);
+    // Die Systemsteuerung ist ein Fenster wie alle anderen, nur mit eigenem Titel
+    const title = (opts && opts.title) || '';
+    return render('desktop', { title: view.startsWith('admin/') ? 'Systemsteuerung' + (title ? ' – ' + title : '') : title, src: req.originalUrl }, cb);
   };
   next();
 });
@@ -105,6 +108,7 @@ app.use('/api/stats', profileRoutes.stats);
 app.use('/admin', require('./routes/admin'));
 app.use('/forum', require('./routes/board'));
 app.use('/musik', require('./routes/music').router);
+app.use('/eigene-dateien', require('./routes/ownfiles'));
 app.use('/kartenspiele', require('./routes/kartenspiele'));
 app.use('/blackjack', require('./routes/blackjack'));
 app.use('/poker', require('./routes/poker'));

@@ -106,8 +106,11 @@ function safeUrl(u) {
 
 function asArray(v) { return v === undefined ? [] : Array.isArray(v) ? v : [v]; }
 
-function visibilityFrom(body) {
+// Dateien und Titel von Mitgliedern können zusätzlich „Nur Freunde“ sein (Freunde dessen, der sie hochgeladen hat)
+const FRIENDS_LABEL = 'Nur Freunde des Hochladenden';
+function visibilityFrom(body, owned = false) {
+  if (owned && body.visibility === 'friends') return 'friends';
   return Object.hasOwn(VISIBILITY, body.visibility) ? body.visibility : 'public';
 }
 
-module.exports = { md, mdBlocks, imageOptions, slugify, fmtDate, fmtSize, VISIBILITY, safeUrl, asArray, visibilityFrom };
+module.exports = { md, mdBlocks, imageOptions, slugify, fmtDate, fmtSize, VISIBILITY, FRIENDS_LABEL, safeUrl, asArray, visibilityFrom };

@@ -137,7 +137,7 @@
 
   // ---------- Spiel ----------
   // st: 0 verdeckt, 1 aufgedeckt, 2 Fahne, 3 Fragezeichen
-  var g = null, W = 0, H = 0, timer = null, scale = 1;
+  var g = null, W = 0, H = 0, timer = null, scale = prefs.scale > 0 ? prefs.scale : 1;
   var press = [], faceDown = false, faceOh = false;
   var startReq = null;
 
@@ -319,18 +319,25 @@
   }
   function faceX() { return Math.floor((W - 23) / 2); }
 
-  // Fenster an das Spielfeld anpassen; ist es größer, wird ganzzahlig vergrößert, auf kleinen Bildschirmen verkleinert
+  // Fenster an das Spielfeld anpassen. Zieht man das Fenster an der Ecke größer oder kleiner, wächst das Spielfeld mit
+  // (in Schritten von 5 %); nach dem Loslassen rastet das Fenster auf das Spielfeld ein und merkt sich die Größe.
   function fitWindow() {
-    if (desk && desk.fit) desk.fit(window, W * scale, menubar.offsetHeight + H * scale);
+    if (desk && desk.fit) desk.fit(window, Math.round(W * scale), menubar.offsetHeight + Math.round(H * scale), { scalable: true });
   }
   function layout() {
     var aw = document.documentElement.clientWidth, ah = document.documentElement.clientHeight - menubar.offsetHeight;
     var s = Math.min(aw / W, ah / H);
-    scale = s >= 1 ? Math.floor(s) : Math.max(0.5, s);
-    canvas.style.width = W * scale + 'px'; canvas.style.height = H * scale + 'px';
+    scale = Math.min(6, Math.max(0.5, Math.floor(s * 20 + 0.001) / 20));
+    canvas.style.width = Math.round(W * scale) + 'px'; canvas.style.height = Math.round(H * scale) + 'px';
     draw();
   }
   window.addEventListener('resize', layout);
+  window.addEventListener('message', function (e) {
+    if (e.origin !== location.origin || e.data !== 'desk:resized') return;
+    layout();
+    prefs.scale = scale; savePrefs();
+    fitWindow();
+  });
 
   // ---------- Maus und Finger ----------
   function hit(e) {

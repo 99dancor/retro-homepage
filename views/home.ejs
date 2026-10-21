@@ -1,7 +1,7 @@
 <%- include('partials/head') %>
 <div class="content"><%- homeHtml %></div>
 <div class="home-links">
-  <% if (rulesUrl) { %><a class="btn small" href="<%= rulesUrl %>">📜 Regelkodex</a><% } else if (user && user.isAdmin) { %><small class="muted">📜 Für den Link zum Regelkodex lege unter <a href="/admin/pages/new" target="_top">Eigene Seiten</a> eine Seite mit der Adresse <code>regeln</code> an.</small><% } %>
+  <% if (rulesUrl) { %><a class="btn small" href="<%= rulesUrl %>">📜 Regelkodex</a><% } else if (user && user.isAdmin) { %><small class="muted">📜 Für den Link zum Regelkodex lege unter <a href="/admin/pages/new">Eigene Seiten</a> eine Seite mit der Adresse <code>regeln</code> an.</small><% } %>
   <button type="button" class="small" id="guide-start">🧭 Kurzer Rundgang</button>
 </div>
 <div class="construction"></div>

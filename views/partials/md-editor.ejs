@@ -1,4 +1,4 @@
-<%# Texteditor mit Live-Vorschau und Bildwerkzeugen.
+<%# Texteditor: „Modern“ (man schreibt direkt im fertigen Text) oder „Markdown“ (Quelltext), mit Bildwerkzeugen.
     Erwartet: name, value. Optional: uploadUrl, previewUrl, libraryUrl (null = ausblenden), compact %>
 <% const _up = typeof uploadUrl === 'undefined' ? '/admin/media' : uploadUrl;
    const _pv = typeof previewUrl === 'undefined' ? '/admin/preview' : previewUrl;
@@ -7,18 +7,18 @@
 <div class="editor<%= _compact ? ' compact' : '' %>" data-editor data-preview-url="<%= _pv %>"<% if (_up) { %> data-upload-url="<%= _up %>"<% } %><% if (_lib) { %> data-library-url="<%= _lib %>"<% } %>>
   <div class="editor-tools">
     <span class="tool-group">
-      <button type="button" class="small" data-md="**|**" title="Fett"><b>F</b></button>
-      <button type="button" class="small" data-md="*|*" title="Kursiv"><i>K</i></button>
-      <button type="button" class="small" data-md="~~|~~" title="Durchgestrichen"><del>S</del></button>
-      <button type="button" class="small" data-line="## " title="Überschrift">H2</button>
-      <button type="button" class="small" data-line="### " title="Kleine Überschrift">H3</button>
+      <button type="button" class="small" data-md="**|**" data-cmd="bold" title="Fett (Strg+B)"><b>F</b></button>
+      <button type="button" class="small" data-md="*|*" data-cmd="italic" title="Kursiv (Strg+I)"><i>K</i></button>
+      <button type="button" class="small" data-md="~~|~~" data-cmd="strikeThrough" title="Durchgestrichen"><del>S</del></button>
+      <button type="button" class="small" data-line="## " data-cmd="h2" title="Überschrift">H2</button>
+      <button type="button" class="small" data-line="### " data-cmd="h3" title="Kleine Überschrift">H3</button>
     </span>
     <span class="tool-group">
-      <button type="button" class="small" data-md="[|](https://)" title="Link">🔗</button>
-      <button type="button" class="small" data-line="- " title="Liste">•</button>
-      <button type="button" class="small" data-line="1. " title="Nummerierte Liste">1.</button>
-      <button type="button" class="small" data-line="> " title="Zitat">❝</button>
-      <button type="button" class="small" data-md="```\n|\n```" title="Code">&lt;/&gt;</button>
+      <button type="button" class="small" data-md="[|](https://)" data-cmd="link" title="Link">🔗</button>
+      <button type="button" class="small" data-line="- " data-cmd="insertUnorderedList" title="Liste">•</button>
+      <button type="button" class="small" data-line="1. " data-cmd="insertOrderedList" title="Nummerierte Liste">1.</button>
+      <button type="button" class="small" data-line="> " data-cmd="blockquote" title="Zitat">❝</button>
+      <button type="button" class="small" data-md="```\n|\n```" data-cmd="code" title="Code">&lt;/&gt;</button>
       <button type="button" class="small" data-block="table" title="Tabelle">▦</button>
       <button type="button" class="small" data-block="hr" title="Trennlinie">―</button>
     </span>
@@ -33,16 +33,15 @@
       <% if (_lib) { %><button type="button" class="small" data-library>📚 Bibliothek</button><% } %>
     </span><% } %>
     <span class="tool-group view-switch">
-      <button type="button" class="small" data-mode="text" title="Nur Text">✏️ Text</button>
-      <button type="button" class="small" data-mode="split" title="Text und Vorschau nebeneinander">◫ Beides</button>
-      <button type="button" class="small" data-mode="preview" title="Nur Vorschau (Bilder bearbeiten)">👁 Vorschau</button>
+      <button type="button" class="small" data-mode="modern" title="Direkt im fertigen Text schreiben">✨ Modern</button>
+      <button type="button" class="small" data-mode="markdown" title="Markdown-Quelltext bearbeiten">Ⓜ️ Markdown</button>
     </span>
   </div>
   <div class="panel" data-library-box hidden><div class="thumbs" data-library-list>Lade…</div></div>
   <div class="editor-panes">
     <textarea name="<%= name %>" class="code"><%= value || '' %></textarea>
     <div class="panel preview" data-preview-box hidden>
-      <div class="content" data-preview-content></div>
+      <div class="content" data-preview-content contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="Text"></div>
       <div class="img-tools" data-img-tools hidden>
         <button type="button" class="small" data-pos="links" title="Links, Text fließt rechts daneben">⇤ Links</button>
         <button type="button" class="small" data-pos="mitte" title="Mittig, eigene Zeile">⇔ Mitte</button>
@@ -64,6 +63,6 @@
       <div class="img-handle" data-img-handle hidden title="Ziehen, um die Größe zu ändern"></div>
     </div>
   </div>
-  <small><span data-status class="muted"></span> Formatierung mit <a href="https://www.markdownguide.org/basic-syntax/" target="_blank" rel="noopener">Markdown</a>.<% if (_up) { %> Bilder auch per Drag &amp; Drop oder Strg+V ins Textfeld.<% } %> In der Vorschau Bilder anklicken zum Anpassen, an der Ecke ziehen für die Größe, auf einen Absatz ziehen zum Verschieben.</small>
+  <small><span data-status class="muted"></span> <span data-help="modern">Schreib einfach los, formatiert wird über die Knöpfe oder Strg+B / Strg+I.</span><span data-help="markdown">Formatierung mit <a href="https://www.markdownguide.org/basic-syntax/" target="_blank" rel="noopener">Markdown</a>.</span><% if (_up) { %> Bilder auch per Drag &amp; Drop oder Strg+V.<% } %> <span data-help="modern">Bilder anklicken zum Anpassen, an der Ecke ziehen für die Größe, mit der Maus an eine andere Stelle ziehen zum Verschieben.</span></small>
 </div>
 <script src="<%= asset('editor.js') %>" defer></script>

@@ -12,8 +12,8 @@ const youtube = require('../youtube');
 
 const router = express.Router();
 const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
-// Mitglieder wählen zwischen öffentlich, angemeldet und privat; Gruppen vergibt der Admin in der Systemsteuerung
-const OWN_VIS = ['public', 'members', 'private'];
+// Mitglieder wählen zwischen öffentlich, angemeldet, nur Freunde und privat; Gruppen vergibt der Admin in der Systemsteuerung
+const OWN_VIS = ['public', 'members', 'friends', 'private'];
 const ownVis = (v, fallback) => (OWN_VIS.includes(v) ? v : fallback);
 const lobbyOn = () => getSetting('lobby_enabled', '1') === '1';
 const youtubeOn = () => getSetting('youtube_enabled', '1') === '1';

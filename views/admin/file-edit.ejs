@@ -9,7 +9,7 @@
     <label>Spiel:<input type="text" name="game" class="w100" value="<%= file.game || '' %>"></label>
   </div>
   <label>Beschreibung:<textarea name="description" style="min-height:60px"><%= file.description || '' %></textarea></label>
-  <%- include('../partials/visibility', { item: file, acl }) %>
+  <%- include('../partials/visibility', { item: file, acl, owned: true }) %>
   <div class="actions"><button>💾 Speichern</button><a class="btn" href="/files/dl/<%= file.id %>">⬇ Download</a><a class="btn" href="/admin/downloads/<%= file.id %>">📊 Statistik</a></div>
 </form>
 <form method="post" action="/admin/files/<%= file.id %>/delete" data-confirm="Datei endgültig löschen?" class="actions">

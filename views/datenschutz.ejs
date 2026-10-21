@@ -86,7 +86,7 @@
   <%- code('paintPrefs', 'Unter diesem Namen merkt sich Paint Palette, eigene Farben, Ansicht und Werkzeug-Optionen.') %>
   <%- code('wallpaper', 'So setzt Paint ein Bild als Hintergrund: Es landet unter <code>darstellung-bild</code> im Browser, nicht auf dem Server.') %>
   <%- code('guide', 'Die Startseite merkt sich nur, dass du den Rundgang schon gesehen hast.') %>
-  <%- code('editor', 'Der Editor merkt sich nur, ob du Text, Vorschau oder beides siehst.') %>
+  <%- code('editor', 'Der Editor merkt sich nur, ob du lieber „Modern“ oder „Markdown“ schreibst.') %>
   <%- code('pet', 'Unter diesen Namen speichert das Haustier-Spiel im Browser.') %>
   <%- code('volume', 'Die Lautstärke liegt unter diesem Namen im Browser. Mediaplayer und Haustier-Spiel lesen sie von dort.') %>
   <%- code('musicPrefs', 'Der Mediaplayer merkt sich Visualisierung, Bild oder Visualisierung bei Videos, Zufall, Wiederholen und die Größe der Bereiche.') %>
@@ -134,20 +134,26 @@
   <li><b>Besucherbuch:</b> Name (oder dein Benutzername), Text und Zeit, für alle sichtbar. Mit „Anonym eintragen“ wird am Eintrag weder ein Name noch dein Konto gespeichert.</li>
   <li><b>Forum:</b> Text, Zeit und dein Konto. „Anonym veröffentlichen“ versteckt deinen Namen nur vor anderen. Du selbst und der Admin sehen ihn weiterhin.</li>
   <li><b>Benachrichtigungen</b> (🔔 neben der Uhr): Für dein Konto gespeichert werden Art, Text, Link, Zeit und ob du sie gelesen hast. Gelesene verschwinden nach 30 Tagen, es bleiben höchstens 100. Was du bekommen willst, stellst du in den <a href="/account#benachrichtigungen">Kontoeinstellungen</a> ein.
-  <%- code('notifications', 'Diese Spalten hat eine Benachrichtigung.') %></li>
+  <details><summary>🔍 Code dazu</summary>
+  <%- code('notifications', 'Diese Spalten hat eine Benachrichtigung.') %></details></li>
   <li><b>Push auf Handy und Browser</b> (nur wenn du es einschaltest): Gespeichert werden die Adresse, die dein Browser beim Push-Dienst seines Herstellers bekommt (z. B. Google, Mozilla oder Apple), die Schlüssel, mit denen die Seite die Nachricht verschlüsselt, ein Gerätename wie „Firefox auf Windows“ und wann zuletzt etwas geschickt wurde. Der Push-Dienst sieht, dass eine Nachricht kommt, aber nicht ihren Inhalt. Abmelden kannst du jedes Gerät in den Kontoeinstellungen.
+  <details><summary>🔍 Code dazu</summary>
   <%- code('pushSubs', 'So sieht ein angemeldetes Gerät in der Datenbank aus.') %>
-  <%- code('pushEncrypt', 'Jede Nachricht wird für genau dein Gerät verschlüsselt, bevor sie den Server verlässt.') %></li>
+  <%- code('pushEncrypt', 'Jede Nachricht wird für genau dein Gerät verschlüsselt, bevor sie den Server verlässt.') %></details></li>
   <li><b>Erinnerungen von Pixelpfoten:</b> Alle 15 Minuten rechnet der Server mit den Regeln des Spiels nach, wie es deinen Tieren in deinem gespeicherten Spielstand geht. Gespeichert wird dabei nur die Erinnerung selbst.
-  <%- code('petwatch', 'Das wird geprüft.') %></li>
+  <details><summary>🔍 Code dazu</summary>
+  <%- code('petwatch', 'Das wird geprüft.') %></details></li>
   <li><b>Entwürfe:</b> Mit „💾 Entwurf speichern“ legt die Seite Titel, Text und die übrigen Felder des Formulars (z. B. „Anonym“) für dein Konto ab, bis du den Beitrag abschickst oder den Entwurf löschst. Nach dem ersten Speichern sichert das Formular Änderungen nach ein paar Sekunden von selbst. Entwürfe sieht nur du, auch der Admin bekommt sie nicht angezeigt (in der Datenbank liegen sie natürlich).
-  <%- code('drafts', 'Diese Spalten hat ein Entwurf.') %></li>
+  <details><summary>🔍 Code dazu</summary>
+  <%- code('drafts', 'Diese Spalten hat ein Entwurf.') %></details></li>
   <li><b>Forenabos:</b> Welche Themen du abonniert hast (beim Schreiben passiert das von selbst, „🔔 Abonnieren“ und „🔕 Abo beenden“ steuern es). Das sehen nur du und die Datenbank.
-  <%- code('boardSubs', 'Mehr als Konto, Thema und Zeitpunkt wird nicht gespeichert.') %></li>
+  <details><summary>🔍 Code dazu</summary>
+  <%- code('boardSubs', 'Mehr als Konto, Thema und Zeitpunkt wird nicht gespeichert.') %></details></li>
   <li><b>Aufrufe im Forum:</b> Am Thema steht nur eine Zahl. Damit Neuladen nicht mitzählt, merkt sich der Server sechs Stunden lang im Arbeitsspeicher, dass dein Konto bzw. deine IP-Adresse das Thema schon gesehen hat. Nach einem Neustart ist das weg.
-  <%- code('boardViews', 'So wird gezählt.') %></li>
+  <details><summary>🔍 Code dazu</summary>
+  <%- code('boardViews', 'So wird gezählt.') %></details></li>
   <li><b>Kontakt:</b> Name, E-Mail (freiwillig), Betreff, Text und dein Konto, falls angemeldet. Das sieht nur der Admin. Es bleibt, bis er es löscht.</li>
-  <li><b>Bilder und Dateien</b> (außer Profilbildern) werden unverändert mit ihrem ursprünglichen Dateinamen gespeichert. Fotos können versteckte Angaben wie den Aufnahmeort enthalten. Entferne sie vorher, wenn du das nicht möchtest. Bilder aus dem Forum kann jeder abrufen, der die Adresse kennt.</li>
+  <li><b>Bilder und Dateien</b> (außer Profilbildern) werden unverändert mit ihrem ursprünglichen Dateinamen gespeichert. Fotos können versteckte Angaben wie den Aufnahmeort enthalten. Entferne sie vorher, wenn du das nicht möchtest. Bilder aus dem Forum kann jeder abrufen, der die Adresse kennt. Unter <a href="/eigene-dateien">Dokumente → Eigene Dateien</a> siehst du alles, was du hochgeladen oder gespeichert hast, und kannst es ändern oder löschen. „Nur Freunde“ zeigt eine Datei oder einen Titel nur Mitgliedern, mit denen du befreundet bist.</li>
   <li><b>E-Mail an den Admin:</b> <% if (mailOn) { %>Ist eingeschaltet. Neue Besucherbuch-Einträge, Nachrichten, Forenthemen und Registrierungen gehen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } else { %>Ist gerade ausgeschaltet. Wird sie eingerichtet, gehen neue Besucherbuch-Einträge, Nachrichten, Forenthemen und Registrierungen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } %></li>
 </ul>
 <details><summary>🔍 Code dazu</summary>

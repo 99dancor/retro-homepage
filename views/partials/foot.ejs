@@ -1,5 +1,5 @@
 <% const isAdmin = path.startsWith('/admin') && typeof counts !== 'undefined'; %>
-<% if (!isAdmin) { %>
+<% if (!isAdmin || embed) { %>
 </div>
 <% } else { %>
   </div>

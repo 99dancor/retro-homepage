@@ -1,0 +1,22 @@
+<nav class="menubar admin-nav">
+  <a href="/admin" class="<%= path === '/admin' || path === '/admin/' ? 'active' : '' %>">📊 Übersicht</a>
+  <a href="/admin/posts" class="<%= path.startsWith('/admin/posts') ? 'active' : '' %>">📝 Blog</a>
+  <a href="/admin/media" class="<%= path.startsWith('/admin/media') ? 'active' : '' %>">🖼️ Bilder</a>
+  <a href="/admin/files" class="<%= path.startsWith('/admin/files') ? 'active' : '' %>">📁 Dateien</a>
+  <a href="/admin/downloads" class="<%= path.startsWith('/admin/downloads') ? 'active' : '' %>">⬇ Downloads</a>
+  <a href="/admin/mods" class="<%= path.startsWith('/admin/mods') ? 'active' : '' %>">🧩 Modlisten</a>
+  <a href="/admin/links" class="<%= path.startsWith('/admin/links') ? 'active' : '' %>">🔗 Links</a>
+  <a href="/admin/musik" class="<%= path.startsWith('/admin/musik') ? 'active' : '' %>">🎵 Mediaplayer</a>
+  <a href="/admin/paint" class="<%= path.startsWith('/admin/paint') ? 'active' : '' %>">🎨 Paint</a>
+  <a href="/admin/quiz" class="<%= path.startsWith('/admin/quiz') ? 'active' : '' %>">❓ Quiz</a>
+  <a href="/admin/werwolf" class="<%= path.startsWith('/admin/werwolf') ? 'active' : '' %>">🐺 Werwolf</a>
+  <a href="/admin/apps" class="<%= path.startsWith('/admin/apps') ? 'active' : '' %>">🎮 Apps</a>
+  <a href="/admin/pages" class="<%= path.startsWith('/admin/pages') ? 'active' : '' %>">📄 Seiten</a>
+  <a href="/admin/guestbook" class="<%= path.startsWith('/admin/guestbook') ? 'active' : '' %>">📖 Besucherbuch<% if (counts.pending) { %> <span class="badge"><%= counts.pending %></span><% } %></a>
+  <a href="/admin/messages" class="<%= path.startsWith('/admin/messages') ? 'active' : '' %>">✉️ Nachrichten<% if (counts.unread) { %> <span class="badge"><%= counts.unread %></span><% } %></a>
+  <a href="/admin/users" class="<%= path.startsWith('/admin/users') ? 'active' : '' %>">👥 Nutzer</a>
+  <a href="/admin/design" class="<%= path.startsWith('/admin/design') ? 'active' : '' %>">🎨 Design</a>
+  <a href="/admin/settings" class="<%= path.startsWith('/admin/settings') ? 'active' : '' %>">⚙️ Einstellungen</a>
+  <% if (!embed) { %><span class="spacer"></span>
+  <a href="/">↩ Zur Website</a><% } %>
+</nav>

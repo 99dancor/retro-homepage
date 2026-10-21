@@ -3,16 +3,14 @@
   var body = document.body;
   var framed = window.top !== window;
 
-  // Systemsteuerung nie in einem Fenster, sondern als ganze Seite öffnen
-  if (framed && body.classList.contains('admin')) {
-    try { window.parent.RetroDesk.leaving(window); } catch (e) { /* kein Desktop */ }
-    window.top.location.href = location.href; return;
-  }
-
   var btn = document.getElementById('startbtn'), menu = document.getElementById('startmenu');
   // Klangeffekte aus sound.js (🔊 neben der Uhr); fehlt das Skript, bleibt es still
   function sound(name) { if (window.RetroSound) window.RetroSound.play(name); }
   function closeMenu() { if (menu) { menu.classList.remove('open'); btn.setAttribute('aria-expanded', false); menu.querySelectorAll('.sub.open').forEach(function (s) { s.classList.remove('open'); }); } }
+  // Zeitpunkt des letzten Auf- oder Zuklappens: Auf dem Handy verschiebt das Menü sich dabei unter dem Finger,
+  // ein Klick direkt danach (z. B. ein doppelt erkanntes Antippen) darf dann keinen Eintrag öffnen
+  var toggled = 0, touch = false;
+  if (menu) menu.addEventListener('pointerdown', function (e) { touch = e.pointerType !== 'mouse'; }, true);
   if (btn && menu) {
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
@@ -28,6 +26,7 @@
         var sub = t.parentNode, open = !sub.classList.contains('open');
         menu.querySelectorAll('.sub.open').forEach(function (s) { if (s.contains(sub)) return; s.classList.remove('open'); s.firstElementChild.setAttribute('aria-expanded', false); });
         sub.classList.toggle('open', open); t.setAttribute('aria-expanded', open);
+        if (touch) toggled = Date.now();
       });
     });
   }
@@ -100,10 +99,11 @@
     if (document.querySelector('.msg.err, .error-page')) sound('fehler');
     document.addEventListener('click', function (e) {
       var a = e.target.closest && e.target.closest('a[href]');
-      if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || a.target || a.hasAttribute('download')) return;
+      if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || a.hasAttribute('download')) return;
       var u = new URL(a.href, location.href);
+      // „Ansehen“ in der Systemsteuerung (target=_blank) öffnet ein Fenster auf dem Desktop statt eines neuen Tabs
+      if (a.target && !(a.target === '_blank' && u.origin === location.origin && isPage(u))) return;
       if (u.origin !== location.origin) { a.target = '_blank'; a.rel = 'noopener'; return; }
-      if (u.pathname.startsWith('/admin')) { e.preventDefault(); window.top.location.href = u.href; return; }
       // Links in einen anderen Bereich öffnen dessen Fenster, statt dieses umzuleiten
       if (isPage(u) && winKey(u.pathname) !== winKey(location.pathname)) {
         e.preventDefault();
@@ -119,8 +119,8 @@
   var deskEl = document.getElementById('desk'), tasks = document.getElementById('tasks');
   var siteTitle = body.dataset.title, me = body.dataset.user;
   var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
-    contact: '✉️', changelog: '📜', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵', zufall: '🎲', kartenspiele: '🂡', blackjack: '🃏', poker: '♠️', durak: '🎴', uno: '🟥', flip7: '7️⃣', pilli: '🌶️', quiz: '❓', werwolf: '🐺', minesweeper: '💣', kreuzwortraetsel: '📰', sudoku: '🔢',
-    nutzer: '👥', nachrichten: '💌', paint: '🎨', galerie: '🖼️' };
+    contact: '✉️', changelog: '📋', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵', zufall: '🎲', kartenspiele: '🂡', blackjack: '🃏', poker: '♠️', durak: '🎴', uno: '🟥', flip7: '7️⃣', pilli: '🌶️', quiz: '❓', werwolf: '🐺', minesweeper: '💣', kreuzwortraetsel: '📰', sudoku: '🔢',
+    nutzer: '👥', nachrichten: '💌', paint: '🎨', galerie: '🖼️', admin: '⚙️', 'eigene-dateien': '🗂️' };
   var mobile = window.matchMedia('(max-width: 760px)');
   var wins = [], zTop = 10, active = null, reloading = false;
   var template = deskEl.querySelector('.dwin').cloneNode(true);
@@ -134,7 +134,7 @@
 
   function save() {
     if (reloading) return;
-    var list = wins.filter(function (w) { return !w.drop; }).sort(function (a, b) { return a.z - b.z; }).map(function (w) {
+    var list = wins.slice().sort(function (a, b) { return a.z - b.z; }).map(function (w) {
       // Ein Mini-Player kommt nach dem Neuladen wieder in voller Größe
       var b = w.before;
       return { url: w.url, x: w.el.offsetLeft, y: w.el.offsetTop, w: b ? b.w : w.el.offsetWidth, h: b ? b.h : w.el.offsetHeight,
@@ -224,9 +224,50 @@
       }).observe(tEl, { childList: true, characterData: true, subtree: true });
     }
     doc.addEventListener('pointerdown', function () { closeMenu(); if (active !== w) focus(w); });
+    watchStatus(w, doc);
     if (section(w.url) === 'nachrichten') pollUnread();
     if (active === w) syncTop();
     save();
+  }
+
+  // Statusleiste unten am Fenster: Hat die Seite selbst eine (Mediaplayer, Kartenspiele, Paint …), wandert deren
+  // Inhalt in den Fensterrand und sie selbst verschwindet. Dazu kommt, was die Seite in body[data-status] schreibt.
+  var statusDefault = template.querySelector('.statusbar').innerHTML;
+  function statusSource(doc) {
+    var all = doc.querySelectorAll('.statusbar');
+    for (var i = all.length - 1; i >= 0; i--) {
+      var s = all[i], p = s.parentElement;
+      if (!s.closest('dialog, .window') && p && p.getClientRects().length) return s;
+    }
+    return null;
+  }
+  function watchStatus(w, doc) {
+    var bar = w.el.querySelector('.statusbar'), src = null, queued = false, last = '';
+    if (!bar) return;
+    doc.documentElement.classList.add('in-desk');
+    function sync() {
+      queued = false;
+      var s = statusSource(doc);
+      if (s !== src) { if (src) src.classList.remove('to-window'); src = s; if (src) src.classList.add('to-window'); }
+      var html = '';
+      if (src) {
+        var copy = src.cloneNode(true);
+        copy.querySelectorAll('[id]').forEach(function (el) { el.removeAttribute('id'); });
+        html = copy.innerHTML;
+      }
+      var extra = doc.body.dataset.status;
+      if (extra) html += '<span class="extra"></span>';
+      html += '<span class="net">🌐 Internet</span>';
+      if (!src && !extra) html = statusDefault;
+      if (html + '|' + extra === last) return;
+      last = html + '|' + extra;
+      bar.innerHTML = html;
+      var ex = bar.querySelector('.extra');
+      if (ex) ex.textContent = extra;
+    }
+    function queue() { if (!queued) { queued = true; (w.iframe.contentWindow.requestAnimationFrame || setTimeout)(sync); } }
+    if (window.MutationObserver) new MutationObserver(queue).observe(doc.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'class', 'style', 'data-status'] });
+    sync();
   }
 
   function drag(e, w, resize) {
@@ -239,8 +280,9 @@
     function move(ev) {
       var dx = ev.clientX - sx, dy = ev.clientY - sy;
       if (resize) {
-        w.el.style.width = Math.max(260, ww + dx) + 'px';
-        w.el.style.height = Math.max(160, wh + dy) + 'px';
+        var small = w.el.classList.contains('fitted');
+        w.el.style.width = Math.max(small ? 120 : 260, ww + dx) + 'px';
+        w.el.style.height = Math.max(small ? 120 : 160, wh + dy) + 'px';
       } else {
         w.el.style.left = Math.min(deskEl.clientWidth - 60, Math.max(60 - ww, x + dx)) + 'px';
         w.el.style.top = Math.min(deskEl.clientHeight - 24, Math.max(0, y + dy)) + 'px';
@@ -251,6 +293,8 @@
       handle.removeEventListener('pointerup', up);
       handle.removeEventListener('pointercancel', up);
       body.classList.remove('dragging');
+      // Fenster, die mit ihrem Inhalt mitwachsen (Minesweeper), rasten nach dem Loslassen wieder ein
+      if (resize && w.el.classList.contains('scalable')) try { w.iframe.contentWindow.postMessage('desk:resized', location.origin); } catch (err) { /* egal */ }
       save();
     }
     handle.addEventListener('pointermove', move);
@@ -259,7 +303,7 @@
   }
 
   // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Mediaplayer brauchen etwas mehr Platz
-  var SIZES = { haustier: [820, 700], musik: [1080, 700], zufall: [760, 620], kartenspiele: [1080, 760], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], werwolf: [1000, 720], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], sudoku: [720, 640], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640] };
+  var SIZES = { haustier: [820, 700], musik: [1080, 700], zufall: [760, 620], kartenspiele: [1080, 760], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], werwolf: [1000, 720], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], sudoku: [720, 640], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640], admin: [1100, 740], 'eigene-dateien': [900, 620] };
   function place(el, s, url) {
     var n = wins.length % 8, size = SIZES[section(url)] || [820, 580];
     var w = s && s.w || Math.min(size[0], deskEl.clientWidth - 40), h = s && s.h || Math.min(size[1], deskEl.clientHeight - 40);
@@ -325,16 +369,13 @@
   function isAuthWin(w) { var k = winKey(w.url); return k === 'login' || k === 'register'; }
   window.RetroDesk = {
     open: open,
-    // Ein Fenster wechselt in die Systemsteuerung (z. B. nach der Anmeldung als Admin)
-    leaving: function (win) {
-      wins.forEach(function (w) { if (w.iframe.contentWindow === win && isAuthWin(w)) w.drop = true; });
-      save(); reloading = true;
-    },
-    // Ein Fenster passt sich seinem Inhalt an (Minesweeper je nach Spielfeld), außer es ist maximiert oder auf dem Handy
-    fit: function (win, width, height) {
+    // Ein Fenster passt sich seinem Inhalt an (Minesweeper je nach Spielfeld), außer es ist maximiert oder auf dem Handy.
+    // Mit scalable lässt es sich trotzdem an der Ecke aufziehen, der Inhalt skaliert dann mit.
+    fit: function (win, width, height, opts) {
       var w = byWin(win);
       if (!w) return;
       w.el.classList.add('fitted');
+      w.el.classList.toggle('scalable', !!(opts && opts.scalable));
       if (mobile.matches || w.el.classList.contains('max')) return;
       sizeTo(w, width, height);
       save();
@@ -370,8 +411,10 @@
   // Startmenü öffnet Fenster
   if (menu) menu.addEventListener('click', function (e) {
     var a = e.target.closest('a[href]');
-    if (!a || a.getAttribute('href').startsWith('/admin')) return;
-    e.preventDefault(); closeMenu();
+    if (!a) return;
+    e.preventDefault();
+    if (Date.now() - toggled < 400) return;
+    closeMenu();
     open(a.getAttribute('href'), false);
   });
 

@@ -2,7 +2,7 @@
   <a href="/">🏠 Startseite</a>
   <%# Einträge: [Schlüssel, Adresse, Beschriftung] oder [Gruppe, Beschriftung, [Einträge]] → Untermenü wie bei Windows 98, auch verschachtelt %>
   <% const entries = [['blog','/blog','📝 Blog'],
-       ['dokumente','📂 Dokumente',[['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['galerie','/galerie','🖼️ Galerie']]],
+       ['dokumente','📂 Dokumente',[...(user ? [['eigene-dateien','/eigene-dateien','🗂️ Eigene Dateien']] : []),...(user && user.canUpload ? [['upload','/files/upload','📤 Datei hochladen']] : []),['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['galerie','/galerie','🖼️ Galerie']]],
        ['spiele','🎮 Spiele und Apps',[['kartenspiele','/kartenspiele','🂡 Kartenspiele'],['quiz','/quiz','❓ Quiz'],['werwolf','/werwolf','🐺 Werwolf'],['minesweeper','/minesweeper','💣 Minesweeper'],['kreuzwortraetsel','/kreuzwortraetsel','📰 Kreuzworträtsel'],['sudoku','/sudoku','🔢 Sudoku'],['paint','/paint','🎨 Paint'],['zufall','/zufall','🎲 Zufallsgenerator'],['musik','/musik','🎵 Mediaplayer'],['apps','/apps','🕹️ Andere Games']]],
        ['haustier','/haustier/','🐾 Pixelpfoten'],['board','/forum','💬 Forum'],['nutzer','/nutzer','👥 Mitglieder'],['guestbook','/guestbook','📖 Besucherbuch'],['contact','/contact','✉️ Kontakt']];
      const off = { guestbook: !guestbookEnabled, board: !boardEnabled, kartenspiele: !cardsEnabled,
@@ -15,12 +15,15 @@
     <a href="<%= a %>"><%= b %></a>
   <% } } }
      menu(entries); %>
-  <% for (const p of navPages) { %><a href="/p/<%= p.slug %>">📄 <%= p.title %></a><% } %>
+  <% for (const p of navPages) { if (p.slug === 'regeln') continue; %><a href="/p/<%= p.slug %>">📄 <%= p.title %></a><% } %>
   <hr>
-  <a href="/changelog">📜 Changelog</a>
-  <a href="/datenschutz">🔒 Datenschutz</a>
+  <%# Info: Regeln, Changelog und Datenschutz unten im Startmenü %>
+  <div class="sub"><button type="button" class="menu-item sub-toggle" aria-expanded="false">ℹ️ Info</button><div class="submenu">
+    <% if (rulesPage) { %><a href="/p/regeln">📜 Regeln</a><% } %>
+    <a href="/changelog">📋 Changelog</a>
+    <a href="/datenschutz">🔒 Datenschutz</a>
+  </div></div>
   <% if (user) { %>
-    <% if (user.canUpload) { %><a href="/files/upload">📤 Datei hochladen</a><% } %>
     <div class="sub"><button type="button" class="menu-item sub-toggle" aria-expanded="false">👤 Mein Konto</button><div class="submenu">
       <a href="<%= profileUrl(user.username) %>">👤 Mein Profil</a>
       <a href="/nachrichten" id="pm-menu">💌 Nachrichten<% if (unreadPm) { %> (<%= unreadPm %>)<% } %></a>

@@ -17,7 +17,7 @@
   <tr>
     <td><%= t.kind === 'video' ? '🎬' : t.kind === 'youtube' ? '▶️' : '🎵' %> <a href="/admin/musik/<%= t.id %>"><b><%= t.title %></b></a><br><small><%= t.kind === 'youtube' ? 'YouTube-Link' : t.original_name %></small></td>
     <td><%= t.artist || '–' %></td>
-    <td><%= VISIBILITY[t.visibility] %></td>
+    <td><%= t.visibility === 'friends' ? FRIENDS_LABEL : VISIBILITY[t.visibility] %></td>
     <td class="num"><%= t.duration ? Math.floor(t.duration / 60) + ':' + String(Math.round(t.duration % 60)).padStart(2, '0') : '–' %></td>
     <td class="num"><%= fmtSize(t.size) %></td>
     <td class="num"><%= t.plays %></td>

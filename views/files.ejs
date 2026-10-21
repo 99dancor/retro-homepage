@@ -16,7 +16,7 @@
     <% for (const f of grouped[c]) { %>
     <tr>
       <td><a href="/files/dl/<%= f.id %>"><b><%= f.title %></b></a>
-        <% if (f.visibility !== 'public') { %><span class="badge gray"><%= VISIBILITY[f.visibility] %></span><% } %>
+        <% if (f.visibility !== 'public') { %><span class="badge gray"><%= f.visibility === 'friends' ? 'Nur Freunde' : VISIBILITY[f.visibility] %></span><% } %>
         <% if (f.description) { %><br><small><%= f.description %></small><% } %>
         <% if (f.title !== f.original_name) { %><br><small>💾 <%= f.original_name %></small><% } %></td>
       <td><%= f.game || '–' %></td>

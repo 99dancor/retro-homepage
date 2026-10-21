@@ -170,7 +170,7 @@ router.get('/files/:id', (req, res, next) => {
 router.post('/files/:id', (req, res) => {
   const b = req.body, id = Number(req.params.id);
   db.prepare('UPDATE files SET title=?, description=?, category=?, game=?, visibility=? WHERE id=?')
-    .run(str(b.title, 200) || 'Datei', str(b.description, 2000), str(b.category, 100) || 'Allgemein', str(b.game, 100) || null, visibilityFrom(b), id);
+    .run(str(b.title, 200) || 'Datei', str(b.description, 2000), str(b.category, 100) || 'Allgemein', str(b.game, 100) || null, visibilityFrom(b, true), id);
   saveVisibility('file', id, b);
   res.redirect(`/admin/files/${id}?ok=1`);
 });
@@ -187,7 +187,7 @@ router.post('/files/:id/delete', (req, res) => {
 // ---------- Musik ----------
 // Hier lädt der Admin seine Sammlung hoch und vergibt Sichtbarkeit (auch Gruppen) für alle Titel, auch die der Mitglieder.
 router.get('/musik', (req, res) => res.render('admin/music', {
-  title: 'Musik', quotaMb: getSetting('music_quota_mb', '500'),
+  title: 'Mediaplayer', quotaMb: getSetting('music_quota_mb', '500'),
   tracks: db.prepare('SELECT t.*, u.username, u.role FROM tracks t LEFT JOIN users u ON u.id = t.uploader_id ORDER BY t.created_at DESC').all(),
   playlists: db.prepare('SELECT COUNT(*) AS n FROM playlists').get().n,
 }));
@@ -213,7 +213,7 @@ router.get('/musik/:id', (req, res, next) => {
 router.post('/musik/:id', (req, res) => {
   const b = req.body, id = Number(req.params.id);
   db.prepare('UPDATE tracks SET title = ?, artist = ?, album = ?, visibility = ? WHERE id = ?')
-    .run(str(b.title, 200) || 'Titel', str(b.artist, 200) || null, str(b.album, 200) || null, visibilityFrom(b), id);
+    .run(str(b.title, 200) || 'Titel', str(b.artist, 200) || null, str(b.album, 200) || null, visibilityFrom(b, true), id);
   saveVisibility('track', id, b);
   res.redirect(`/admin/musik/${id}?ok=1`);
 });
@@ -583,7 +583,7 @@ router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, 
 const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days', 'music_quota_mb',
   'ks_buyin', 'ks_rebuy_below', 'bj_decks', 'bj_turn', 'pk_turn', 'dk_turn', 'uno_turn', 'f7_turn', 'pp_turn', 'cw_words'];
 const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure', 'lobby_enabled', 'youtube_enabled', 'bj_enabled', 'bj_h17', 'pk_enabled', 'dk_enabled', 'uno_enabled', 'f7_enabled', 'pp_enabled'];
-const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Andere Games', haustier: 'Pixelpfoten', musik: 'Musikplayer', zufall: 'Zufallsgenerator', kartenspiele: 'Kartenspiele', quiz: 'Quiz', werwolf: 'Werwolf', minesweeper: 'Minesweeper', kreuzwortraetsel: 'Kreuzworträtsel', sudoku: 'Sudoku', paint: 'Paint', galerie: 'Galerie', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
+const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Andere Games', haustier: 'Pixelpfoten', musik: 'Mediaplayer', zufall: 'Zufallsgenerator', kartenspiele: 'Kartenspiele', quiz: 'Quiz', werwolf: 'Werwolf', minesweeper: 'Minesweeper', kreuzwortraetsel: 'Kreuzworträtsel', sudoku: 'Sudoku', paint: 'Paint', galerie: 'Galerie', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
 router.get('/settings', (req, res) => {
   const s = Object.fromEntries([...SETTING_KEYS, ...SETTING_FLAGS, 'nav_hidden', 'music_upload'].map(k => [k, getSetting(k, '')]));
   s.smtp_pass_set = !!getSetting('smtp_pass');

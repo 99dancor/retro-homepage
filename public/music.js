@@ -44,9 +44,9 @@
   }
   var post = function (url, body) { return req('POST', url, body || {}); };
   function oops(e) { status('⚠ ' + e.message); }
-  var VIS_LABEL = { public: 'Öffentlich', members: 'Nur angemeldete Nutzer', private: 'Nur ich (und der Admin)', groups: 'Bestimmte Gruppen (vom Admin)' };
+  var VIS_LABEL = { public: 'Öffentlich', members: 'Nur angemeldete Nutzer', friends: 'Nur meine Freunde', private: 'Nur ich (und der Admin)', groups: 'Bestimmte Gruppen (vom Admin)' };
   function visOptions(cur, withGroups) {
-    var keys = ['public', 'members', 'private'];
+    var keys = ['public', 'members', 'friends', 'private'];
     if (withGroups || cur === 'groups') keys.push('groups');
     return keys.map(function (k) { return '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + VIS_LABEL[k] + '</option>'; }).join('');
   }
@@ -412,7 +412,7 @@
       return '<tr data-id="' + t.id + '" data-i="' + i + '" class="' + (now ? 'playing' : '') + (lob && !t.shareable ? ' locked' : '') + '">' +
         '<td class="num">' + (now ? (isPlaying() ? '🔊' : '⏸') : i + 1) + '</td>' +
         '<td><span class="mp-ico" title="' + (isYt(t) ? 'YouTube' : isVideo(t) ? 'Video' : 'Audio') + '">' + kindIcon(t) + '</span> <button type="button" class="mp-track" data-act="play-track">' + esc(t.title) + '</button>' +
-        (t.visibility !== 'public' ? ' <small title="' + VIS_LABEL[t.visibility] + '">' + (t.visibility === 'private' ? '🔒' : '👥') + '</small>' : '') +
+        (t.visibility !== 'public' ? ' <small title="' + VIS_LABEL[t.visibility] + '">' + (t.visibility === 'private' ? '🔒' : t.visibility === 'friends' ? '🤝' : '👥') + '</small>' : '') +
         (t.artist ? '<small class="mp-artist">' + esc(t.artist) + '</small>' : '') + '</td>' +
         '<td>' + esc(t.artist) + '</td><td class="num">' + (t.duration ? fmt(t.duration) : '') + '</td>' +
         '<td class="mp-by">' + (t.byAdmin ? '' : userLink(t.by, t.byUser)) + '</td><td class="mp-acts">' + acts + '</td></tr>';
@@ -495,10 +495,17 @@
     applyPicture(); renderQueue(); renderList(); updateButtons();
     if (view === 'now') renderHead();
   }
+  // Der laufende Titel steht dauerhaft unten im Fensterrand (public/retro.js), daneben die Meldungen
+  function nowStatus() {
+    var t = playingItem();
+    if (t) document.body.dataset.status = (isPlaying() ? '▶ ' : '⏸ ') + t.title + (t.artist ? ' – ' + t.artist : '');
+    else delete document.body.dataset.status;
+  }
   function nowPlaying() {
     var t = playingItem();
     nowEl.textContent = t ? t.title + (t.artist ? ' – ' + t.artist : '') : '';
     lcdTitle.textContent = t ? t.title + (t.artist ? ' – ' + t.artist : '') : 'Mediaplayer';
+    nowStatus();
     if ('mediaSession' in navigator) {
       try { navigator.mediaSession.metadata = t ? new window.MediaMetadata({ title: t.title, artist: t.artist || '', album: t.album || '' }) : null; } catch (e) { /* alt */ }
     }
@@ -622,6 +629,7 @@
     var ctl = !lob || lobbyCanControl();
     ['play', 'stop', 'next', 'prev'].forEach(function (a) { btn(a).disabled = !ctl; });
     seek.disabled = !ctl;
+    nowStatus();
     if (!playing) root.classList.remove('idle');
   }
 

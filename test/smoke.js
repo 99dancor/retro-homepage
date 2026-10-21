@@ -1390,7 +1390,7 @@ async function main() {
       assert.equal((await api(anna, '/api/stats/minesweeper', { add: { Gewonnen: 100 } }, 'PATCH')).status, 404);
       const prof = (await bernd.req('/nutzer/anna')).text_;
       assert.match(prof, /href="\/minesweeper"><b>Minesweeper<\/b>[\s\S]*?Gewonnen<\/td><td class="num">1 \(50 %\)[\s\S]*?Bestzeit Anfänger<\/td><td class="num">7 s/);
-      assert.match((await guest.req('/static/retro.js')).text_, /fit: function \(win, width, height\)/);
+      assert.match((await guest.req('/static/retro.js')).text_, /fit: function \(win, width, height, opts\)/);
     });
 
     await step('Kreuzworträtsel: Rätsel des Tages, Prüfen, Lösen, Bestenliste und Profil', async () => {
@@ -1701,7 +1701,10 @@ async function main() {
         const page = (await (opts ? guest.req(url, opts) : admin.req(url))).text_;
         assert.match(page, /<head>[\s\S]*<script src="\/static\/display\.js\?v=\w+"><\/script>[\s\S]*<\/head>/, url);
       }
-      assert.match((await admin.req('/admin')).text_, /id="displaybtn"/, 'auch in der Systemsteuerung');
+      // Die Systemsteuerung ist ein Fenster auf dem Desktop, Taskleiste mit 🖥️ inklusive
+      const shell = (await admin.req('/admin', { top: true })).text_;
+      assert.match(shell, /id="displaybtn"/, 'auch in der Systemsteuerung');
+      assert.match(shell, /<iframe src="\/admin"/);
       const js = await guest.req('/static/display.js');
       assert.equal(js.status, 200);
       assert.match(js.text_, /'darstellung'/);
@@ -1958,6 +1961,46 @@ async function main() {
       assert.equal((await admin.form('/admin/paint', { _csrf: t, paint_enabled: '1', paint_guests: '1', paint_gallery: '1', paint_lobbies: '1', paint_save: 'members', paint_quota_mb: '50', paint_max_w: '2000', paint_max_h: '2000' })).status, 302);
       assert.match((await lena.req('/paint')).text_, /paint-lobby\.js/);
       void sse;
+    });
+
+    await step('Eigene Dateien: Upload nur für Freunde, umbenennen, Sichtbarkeit, löschen', async () => {
+      const { anna, bernd } = members;
+      const { DatabaseSync } = require('node:sqlite');
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'));
+      const id = name => sql.prepare('SELECT id FROM users WHERE username = ?').get(name).id;
+      sql.prepare('DELETE FROM friends WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)').run(id('admin'), id('anna'), id('anna'), id('admin'));
+      sql.prepare('INSERT INTO friends(user_id, friend_id, accepted, created_at) VALUES (?, ?, 1, 0)').run(id('admin'), id('anna'));
+      const t = await admin.csrf('/files/upload');
+      assert.match((await admin.req('/files/upload')).text_, /<option value="friends">Nur meine Freunde<\/option>/);
+      const fd = new FormData();
+      fd.append('_csrf', t); fd.append('title', 'Nur für Freunde'); fd.append('visibility', 'friends');
+      fd.append('files', new Blob(['geheim']), 'freunde.txt');
+      assert.equal((await admin.req('/files/upload', { method: 'POST', body: fd })).status, 200);
+      const f = sql.prepare("SELECT * FROM files WHERE title = 'Nur für Freunde'").get();
+      assert.equal(f.visibility, 'friends');
+      assert.match((await anna.req('/files')).text_, /Nur für Freunde/, 'Freundin sieht die Datei');
+      assert.equal((await anna.req('/files/dl/' + f.id)).status, 200);
+      assert.doesNotMatch((await bernd.req('/files')).text_, /Nur für Freunde/, 'kein Freund');
+      assert.notEqual((await bernd.req('/files/dl/' + f.id)).status, 200);
+      assert.doesNotMatch((await guest.req('/files')).text_, /Nur für Freunde/);
+      // Startmenü: Eigene Dateien unter Dokumente, Info mit Changelog und Datenschutz
+      const home = (await anna.req('/', { top: true })).text_;
+      assert.match(home, /📂 Dokumente<\/button><div class="submenu">\s*<a href="\/eigene-dateien">/);
+      assert.match(home, /ℹ️ Info<\/button><div class="submenu">[\s\S]*href="\/changelog"[\s\S]*href="\/datenschutz"/);
+      const page = (await admin.req('/eigene-dateien')).text_;
+      assert.match(page, /value="Nur für Freunde"/);
+      assert.match(page, /<option value="friends" selected>Nur Freunde<\/option>/);
+      // Fremde Einträge gibt es in den eigenen Dateien nicht
+      const t2 = bernd.jar.get('csrf');
+      assert.equal((await bernd.form('/eigene-dateien/datei/' + f.id + '/loeschen', { _csrf: t2 })).status, 404);
+      const t3 = await admin.csrf('/eigene-dateien');
+      assert.equal((await admin.form('/eigene-dateien/datei/' + f.id, { _csrf: t3, title: 'Für alle', visibility: 'members' })).status, 302);
+      assert.equal(sql.prepare('SELECT visibility FROM files WHERE id = ?').get(f.id).visibility, 'members');
+      assert.match((await bernd.req('/files')).text_, /Für alle/);
+      assert.equal((await admin.form('/eigene-dateien/datei/' + f.id + '/loeschen', { _csrf: t3 })).status, 302);
+      assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM files WHERE id = ?').get(f.id).n, 0);
+      assert.equal((await guest.req('/eigene-dateien')).status, 302, 'nur mit Konto');
+      sql.close();
     });
 
     await step('Gelöschtes Konto verliert seine Statistik-Einträge', async () => {

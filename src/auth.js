@@ -84,7 +84,11 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// Sichtbarkeit: public | members | groups | private
+// Sichtbarkeit: public | members | groups | private, bei Dateien, Titeln und Playlists auch friends (nur Freunde des Besitzers)
+const OWNER = { file: 'uploader_id', track: 'uploader_id', playlist: 'user_id' };
+function isFriend(a, b) {
+  return !!a && !!b && !!db.prepare('SELECT 1 FROM friends WHERE accepted = 1 AND ((user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?))').get(a, b, b, a);
+}
 function canSee(user, type, item) {
   if (!item) return false;
   if (user && user.isAdmin) return true;
@@ -93,6 +97,7 @@ function canSee(user, type, item) {
   switch (item.visibility) {
     case 'public': return true;
     case 'members': return !!user;
+    case 'friends': return !!user && !!OWNER[type] && isFriend(user.id, item[OWNER[type]]);
     case 'groups': {
       if (!user || !user.groups.length) return false;
       const ph = user.groups.map(() => '?').join(',');
@@ -107,10 +112,12 @@ function canSee(user, type, item) {
 function visibilitySql(user, type, alias) {
   if (user && user.isAdmin) return { sql: '1=1', params: [] };
   if (!user) return { sql: `${alias}.visibility = 'public'`, params: [] };
-  const owner = { file: 'uploader_id', track: 'uploader_id', playlist: 'user_id' }[type];
-  const own = owner ? `${alias}.${owner} = ${Number(user.id)} OR ` : '';
+  const owner = OWNER[type], me = Number(user.id);
+  const own = owner ? `${alias}.${owner} = ${me} OR ` : '';
+  const friends = owner ? ` OR (${alias}.visibility = 'friends' AND EXISTS (SELECT 1 FROM friends fr WHERE fr.accepted = 1 AND
+            ((fr.user_id = ${me} AND fr.friend_id = ${alias}.${owner}) OR (fr.friend_id = ${me} AND fr.user_id = ${alias}.${owner}))))` : '';
   return {
-    sql: `(${own}${alias}.visibility IN ('public','members') OR (${alias}.visibility = 'groups' AND EXISTS (
+    sql: `(${own}${alias}.visibility IN ('public','members')${friends} OR (${alias}.visibility = 'groups' AND EXISTS (
             SELECT 1 FROM acl a JOIN user_groups ug ON ug.group_id = a.group_id
             WHERE a.item_type = ? AND a.item_id = ${alias}.id AND ug.user_id = ?)))`,
     params: [type, user.id],

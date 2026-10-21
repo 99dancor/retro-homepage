@@ -1,0 +1,116 @@
+<%- include('partials/head') %>
+<%# Eigene Dateien: alles, was du hochgeladen oder gespeichert hast (src/routes/ownfiles.js) %>
+<h1>🗂️ Eigene Dateien</h1>
+<% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+<%
+  const visSelect = (kind, cur) => {
+    const keys = VIS[kind].concat(cur === 'groups' ? ['groups'] : []);
+    return '<select name="visibility" aria-label="Wer darf es sehen?">' + keys.map(k => `<option value="${k}"${k === cur ? ' selected' : ''}>${LABEL[k]}</option>`).join('') + '</select>';
+  };
+  const del = (url, what) => `<form method="post" action="${url}/loeschen" class="inline" data-confirm="${what} wirklich löschen?"><input type="hidden" name="_csrf" value="${csrf}"><button class="small danger" title="Löschen">🗑</button></form>`;
+  const quota = q => fmtSize(q.used) + (q.total ? ' von ' + fmtSize(q.total) : '');
+  const total = files.length + tracks.length + playlists.length + artworks.length + quizzes.length + media.length;
+%>
+<div class="kpis">
+  <a class="kpi" href="#downloads"><small>📁 Downloads</small><b><%= files.length %></b><small><%= fmtSize(usage.files) %></small></a>
+  <a class="kpi" href="#mediaplayer"><small>🎵 Mediaplayer</small><b><%= tracks.length %></b><small><%= quota(usage.music) %></small></a>
+  <% if (paintEnabled || artworks.length) { %><a class="kpi" href="#bilder"><small>🎨 Paint-Bilder</small><b><%= artworks.length %></b><small><%= quota(usage.paint) %></small></a><% } %>
+  <% if (quizEnabled || quizzes.length) { %><a class="kpi" href="#quizze"><small>❓ Quizze</small><b><%= quizzes.length %></b><small>&nbsp;</small></a><% } %>
+  <a class="kpi" href="#medien"><small>🖼️ Bilder in Beiträgen</small><b><%= media.length %></b><small><%= fmtSize(usage.media) %></small></a>
+</div>
+<p class="muted"><small>Hier verwaltest du, was du selbst hochgeladen oder gespeichert hast. „Nur Freunde“ heißt: nur Mitglieder, mit denen du befreundet bist.</small></p>
+
+<fieldset class="groupbox" id="downloads"><legend>📁 Downloads</legend>
+  <% if (user.canUpload) { %><p class="actions" style="margin-top:0"><a class="btn small" href="/files/upload">📤 Datei hochladen</a></p><% } %>
+  <% if (!files.length) { %><p class="muted">Noch keine Dateien.</p><% } else { %>
+  <table class="list own-list">
+    <tr><th>Name und Sichtbarkeit</th><th class="num">Größe</th><th class="num">⬇</th><th>Datum</th><th></th></tr>
+    <% for (const f of files) { %><tr>
+      <td><form method="post" action="/eigene-dateien/datei/<%= f.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="text" name="title" value="<%= f.title %>" maxlength="200" aria-label="Titel"><%- visSelect('datei', f.visibility) %><button class="small">💾</button></form>
+        <small><a href="/files/dl/<%= f.id %>">💾 <%= f.original_name %></a></small></td>
+      <td class="num"><%= fmtSize(f.size) %></td><td class="num"><%= f.downloads %></td><td><%= fmtDate(f.created_at) %></td>
+      <td><%- del('/eigene-dateien/datei/' + f.id, 'Die Datei') %></td>
+    </tr><% } %>
+  </table>
+  <% } %>
+</fieldset>
+
+<fieldset class="groupbox" id="mediaplayer"><legend>🎵 Mediaplayer: Musik, Videos und YouTube-Links</legend>
+  <p class="actions" style="margin-top:0"><a class="btn small" href="/musik">🎵 Mediaplayer öffnen</a><% if (canUploadMusic) { %><small class="muted">Hochladen geht im Mediaplayer unter „📤 Hochladen“.</small><% } %></p>
+  <% if (!tracks.length) { %><p class="muted">Noch keine Titel.</p><% } else { %>
+  <table class="list own-list">
+    <tr><th>Titel und Sichtbarkeit</th><th>Art</th><th class="num">Größe</th><th>Datum</th><th></th></tr>
+    <% for (const t of tracks) { %><tr>
+      <td><form method="post" action="/eigene-dateien/titel/<%= t.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="text" name="title" value="<%= t.title %>" maxlength="200" aria-label="Titel"><%- visSelect('titel', t.visibility) %><button class="small">💾</button></form>
+        <% if (t.artist) { %><small><%= t.artist %></small><% } %></td>
+      <td><%= { audio: '🎵 Audio', video: '🎬 Video', youtube: '▶️ YouTube' }[t.kind] || t.kind %></td>
+      <td class="num"><%= t.size ? fmtSize(t.size) : '–' %></td><td><%= fmtDate(t.created_at) %></td>
+      <td><%- del('/eigene-dateien/titel/' + t.id, 'Der Titel') %></td>
+    </tr><% } %>
+  </table>
+  <% } %>
+</fieldset>
+
+<fieldset class="groupbox" id="playlists"><legend>📃 Playlists</legend>
+  <% if (!playlists.length) { %><p class="muted">Noch keine Playlists. Anlegen kannst du sie im Mediaplayer.</p><% } else { %>
+  <table class="list own-list">
+    <tr><th>Name und Sichtbarkeit</th><th class="num">Titel</th><th>Geändert</th><th></th></tr>
+    <% for (const p of playlists) { %><tr>
+      <td><form method="post" action="/eigene-dateien/playlist/<%= p.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="text" name="title" value="<%= p.title %>" maxlength="100" aria-label="Name"><%- visSelect('playlist', p.visibility) %><button class="small">💾</button></form></td>
+      <td class="num"><%= p.n %></td><td><%= fmtDate(p.updated_at) %></td>
+      <td><%- del('/eigene-dateien/playlist/' + p.id, 'Die Playlist') %></td>
+    </tr><% } %>
+  </table>
+  <% } %>
+</fieldset>
+
+<% if (paintEnabled || artworks.length) { %>
+<fieldset class="groupbox" id="bilder"><legend>🎨 Bilder aus Paint</legend>
+  <% if (!artworks.length) { %><p class="muted">Noch keine gespeicherten Bilder.</p><% } else { %>
+  <table class="list own-list">
+    <tr><th></th><th>Titel und Sichtbarkeit</th><th class="num">Größe</th><th>Geändert</th><th></th></tr>
+    <% for (const a of artworks) { %><tr>
+      <td><img class="own-thumb" src="/paint/bild/<%= a.id %>/vorschau.png?v=<%= a.updated_at %>" alt="" loading="lazy"></td>
+      <td><form method="post" action="/eigene-dateien/bild/<%= a.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="text" name="title" value="<%= a.title %>" maxlength="80" aria-label="Titel"><%- visSelect('bild', a.visibility) %><button class="small">💾</button></form>
+        <small><%= a.width %> × <%= a.height %><%= a.draft ? ' · Entwurf aus einer Lobby' : '' %><%= a.visibility === 'public' && !a.approved ? ' · wartet auf Freigabe' : '' %></small></td>
+      <td class="num"><%= fmtSize(a.size) %></td><td><%= fmtDate(a.updated_at) %></td>
+      <td><%- del('/eigene-dateien/bild/' + a.id, 'Das Bild') %></td>
+    </tr><% } %>
+  </table>
+  <% } %>
+</fieldset>
+<% } %>
+
+<% if (quizEnabled || quizzes.length) { %>
+<fieldset class="groupbox" id="quizze"><legend>❓ Quizze</legend>
+  <% if (!quizzes.length) { %><p class="muted">Noch keine gespeicherten Quizze. Speichern kannst du sie als Spielleiter im Quiz.</p><% } else { %>
+  <table class="list own-list">
+    <tr><th>Quiz</th><th class="num">Fragen</th><th>Geändert</th><th></th></tr>
+    <% for (const q of quizzes) { %><tr>
+      <td><form method="post" action="/eigene-dateien/quiz/<%= q.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
+        <b><%= q.title %></b><select name="shared" aria-label="Teilen"><option value="0">Nur ich</option><option value="1" <%= q.shared ? 'selected' : '' %>>Für Mitglieder geteilt</option></select><button class="small">💾</button></form></td>
+      <td class="num"><%= q.questions %></td><td><%= fmtDate(q.updated_at) %></td>
+      <td><%- del('/eigene-dateien/quiz/' + q.id, 'Das Quiz') %></td>
+    </tr><% } %>
+  </table>
+  <% } %>
+</fieldset>
+<% } %>
+
+<fieldset class="groupbox" id="medien"><legend>🖼️ Bilder in Forum und Blog</legend>
+  <% if (!media.length) { %><p class="muted">Noch keine Bilder hochgeladen.</p><% } else { %>
+  <p class="muted"><small>Diese Bilder kann jeder sehen, der die Adresse kennt. Gelöschte Bilder fehlen danach in den Beiträgen, in denen sie stehen.</small></p>
+  <div class="thumbs">
+    <% for (const m of media) { %><figure>
+      <a href="/media/<%= m.stored_name %>" target="_blank" rel="noopener"><img src="/media/<%= m.stored_name %>" alt="<%= m.original_name %>" loading="lazy"></a>
+      <figcaption><%= m.original_name %><br><small><%= fmtSize(m.size) %> · <%= fmtDate(m.created_at) %></small> <%- del('/eigene-dateien/medien/' + m.id, 'Das Bild') %></figcaption>
+    </figure><% } %>
+  </div>
+  <% } %>
+</fieldset>
+<div class="statusbar"><span><%= total %> <%= total === 1 ? "Eintrag" : "Einträge" %></span><span>📁 <%= fmtSize(usage.files) %> · 🎵 <%= quota(usage.music) %> · 🎨 <%= quota(usage.paint) %> · 🖼️ <%= fmtSize(usage.media) %></span></div>
+<%- include('partials/foot') %>

@@ -86,6 +86,8 @@
   }
   function renderMe() {
     if (me && kasse) meEl.innerHTML = '👤 ' + esc(me.name) + ' · 💰 ' + euro(kasse.balance) + ' · Bilanz <b class="' + cls(kasse.net) + '">' + euro(kasse.net, true) + '</b>';
+    // Kontostand und Bilanz stehen auch unten im Fensterrand (public/retro.js)
+    if (kasse) document.body.dataset.status = '💰 ' + euro(kasse.balance) + ' · Bilanz ' + euro(kasse.net, true);
   }
 
   function loadTables() {

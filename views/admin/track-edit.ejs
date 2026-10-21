@@ -11,7 +11,7 @@
     <label>Interpret:<input type="text" name="artist" class="w100" value="<%= t.artist || '' %>"></label>
     <label>Album:<input type="text" name="album" class="w100" value="<%= t.album || '' %>"></label>
   </div>
-  <%- include('../partials/visibility', { item: t, acl }) %>
+  <%- include('../partials/visibility', { item: t, acl, owned: true }) %>
   <small>In Musik-Lobbys lassen sich nur Titel abspielen, die öffentlich oder für alle angemeldeten Nutzer sichtbar sind.</small>
   <div class="actions"><button>💾 Speichern</button></div>
 </form>

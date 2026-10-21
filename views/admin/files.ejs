@@ -48,7 +48,7 @@
   <tr>
     <td><a href="/admin/files/<%= f.id %>"><b><%= f.title %></b></a><br><small><%= f.original_name %></small></td>
     <td><%= f.category %><%= f.game ? ' / ' + f.game : '' %></td>
-    <td><%= VISIBILITY[f.visibility] %></td>
+    <td><%= f.visibility === 'friends' ? FRIENDS_LABEL : VISIBILITY[f.visibility] %></td>
     <td class="num"><%= fmtSize(f.size) %></td>
     <td class="num"><%= f.downloads %></td>
     <td><%= f.username || '–' %></td>

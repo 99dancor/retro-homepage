@@ -1,6 +1,7 @@
 <label>Sichtbarkeit:
   <select name="visibility">
     <% for (const [k, v] of Object.entries(VISIBILITY)) { %><option value="<%= k %>" <%= (item.visibility || 'public') === k ? 'selected' : '' %>><%= v %></option><% } %>
+    <% if (typeof owned !== 'undefined' && owned) { %><option value="friends" <%= item.visibility === 'friends' ? 'selected' : '' %>><%= FRIENDS_LABEL %></option><% } %>
   </select>
 </label>
 <div class="group-pick">

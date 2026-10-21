@@ -1,5 +1,16 @@
 # Changelog
 
+## 21.10.2026 – Aufgeräumt: Eigene Dateien, Systemsteuerung im Fenster, neuer Texteditor
+
+- **Eigene Dateien:** Unter Startmenü → Dokumente → 🗂️ Eigene Dateien steht alles, was du hochgeladen oder gespeichert hast: Downloads, Musik, Videos und YouTube-Links, Playlists, Paint-Bilder, Quizze und Bilder aus Forum und Blog. Dort benennst du sie um, änderst, wer sie sehen darf, und löschst sie. Oben siehst du, wie viel Platz belegt ist.
+- **Nur Freunde:** Dateien, Titel im Mediaplayer und Playlists lassen sich jetzt auch nur für deine Freunde freigeben.
+- **Info im Startmenü:** Regeln, Changelog und Datenschutz stecken unten im Startmenü unter ℹ️ Info.
+- **Texteditor:** Mit „✨ Modern“ schreibst du direkt im fertigen Text, wie in einem Textprogramm (Strg+B, Strg+I und die Knöpfe oben). „Ⓜ️ Markdown“ zeigt den Quelltext wie bisher. Die Vorschau gibt es nicht mehr, Modern ist ja schon die fertige Ansicht. Bilder klickst du in Modern an, um Lage und Größe zu ändern.
+- **Statusleiste im Fensterrand:** Unten im Fenster neben „🌐 Internet“ steht jetzt, was das Programm zu sagen hat: im Mediaplayer der laufende Titel, bei den Kartenspielen Kontostand und Bilanz, in Paint Mausposition und Bildgröße.
+- **Systemsteuerung als Fenster:** Die Systemsteuerung öffnet wie alles andere als Fenster auf dem Desktop. Damit ist auch der Fehler weg, bei dem sich die Systemsteuerung nach einer Benachrichtigung über eine Kontaktnachricht nicht mehr schließen ließ.
+- **Minesweeper:** Zieh das Fenster an der Ecke größer oder kleiner, das Spielfeld wächst mit. Die Größe bleibt gespeichert.
+- **Kleinigkeiten:** Namen im Kopf von Forenbeiträgen sind auch nach dem Anklicken gut lesbar. Auf dem Handy öffnet das Antippen von „Spiele und Apps“ nicht mehr gleich „Andere Games“. Auf der Datenschutzseite ist jeder Code aufklappbar. „Musikplayer“ heißt überall Mediaplayer.
+
 ## 21.10.2026 – Mediaplayer: Videos, YouTube ohne Lobby, Theater und Mini-Player
 
 - **Neuer Aufbau:** Der Musik-Player heißt jetzt Mediaplayer und sieht aus wie der Windows Media Player 9. Links die Aufgabenleiste mit „Wiedergabe läuft“, der Medienbibliothek (Musik, Videos, YouTube-Links, Playlists), Lobbys, Hochladen und Visualisierungen. In der Mitte das Bild, rechts die Wiedergabeliste. Alle drei Trennlinien lassen sich ziehen.

@@ -92,7 +92,7 @@ router.get('/files/upload', auth.requireLogin, (req, res, next) => {
 });
 router.post('/files/upload', auth.requireLogin, (req, res, next) => (req.user.canUpload ? next() : res.status(403).end()),
   up.fileUpload.array('files'), auth.csrfCheck, (req, res) => {
-    const vis = ['public', 'members', 'private'].includes(req.body.visibility) ? req.body.visibility : 'members';
+    const vis = ['public', 'members', 'friends', 'private'].includes(req.body.visibility) ? req.body.visibility : 'members';
     const ins = db.prepare(`INSERT INTO files(title, description, category, game, original_name, stored_name, size, mime, visibility, uploader_id, created_at)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     for (const f of req.files || []) {

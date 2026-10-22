@@ -102,21 +102,7 @@ router.post('/files/upload', auth.requireLogin, (req, res, next) => (req.user.ca
     res.render('upload', { title: 'Datei hochladen', maxMb: up.MAX_MB, msg: `${(req.files || []).length} Datei(en) hochgeladen.` });
   });
 
-// ---------- Modlisten ----------
-router.get('/mods', (req, res) => {
-  const v = auth.visibilitySql(req.user, 'modlist', 'm');
-  const lists = db.prepare(`SELECT m.*, (SELECT COUNT(*) FROM mod_items i WHERE i.modlist_id = m.id) AS n
-                            FROM modlists m WHERE ${v.sql} ORDER BY game, title`).all(...v.params);
-  const grouped = {};
-  for (const l of lists) (grouped[l.game] ||= []).push(l);
-  res.render('mods-list', { title: 'Modlisten', grouped });
-});
-router.get('/mods/:slug', (req, res, next) => {
-  const list = db.prepare('SELECT * FROM modlists WHERE slug = ?').get(req.params.slug);
-  if (!list || !auth.canSee(req.user, 'modlist', list)) return next();
-  const items = db.prepare('SELECT * FROM mod_items WHERE modlist_id = ? ORDER BY position, id').all(list.id);
-  res.render('mod-detail', { title: list.title, list, items, descHtml: md(list.description_md) });
-});
+// Modlisten: src/routes/mods.js
 
 // ---------- Links ----------
 router.get('/links', (req, res) => {

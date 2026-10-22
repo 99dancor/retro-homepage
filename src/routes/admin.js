@@ -7,6 +7,7 @@ const analytics = require('../analytics');
 const mail = require('../mail');
 const up = require('../uploads');
 const { slugify, safeUrl, asArray, visibilityFrom, mdBlocks } = require('../util');
+const modlists = require('../modlists');
 const GAMES = require('../games');
 const profiles = require('../profiles');
 const music = require('../music');
@@ -318,41 +319,18 @@ router.post('/werwolf/statistik/loeschen', (req, res) => {
 });
 
 // ---------- Modlisten ----------
-// Format im Textfeld: eine Mod pro Zeile -> Name | URL | Version | Notiz   (optional mit * am Anfang = optional)
-function parseMods(text) {
-  return String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean).map((line, i) => {
-    const optional = line.startsWith('*');
-    const [name, url, version, notes] = line.replace(/^\*\s*/, '').split('|').map(s => (s || '').trim());
-    return { name: name.slice(0, 200), url: safeUrl(url), version: (version || '').slice(0, 50), notes: (notes || '').slice(0, 500), required: optional ? 0 : 1, position: i };
-  }).filter(m => m.name);
-}
-function modsToText(items) {
-  return items.map(m => `${m.required ? '' : '* '}${m.name} | ${m.url || ''} | ${m.version || ''} | ${m.notes || ''}`.replace(/(\s\|\s*)+$/, '')).join('\n');
-}
-router.get('/mods', (req, res) => res.render('admin/mods', { title: 'Modlisten', lists: db.prepare('SELECT m.*, (SELECT COUNT(*) FROM mod_items i WHERE i.modlist_id = m.id) AS n FROM modlists m ORDER BY game, title').all() }));
-router.get('/mods/new', (req, res) => res.render('admin/mod-edit', { title: 'Neue Modliste', list: { visibility: 'public' }, itemsText: '', acl: [] }));
+// Angelegt und bearbeitet werden Modlisten im Fenster selbst (src/routes/mods.js), hier nur die Übersicht aller Listen
+router.get('/mods', (req, res) => res.render('admin/mods', {
+  title: 'Modlisten',
+  lists: db.prepare(`SELECT m.*, u.username AS owner, (SELECT COUNT(*) FROM mod_items i WHERE i.modlist_id = m.id) AS n,
+                       (SELECT COUNT(*) FROM mod_suggestions s WHERE s.modlist_id = m.id) AS sugg
+                     FROM modlists m LEFT JOIN users u ON u.id = m.owner_id ORDER BY game, title`).all(),
+}));
+router.get('/mods/new', (req, res) => res.redirect('/mods/neu'));
 router.get('/mods/:id', (req, res, next) => {
-  const list = db.prepare('SELECT * FROM modlists WHERE id = ?').get(Number(req.params.id));
+  const list = db.prepare('SELECT slug FROM modlists WHERE id = ?').get(Number(req.params.id));
   if (!list) return next();
-  const items = db.prepare('SELECT * FROM mod_items WHERE modlist_id = ? ORDER BY position, id').all(list.id);
-  res.render('admin/mod-edit', { title: 'Modliste bearbeiten', list, itemsText: modsToText(items), acl: auth.getAcl('modlist', list.id) });
-});
-router.post('/mods/save', (req, res) => {
-  const b = req.body, id = Number(b.id) || 0;
-  const title = str(b.title, 200) || 'Modliste';
-  const slug = uniqueSlug('modlists', b.slug || `${b.game}-${title}`, id);
-  const listId = tx(() => {
-    let lid = id;
-    const vals = [slug, str(b.game, 100) || 'Sonstiges', title, String(b.description_md || ''), visibilityFrom(b)];
-    if (id) db.prepare('UPDATE modlists SET slug=?, game=?, title=?, description_md=?, visibility=?, updated_at=? WHERE id=?').run(...vals, now(), id);
-    else lid = Number(db.prepare('INSERT INTO modlists(slug, game, title, description_md, visibility, created_at, updated_at) VALUES (?,?,?,?,?,?,?)').run(...vals, now(), now()).lastInsertRowid);
-    db.prepare('DELETE FROM mod_items WHERE modlist_id = ?').run(lid);
-    const ins = db.prepare('INSERT INTO mod_items(modlist_id, position, name, url, version, notes, required) VALUES (?,?,?,?,?,?,?)');
-    for (const m of parseMods(b.items)) ins.run(lid, m.position, m.name, m.url || null, m.version || null, m.notes || null, m.required);
-    saveVisibility('modlist', lid, b);
-    return lid;
-  });
-  res.redirect(`/admin/mods/${listId}?ok=1`);
+  res.redirect(`/mods/${list.slug}?bearbeiten`);
 });
 router.post('/mods/:id/delete', (req, res) => {
   db.prepare('DELETE FROM modlists WHERE id = ?').run(Number(req.params.id));
@@ -481,6 +459,8 @@ router.post('/users/:id/delete', (req, res) => {
     db.prepare('UPDATE downloads SET user_id = NULL WHERE user_id = ?').run(id);
     // Quiz: eigene Ergebnisse fallen über den Fremdschlüssel weg, als Spielleiter bleibt nur „gelöschtes Konto“
     db.prepare("UPDATE quiz_games SET host_name = 'gelöschtes Konto' WHERE host_user_id = ?").run(id);
+    // Modlisten des Kontos gehen an den Admin (owner_id fällt weg), an Vorschlägen und im Verlauf bleibt kein Name stehen
+    modlists.forgetUser(id);
     db.prepare('DELETE FROM users WHERE id = ?').run(id);
   });
   if (old && id !== req.user.id) profiles.removeAvatar(old.avatar);

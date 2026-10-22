@@ -1,14 +1,24 @@
 <%- include('partials/head') %>
-<h1>🧩 Modlisten</h1>
-<% const games = Object.keys(grouped); if (!games.length) { %><p class="muted">Noch keine Modlisten.</p><% } %>
+<%# Modlisten: alle sichtbaren Listen nach Spiel (src/routes/mods.js) %>
+<nav class="menubar ml-nav"><span class="ml-here">🧩 Alle Listen</span><span class="spacer"></span>
+  <% if (user) { %><a href="/mods/neu">➕ Neue Modliste</a><% } else { %><a href="/login?next=/mods/neu" title="Listen anlegen können angemeldete Mitglieder">➕ Neue Modliste</a><% } %></nav>
+<% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+<% if (!games.length) { %>
+  <p class="muted">Noch keine Modlisten.<% if (user) { %> Leg mit „➕ Neue Modliste“ die erste an.<% } %></p>
+<% } %>
 <% for (const g of games) { %>
-  <fieldset class="groupbox"><legend>🎮 <%= g %></legend>
-    <ul>
-    <% for (const l of grouped[g]) { %>
-      <li><a href="/mods/<%= l.slug %>"><b><%= l.title %></b></a> <small>(<%= l.n %> Mods, Stand <%= fmtDate(l.updated_at) %>)</small>
-        <% if (l.visibility !== 'public') { %><span class="badge gray"><%= VISIBILITY[l.visibility] %></span><% } %></li>
+  <fieldset class="groupbox"><legend>🎮 <%= g.name %></legend>
+    <div class="panel ml-ov">
+    <% for (const l of g.lists) { %>
+      <div class="ml-ov-row">
+        <div class="t"><a href="/mods/<%= l.slug %>"><b><%= l.title %></b></a>
+          <% if (l.visibility !== 'public') { %> <span class="badge gray"><%= VIS_LABEL[l.visibility] %></span><% } %>
+          <% if (l.description_md) { %><br><small><%= l.description_md.length > 160 ? l.description_md.slice(0, 157) + '…' : l.description_md %></small><% } %></div>
+        <div class="meta"><%= l.n %> Mods<% if (l.on_server) { %> · <span class="ml-chk on" title="laufen auf dem Server"></span> <%= l.on_server %><% } %><% if (l.suggestions !== 'off' || l.sugg) { %> · 💡 <%= l.sugg %><% } %> · <%= fmtDate(l.updated_at) %></div>
+      </div>
     <% } %>
-    </ul>
+    </div>
   </fieldset>
 <% } %>
+<div class="statusbar"><span><%= total %> <%= total === 1 ? 'Modliste' : 'Modlisten' %> · <%= games.length %> <%= games.length === 1 ? 'Spiel' : 'Spiele' %></span></div>
 <%- include('partials/foot') %>

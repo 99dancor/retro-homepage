@@ -104,6 +104,10 @@ const SNIPPETS = {
   wwView: ['src/werwolf.js', 'function roleVisible(r, me, q) {', 8],
   wwChat: ['src/werwolf.js', 'function chat(r, p, b) {', 10],
   wwResults: ['src/db.js', 'CREATE TABLE IF NOT EXISTS ww_results (', 12],
+  modSuggestions: ['src/db.js', 'CREATE TABLE IF NOT EXISTS mod_suggestions (', 13],
+  modLog: ['src/db.js', 'CREATE TABLE IF NOT EXISTS mod_suggestion_log (', 10],
+  modActor: ['src/routes/mods.js', 'const actorOf = (req, guestName)', 1],
+  modsLocal: ['public/mods.js', "var KEY = 'modliste:' + listId;", 1],
 };
 
 let cache = null;

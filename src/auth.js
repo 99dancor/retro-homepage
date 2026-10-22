@@ -85,7 +85,7 @@ function requireAdmin(req, res, next) {
 }
 
 // Sichtbarkeit: public | members | groups | private, bei Dateien, Titeln und Playlists auch friends (nur Freunde des Besitzers)
-const OWNER = { file: 'uploader_id', track: 'uploader_id', playlist: 'user_id' };
+const OWNER = { file: 'uploader_id', track: 'uploader_id', playlist: 'user_id', modlist: 'owner_id' };
 function isFriend(a, b) {
   return !!a && !!b && !!db.prepare('SELECT 1 FROM friends WHERE accepted = 1 AND ((user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?))').get(a, b, b, a);
 }
@@ -93,7 +93,7 @@ function canSee(user, type, item) {
   if (!item) return false;
   if (user && user.isAdmin) return true;
   if (user && item.uploader_id && item.uploader_id === user.id) return true;
-  if (user && type === 'playlist' && item.user_id === user.id) return true;
+  if (user && OWNER[type] && item[OWNER[type]] === user.id) return true;
   switch (item.visibility) {
     case 'public': return true;
     case 'members': return !!user;

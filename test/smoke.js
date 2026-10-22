@@ -124,7 +124,7 @@ async function main() {
       const r = await admin.form('/login', { _csrf: t, username: 'admin', password: PASSWORD });
       assert.equal(r.status, 302);
       assert.equal(r.headers.get('location'), '/admin');
-      for (const p of ['/admin', '/admin/posts', '/admin/posts/new', '/admin/media', '/admin/files', '/admin/mods', '/admin/mods/new',
+      for (const p of ['/admin', '/admin/posts', '/admin/posts/new', '/admin/media', '/admin/files', '/admin/mods',
         '/admin/links', '/admin/guestbook', '/admin/messages', '/admin/users', '/admin/pages', '/admin/pages/new', '/admin/apps',
         '/admin/apps/new', '/admin/design', '/admin/settings', '/admin/musik']) {
         assert.equal((await admin.req(p)).status, 200, p);
@@ -2013,6 +2013,112 @@ async function main() {
       assert.equal((await admin.form('/eigene-dateien/datei/' + f.id + '/loeschen', { _csrf: t3 })).status, 302);
       assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM files WHERE id = ?').get(f.id).n, 0);
       assert.equal((await guest.req('/eigene-dateien')).status, 302, 'nur mit Konto');
+      sql.close();
+    });
+
+    await step('Modlisten: Mitglieder legen an, Kategorien, Haken, Vorschläge mit Gästen, Übernehmen, Verlauf', async () => {
+      const { anna, bernd } = members;
+      const { DatabaseSync } = require('node:sqlite');
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'));
+      sql.prepare("UPDATE users SET notify_prefs = NULL WHERE username = 'anna'").run();   // vorher abgeschaltet, hier Vorgaben
+      assert.equal((await guest.req('/mods/neu')).status, 302, 'anlegen nur mit Konto');
+      assert.equal((await admin.req('/admin/mods/new')).headers.get('location'), '/mods/neu');
+      let t = anna.jar.get('csrf');
+      assert.match((await anna.req('/mods/neu')).text_, /data-ml-form="list"/);
+      const data = { categories: [
+        { name: 'Grundlage', rows: [{ name: 'BepInEx', url: 'https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/', notes: 'zuerst', on_server: true },
+          { name: 'Böse', url: 'javascript:alert(1)', notes: '', on_server: false }, { name: '', url: 'https://leer.example', notes: 'ohne Namen' }] },
+        { name: 'Gameplay', rows: [{ name: 'Plant Everything', url: 'https://www.nexusmods.com/valheim/mods/1042', notes: 'Beeren <b>pflanzen</b>', on_server: true }] },
+        { name: 'Leer', rows: [] },
+      ] };
+      let r = await anna.form('/mods/neu', { _csrf: t, title: 'Nordwind', game: 'Valheim', description: 'Unser Server', visibility: 'public', suggestions: 'all', data: JSON.stringify(data) });
+      assert.equal(r.status, 302);
+      const url = r.headers.get('location').replace(/\?.*$/, '');
+      assert.equal(url, '/mods/valheim-nordwind');
+      const list = sql.prepare("SELECT * FROM modlists WHERE slug = 'valheim-nordwind'").get();
+      assert.equal(list.owner_id, sql.prepare("SELECT id FROM users WHERE username = 'anna'").get().id);
+      const items = sql.prepare('SELECT * FROM mod_items WHERE modlist_id = ? ORDER BY position').all(list.id);
+      assert.deepEqual(items.map(i => [i.category, i.name, i.on_server]), [['Grundlage', 'BepInEx', 1], ['Grundlage', 'Böse', 0], ['Gameplay', 'Plant Everything', 1]]);
+      assert.equal(items[1].url, null, 'javascript:-Links fallen weg');
+      // Ansicht für Gäste: Name als Link mit Seite dahinter, Bemerkung, Haken, Kategorien zum Aufklappen
+      let page = (await guest.req(url)).text_;
+      assert.match(page, /<a href="https:\/\/thunderstore\.io\/c\/valheim\/p\/denikson\/BepInExPack_Valheim\/" target="_blank" rel="noopener noreferrer">BepInEx<\/a><small class="ml-dom">thunderstore\.io<\/small>/);
+      assert.match(page, /<details class="ml-cat" open data-cat="Grundlage">/);
+      assert.match(page, /Beeren &lt;b&gt;pflanzen&lt;\/b&gt;/);
+      assert.match(page, /3 Mods · 2 laufen auf dem Server/);
+      assert.doesNotMatch(page, /data-ml-form|✏️ Bearbeiten<\/a><\/nav>/);
+      assert.match((await guest.req('/mods')).text_, /Nordwind[\s\S]*3 Mods/);
+      // Nur Besitzerin und Admin bearbeiten
+      assert.doesNotMatch((await bernd.req(url + '?bearbeiten')).text_, /data-ml-form="list"/);
+      t = bernd.jar.get('csrf');
+      assert.equal((await bernd.form(url + '/speichern', { _csrf: t, title: 'Gekapert', game: 'X', data: '{}' })).status, 403);
+      assert.match((await admin.req(url + '?bearbeiten')).text_, /data-ml-form="list"[\s\S]*value="Plant Everything"/);
+      assert.match((await anna.req(url + '?bearbeiten')).text_, /value="Grundlage"[\s\S]*data-f="on_server" checked/);
+      // Vorschläge: Gast braucht einen Namen, Spam-Feld wird still verworfen
+      t = guest.jar.get('csrf');
+      r = await guest.form(url + '/vorschlaege', { _csrf: t, known: '', data: JSON.stringify({ rows: [{ name: 'Seasons', url: 'thunderstore.io/seasons', notes: 'Winter!' }] }) });
+      assert.equal(r.status, 400);
+      await guest.form(url + '/vorschlaege', { _csrf: t, known: '', website: 'spam', guest_name: 'Bot', data: JSON.stringify({ rows: [{ name: 'Spam' }] }) });
+      r = await guest.form(url + '/vorschlaege', { _csrf: t, known: '', guest_name: 'Kai', data: JSON.stringify({ rows: [{ name: 'Seasons', url: 'https://thunderstore.io/seasons', notes: 'Winter!' }] }) });
+      assert.equal(r.status, 302);
+      let sugg = sql.prepare('SELECT * FROM mod_suggestions WHERE modlist_id = ? ORDER BY position').all(list.id);
+      assert.deepEqual(sugg.map(s => [s.name, s.author_name, s.guest, s.author_id]), [['Seasons', 'Kai', 1, null]]);
+      assert.ok(sql.prepare("SELECT 1 FROM notifications WHERE kind = 'modliste' AND user_id = ?").get(list.owner_id), 'Besitzerin bekommt Bescheid');
+      // Bernd ändert Kais Vorschlag und trägt einen eigenen ein, gleichzeitig speichert ein Gast einen alten Stand ohne Kais Zeile
+      t = bernd.jar.get('csrf');
+      assert.match((await bernd.req(url + '?vorschlaege')).text_, new RegExp(`data-id="${sugg[0].id}"[\\s\\S]*value="Seasons"[\\s\\S]*Kai \\(Gast\\)`));
+      await bernd.form(url + '/vorschlaege', { _csrf: t, known: String(sugg[0].id), data: JSON.stringify({ rows: [{ id: sugg[0].id, name: 'Seasons', url: 'https://thunderstore.io/seasons', notes: 'Winter für die Bergbasis' }, { name: 'Valheim Plus', url: 'https://www.nexusmods.com/valheim/mods/4' }] }) });
+      t = guest.jar.get('csrf');
+      await guest.form(url + '/vorschlaege', { _csrf: t, known: '', guest_name: 'Mia', data: JSON.stringify({ rows: [{ name: 'Epic Loot' }] }) });
+      sugg = sql.prepare('SELECT * FROM mod_suggestions WHERE modlist_id = ? ORDER BY position').all(list.id);
+      assert.deepEqual(sugg.map(s => [s.name, s.notes, s.author_name]), [['Seasons', 'Winter für die Bergbasis', 'Kai'], ['Valheim Plus', null, 'bernd'], ['Epic Loot', null, 'Mia']]);
+      page = (await guest.req(url)).text_;
+      assert.match(page, /<a href="\/nutzer\/bernd" class="userlink">bernd<\/a>/);
+      assert.match(page, /<span class="ml-guest">Mia \(Gast\)<\/span>/);
+      assert.doesNotMatch(page, /Übernehmen/, 'Übernehmen nur für die Besitzerin');
+      // Übernehmen in eine Kategorie: landet hinten in „Gameplay“, mit Herkunft in der Bemerkung
+      page = (await anna.req(url)).text_;
+      assert.match(page, /⇧ Übernehmen/);
+      t = anna.jar.get('csrf');
+      assert.equal((await anna.form(`${url}/vorschlaege/${sugg[1].id}/uebernehmen`, { _csrf: t, category: 'Gameplay' })).status, 302);
+      const after = sql.prepare('SELECT category, name, notes FROM mod_items WHERE modlist_id = ? ORDER BY position').all(list.id);
+      assert.deepEqual(after.map(i => i.name), ['BepInEx', 'Böse', 'Plant Everything', 'Valheim Plus']);
+      assert.equal(after[3].notes, 'Vorschlag von bernd');
+      assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM mod_suggestions WHERE modlist_id = ?').get(list.id).n, 2);
+      // Verlauf: jeder sieht ihn, zurückdrehen darf nur die Besitzerin
+      page = (await guest.req(url + '/verlauf')).text_;
+      assert.match(page, /Kai \(Gast\)[\s\S]*1 neu/);
+      assert.doesNotMatch(page, /Davor zurück/);
+      const first = sql.prepare('SELECT id FROM mod_suggestion_log WHERE modlist_id = ? ORDER BY id LIMIT 1').get(list.id).id;
+      t = bernd.jar.get('csrf');
+      assert.equal((await bernd.form(`${url}/verlauf/${first}/zurueck`, { _csrf: t })).status, 403);
+      t = anna.jar.get('csrf');
+      assert.equal((await anna.form(`${url}/verlauf/${first}/zurueck`, { _csrf: t })).status, 302);
+      assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM mod_suggestions WHERE modlist_id = ?').get(list.id).n, 0, 'Stand vor Kais Vorschlag');
+      assert.match((await anna.req(url + '/verlauf')).text_, /wiederhergestellt/);
+      // Liste bearbeiten: nur Mitglieder dürfen vorschlagen, dann nur Freunde sehen
+      t = anna.jar.get('csrf');
+      r = await anna.form(url + '/speichern', { _csrf: t, title: 'Nordwind', game: 'Valheim', description: '', visibility: 'public', suggestions: 'members',
+        data: JSON.stringify({ categories: [{ name: '', rows: [{ name: 'Nur eine', url: '', notes: '', on_server: false }] }] }) });
+      assert.equal(r.status, 302);
+      page = (await guest.req(url)).text_;
+      assert.doesNotMatch(page, /class="ml-cat"/, 'eine Kategorie ohne Namen: keine Kopfzeile');
+      t = guest.jar.get('csrf');
+      assert.equal((await guest.form(url + '/vorschlaege', { _csrf: t, guest_name: 'Kai', data: '{"rows":[{"name":"X"}]}' })).status, 403);
+      t = anna.jar.get('csrf');
+      await anna.form(url + '/speichern', { _csrf: t, title: 'Nordwind', game: 'Valheim', visibility: 'private', suggestions: 'off', data: '{"categories":[]}' });
+      assert.equal((await guest.req(url)).status, 404);
+      assert.equal((await bernd.req(url)).status, 404);
+      assert.equal((await anna.req(url)).status, 200);
+      assert.match((await admin.req('/admin/mods')).text_, /Nordwind<\/b><\/a><\/td><td>anna/);
+      // Löschen nur Besitzerin oder Admin
+      t = bernd.jar.get('csrf');
+      assert.notEqual((await bernd.form(url + '/loeschen', { _csrf: t })).status, 302);
+      t = anna.jar.get('csrf');
+      assert.equal((await anna.form(url + '/loeschen', { _csrf: t })).status, 302);
+      assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM modlists WHERE id = ?').get(list.id).n, 0);
+      assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM mod_suggestion_log WHERE modlist_id = ?').get(list.id).n, 0);
+      assert.equal((await guest.req('/static/mods.js')).status, 200);
       sql.close();
     });
 

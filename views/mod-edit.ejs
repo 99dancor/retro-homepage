@@ -1,0 +1,60 @@
+<%- include('partials/head') %>
+<%# Modliste anlegen oder bearbeiten: Kopf als normales Formular, die Zeilen baut public/mods.js beim Speichern
+    in das versteckte Feld data (JSON) zusammen. Geprüft wird alles noch einmal in src/modlists.js. %>
+<%
+  const editCats = cats.length ? cats : [{ name: '', rows: [{ name: '', url: '', notes: '', on_server: false }] }];
+  const total = cats.reduce((n, c) => n + c.rows.length, 0);
+  const visKeys = VIS.concat(list.visibility === 'groups' ? ['groups'] : []);
+%>
+<% const row = r => { %><div class="ml-edrow"><button type="button" class="ml-x" data-ml-del title="Mod entfernen" aria-label="Mod entfernen">✕</button><span class="ml-drag" data-ml-drag="row" title="Ziehen zum Verschieben" aria-hidden="true">⋮⋮</span><input type="text" data-f="name" value="<%= r.name %>" maxlength="<%= MAX.name %>" placeholder="Name" aria-label="Name"><input type="url" data-f="url" value="<%= r.url %>" maxlength="<%= MAX.url %>" placeholder="https://…" aria-label="Link"><input type="text" data-f="notes" value="<%= r.notes %>" maxlength="<%= MAX.notes %>" placeholder="Bemerkung (optional)" aria-label="Bemerkung"><label class="c" title="Läuft auf dem Server"><input type="checkbox" data-f="on_server"<%= r.on_server ? ' checked' : '' %> aria-label="Läuft auf dem Server"></label></div><% } %>
+<% const cat = c => { %><div class="ml-catbox" data-ml-cat>
+  <div class="ml-cat-title"><span class="ml-drag" data-ml-drag="cat" title="Kategorie verschieben" aria-hidden="true">⋮⋮</span><button type="button" class="tree" data-ml-fold title="Ein- und ausklappen" aria-label="Ein- und ausklappen"></button><input type="text" data-f="cat" value="<%= c.name %>" maxlength="<%= MAX.category %>" placeholder="Kategorie (optional)" aria-label="Kategorie"><small data-ml-count></small><span class="spacer"></span><button type="button" class="small" data-ml-delcat title="Kategorie entfernen">🗑<span class="ml-hide-s"> Kategorie</span></button></div>
+  <div class="ml-grid" data-ml-rows>
+    <div class="ml-edrow ml-lbls"><span></span><span></span><span>Name</span><span>Link</span><span>Bemerkung</span><span class="c">Server</span></div>
+    <% for (const r of c.rows) row(r); %>
+    <div class="ml-addrow"><button type="button" class="ml-plus" data-ml-add>➕ Mod</button></div>
+  </div>
+</div><% } %>
+<div class="ml ml-editing" id="ml">
+<nav class="menubar ml-nav"><a href="<%= list.id ? '/mods/' + list.slug : '/mods' %>">« <%= list.id ? 'Zurück zur Liste' : 'Alle Listen' %></a><span class="spacer"></span>
+  <a href="#" data-ml-paste hidden>📋 Aus Text einfügen</a></nav>
+<% if (err) { %><div class="msg err"><%= err %></div><% } %>
+<form method="post" action="<%= list.id ? `/mods/${list.slug}/speichern` : '/mods/neu' %>" class="ml-form" data-ml-form="list" id="ml-form">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="data" value="">
+  <div class="ml-fields">
+    <label class="w-title">Titel<input type="text" name="title" value="<%= list.title || '' %>" maxlength="<%= MAX.title %>" required placeholder="z. B. Server-Modpack" class="w100"></label>
+    <label class="w-game">Spiel<input type="text" name="game" value="<%= list.game || '' %>" maxlength="<%= MAX.game %>" required placeholder="z. B. Valheim" list="ml-games" class="w100" autocomplete="off"></label>
+    <label class="w-sel">Wer sieht die Liste?<select name="visibility" class="w100"><% for (const k of visKeys) { %><option value="<%= k %>"<%= (list.visibility || 'public') === k ? ' selected' : '' %>><%= VIS_LABEL[k] %></option><% } %></select></label>
+    <label class="w-sel">Wer darf vorschlagen?<select name="suggestions" class="w100"><% for (const [k, v] of Object.entries(SUGGESTIONS)) { %><option value="<%= k %>"<%= (list.suggestions || 'all') === k ? ' selected' : '' %>><%= v %></option><% } %></select></label>
+  </div>
+  <datalist id="ml-games"><% for (const g of games) { %><option value="<%= g %>"><% } %></datalist>
+  <label>Kurze Beschreibung<input type="text" name="description" value="<%= list.description_md || '' %>" maxlength="<%= MAX.desc %>" placeholder="Worum geht es, was muss man vorher wissen?" class="w100"></label>
+
+  <div data-ml-cats>
+    <% for (const c of editCats) cat(c); %>
+  </div>
+  <button type="button" class="ml-plus" data-ml-addcat>➕ Kategorie</button>
+
+  <div class="actions ml-actions ml-bottom">
+    <button><b>💾 Speichern</b></button><a class="btn" href="<%= list.id ? '/mods/' + list.slug : '/mods' %>">Abbrechen</a><span class="spacer"></span>
+    <% if (list.id) { %><button type="submit" form="ml-del" class="danger">🗑 Liste löschen</button><% } %>
+  </div>
+</form>
+<% if (list.id) { %><form method="post" action="/mods/<%= list.slug %>/loeschen" id="ml-del" data-confirm="Modliste „<%= list.title %>“ mit allen Vorschlägen löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"></form><% } %>
+
+<template data-ml-tpl="row"><% row({ name: '', url: '', notes: '', on_server: false }) %></template>
+<template data-ml-tpl="cat"><% cat({ name: '', rows: [{ name: '', url: '', notes: '', on_server: false }] }) %></template>
+
+<dialog class="window ml-dialog" data-ml-pastedlg>
+  <div class="titlebar"><span class="icon">📋</span><span class="ttl">Aus Text einfügen</span><button type="button" class="tb-btn" data-ml-close aria-label="Schließen">×</button></div>
+  <div class="body">
+    <p style="margin-top:0">Eine Mod pro Zeile: <code>Name | Link | Bemerkung</code>. Eine Zeile <code># Name</code> beginnt eine neue Kategorie. Ein <code>✔</code> oder <code>[x]</code> am Anfang setzt den Haken „Server“.</p>
+    <textarea class="code" data-ml-pastetext rows="10" style="min-height:200px" placeholder="# Grundlage&#10;✔ BepInExPack | https://thunderstore.io/… | zuerst installieren&#10;Jötunn | https://… "></textarea>
+    <div class="actions" style="justify-content:flex-end"><button type="button" data-ml-close>Abbrechen</button><button type="button" data-ml-pasteok><b>Einfügen</b></button></div>
+  </div>
+</dialog>
+</div>
+<div class="statusbar"><span data-ml-status><%= list.id ? 'Bearbeiten' : 'Neue Modliste' %> · <%= total %> <%= total === 1 ? 'Mod' : 'Mods' %></span></div>
+<script src="<%= asset('mods.js') %>"></script>
+<%- include('partials/foot') %>

@@ -1,0 +1,16 @@
+<%- include('partials/head') %>
+<%# Verlauf der Vorschläge einer Modliste (src/modlists.js: saveSuggestions, restore) %>
+<nav class="menubar ml-nav"><a href="/mods/<%= list.slug %>#vorschlaege">« <%= list.title %></a></nav>
+<% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+<h1>💡 Verlauf der Vorschläge</h1>
+<p class="muted"><small>Jede Änderung an den Vorschlägen von „<%= list.title %>“, die neueste oben. <% if (canEdit) { %>„Davor zurück“ stellt die Vorschläge so wieder her, wie sie vor dieser Änderung waren. Auch das landet hier im Verlauf.<% } %> Es bleiben die letzten 50 Änderungen.</small></p>
+<table class="list">
+  <tr><th>Wann</th><th>Wer</th><th>Was</th><% if (canEdit) { %><th></th><% } %></tr>
+  <% for (const e of log) { %>
+  <tr><td style="white-space:nowrap"><%= fmtDate(e.created_at, true) %></td><td><%= e.actor_name %><%= e.guest ? ' (Gast)' : '' %></td><td><%= e.summary %></td>
+    <% if (canEdit) { %><td class="num"><form method="post" action="/mods/<%= list.slug %>/verlauf/<%= e.id %>/zurueck" class="inline" data-confirm="Vorschläge auf den Stand vor dieser Änderung zurücksetzen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small">↶ Davor zurück</button></form></td><% } %></tr>
+  <% } %>
+  <% if (!log.length) { %><tr><td colspan="4">Noch keine Änderungen.</td></tr><% } %>
+</table>
+<div class="statusbar"><span><%= log.length %> <%= log.length === 1 ? 'Änderung' : 'Änderungen' %></span></div>
+<%- include('partials/foot') %>

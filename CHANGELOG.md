@@ -1,5 +1,15 @@
 # Changelog
 
+## 22.10.2026 – Modlisten neu: Kategorien, Server-Haken und Vorschläge
+
+- **Für alle Mitglieder:** Unter Startmenü → Dokumente → 🧩 Modlisten legt jetzt jedes Mitglied eigene Listen an: Titel, Spiel, kurze Beschreibung und wer sie sehen darf (alle, Angemeldete, nur Freunde oder nur du). Bearbeiten dürfen Besitzer und Admin.
+- **Zeilen statt Textfeld:** Jede Mod ist eine Zeile mit Name, Link, Bemerkung und einem Haken „läuft auf dem Server“. ✕ links entfernt die Zeile (mit Rückgängig), ➕ Mod hängt unten eine an, Enter in der letzten Zeile auch. Mit ⋮⋮ ziehst du Zeilen an eine andere Stelle, auch in eine andere Kategorie. „📋 Aus Text einfügen“ nimmt viele Mods auf einmal.
+- **Kategorien:** Zeilen lassen sich in Kategorien sortieren. In der fertigen Liste klappst du jede Kategorie wie einen Ordner auf und zu, dein Browser merkt sich das.
+- **Fertige Ansicht:** Andere sehen nur den Namen als Link zur Mod-Seite (mit der Seite klein dahinter, z. B. nexusmods.com), die Bemerkung und den Haken. Unten steht, wie viele Mods auf dem Server laufen.
+- **Vorschläge:** Unter jeder Liste gibt es einen aufklappbaren Bereich, in dem alle eigene Mods vorschlagen und Vorschläge ändern können, auch ohne Konto (dann mit Namen und „(Gast)“). Pro Liste stellst du ein: alle, nur Angemeldete oder aus. Mit „⇧ Übernehmen“ schiebst du einen Vorschlag in eine Kategorie deiner Liste. Über neue Vorschläge bekommst du eine Benachrichtigung.
+- **Verlauf:** Jede Änderung an den Vorschlägen steht im Verlauf. Geht etwas kaputt, drehst du mit „↶ Davor zurück“ auf den Stand davor.
+- **Umstellung:** Bestehende Listen bleiben erhalten. Die alten Felder Version und optional stehen jetzt in der Bemerkung, die Systemsteuerung zeigt unter Modlisten nur noch die Übersicht aller Listen.
+
 ## 21.10.2026 – Kartenspiele aufgeräumt: mehr Tisch, weniger Kästen
 
 - **Eine Leiste:** Über dem Tisch steht nur noch eine Werkzeugleiste: ◀ Tische, Tischname, das Spiel als Klappliste, die Gesichter am Tisch und rechts 🛒 Shop, 🎨 Gestalten, 🔗 Einladen und ☰ Mehr. Der Tisch bekommt fast das ganze Fenster.

@@ -1,20 +1,102 @@
 <%- include('partials/head') %>
-<p><a href="/mods">« Alle Modlisten</a></p>
-<h1>🧩 <%= list.title %></h1>
-<p><b>Spiel:</b> <%= list.game %> · <small>Stand: <%= fmtDate(list.updated_at) %> · <%= items.length %> Mods</small></p>
-<% if (list.description_md) { %><div class="content panel"><%- descHtml %></div><% } %>
-<h2>Mods</h2>
-<table class="list">
-  <tr><th>#</th><th>Mod</th><th>Version</th><th>Hinweis</th></tr>
-  <% items.forEach((m, i) => { %>
-  <tr>
-    <td class="num"><%= i + 1 %></td>
-    <td><% if (m.url) { %><a href="<%= m.url %>" target="_blank" rel="noopener noreferrer"><%= m.name %></a><% } else { %><%= m.name %><% } %>
-      <% if (!m.required) { %> <span class="badge gray">optional</span><% } %></td>
-    <td><%= m.version || '' %></td>
-    <td><%= m.notes || '' %></td>
-  </tr>
-  <% }) %>
-</table>
-<% if (user && user.isAdmin) { %><p><a class="btn" href="/admin/mods/<%= list.id %>">✏️ Bearbeiten</a></p><% } %>
+<%# Eine Modliste ansehen, darunter die Vorschläge (src/routes/mods.js, src/modlists.js).
+    Mit ?vorschlaege werden die Vorschläge zu Eingabefeldern, den Rest macht public/mods.js. %>
+<%
+  const heads = cats.length > 1 || (cats.length === 1 && cats[0].name);
+  const total = cats.reduce((n, c) => n + c.rows.length, 0);
+  const onServer = cats.reduce((n, c) => n + c.rows.filter(r => r.on_server).length, 0);
+  const catName = c => c.name || 'Sonstiges';
+  const esc = t => String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+  const who = s => s.guest ? `<span class="ml-guest">${esc(s.author_name)} (Gast)</span>`
+    : s.username ? `<a href="${profileUrl(s.username)}" class="userlink">${esc(s.author_name)}</a>` : esc(s.author_name);
+  const last = log[0];
+%>
+<div class="ml" id="ml" data-list="<%= list.id %>">
+<nav class="menubar ml-nav"><a href="/mods">« Alle Listen</a><span class="spacer"></span>
+  <% if (heads) { %><a href="#" data-ml-all hidden>⊞ Alle aufklappen</a><% } %>
+  <% if (canEdit) { %><a href="/mods/<%= list.slug %>?bearbeiten">✏️ Bearbeiten</a><% } %></nav>
+<% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+<% if (err) { %><div class="msg err"><%= err %></div><% } %>
+
+<div class="ml-head">
+  <div class="ml-game">🎮 <%= list.game %><% if (list.visibility !== 'public') { %> · <span class="badge gray"><%= VIS_LABEL[list.visibility] %></span><% } %></div>
+  <h1><%= list.title %></h1>
+  <% if (list.description_md) { %><p class="ml-desc"><%= list.description_md %></p><% } %>
+</div>
+
+<% if (!total) { %>
+  <p class="muted">Noch keine Mods in dieser Liste.<% if (canEdit) { %> Unter „✏️ Bearbeiten“ trägst du sie ein.<% } %></p>
+<% } else { %>
+<div class="ml-box">
+  <div class="ml-row ml-th"><span class="n">Mod</span><span class="r">Bemerkung</span><span class="c" title="Läuft auf dem aktiven Server">Server</span></div>
+  <% for (const c of cats) { %>
+  <% if (heads) { %><details class="ml-cat" open data-cat="<%= catName(c) %>"><summary><span class="tree" aria-hidden="true"></span><b><%= catName(c) %></b><small><%= c.rows.length %> <%= c.rows.length === 1 ? 'Mod' : 'Mods' %></small></summary><% } %>
+    <% for (const r of c.rows) { %>
+    <div class="ml-row<%= heads ? ' in-cat' : '' %>">
+      <span class="n"><% if (r.url) { %><a href="<%= r.url %>" target="_blank" rel="noopener noreferrer"><%= r.name %></a><small class="ml-dom"><%= r.domain %></small><% } else { %><%= r.name %><% } %></span>
+      <span class="r"><%= r.notes %></span>
+      <span class="c"><span class="ml-chk<%= r.on_server ? ' on' : '' %>" role="img" aria-label="<%= r.on_server ? 'läuft auf dem Server' : 'läuft nicht auf dem Server' %>" title="<%= r.on_server ? 'Läuft auf dem Server' : 'Läuft nicht auf dem Server' %>"></span></span>
+    </div>
+    <% } %>
+  <% if (heads) { %></details><% } %>
+  <% } %>
+</div>
+<% } %>
+
+<% if (list.suggestions !== 'off' || (canEdit && sugg.length)) { %>
+<details class="ml-sugg" id="vorschlaege"<%= suggEdit || openSugg ? ' open' : '' %>>
+  <summary class="ml-sugg-head"><span class="tree" aria-hidden="true"></span><b>💡 Vorschläge</b>
+    <small><%= suggEdit ? 'Bearbeiten' : sugg.length + (last ? ` · zuletzt ${last.actor_name}${last.guest ? ' (Gast)' : ''} am ${fmtDate(last.created_at)}` : '') %></small>
+    <span class="spacer"></span>
+    <% if (canSuggest && !suggEdit) { %><a class="btn small" href="/mods/<%= list.slug %>?vorschlaege#vorschlaege"><%= sugg.length ? '✏️ Vorschläge bearbeiten' : '➕ Mod vorschlagen' %></a><% } %></summary>
+  <div class="ml-sugg-box">
+  <% if (suggEdit) { %>
+    <form method="post" action="/mods/<%= list.slug %>/vorschlaege" class="ml-form" data-ml-form="sugg">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="data" value="">
+      <input type="hidden" name="known" value="<%= sugg.map(s => s.id).join(',') %>">
+      <label class="ml-hp" aria-hidden="true">Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+      <div class="ml-editbar">✏️ Du bearbeitest die Vorschläge. Die Liste darüber bleibt, wie sie ist.<span class="spacer"></span>
+        <% if (user) { %><span>Du trägst ein als <b><%= user.name %></b></span><% } else { %><label class="inline">Dein Name:<input type="text" name="guest_name" maxlength="<%= MAX.guest %>" required data-ml-guest style="width:130px"></label><% } %></div>
+      <div class="ml-grid sg" data-ml-rows>
+        <div class="ml-edrow ml-lbls"><span></span><span>Name</span><span>Link</span><span>Bemerkung</span><span>Von</span></div>
+        <% for (const s of sugg) { %>
+        <div class="ml-edrow" data-id="<%= s.id %>"><button type="button" class="ml-x" data-ml-del title="Vorschlag entfernen" aria-label="Vorschlag entfernen">✕</button><input type="text" data-f="name" value="<%= s.name %>" maxlength="<%= MAX.name %>" aria-label="Name"><input type="url" data-f="url" value="<%= s.url %>" maxlength="<%= MAX.url %>" placeholder="https://…" aria-label="Link"><input type="text" data-f="notes" value="<%= s.notes %>" maxlength="<%= MAX.notes %>" placeholder="Bemerkung (optional)" aria-label="Bemerkung"><span class="ml-who"><%- who(s) %></span></div>
+        <% } %>
+        <div class="ml-addrow"><button type="button" class="ml-plus" data-ml-add>➕ Zeile</button></div>
+      </div>
+      <template data-ml-tpl><div class="ml-edrow"><button type="button" class="ml-x" data-ml-del title="Vorschlag entfernen" aria-label="Vorschlag entfernen">✕</button><input type="text" data-f="name" maxlength="<%= MAX.name %>" placeholder="Name" aria-label="Name"><input type="url" data-f="url" maxlength="<%= MAX.url %>" placeholder="https://…" aria-label="Link"><input type="text" data-f="notes" maxlength="<%= MAX.notes %>" placeholder="Bemerkung (optional)" aria-label="Bemerkung"><span class="ml-who<%= user ? '' : ' ml-guest' %>"><%= user ? user.name : '(Gast)' %></span></div></template>
+      <div class="actions ml-actions"><small class="muted">Änderungen sehen alle und bleiben im Verlauf.</small><span class="spacer"></span>
+        <a class="btn" href="/mods/<%= list.slug %>#vorschlaege">Abbrechen</a><button><b>💾 Speichern</b></button></div>
+    </form>
+  <% } else if (!sugg.length) { %>
+    <p class="muted" style="margin:4px 0">Noch keine Vorschläge.<% if (!canSuggest && list.suggestions === 'members') { %> <a href="/login?next=<%= encodeURIComponent('/mods/' + list.slug + '?vorschlaege') %>">Melde dich an</a>, um etwas vorzuschlagen.<% } %></p>
+  <% } else { %>
+    <div class="ml-box">
+      <div class="ml-row sg ml-th<%= canEdit ? ' take' : '' %>"><span class="n">Mod</span><span class="r">Bemerkung</span><span class="w">Von</span><% if (canEdit) { %><span class="t"></span><% } %></div>
+      <% for (const s of sugg) { %>
+      <div class="ml-row sg<%= canEdit ? ' take' : '' %>">
+        <span class="n"><% if (s.url) { %><a href="<%= s.url %>" target="_blank" rel="noopener noreferrer"><%= s.name %></a><small class="ml-dom"><%= s.domain %></small><% } else { %><%= s.name %><% } %></span>
+        <span class="r"><%= s.notes %></span>
+        <span class="w"><%- who(s) %></span>
+        <% if (canEdit) { %><span class="t"><details class="ml-take"><summary class="btn small" title="In die Liste übernehmen">⇧ Übernehmen</summary>
+          <form method="post" action="/mods/<%= list.slug %>/vorschlaege/<%= s.id %>/uebernehmen" class="ml-take-menu">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <small>In welche Kategorie?</small>
+            <% for (const c of cats) { %><button name="category" value="<%= c.name %>"><%= catName(c) %></button><% } %>
+            <% if (!cats.length) { %><button name="category" value="">In die Liste</button><% } %>
+            <span class="ml-take-new"><input type="text" name="new_category" maxlength="<%= MAX.category %>" placeholder="Neue Kategorie" aria-label="Neue Kategorie"><button name="category" value="__neu__" title="In neue Kategorie">⇧</button></span>
+          </form></details></span><% } %>
+      </div>
+      <% } %>
+    </div>
+  <% } %>
+  <% if (last && !suggEdit) { %><p class="ml-last"><small>Zuletzt geändert: <%= last.actor_name %><%= last.guest ? ' (Gast)' : '' %>, <%= fmtDate(last.created_at, true) %> · <a href="/mods/<%= list.slug %>/verlauf">Verlauf</a></small></p><% } %>
+  <% if (list.suggestions === 'off') { %><p class="ml-last"><small>Vorschläge sind für diese Liste ausgeschaltet. Nur du siehst sie noch.</small></p><% } %>
+  </div>
+</details>
+<% } %>
+</div>
+<div class="statusbar"><span><%= total %> <%= total === 1 ? 'Mod' : 'Mods' %> · <%= onServer %> <%= onServer === 1 ? 'läuft' : 'laufen' %> auf dem Server<%= sugg.length ? ` · ${sugg.length} ${sugg.length === 1 ? 'Vorschlag' : 'Vorschläge'}` : '' %> · Stand <%= fmtDate(list.updated_at) %></span></div>
+<script src="<%= asset('mods.js') %>"></script>
 <%- include('partials/foot') %>

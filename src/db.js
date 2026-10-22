@@ -106,10 +106,37 @@ CREATE TABLE IF NOT EXISTS mod_items (
   position INTEGER NOT NULL DEFAULT 0,
   name TEXT NOT NULL,
   url TEXT,
-  version TEXT,
+  version TEXT,                             -- nicht mehr benutzt, steht seit den Kategorien in notes
   notes TEXT,
-  required INTEGER NOT NULL DEFAULT 1
+  required INTEGER NOT NULL DEFAULT 1       -- nicht mehr benutzt, „optional“ steht seit den Kategorien in notes
 );
+-- Vorschläge zu einer Modliste: jeder darf eintragen und ändern (je nach modlists.suggestions), auch Gäste mit frei gewähltem Namen
+CREATE TABLE IF NOT EXISTS mod_suggestions (
+  id INTEGER PRIMARY KEY,
+  modlist_id INTEGER NOT NULL REFERENCES modlists(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL DEFAULT 0,
+  name TEXT NOT NULL,
+  url TEXT,
+  notes TEXT,
+  author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  author_name TEXT NOT NULL,                -- Kontoname oder der Name, den ein Gast angegeben hat
+  guest INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+-- Verlauf der Vorschläge: wer wann was geändert hat und der Stand davor (JSON), damit der Besitzer zurückdrehen kann
+CREATE TABLE IF NOT EXISTS mod_suggestion_log (
+  id INTEGER PRIMARY KEY,
+  modlist_id INTEGER NOT NULL REFERENCES modlists(id) ON DELETE CASCADE,
+  actor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  actor_name TEXT NOT NULL,
+  guest INTEGER NOT NULL DEFAULT 0,
+  summary TEXT NOT NULL,
+  before TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ms_list ON mod_suggestions(modlist_id, position);
+CREATE INDEX IF NOT EXISTS msl_list ON mod_suggestion_log(modlist_id, id);
 CREATE TABLE IF NOT EXISTS links (
   id INTEGER PRIMARY KEY,
   category TEXT NOT NULL DEFAULT 'Allgemein',
@@ -626,6 +653,18 @@ addColumn('users', 'gb_from', "TEXT NOT NULL DEFAULT 'all'");
 addColumn('tracks', 'kind', "TEXT NOT NULL DEFAULT 'audio'");
 addColumn('tracks', 'youtube_id', 'TEXT');
 addColumn('artworks', 'draft', 'INTEGER NOT NULL DEFAULT 0');    // 1 = Entwurf, den eine Paint-Lobby von selbst sichert
+addColumn('modlists', 'owner_id', 'INTEGER REFERENCES users(id) ON DELETE SET NULL');   // leer = Liste des Admins
+addColumn('modlists', 'suggestions', "TEXT NOT NULL DEFAULT 'all'");  // Vorschläge: all | members | off
+addColumn('mod_items', 'category', "TEXT NOT NULL DEFAULT ''");
+addColumn('mod_items', 'on_server', 'INTEGER NOT NULL DEFAULT 0');  // läuft auf dem aktiven Server
+// Seit den Kategorien gibt es keine Felder Version und optional mehr: beides wandert in die Bemerkung
+db.exec(`UPDATE mod_items SET notes = trim(
+    CASE WHEN required = 0 THEN 'optional' ELSE '' END ||
+    CASE WHEN required = 0 AND coalesce(version, '') != '' THEN ' · ' ELSE '' END ||
+    CASE WHEN coalesce(version, '') != '' THEN 'Version ' || version ELSE '' END ||
+    CASE WHEN coalesce(notes, '') != '' THEN ' · ' || notes ELSE '' END, ' ·'),
+  version = NULL, required = 1
+  WHERE required = 0 OR coalesce(version, '') != ''`);
 
 function now() { return Math.floor(Date.now() / 1000); }
 

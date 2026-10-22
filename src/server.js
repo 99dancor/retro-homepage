@@ -109,6 +109,7 @@ app.use('/admin', require('./routes/admin'));
 app.use('/forum', require('./routes/board'));
 app.use('/musik', require('./routes/music').router);
 app.use('/eigene-dateien', require('./routes/ownfiles'));
+app.use('/mods', require('./routes/mods'));
 app.use('/kartenspiele', require('./routes/kartenspiele'));
 app.use('/blackjack', require('./routes/blackjack'));
 app.use('/poker', require('./routes/poker'));

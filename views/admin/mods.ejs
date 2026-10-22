@@ -1,10 +1,14 @@
 <%- include('../partials/head') %>
-<div class="actions" style="margin-top:0"><a class="btn" href="/admin/mods/new">➕ Neue Modliste</a></div>
+<p class="muted" style="margin-top:0"><small>Modlisten legen Mitglieder selbst an und bearbeiten sie im Fenster „🧩 Modlisten“. Du kannst jede Liste bearbeiten und löschen.</small></p>
+<div class="actions" style="margin-top:0"><a class="btn" href="/mods/neu" target="_blank">➕ Neue Modliste</a></div>
 <table class="list" style="margin-top:8px">
-  <tr><th>Spiel</th><th>Titel</th><th class="num">Mods</th><th>Sichtbarkeit</th><th>Stand</th></tr>
+  <tr><th>Spiel</th><th>Titel</th><th>Von</th><th class="num">Mods</th><th class="num">💡</th><th>Sichtbarkeit</th><th>Stand</th><th></th></tr>
   <% for (const l of lists) { %>
-  <tr><td><%= l.game %></td><td><a href="/admin/mods/<%= l.id %>"><b><%= l.title %></b></a></td><td class="num"><%= l.n %></td><td><%= VISIBILITY[l.visibility] %></td><td><%= fmtDate(l.updated_at) %></td></tr>
+  <tr><td><%= l.game %></td><td><a href="/mods/<%= l.slug %>" target="_blank"><b><%= l.title %></b></a></td><td><%= l.owner || 'Admin' %></td>
+    <td class="num"><%= l.n %></td><td class="num"><%= l.sugg %></td><td><%= l.visibility === 'friends' ? 'Nur Freunde' : VISIBILITY[l.visibility] %></td><td><%= fmtDate(l.updated_at) %></td>
+    <td class="num"><a class="btn small" href="/mods/<%= l.slug %>?bearbeiten" target="_blank">✏️</a>
+      <form method="post" action="/admin/mods/<%= l.id %>/delete" data-confirm="Modliste „<%= l.title %>“ löschen?" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger" title="Löschen">🗑</button></form></td></tr>
   <% } %>
-  <% if (!lists.length) { %><tr><td colspan="5">Noch keine Modlisten.</td></tr><% } %>
+  <% if (!lists.length) { %><tr><td colspan="8">Noch keine Modlisten.</td></tr><% } %>
 </table>
 <%- include('../partials/foot') %>

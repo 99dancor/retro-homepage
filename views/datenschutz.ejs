@@ -75,6 +75,7 @@
   <li>Sudoku: die zuletzt gewählte Stufe, deine Notizen und welche Ziffern aufgedeckt wurden, ohne Konto auch deine Ziffern, Zeit und Hilfen der letzten 40 Tage.</li>
   <li>Quiz ohne Konto: der zuletzt gewählte Name, das Bild und die Farbe, damit du sie beim nächsten Mal nicht neu eingeben musst.</li>
   <li>Werwolf: ohne Konto der zuletzt gewählte Name und das Bild, außerdem ob der Erzähler auf diesem Gerät vorlesen soll. Die Stimme erzeugt dein Browser bzw. dein Gerät selbst.</li>
+  <li>Modlisten: welche Kategorien einer Liste du zugeklappt hast und, wenn du ohne Konto etwas vorschlägst, den Namen, den du dabei angegeben hast.</li>
   <li>Die Lautstärke für Musik und Effekte (🔊 neben der Uhr), im Mediaplayer die gewählte Visualisierung, ob Videos als Bild oder Visualisierung laufen, Zufall und Wiederholen, die Breite von Aufgabenleiste und Wiedergabeliste und die Höhe des Bilds, und ob du „YouTube laden“ für diesen Browser merken wolltest. Die eigene Wiedergabeliste liegt nur im offenen Fenster und ist nach dem Schließen weg.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
@@ -90,6 +91,7 @@
   <%- code('pet', 'Unter diesen Namen speichert das Haustier-Spiel im Browser.') %>
   <%- code('volume', 'Die Lautstärke liegt unter diesem Namen im Browser. Mediaplayer und Haustier-Spiel lesen sie von dort.') %>
   <%- code('musicPrefs', 'Der Mediaplayer merkt sich Visualisierung, Bild oder Visualisierung bei Videos, Zufall, Wiederholen und die Größe der Bereiche.') %>
+  <%- code('modsLocal', 'Unter <code>modliste:&lt;Nummer&gt;</code> liegen die zugeklappten Kategorien einer Modliste, unter <code>modliste-gast</code> dein Name für Vorschläge ohne Konto.') %>
   <%- code('youtubeKey', 'Hier steht nur „1“, wenn du „Für diesen Browser merken“ angekreuzt hast.') %>
 </details>
 
@@ -152,6 +154,11 @@
   <li><b>Aufrufe im Forum:</b> Am Thema steht nur eine Zahl. Damit Neuladen nicht mitzählt, merkt sich der Server sechs Stunden lang im Arbeitsspeicher, dass dein Konto bzw. deine IP-Adresse das Thema schon gesehen hat. Nach einem Neustart ist das weg.
   <details><summary>🔍 Code dazu</summary>
   <%- code('boardViews', 'So wird gezählt.') %></details></li>
+  <li><b>Modlisten und Vorschläge:</b> Eine Modliste gehört dem Konto, das sie angelegt hat, und ist für die sichtbar, die der Besitzer auswählt. Bei einem Vorschlag werden Mod, Link, Bemerkung, Zeit und dein Name gespeichert: mit Konto dein Name auf der Seite (verlinkt), ohne Konto der Name, den du angibst, mit „(Gast)“ dahinter. Den sieht jeder, der die Liste sehen darf. Damit niemand Vorschläge kaputt machen kann, merkt sich der Verlauf jeder Liste die letzten 50 Änderungen: wer (Name, bei Mitgliedern das Konto), wann, was, und den Stand der Vorschläge davor. Den Verlauf kann jeder ansehen, zurückdrehen nur Besitzer und Admin. Wie oft jemand Vorschläge ändert, zählt der Server nur im Arbeitsspeicher pro IP-Adresse (eine Stunde lang, wie die Sperre gegen zu viele Versuche oben), gespeichert wird die IP-Adresse dabei nicht. Löscht der Besitzer die Liste, sind auch Vorschläge und Verlauf weg. Wird ein Konto gelöscht, steht an seinen Vorschlägen und im Verlauf nur noch „gelöschtes Konto“, seine Listen übernimmt der Admin.
+  <details><summary>🔍 Code dazu</summary>
+  <%- code('modSuggestions', 'Diese Spalten hat ein Vorschlag.') %>
+  <%- code('modLog', 'Und so sieht ein Eintrag im Verlauf aus.') %>
+  <%- code('modActor', 'Mit Konto steht dein Konto am Vorschlag, ohne Konto nur der angegebene Name.') %></details></li>
   <li><b>Kontakt:</b> Name, E-Mail (freiwillig), Betreff, Text und dein Konto, falls angemeldet. Das sieht nur der Admin. Es bleibt, bis er es löscht.</li>
   <li><b>Bilder und Dateien</b> (außer Profilbildern) werden unverändert mit ihrem ursprünglichen Dateinamen gespeichert. Fotos können versteckte Angaben wie den Aufnahmeort enthalten. Entferne sie vorher, wenn du das nicht möchtest. Bilder aus dem Forum kann jeder abrufen, der die Adresse kennt. Unter <a href="/eigene-dateien">Dokumente → Eigene Dateien</a> siehst du alles, was du hochgeladen oder gespeichert hast, und kannst es ändern oder löschen. „Nur Freunde“ zeigt eine Datei oder einen Titel nur Mitgliedern, mit denen du befreundet bist.</li>
   <li><b>E-Mail an den Admin:</b> <% if (mailOn) { %>Ist eingeschaltet. Neue Besucherbuch-Einträge, Nachrichten, Forenthemen und Registrierungen gehen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } else { %>Ist gerade ausgeschaltet. Wird sie eingerichtet, gehen neue Besucherbuch-Einträge, Nachrichten, Forenthemen und Registrierungen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } %></li>

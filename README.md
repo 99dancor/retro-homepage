@@ -126,7 +126,7 @@ strenger möchte, setzt `TRUST_PROXY` auf die IP des Pi.
 |---|---|
 | **Blog** | Editor mit Live-Vorschau, Bilder hochladen per Button, Drag & Drop oder Strg+V; Bilder in der Vorschau anklicken für Lage (links/mittig/rechts, Text fließt drumherum) und Größe, an der Ecke ziehen, per Drag & Drop verschieben; Tags, Entwürfe, Datum frei wählbar |
 | **Downloads** | Mehrere Dateien auf einmal hochladen (mit Fortschrittsanzeige), Kategorien + Spiel, Suche, Download-Zähler |
-| **Modlisten** | Pro Spiel, eine Mod pro Zeile: `Name \| Link \| Version \| Notiz`, `*` = optional |
+| **Modlisten** | Jedes Mitglied legt Listen an (Titel, Spiel, kurze Beschreibung, wer sie sieht). Mods als Zeilen mit Name, Link, Bemerkung und Haken „läuft auf dem Server“, nach Kategorien sortiert, die sich ein- und ausklappen lassen; Zeilen per ✕ entfernen, mit ➕ anhängen, per Ziehen verschieben oder viele auf einmal aus Text einfügen. Darunter Vorschläge, die je nach Liste alle (auch Gäste), nur Angemeldete oder niemand eintragen und ändern dürfen, mit Verlauf zum Zurückdrehen; der Besitzer übernimmt Vorschläge per Klick in eine Kategorie |
 | **Links** | Linksammlung nach Kategorien |
 | **Forum** | Angemeldete Nutzer erstellen Themen und antworten (mit Bildern), auf Wunsch anonym (nur der Admin sieht den Namen), bearbeiten/löschen eigene Beiträge; Admin pinnt an, schließt und löscht. Unter Einstellungen abschaltbar oder nur für Mitglieder lesbar |
 | **Changelog** | Im Startmenü, Inhalt aus `CHANGELOG.md` (wird mit jedem Update ergänzt) |

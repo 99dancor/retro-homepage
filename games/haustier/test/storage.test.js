@@ -47,6 +47,11 @@ test('Spielstand: kaputte oder fremde Daten werden abgelehnt, alte ergänzt', ()
   assert.equal(s.coins, 5);
   assert.deepEqual(s.pets, []);
   assert.equal(s.visits.streak, 0);
+  assert.deepEqual(s.diary, []);
+  // Tagebuch: kaputte Einträge fliegen raus, höchstens 20 bleiben
+  const d = migrate({ version: 1, diary: [{ at: 1, text: 'ok' }, { at: 'x', text: 'nein' }, null, ...Array(30).fill({ at: 2, text: 'viel' })] });
+  assert.equal(d.diary.length, 20);
+  assert.deepEqual(d.diary[0], { at: 1, text: 'ok' });
 });
 
 test('decide: leeres Konto übernimmt Gast-Fortschritt', () => {

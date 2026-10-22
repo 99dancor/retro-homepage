@@ -47,7 +47,8 @@ small, .muted { opacity: .75; }
 .body { padding: 10px; }
 .statusbar { display: flex; gap: 3px; padding: 2px; font-size: 12px; }
 .statusbar > * { flex: 1; padding: 1px 5px; box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); }
-.statusbar > .net, .statusbar > .extra { flex: 0 0 auto; }
+.statusbar > .net, .statusbar > .extra, .statusbar > .fixed { flex: 0 0 auto; }
+.statusbar svg { width: 16px; height: 16px; vertical-align: -3px; }
 /* Im Fenster auf dem Desktop zeigt der Fensterrand die Statusleiste der Seite (public/retro.js, watchStatus) */
 html.in-desk .statusbar.to-window { display: none !important; }
 .dwin .statusbar { min-width: 0; overflow: hidden; white-space: nowrap; }

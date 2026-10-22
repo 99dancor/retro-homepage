@@ -233,13 +233,15 @@ function join(viewer, username, res) {
   r.clients.add(c);
   res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no', Connection: 'keep-alive' });
   res.write('retry: 3000\n\n');
-  send(res, 'hello', { sid: c.sid, members: [...r.clients].filter(o => o !== c).map(member) });
-  broadcast(r, 'join', member(c), o => o !== c);
+  // Wer dasselbe Zimmer in zwei Fenstern offen hat, sieht sich nicht selbst als Besuch
+  const others = o => o.user.id !== viewer.id;
+  send(res, 'hello', { sid: c.sid, members: [...r.clients].filter(others).map(member) });
+  broadcast(r, 'join', member(c), others);
   const ping = setInterval(() => send(res, 'ping', {}), 20000).unref();
   return () => {
     clearInterval(ping);
     r.clients.delete(c);
-    broadcast(r, 'leave', { sid: c.sid });
+    broadcast(r, 'leave', { sid: c.sid }, others);
     if (!r.clients.size) rooms.delete(host.id);
   };
 }
@@ -253,7 +255,7 @@ function update(viewer, username, b) {
   const { visits } = rules();
   c.pets = (Array.isArray(b.pets) ? b.pets : []).slice(0, 3).map(visits.cleanLivePet).filter(Boolean);
   c.toy = visits.cleanLiveToy(b.toy);
-  broadcast(r, 'state', { sid: c.sid, pets: c.pets, toy: c.toy }, o => o !== c);
+  broadcast(r, 'state', { sid: c.sid, pets: c.pets, toy: c.toy }, o => o.user.id !== viewer.id);
   return { ok: true };
 }
 

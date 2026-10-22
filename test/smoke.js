@@ -1098,6 +1098,11 @@ async function main() {
       const home = sse(anna, '/api/pixelpfoten/live/anna');
       await home.ready;
       assert.deepEqual((await home.next('hello')).members, []);
+      // Das eigene Zimmer in einem zweiten Fenster: dort steht man nicht als eigener Besuch
+      const home2 = sse(anna, '/api/pixelpfoten/live/anna');
+      await home2.ready;
+      assert.deepEqual((await home2.next('hello')).members, []);
+      home2.close();
       const guestLive = sse(bernd, '/api/pixelpfoten/live/anna');
       await guestLive.ready;
       const hello = await guestLive.next('hello');

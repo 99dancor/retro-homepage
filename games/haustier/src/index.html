@@ -9,48 +9,48 @@
 <link rel="stylesheet" href="/theme.css">
 </head>
 <body>
-<div class="window game" id="game">
+<div class="game" id="game">
   <div class="titlebar"><span class="icon">🐾</span><span class="ttl">Pixelpfoten</span></div>
-  <div class="menubar" id="menubar">
-    <button type="button" class="menu" data-view="room">🏠 Zimmer</button>
-    <button type="button" class="menu" data-view="inventory">🎒 Inventar</button>
-    <button type="button" class="menu" data-view="shop">🛒 Shop</button>
-    <button type="button" class="menu" data-view="tasks">📋 Aufgaben <span id="task-count"></span></button>
-    <button type="button" class="menu" data-view="trip">🌳 Ausflug</button>
-    <button type="button" class="menu" data-view="visit">🏘️ Besuchen</button>
+  <div class="tbar" id="tbar" role="toolbar" aria-label="Pixelpfoten">
+    <button type="button" class="tb" data-view="room" title="Zimmer"><span aria-hidden="true">🏠</span> <span class="tl">Zimmer</span></button>
+    <button type="button" class="tb" data-view="trip" title="Ausflug"><span aria-hidden="true">🌳</span> <span class="tl">Ausflug</span></button>
+    <button type="button" class="tb" data-view="visit" title="Besuchen"><span aria-hidden="true">🏘️</span> <span class="tl">Besuchen</span></button>
+    <span class="tsep"></span>
+    <button type="button" class="tb" data-pane="shop" title="Shop"><span aria-hidden="true">🛒</span> <span class="tl">Shop</span></button>
+    <button type="button" class="tb" data-pane="tasks" title="Aufgaben"><span aria-hidden="true">📋</span> <span class="tl">Aufgaben</span> <span id="task-count"></span></button>
     <span class="spacer"></span>
-    <button type="button" class="menu" data-open="news" title="Neuigkeiten">📜<span class="dot" id="news-dot" hidden></span></button>
-    <button type="button" class="menu" data-open="help" title="Hilfe">❔</button>
-    <button type="button" class="menu" data-open="sound" title="Ton ausschalten">🔊</button>
-    <button type="button" class="menu" data-open="settings" title="Einstellungen">⚙️</button>
-    <span class="coins" title="Münzen">🪙 <b id="coins">0</b></span>
+    <button type="button" class="tb" data-menu="more" aria-haspopup="menu" title="Mehr"><span aria-hidden="true">☰</span> <span class="tl">Mehr</span><span class="dot" id="news-dot" hidden></span></button>
   </div>
 
-  <div class="notice" id="guest-notice" hidden>
-    <span class="notice-icon" aria-hidden="true">⚠️</span>
-    <div class="notice-text">
-      <b>Du spielst als Gast.</b> Dein Spielstand liegt nur in diesem Browser und kann verloren gehen,
-      z.&nbsp;B. beim Löschen der Browserdaten. Mit einem kostenlosen Konto ist er dauerhaft gesichert
-      und auf allen deinen Geräten verfügbar. Als Dankeschön gibt es <b>200 Münzen</b> und ein exklusives
-      <b>Homepage-Halstuch</b> für dein Tier.
-      <div class="notice-actions">
-        <a class="btn" id="register-link" href="/register" target="_top">Konto erstellen</a>
-        <a class="btn" id="login-link" href="/login" target="_top">Anmelden</a>
-        <button type="button" class="small" id="notice-later">Später</button>
-      </div>
-    </div>
+  <div class="main" id="main">
+    <main class="stage" id="screen">
+      <p class="loading">Lade Spielstand …</p>
+    </main>
+    <aside class="pane" id="pane" hidden></aside>
   </div>
 
-  <main class="body" id="screen">
-    <p class="loading">Lade Spielstand …</p>
-  </main>
-
-  <div class="statusbar">
-    <span id="save-status">…</span>
+  <div class="statusbar" id="statusbar">
+    <span id="status-log" aria-live="polite">…</span>
+    <span id="coins" class="fixed" title="Münzen">🪙 0</span>
     <span id="streak" class="fixed" title="Tage in Folge besucht">🔥</span>
-    <span id="account-status" class="fixed">…</span>
+    <span id="save-status" class="fixed">…</span>
   </div>
 </div>
+
+<!-- Hinweis für Gäste, einmal am Tag, als Sprechblase wie aus der Taskleiste -->
+<div class="balloon" id="guest-notice" role="status" hidden>
+  <button type="button" class="balloon-x" id="notice-close" aria-label="Schließen">✕</button>
+  <b>⚠️ Du spielst als Gast.</b>
+  <p>Dein Spielstand liegt nur in diesem Browser. Mit einem kostenlosen Konto ist er sicher und auf allen Geräten da.
+    Als Dankeschön gibt es <b>200 Münzen</b> und das <b>Homepage-Halstuch</b>.</p>
+  <div class="row">
+    <a class="btn def" id="register-link" href="/register" target="_top">Konto erstellen</a>
+    <a class="btn" id="login-link" href="/login" target="_top">Anmelden</a>
+    <button type="button" id="notice-later">Später</button>
+  </div>
+</div>
+
+<div class="menu-pop" id="menu" role="menu" hidden></div>
 
 <dialog id="dlg" class="window">
   <div class="titlebar"><span class="ttl" id="dlg-title"></span></div>

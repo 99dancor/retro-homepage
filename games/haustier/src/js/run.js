@@ -4,13 +4,22 @@
 //   createRun(host, { pet, course, levels, title, sound, onEnd })
 //     onEnd(run | null): run ist der fertige Lauf aus trip.js, null wenn abgebrochen
 //   Gibt { stop() } zurück.
+//   previewRun(host, { place, pet, sign })   derselbe Ort als stehendes Bild (Ausflug, bevor es losgeht)
+//
+// Tiere und Dinge sind Pixel-Art und werden nur in ganzen Vielfachen ihrer Bildpunkte vergrößert.
 import { newRun, stepRun, scoreOf, PLACES, OBSTACLES, PICKUPS } from './trip.js';
 import { petSvg } from './art.js';
+import { iconSvg, ICON_OF } from './icons.js';
 
 const STEP = 1 / 120;          // feste Schrittweite, damit der Lauf auf jedem Bildschirm gleich läuft
 const VIEW_H = 300;            // Strecken-Einheiten pro Bildhöhe
 
 const svgUrl = (svg) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+// Größe in px als ganzes Vielfaches des Rasters (16 bei Dingen, 48 beim Tier)
+const snap = (size, cell) => Math.max(1, Math.round(size / cell)) * cell;
+const thingSize = (t, k) => snap((t.kind === 'obstacle' ? Math.max(OBSTACLES[t.type].w, OBSTACLES[t.type].h) : 30) * k, 16);
+const thingSvg = (t) => iconSvg(ICON_OF[t.type] || t.type);
+const petSize = (k) => snap(84 * k, 48);
 
 // Hügel im Hintergrund und Weg im Vordergrund, nebeneinander gekachelt
 function hillsSvg(p) {
@@ -32,10 +41,12 @@ export function createRun(host, { pet, course, levels, title = '', sound = () =>
       <div class="run-pet sp running"><div class="sp-body">${petSvg(pet.species, pet.color, 'happy', { acc: pet.acc, shadow: false })}</div></div>
       <div class="run-hud"><span class="run-title">${title}</span>
         <span class="run-bar"><i></i></span>
-        <span class="run-count">${PICKUPS.treat.icon} <b data-c="treat">0</b> ${PICKUPS.coin.icon} <b data-c="coin">0</b> ${PICKUPS.sniff.icon} <b data-c="sniff">0</b></span>
+        <span class="run-count" title="${PICKUPS.treat.name}">${iconSvg(ICON_OF.treat)} <b data-c="treat">0</b></span>
+        <span class="run-count" title="Münzen">${iconSvg(ICON_OF.coins)} <b data-c="coin">0</b></span>
+        <span class="run-count" title="Schnüffelstellen">${iconSvg(ICON_OF.sniff)} <b data-c="sniff">0</b></span>
         <span class="run-score">0</span></div>
       <div class="run-msg">Bereit?</div>
-      <button type="button" class="small run-quit">✖ Abbrechen</button>
+      <button type="button" class="small run-quit">Abbrechen</button>
     </div>`;
   const el = host.firstElementChild;
   el.style.setProperty('--sky1', p.sky[0]);
@@ -59,18 +70,10 @@ export function createRun(host, { pet, course, levels, title = '', sound = () =>
 
   function thingEl(t) {
     const d = document.createElement('div');
-    if (t.kind === 'obstacle') {
-      const o = OBSTACLES[t.type];
-      d.className = 'run-thing obstacle ' + t.type;
-      d.textContent = o.icon;
-      d.style.width = o.w * k + 'px';
-      d.style.fontSize = Math.max(o.w, o.h) * 0.95 * k + 'px';
-      if (t.type === 'puddle') d.textContent = '';
-    } else {
-      d.className = 'run-thing pickup ' + t.type;
-      d.textContent = PICKUPS[t.type].icon;
-      d.style.fontSize = 28 * k + 'px';
-    }
+    d.className = `run-thing ${t.kind} ${t.type}`;
+    d.title = t.kind === 'obstacle' ? OBSTACLES[t.type].name : PICKUPS[t.type].name;
+    d.innerHTML = thingSvg(t);
+    d.style.width = d.style.height = thingSize(t, k) + 'px';
     layer.append(d);
     return d;
   }
@@ -93,13 +96,13 @@ export function createRun(host, { pet, course, levels, title = '', sound = () =>
       if (t.x < view0) { if (d) { d.remove(); els.delete(t.id); } continue; }
       if (!d) { if (t.kind === 'pickup' && r.taken.has(t.id)) continue; d = thingEl(t); els.set(t.id, d); }
       const sx = petX + (t.x - r.x) * k;
-      d.style.transform = `translate(${sx}px, ${groundY - t.y * k}px)`;
+      d.style.transform = `translate(${Math.round(sx)}px, ${Math.round(groundY - t.y * k)}px)`;
     }
-    hills.style.backgroundPositionX = `${-r.x * 0.25 * k}px`;
-    ground.style.backgroundPositionX = `${-r.x * k}px`;
-    const s = 84 * k;
+    hills.style.backgroundPositionX = `${Math.round(-r.x * 0.25 * k)}px`;
+    ground.style.backgroundPositionX = `${Math.round(-r.x * k)}px`;
+    const s = petSize(k);
     petEl.style.width = s + 'px';
-    petEl.style.transform = `translate(${petX - s / 2}px, ${groundY - s - r.y * k + s * 0.06}px) rotate(${r.y > 0 ? Math.max(-12, Math.min(12, -r.vy / 60)) : 0}deg)`;
+    petEl.style.transform = `translate(${Math.round(petX - s / 2)}px, ${Math.round(groundY - s - r.y * k + s * 0.06)}px)`;
     petEl.classList.toggle('air', r.y > 0);
     bar.style.width = Math.min(100, (100 * r.x) / course.length) + '%';
     scoreEl.textContent = scoreOf(r, course).toLocaleString('de-DE');
@@ -174,4 +177,52 @@ export function createRun(host, { pet, course, levels, title = '', sound = () =>
   startAt = performance.now() + 2100;
   raf = requestAnimationFrame(frame);
   return { stop: () => { ended = true; stop(); }, run: r };
+}
+
+// Der Ort als stehendes Bild: Hintergrund, das Tier am Start und die Hindernisse, die dort warten
+export function previewRun(host, { place, pet, sign = '' }) {
+  const p = PLACES[place];
+  host.innerHTML = `<div class="run preview" role="img" aria-label="${p.name}">
+      <div class="run-hills"></div><div class="run-ground"></div><div class="run-things"></div>
+      <div class="run-pet"><div class="sp-body">${petSvg(pet.species, pet.color, 'happy', { acc: pet.acc, shadow: false, title: pet.name })}</div></div>
+      ${sign ? `<div class="run-sign">${sign}</div>` : ''}</div>`;
+  const el = host.firstElementChild;
+  el.style.setProperty('--sky1', p.sky[0]);
+  el.style.setProperty('--sky2', p.sky[1]);
+  el.querySelector('.run-hills').style.backgroundImage = svgUrl(hillsSvg(p));
+  el.querySelector('.run-ground').style.backgroundImage = svgUrl(groundSvg(p));
+  const layer = el.querySelector('.run-things'), petEl = el.querySelector('.run-pet');
+  const things = [...p.obstacles.map((type) => ({ kind: 'obstacle', type })), { kind: 'pickup', type: 'treat' }];
+  const els = things.map((t) => {
+    const d = document.createElement('div');
+    d.className = `run-thing ${t.kind} ${t.type}`;
+    d.innerHTML = thingSvg(t);
+    layer.append(d);
+    return d;
+  });
+  // Neu anordnen, wenn sich die Fenstergröße ändert (solange die Vorschau zu sehen ist)
+  const layout = () => {
+    if (!el.isConnected) { ro.disconnect(); return; }
+    const W = el.clientWidth || 600, H = el.clientHeight || 300, k = H / VIEW_H, groundY = H * 0.78;
+    const s = petSize(k), petX = Math.min(W * 0.22, 160 * k);
+    petEl.style.width = s + 'px';
+    petEl.style.transform = `translate(${Math.round(petX - s / 2)}px, ${Math.round(groundY - s + s * 0.06)}px)`;
+    // Gleich große Lücken zwischen den Dingen; reicht der Platz nicht, fallen die hinteren weg
+    const x0 = petX + s * 0.6, sizes = things.map((t) => thingSize(t, k));
+    let n = things.length;
+    while (n > 1 && sizes.slice(0, n).reduce((a, b) => a + b, 0) + (n + 1) * 8 * k > W - x0) n--;
+    const gap = (W - x0 - sizes.slice(0, n).reduce((a, b) => a + b, 0)) / (n + 1);
+    let x = x0 + gap;
+    els.forEach((d, i) => {
+      d.hidden = i >= n;
+      if (d.hidden) return;
+      const t = things[i], size = sizes[i];
+      d.style.width = d.style.height = size + 'px';
+      d.style.transform = `translate(${Math.round(x + size / 2)}px, ${Math.round(groundY - (t.kind === 'pickup' ? 70 * k : 0))}px)`;
+      x += size + gap;
+    });
+  };
+  const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(layout) : { observe() {}, disconnect() {} };
+  ro.observe(el);
+  layout();
 }

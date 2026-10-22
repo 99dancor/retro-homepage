@@ -8,21 +8,21 @@ import { mood } from './pets.js';
 //   lure:    folgt der Maus oder dem Finger, die Tiere jagen danach
 //   bubbles: Tippen pustet Seifenblasen, die Tiere springen danach
 //   station: steht im Zimmer, Antippen lässt ein Tier damit spielen
-//   bounce: wie stark es springt, roll: rollt am Boden weiter, size: Größe in px (bei 1 = normaler Zimmergröße)
+//   bounce: wie stark es springt, roll: rollt am Boden weiter
 export const TOYS = {
-  toy_ball: { kind: 'throw', bounce: 0.62, roll: 0.985, size: 26, hint: 'Zieh den Ball und lass ihn los, um ihn zu werfen.' },
-  toy_yarn: { kind: 'throw', bounce: 0.3, roll: 0.99, size: 28, hint: 'Zieh das Wollknäuel und lass es rollen.' },
-  toy_duck: { kind: 'throw', bounce: 0.45, roll: 0.95, size: 28, hint: 'Wirf die Quietsche-Ente durchs Zimmer.' },
-  toy_frisbee: { kind: 'throw', bounce: 0.2, roll: 0.9, size: 34, glide: true, hint: 'Wirf die Frisbee, sie segelt ein Stück.' },
-  toy_plush: { kind: 'throw', bounce: 0.15, roll: 0.85, size: 34, hint: 'Wirf das Plüschtier, dann wird gekuschelt.' },
-  toy_puzzle: { kind: 'throw', bounce: 0.4, roll: 0.97, size: 30, hint: 'Roll den Futterball, dein Tier holt sich die Leckerlis raus.' },
-  toy_feather: { kind: 'lure', size: 30, hint: 'Beweg die Federangel mit der Maus oder dem Finger.' },
-  toy_laser: { kind: 'lure', size: 12, hint: 'Führ den Laserpunkt durchs Zimmer.' },
-  toy_stick: { kind: 'lure', size: 30, gnaw: true, hint: 'Halte den Knabberstab hin, dein Tier knabbert daran.' },
-  toy_bubbles: { kind: 'bubbles', size: 26, hint: 'Tipp ins Zimmer, um Seifenblasen zu pusten.' },
-  toy_wheel: { kind: 'station', size: 90, hint: 'Tipp das Laufrad an und dreh es mit Schwung.' },
-  toy_tunnel: { kind: 'station', size: 100, hint: 'Tipp den Tunnel an, dann flitzt dein Tier hindurch.' },
-  toy_rope: { kind: 'station', size: 110, hint: 'Tipp das Seil an, dann klettert dein Tier hinauf.' },
+  toy_ball: { kind: 'throw', bounce: 0.62, roll: 0.985, hint: 'Zieh den Ball und lass ihn los, um ihn zu werfen.' },
+  toy_yarn: { kind: 'throw', bounce: 0.3, roll: 0.99, hint: 'Zieh das Wollknäuel und lass es rollen.' },
+  toy_duck: { kind: 'throw', bounce: 0.45, roll: 0.95, hint: 'Wirf die Quietsche-Ente durchs Zimmer.' },
+  toy_frisbee: { kind: 'throw', bounce: 0.2, roll: 0.9, glide: true, hint: 'Wirf die Frisbee, sie segelt ein Stück.' },
+  toy_plush: { kind: 'throw', bounce: 0.15, roll: 0.85, hint: 'Wirf das Plüschtier, dann wird gekuschelt.' },
+  toy_puzzle: { kind: 'throw', bounce: 0.4, roll: 0.97, hint: 'Roll den Futterball, dein Tier holt sich die Leckerlis raus.' },
+  toy_feather: { kind: 'lure', hint: 'Beweg die Federangel mit der Maus oder dem Finger.' },
+  toy_laser: { kind: 'lure', hint: 'Führ den Laserpunkt durchs Zimmer.' },
+  toy_stick: { kind: 'lure', gnaw: true, hint: 'Halte den Knabberstab hin, dein Tier knabbert daran.' },
+  toy_bubbles: { kind: 'bubbles', hint: 'Tipp ins Zimmer, um Seifenblasen zu pusten.' },
+  toy_wheel: { kind: 'station', hint: 'Tipp das Laufrad an und dreh es mit Schwung.' },
+  toy_tunnel: { kind: 'station', hint: 'Tipp den Tunnel an, dann flitzt dein Tier hindurch.' },
+  toy_rope: { kind: 'station', hint: 'Tipp das Seil an, dann klettert dein Tier hinauf.' },
 };
 
 export const toyKind = (id) => (TOYS[id] ? TOYS[id].kind : null);

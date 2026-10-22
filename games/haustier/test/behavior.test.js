@@ -86,12 +86,16 @@ test('Mitspielen nur mit passendem Spielzeug, wach und nicht zu müde', () => {
   assert.ok(speed(cat, 'chase') > speed(cat, 'walk'));
 });
 
-test('Grafik: eigene Verlaufs-ids je Bild und Gruppen für Animationen', () => {
+test('Grafik: Pixel-Tier mit Ebenen für Schwanz und Augen', () => {
   const a = petSvg('cat', 'ginger', 'ok'), b = petSvg('cat', 'ginger', 'ok');
-  const id = (s) => s.match(/radialGradient id="([^"]+)"/)[1];
-  assert.notEqual(id(a), id(b));
-  for (const cls of ['eyes', 'ears', 'head', 'torso', 'paws', 'tail']) assert.match(a, new RegExp(`class="${cls}`));
-  assert.doesNotMatch(petSvg('dog', null, 'happy', { shadow: false }), /rgba\(0,0,0,\.15\)/);
+  assert.equal(a, b);
+  assert.doesNotMatch(a, /Gradient/);
+  assert.match(a, /shape-rendering="crispEdges"/);
+  for (const cls of ['px', 'px-t px-t0', 'px-t px-t1', 'px-t px-t2', 'px-e px-open', 'px-e px-shut']) assert.match(a, new RegExp(`class="${cls}"`));
+  // Fröhlich und im Schlaf blinzelt niemand
+  assert.doesNotMatch(petSvg('cat', 'ginger', 'happy'), /px-shut/);
+  assert.doesNotMatch(petSvg('dog', null, 'happy', { shadow: false }), /px-shadow/);
+  assert.match(petSvg('dog', null, 'sleep'), /class="zzz"/);
   assert.equal(mix('#808080', '#ffffff', 0.5), '#c0c0c0');
   assert.equal(mix('#808080', '#000000', 1), '#000000');
 });

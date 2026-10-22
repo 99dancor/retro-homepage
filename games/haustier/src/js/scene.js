@@ -6,7 +6,8 @@
 //   scene.sync()               Tiere mit dem Spielstand abgleichen (neue Tiere, Laune, Accessoires)
 //   scene.useToy(id) / putAway()
 //   scene.animate(petId, action, extra)   Pflege sichtbar machen (Napf, Herzchen, Gassi …)
-//   scene.floaters(petId, list)            aufsteigende Zahlen über einem Tier
+//   scene.floaters(petId, list)            aufsteigende Zahlen über einem Tier: [[html, minus, cls]]
+//   scene.speak(key, html, ms) / hush()    Sprechblase über einem Tier (ms = 0: bleibt, bis hush)
 //   scene.snapshot()                       Stand der eigenen Tiere und des Spielzeugs fürs Live-Zimmer
 //
 // hooks:
@@ -14,49 +15,68 @@
 //              kind: own (eigenes Tier, läuft hier), foreign (fremdes Tier, läuft hier), remote (läuft bei seinem Besitzer)
 //              net:  letzter Live-Stand eines remote-Tieres { x, d, facing, walking, hop, emote, seq, hidden }
 //   active()   key des ausgewählten Tieres     bed(): Körbchen zeigen?     remoteToys(): [{ key, id, x, y, d, spin }]
-//   select(entry), stroke(entry), play(entry, itemId) -> { ok, factor, fav }, sound(name)
+//   chest()    Spielzeugkiste zeigen?           openChest(rect): Kiste angetippt
+//   thought(entry) -> Wert, an den das Tier gerade denkt (Gedankenblase), oder null;  need(entry, key): Blase angetippt
+//   select(entry), stroke(entry), menu(entry, x, y), play(entry, itemId) -> { ok, factor, fav }, sound(name)
+//
+// Alles ist Pixel-Art: Tiere 48 × 48, Spielzeug 16 × 16, immer im selben ganzzahligen Maßstab und nie gedreht.
 import { SPECIES, mood } from './pets.js';
-import { ITEMS } from './items.js';
 import { petSvg } from './art.js';
+import { iconSvg, ICON_OF } from './icons.js';
 import { TOYS, decide, besides, stepTowards, canCatch, wantsToPlay, speed } from './behavior.js';
 
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const html = (tag, cls, inner = '') => { const el = document.createElement(tag); el.className = cls; el.innerHTML = inner; return el; };
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // Wie lange ein Tier nach einem gefangenen Spielzeug wartet, bevor es wieder zählt
 const PLAY_GAP = 2500;
 const BORED_MS = 25000;
 const BED = { x: 0.13, d: 0.12 };
+const CHEST = { x: 0.87, d: 0.06 };
 const MIN_GAP = 0.17;          // so weit (in Zimmerbreiten) halten Tiere Abstand voneinander
+// Spielzeug, das im Zimmer steht: Bild und Größe in Bildpunkten
+const STATION = { toy_wheel: ['wheel0', 36, 40], toy_tunnel: ['tunnel', 44, 26], toy_rope: ['rope', 12, 56] };
+// Gefühle als kleine Pixelbilder (alles andere bleibt Zeichen)
+const EMOTE = {
+  '❤️': 'heart', '💕': 'heart', '💞': 'heart', '😍': 'heart', '💤': 'zzz', '😴': 'zzz', '♪': 'note', '😊': 'note', '👋': 'note',
+  '✨': 'sparkle', '❗': 'bang', '🎁': 'gift', '🐾': 'paw', '😄': 'star', '🎉': 'star', '☀️': 'star', '🫧': 'drop',
+};
+const emoteHtml = (s) => (EMOTE[s] ? iconSvg(EMOTE[s]) : `<b>${esc(s)}</b>`);
 
 export function createScene(hooks) {
   const layer = html('div', 'scene');
   const actors = new Map();        // key -> Darsteller (key = Tier-id bei eigenen Tieren)
   const ghosts = new Map();        // Spielzeug anderer im Live-Zimmer
   let host = null, raf = 0, last = 0;
-  let geo = { W: 400, H: 300, top: 200, near: 280, far: 214 };
+  let geo = { W: 400, H: 300, top: 200, near: 280, far: 214, u: 2 };
   let toy = null;                  // herausgeholtes Spielzeug
   let lure = null;                 // Zeiger für Federangel, Laser und Knabberstab: { x, y } in px
   const bubbles = [];
-  let bed = null;
+  let bed = null, chest = null;
+  let speech = null;               // Sprechblase: { key, el, until }
   let drag = null;                 // gehaltenes Wurfspielzeug: { id, samples }
-  let stroke = null;               // Streicheln: { id, x, y, dist, moved }
+  let stroke = null;               // Streicheln: { id, x, y, dist, moved, timer }
 
   // ---------- Geometrie ----------
-  // Der Zimmerhintergrund ist 400 × 300 groß, unten ausgerichtet und füllt die Fläche (slice); der Boden beginnt bei 186
+  // Der Zimmerhintergrund ist 400 × 300 groß, unten ausgerichtet und füllt die Fläche (slice); der Boden beginnt bei 186.
+  // u: Größe eines Bildpunkts in px, ganzzahlig, damit die Pixel scharf bleiben
   function measure() {
     const W = layer.clientWidth || 400, H = layer.clientHeight || 300;
     const k = Math.max(W / 400, H / 300);
     const top = H - 114 * k;
-    geo = { W, H, top, far: top + 16, near: H - 24 };
+    const u = clamp(Math.round(Math.min(W * 0.24, H * 0.32) / 48), 1, 5);
+    geo = { W, H, top, far: top + 16, near: H - 24, u };
   }
   const feetY = (d) => geo.far + d * (geo.near - geo.far);
   const depthAt = (y) => clamp((y - geo.far) / (geo.near - geo.far), 0, 1);
-  const scaleAt = (d) => 0.66 + 0.34 * d;
-  const baseSize = () => clamp(Math.min(geo.W * 0.36, geo.H * 0.5), 80, 200);
-  const sizeOf = (a) => baseSize() * scaleAt(a.d);
+  const sizeOf = () => 48 * geo.u;
+  const toyPx = () => 16 * geo.u;
+  const toyR = () => 7 * geo.u;
+  const z = (d, add = 10) => String(add + Math.round(d * 100));
+  const px = (v) => Math.round(v) + 'px';
 
   // ---------- Tiere ----------
   const petOf = (key) => { const a = actors.get(key); return a ? a.entry.pet : null; };
@@ -75,7 +95,7 @@ export function createScene(hooks) {
     layer.append(el);
     const net = entry.net;
     return {
-      id: entry.key, entry, el, body, flip, shadow, emote, name, seq: 0, lastEmote: '', netSeq: net ? net.seq : 0,
+      id: entry.key, entry, el, body, flip, shadow, emote, name, think: null, thinkKey: null, seq: 0, lastEmote: '', netSeq: net ? net.seq : 0,
       x: net ? net.x : n === 1 ? 0.5 : 0.22 + (0.56 * i) / Math.max(1, n - 1), d: net ? net.d : 0.55 + (i % 2) * 0.25,
       facing: 1, hop: 0, hopV: 0, walking: false, plan: null, until: 0, key: '',
       face: null, busyUntil: 0, nextPlay: 0, bored: {}, carry: false, hidden: false,
@@ -86,7 +106,11 @@ export function createScene(hooks) {
   function sync() {
     const list = hooks.roster();
     for (const [key, a] of actors) {
-      if (!list.some((e) => e.key === key)) { a.el.remove(); actors.delete(key); if (toy && toy.user === key) toy.user = null; }
+      if (!list.some((e) => e.key === key)) {
+        a.el.remove(); actors.delete(key);
+        if (toy && toy.user === key) toy.user = null;
+        if (speech && speech.key === key) hush();
+      }
     }
     list.forEach((e, i) => {
       const a = actors.get(e.key);
@@ -109,28 +133,83 @@ export function createScene(hooks) {
       a.el.classList.toggle('active', a.id === active && (mine > 1 || list.length > mine));
       a.el.classList.toggle('happy', face === 'happy');
       a.el.classList.toggle('guest', a.entry.kind !== 'own');
+      drawThought(a, hooks.thought ? hooks.thought(a.entry) : null);
     }
     drawBed(hooks.bed());
+    drawChest();
+  }
+
+  // Gedankenblase über dem Kopf: woran das Tier gerade denkt (zum Antippen)
+  function drawThought(a, need) {
+    if (need === a.thinkKey) return;
+    a.thinkKey = need;
+    if (a.think) { a.think.remove(); a.think = null; }
+    if (!need) return;
+    a.think = html('div', 'sp-think', iconSvg('think') + iconSvg(ICON_OF[need] || need));
+    a.think.title = `${a.entry.pet.name} denkt an: ${{ love: 'Streicheleinheiten', fun: 'Spielen', food: 'Futter', water: 'Wasser', rest: 'Schlaf' }[need] || need}`;
+    a.el.append(a.think);
   }
 
   function drawBed(has) {
     if (!has) { if (bed) { bed.remove(); bed = null; } return; }
     if (!bed) {
-      bed = html('div', 'sc-bed', `<svg viewBox="0 0 120 50" aria-hidden="true"><ellipse cx="60" cy="30" rx="58" ry="19" fill="#b8763a" stroke="#6a4020" stroke-width="2.5"/>
-        <ellipse cx="60" cy="26" rx="46" ry="12" fill="#f4d9e6" stroke="#6a4020" stroke-width="2"/><path d="M12,30 q48,22 96,0" fill="none" stroke="#8a5428" stroke-width="2"/></svg>`);
+      bed = html('div', 'sc-bed', iconSvg('bed'));
       bed.title = 'Körbchen';
       layer.prepend(bed);
     }
   }
 
+  function drawChest() {
+    const has = hooks.chest ? hooks.chest() : false;
+    if (!has) { if (chest) { chest.remove(); chest = null; } return; }
+    const open = !!toy;
+    if (!chest) {
+      chest = html('div', 'sc-chest');
+      chest.setAttribute('role', 'button');
+      chest.setAttribute('aria-haspopup', 'menu');
+      layer.append(chest);
+    }
+    if (chest.dataset.open !== String(open)) {
+      chest.dataset.open = String(open);
+      chest.innerHTML = iconSvg(open ? 'chest_open' : 'chest');
+      chest.title = open ? 'Spielzeugkiste: anderes Spielzeug oder wegräumen' : 'Spielzeugkiste: Spielzeug herausholen';
+    }
+  }
+
   function say(a, symbol, ms = 1600) {
     a.seq++; a.lastEmote = symbol;
-    a.emote.textContent = symbol;
+    a.emote.innerHTML = emoteHtml(symbol);
     a.emote.classList.remove('show'); void a.emote.offsetWidth; a.emote.classList.add('show');
     a.emoteUntil = performance.now() + ms;
   }
 
   function hop(a, v = 1) { if (a.hop <= 0.5) a.hopV = 260 * v * (geo.H / 380); }
+
+  // ---------- Sprechblase ----------
+  function speak(key, inner, ms = 4000) {
+    hush();
+    if (!actors.has(key) || !layer.isConnected) return null;
+    const el = html('div', 'sc-say', inner);
+    layer.append(el);
+    speech = { key, el, until: ms ? performance.now() + ms : Infinity };
+    placeSpeech(performance.now());
+    return el;
+  }
+  function hush(key) {
+    if (!speech || (key && speech.key !== key)) return;
+    speech.el.remove();
+    speech = null;
+  }
+  function placeSpeech(now) {
+    const a = speech && actors.get(speech.key);
+    if (!a || now > speech.until) { hush(); return; }
+    const el = speech.el, w = el.offsetWidth, h = el.offsetHeight, s = sizeOf();
+    const cx = a.x * geo.W;
+    const left = clamp(cx - w / 2, 4, Math.max(4, geo.W - w - 4));
+    const top = Math.max(4, feetY(a.d) - s - a.hop - h + s * 0.08);
+    el.style.transform = `translate(${px(left)}, ${px(top)})`;
+    el.style.setProperty('--tail', px(clamp(cx - left, 12, w - 12)));
+  }
 
   // ---------- Spielzeug ----------
   function useToy(id) {
@@ -138,19 +217,21 @@ export function createScene(hooks) {
     const t = TOYS[id];
     if (!t) return;
     measure();
-    toy = { id, ...t, x: geo.W * 0.5, y: feetY(0.85) - 10, vx: 0, vy: 0, d: 0.85, spin: 0, fresh: false, carriedBy: null, el: null, speed: 0 };
+    toy = { id, ...t, x: geo.W * 0.5, y: feetY(0.85) - toyPx() / 2, vx: 0, vy: 0, d: 0.85, spin: 0, fresh: false, carriedBy: null, el: null, speed: 0 };
     if (t.kind === 'throw') {
-      toy.el = html('div', 'sc-toy throw', `<span>${ITEMS[id].icon}</span>`);
+      toy.el = html('div', 'sc-toy throw ' + id, iconSvg(id));
       toy.el.title = t.hint;
     } else if (t.kind === 'station') {
       const a = actors.get(hooks.active()) || [...actors.values()][0];
-      toy.x = a && a.x < 0.5 ? geo.W * 0.78 : geo.W * 0.22;
+      toy.x = a && a.x < 0.5 ? geo.W * 0.74 : geo.W * 0.28;
       toy.d = 0.3;
-      toy.el = html('div', 'sc-toy station ' + id, stationSvg(id));
+      toy.el = html('div', 'sc-toy station ' + id, id === 'toy_wheel' ? iconSvg('wheel0', 'w0') + iconSvg('wheel1', 'w1') : id === 'toy_rope' ? '' : iconSvg(STATION[id][0]));
+      if (id === 'toy_rope') toy.el.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(iconSvg('rope'))}")`;
       toy.el.title = t.hint;
     }
     if (toy.el) layer.append(toy.el);
     layer.classList.add('toy-' + t.kind);
+    drawChest();
   }
 
   function putAway() {
@@ -159,22 +240,7 @@ export function createScene(hooks) {
     for (const b of bubbles.splice(0)) b.el.remove();
     for (const a of actors.values()) { a.carry = false; if (a.hidden) { a.hidden = false; a.el.style.opacity = ''; } }
     toy = null; lure = null; drawLure();
-  }
-
-  function stationSvg(id) {
-    if (id === 'toy_wheel') {
-      return `<svg viewBox="0 0 100 110" aria-hidden="true"><path d="M50,55 L20,108 M50,55 L80,108" stroke="#666" stroke-width="5"/>
-        <g class="wheel"><circle cx="50" cy="55" r="44" fill="rgba(255,255,255,.35)" stroke="#e05050" stroke-width="6"/>
-        ${[0, 45, 90, 135].map((d) => `<path d="M50,13 V97" stroke="#e0a0a0" stroke-width="3" transform="rotate(${d} 50 55)"/>`).join('')}
-        <circle cx="50" cy="55" r="6" fill="#c03030"/></g></svg>`;
-    }
-    if (id === 'toy_tunnel') {
-      return `<svg viewBox="0 0 120 70" aria-hidden="true"><path d="M8,66 V40 Q8,6 60,6 Q112,6 112,40 V66 Z" fill="#4a9ad8" stroke="#24507a" stroke-width="3"/>
-        ${[30, 60, 90].map((x) => `<path d="M${x},7 V66" stroke="#2e6ea8" stroke-width="3"/>`).join('')}
-        <ellipse cx="14" cy="50" rx="10" ry="16" fill="#1a2e40"/><ellipse cx="106" cy="50" rx="10" ry="16" fill="#1a2e40"/></svg>`;
-    }
-    return `<svg viewBox="0 0 40 160" aria-hidden="true"><path class="rope" d="M20,0 Q26,40 20,80 T20,150" fill="none" stroke="#b08850" stroke-width="7" stroke-linecap="round"/>
-      ${[30, 60, 90, 120].map((y) => `<circle cx="20" cy="${y}" r="7" fill="#c89a60" stroke="#7a5428" stroke-width="2"/>`).join('')}</svg>`;
+    drawChest();
   }
 
   function drawLure() {
@@ -182,10 +248,11 @@ export function createScene(hooks) {
     if (!lure || !toy || toy.kind !== 'lure') { if (el) el.remove(); return; }
     if (!el) {
       el = html('div', 'sc-lure ' + toy.id, toy.id === 'toy_laser' ? '<i class="dot"></i>'
-        : `<svg class="line" aria-hidden="true"><line/></svg><span>${ITEMS[toy.id].icon}</span>`);
+        : `<svg class="line" aria-hidden="true"><line/></svg>${iconSvg(toy.id)}`);
       layer.append(el);
     }
-    el.style.transform = `translate(${lure.x}px, ${lure.y}px)`;
+    el.style.setProperty('--s', toyPx() + 'px');
+    el.style.transform = `translate(${px(lure.x)}, ${px(lure.y)})`;
     const line = el.querySelector('line');
     if (line) {
       // Schnur der Federangel vom oberen Rand bis zur Feder
@@ -196,7 +263,7 @@ export function createScene(hooks) {
 
   function blow(x, y) {
     for (let i = 0; i < 4; i++) {
-      const r = rand(9, 16) * (geo.H / 380);
+      const r = Math.round(rand(4, 7)) * geo.u;
       const el = html('div', 'sc-bubble');
       el.style.width = el.style.height = 2 * r + 'px';
       layer.append(el);
@@ -211,7 +278,7 @@ export function createScene(hooks) {
     a.nextPlay = now + PLAY_GAP;
     const r = hooks.play(a.entry, toy.id) || { ok: false };
     if (!r.ok) { say(a, '💤'); a.bored[toy.id] = now + BORED_MS; return r; }
-    if (r.factor < 0.5) { say(a, '😑', 2200); a.bored[toy.id] = now + BORED_MS; } else say(a, r.fav ? '😍' : '♪');
+    if (r.factor < 0.5) { say(a, '…', 2200); a.bored[toy.id] = now + BORED_MS; } else say(a, r.fav ? '😍' : '♪');
     return r;
   }
 
@@ -355,7 +422,7 @@ export function createScene(hooks) {
         if (!fetcher || move(a, { x: 0.5, d: 1 }, speed(p, 'run'), dt)) {
           if (!fetcher && now < a.dropAt) { a.walking = false; return true; }
           toy.carriedBy = null; toy.fresh = false; a.carry = false;
-          toy.x = a.x * geo.W + a.facing * sizeOf(a) * 0.25; toy.d = a.d; toy.y = feetY(a.d) - toy.size * 0.5; toy.vx = toy.vy = 0;
+          toy.x = a.x * geo.W + a.facing * sizeOf() * 0.25; toy.d = a.d; toy.y = feetY(a.d) - toyR(); toy.vx = toy.vy = 0;
           if (fetcher) { say(a, '🐾'); hop(a, 0.6); }
         }
         return true;
@@ -401,7 +468,7 @@ export function createScene(hooks) {
       const ax = a.x * geo.W;
       const b = bubbles.reduce((m, x) => (Math.abs(x.x - ax) < Math.abs(m.x - ax) ? x : m));
       move(a, { x: b.x / geo.W, d: a.d }, speed(p, 'chase') * 0.8, dt);
-      const size = sizeOf(a);
+      const size = sizeOf();
       const headY = feetY(a.d) - size * 0.75 - a.hop;
       if (Math.abs(b.x - ax) < size * 0.3 && b.y < headY + size * 0.3) hop(a, clamp((feetY(a.d) - b.y) / (size * 1.2), 0.5, 1.2));
       if (Math.abs(b.x - ax) < size * 0.32 && Math.abs(b.y - headY) < size * 0.35) {
@@ -452,14 +519,14 @@ export function createScene(hooks) {
     if (toy.carriedBy) {
       const a = actors.get(toy.carriedBy);
       if (!a) { toy.carriedBy = null; return; }
-      const s = sizeOf(a);
+      const s = sizeOf();
       toy.x = a.x * geo.W + a.facing * s * 0.06; toy.y = feetY(a.d) - s * 0.42 - a.hop; toy.d = a.d;
       return;
     }
     const g = 1500 * (geo.H / 380) * (toy.glide && toy.vy > 0 && Math.abs(toy.vx) > 150 ? 0.3 : 1);
     toy.vy += g * dt;
     toy.x += toy.vx * dt; toy.y += toy.vy * dt;
-    const r = toy.size / 2, ground = feetY(toy.d) - r;
+    const r = toyR(), ground = feetY(toy.d) - r;
     if (toy.x < r) { toy.x = r; toy.vx = Math.abs(toy.vx) * 0.7; }
     if (toy.x > geo.W - r) { toy.x = geo.W - r; toy.vx = -Math.abs(toy.vx) * 0.7; }
     if (toy.y < r) { toy.y = r; toy.vy = Math.abs(toy.vy) * 0.5; }
@@ -500,45 +567,59 @@ export function createScene(hooks) {
   }
 
   // ---------- Zeichnen ----------
+  // Bewegung immer in ganzen Bildpunkten: Pixel-Art wird verschoben, nie gedreht oder weich skaliert
   function draw(now) {
+    const u = geo.u, s = sizeOf();
+    layer.classList.toggle('speaking', !!speech);   // solange eins spricht, ruhen die Gedankenblasen
     for (const a of actors.values()) {
-      const s = sizeOf(a);
       const fy = feetY(a.d);
       let lift = a.hop;
       if (a.el.classList.contains('climb')) lift += Math.sin(((now % 2400) / 2400) * Math.PI) * geo.H * 0.32;
+      const step = a.walking ? (Math.floor(now / 120 + a.blink * 3) % 2) * u : 0;
       a.el.style.width = a.el.style.height = s + 'px';
-      a.el.style.transform = `translate(${(a.x * geo.W - s / 2).toFixed(1)}px, ${(fy - s).toFixed(1)}px)`;
-      a.el.style.zIndex = String(10 + Math.round(a.d * 100));
-      const t = now / 1000;
-      const sway = a.walking ? Math.sin(t * 14 + a.blink * 3) * 5 : 0;
-      const bob = a.walking ? Math.abs(Math.sin(t * 14 + a.blink * 3)) * s * 0.03 : 0;
-      a.body.style.transform = `translateY(${(-lift - bob).toFixed(1)}px) rotate(${sway.toFixed(1)}deg)`;
+      a.el.style.transform = `translate(${px(a.x * geo.W - s / 2)}, ${px(fy - s)})`;
+      a.el.style.zIndex = z(a.d);
+      a.body.style.transform = `translateY(${-Math.round(lift / u) * u - step}px)`;
       a.flip.style.transform = `scaleX(${a.facing})`;
-      a.shadow.style.transform = `scale(${clamp(1 - lift / (s * 1.4), 0.4, 1).toFixed(2)})`;
+      a.shadow.style.transform = `scale(${(Math.round(clamp(1 - lift / (s * 1.4), 0.4, 1) * 4) / 4).toFixed(2)})`;
       a.el.classList.toggle('walking', a.walking);
       a.el.classList.toggle('tilt', now < a.tiltUntil);
+      a.el.classList.toggle('talking', !!speech && speech.key === a.id);
       if (a.emoteUntil && now > a.emoteUntil) { a.emote.classList.remove('show'); a.emoteUntil = 0; }
     }
     if (toy && toy.el && toy.kind === 'throw') {
-      const s = toy.size * (geo.H / 380) * scaleAt(toy.d);
-      toy.el.style.fontSize = s + 'px';
-      toy.el.style.transform = `translate(${toy.x - s / 2}px, ${toy.y - s / 2}px) rotate(${toy.spin.toFixed(0)}deg)`;
-      toy.el.style.zIndex = String(11 + Math.round(toy.d * 100));
+      const t = toyPx();
+      toy.el.style.width = toy.el.style.height = t + 'px';
+      toy.el.style.transform = `translate(${px(toy.x - t / 2)}, ${px(toy.y - t / 2)}) rotate(${(Math.round(toy.spin / 90) * 90) % 360}deg)`;
+      toy.el.style.zIndex = z(toy.d, 11);
       toy.el.classList.toggle('carried', !!toy.carriedBy);
     }
     if (toy && toy.el && toy.kind === 'station') {
-      const s = toy.size * (geo.H / 380);
-      toy.el.style.width = s + 'px';
-      const y = toy.id === 'toy_rope' ? 0 : feetY(toy.d) - s * (toy.id === 'toy_wheel' ? 1.1 : 0.58);
-      toy.el.style.transform = `translate(${toy.x - s / 2}px, ${y}px)`;
-      toy.el.style.zIndex = String(toy.id === 'toy_tunnel' ? 12 + Math.round(toy.d * 100) : 9 + Math.round(toy.d * 100));
+      const [, w, h] = STATION[toy.id];
+      toy.el.style.width = w * u + 'px';
+      if (toy.id === 'toy_rope') {
+        // Das Seil hängt von der Decke bis knapp über den Boden
+        const y1 = feetY(toy.d) - 12 * u;
+        toy.el.style.height = px(y1);
+        toy.el.style.backgroundSize = `${w * u}px ${h * u}px`;
+        toy.el.style.transform = `translate(${px(toy.x - (w * u) / 2)}, 0)`;
+      } else {
+        toy.el.style.height = h * u + 'px';
+        toy.el.style.transform = `translate(${px(toy.x - (w * u) / 2)}, ${px(feetY(toy.d) - h * u * (toy.id === 'toy_wheel' ? 1 : 0.8))})`;
+      }
+      toy.el.style.zIndex = z(toy.d, toy.id === 'toy_tunnel' ? 12 : 9);
     }
     if (bed) {
-      const s = baseSize() * scaleAt(BED.d) * 1.25;
-      bed.style.width = s + 'px';
-      bed.style.transform = `translate(${BED.x * geo.W - s / 2}px, ${feetY(BED.d) - s * 0.3}px)`;
+      bed.style.width = 60 * u + 'px';
+      bed.style.transform = `translate(${px(BED.x * geo.W - 30 * u)}, ${px(feetY(BED.d) - 15 * u)})`;
     }
-    for (const b of bubbles) b.el.style.transform = `translate(${b.x - b.r}px, ${b.y - b.r}px)`;
+    if (chest) {
+      chest.style.width = 24 * u + 'px';
+      chest.style.transform = `translate(${px(CHEST.x * geo.W - 12 * u)}, ${px(feetY(CHEST.d) - 19 * u)})`;
+      chest.style.zIndex = z(CHEST.d);
+    }
+    for (const b of bubbles) b.el.style.transform = `translate(${px(b.x - b.r)}, ${px(b.y - b.r)})`;
+    if (speech) placeSpeech(now);
     drawGhosts();
   }
 
@@ -546,19 +627,19 @@ export function createScene(hooks) {
   function drawGhosts() {
     const list = hooks.remoteToys();
     for (const [key, el] of ghosts) if (!list.some((t) => t.key === key)) { el.remove(); ghosts.delete(key); }
+    const t16 = toyPx();
     for (const t of list) {
       let el = ghosts.get(t.key);
       if (!el || el.dataset.id !== t.id) {
         if (el) el.remove();
-        el = html('div', 'sc-toy ghost', t.id === 'toy_laser' ? '<i class="dot"></i>' : `<span>${ITEMS[t.id].icon}</span>`);
+        el = html('div', 'sc-toy ghost', t.id === 'toy_laser' ? '<i class="dot"></i>' : iconSvg(t.id));
         el.dataset.id = t.id;
         layer.append(el);
         ghosts.set(t.key, el);
       }
-      const s = (TOYS[t.id] ? TOYS[t.id].size : 26) * (geo.H / 380) * scaleAt(t.d);
-      el.style.fontSize = s + 'px';
-      el.style.transform = `translate(${t.x * geo.W - s / 2}px, ${t.y * geo.H - s / 2}px) rotate(${Math.round(t.spin)}deg)`;
-      el.style.zIndex = String(11 + Math.round(t.d * 100));
+      el.style.width = el.style.height = t16 + 'px';
+      el.style.transform = `translate(${px(t.x * geo.W - t16 / 2)}, ${px(t.y * geo.H - t16 / 2)}) rotate(${(Math.round(t.spin / 90) * 90) % 360}deg)`;
+      el.style.zIndex = z(t.d, 11);
     }
   }
 
@@ -582,9 +663,19 @@ export function createScene(hooks) {
 
   // ---------- Maus und Finger ----------
   const pos = (e) => { const r = layer.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  const entryOf = (el) => { const a = el && actors.get(el.dataset.pet); return a ? a.entry : null; };
 
   layer.addEventListener('pointerdown', (e) => {
     if (e.button > 0) return;
+    if (e.target.closest('.sc-say')) return;
+    const think = e.target.closest('.sp-think');
+    if (think) {
+      const a = actors.get(think.closest('.sp').dataset.pet);
+      e.preventDefault();
+      if (a && a.thinkKey) hooks.need(a.entry, a.thinkKey);
+      return;
+    }
+    if (e.target.closest('.sc-chest')) { e.preventDefault(); hooks.openChest(chest.getBoundingClientRect()); return; }
     const p = pos(e);
     if (toy && toy.el && toy.kind === 'throw' && !toy.carriedBy && e.target.closest('.sc-toy')) {
       drag = { samples: [{ ...p, t: e.timeStamp }] };
@@ -596,7 +687,17 @@ export function createScene(hooks) {
     if (toy && toy.kind === 'station' && e.target.closest('.sc-toy')) { tapStation(); return; }
     const petEl = e.target.closest('.sp');
     if (petEl) {
-      stroke = { id: petEl.dataset.pet, x: e.clientX, y: e.clientY, dist: 0, moved: 0 };
+      stroke = { id: petEl.dataset.pet, x: e.clientX, y: e.clientY, dist: 0, moved: 0, timer: 0 };
+      // Lange drücken öffnet das Menü des Tieres (wie die rechte Maustaste)
+      if (e.pointerType !== 'mouse') {
+        const st = stroke;
+        st.timer = setTimeout(() => {
+          if (stroke !== st || st.moved > 8) return;
+          st.menu = true;
+          const en = entryOf(petEl);
+          if (en && hooks.menu) hooks.menu(en, st.x, st.y);
+        }, 550);
+      }
       layer.setPointerCapture?.(e.pointerId);
       return;
     }
@@ -608,12 +709,13 @@ export function createScene(hooks) {
     const p = pos(e);
     if (drag) {
       toy.x = clamp(p.x, 0, geo.W); toy.y = clamp(p.y, 0, geo.H);
-      if (p.y > geo.far) toy.d = depthAt(p.y + toy.size / 2);
+      if (p.y > geo.far) toy.d = depthAt(p.y + toyR());
       drag.samples.push({ ...p, t: e.timeStamp });
       while (drag.samples.length > 2 && e.timeStamp - drag.samples[0].t > 90) drag.samples.shift();
       return;
     }
     if (stroke) {
+      if (stroke.menu) return;
       const dd = Math.hypot(e.clientX - stroke.x, e.clientY - stroke.y);
       stroke.dist += dd; stroke.moved += dd; stroke.x = e.clientX; stroke.y = e.clientY;
       if (stroke.dist > 140) { stroke.dist = 0; const a = actors.get(stroke.id); if (a) hooks.stroke(a.entry); }
@@ -634,7 +736,8 @@ export function createScene(hooks) {
       hooks.sound('klick');
     }
     if (stroke) {
-      if (stroke.moved < 8) { const a = actors.get(stroke.id); if (a) hooks.select(a.entry); }
+      clearTimeout(stroke.timer);
+      if (stroke.moved < 8 && !stroke.menu && e.type === 'pointerup') { const a = actors.get(stroke.id); if (a) hooks.select(a.entry); }
       stroke = null;
     }
     if (toy && toy.kind === 'lure' && e.pointerType !== 'mouse') { lure = null; drawLure(); }
@@ -642,6 +745,12 @@ export function createScene(hooks) {
   layer.addEventListener('pointerup', up);
   layer.addEventListener('pointercancel', up);
   layer.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && toy && toy.kind === 'lure') { lure = null; drawLure(); } });
+  layer.addEventListener('contextmenu', (e) => {
+    const en = entryOf(e.target.closest('.sp'));
+    if (!en || !hooks.menu) return;
+    e.preventDefault();
+    hooks.menu(en, e.clientX, e.clientY);
+  });
 
   function tapStation() {
     if (toy.user) {
@@ -670,12 +779,11 @@ export function createScene(hooks) {
     a.plan = null;
     switch (action) {
       case 'feed': case 'water': {
-        const icon = action === 'water' ? '💧' : (ITEMS[extra.itemId] || {}).icon || '🍖';
-        const bowl = html('div', 'sc-bowl', `<span>${icon}</span>`);
-        const s = sizeOf(a);
-        bowl.style.width = s * 0.42 + 'px';
-        bowl.style.transform = `translate(${a.x * geo.W + a.facing * s * 0.32 - s * 0.21}px, ${feetY(a.d) - s * 0.2}px)`;
-        bowl.style.zIndex = String(11 + Math.round(a.d * 100));
+        const u = geo.u, s = sizeOf();
+        const bowl = html('div', 'sc-bowl', iconSvg(action === 'water' ? 'drop' : extra.itemId || 'food_dry'));
+        bowl.style.width = bowl.style.height = 16 * u + 'px';
+        bowl.style.transform = `translate(${px(a.x * geo.W + a.facing * s * 0.34 - 8 * u)}, ${px(feetY(a.d) - 15 * u)})`;
+        bowl.style.zIndex = z(a.d, 11);
         layer.append(bowl);
         a.busyUntil = now + 1900; a.walking = false;
         flash(a, 'eating', 1900);
@@ -702,10 +810,10 @@ export function createScene(hooks) {
   function floaters(petId, list) {
     const a = actors.get(petId);
     if (!a) return;
-    list.forEach(([text, minus, extra], i) => {
+    list.forEach(([inner, minus, extra], i) => {
       const el = document.createElement('span');
       el.className = 'floater' + (minus ? ' minus' : '') + (extra ? ' ' + extra : '');
-      el.textContent = text;
+      el.innerHTML = inner;
       el.style.left = `${10 + ((i * 27) % 70)}%`;
       el.style.animationDelay = `${i * 120}ms`;
       a.el.append(el);
@@ -716,6 +824,7 @@ export function createScene(hooks) {
   function mount(el) {
     host = el;
     if (layer.parentNode !== el) el.append(layer);
+    measure();
     sync();
     if (!raf) { last = 0; raf = requestAnimationFrame(tick); }
   }
@@ -723,8 +832,9 @@ export function createScene(hooks) {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && host && !raf) raf = requestAnimationFrame(tick); });
 
   return {
-    mount, sync, useToy, putAway, animate, floaters, snapshot,
+    mount, sync, useToy, putAway, animate, floaters, snapshot, speak, hush,
     get toy() { return toy ? toy.id : null; },
+    get speaking() { return speech ? speech.key : null; },
     actorAt: (id) => actors.get(id),
   };
 }

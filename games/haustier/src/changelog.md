@@ -1,5 +1,15 @@
 # Changelog
 
+## 22.10.2026 – Pixelpfoten: aufgeräumt und in Pixeln
+
+- **Pixel-Look:** Alle Tiere sind jetzt liebevoll gepixelt, dazu Futter, Spielzeug, Accessoires und alles, was dir auf Ausflügen begegnet. Die Bilder werden nur in ganzen Schritten vergrößert und bleiben so immer scharf. Die Zimmer und Ausflugsorte bekommen ihren Pixel-Look als Nächstes.
+- **Übersichtlicher:** Oben eine Werkzeugleiste mit Zimmer, Ausflug, Besuchen, Shop und Aufgaben, unter dem Zimmer die Pflege. Was dein Tier gerade am meisten braucht, ist hervorgehoben und geht auch mit der Eingabetaste. Füttern, Spielen und Weiteres öffnen kleine Menüs, genauso ein Rechtsklick oder langes Tippen auf ein Tier.
+- **Gedankenblasen:** Deine Tiere zeigen über dem Kopf, was ihnen fehlt. Tipp die Blase an, und es geht gleich los. Neuigkeiten und Fragen erzählen sie dir in einer Sprechblase.
+- **Kein Inventar mehr:** Futter suchst du beim Füttern aus, Spielzeug holst du aus der Kiste im Zimmer. Accessoires und Zimmer ziehst du im Shop an oder richtest sie dort ein, und Accessoires kannst du vor dem Kauf anprobieren.
+- **Dein Tier im Seitenfach:** Bedürfnisse, Zuneigung, was es gerade trägt, und ein neues **Tagebuch** mit allem, was ihr zusammen erlebt habt.
+- **Ausflug:** Du siehst den Ort schon vor dem Start, beim Wettbewerb die Strecke des Tages.
+- **Behoben:** Im Fenster auf dem Desktop gab es zwei Statusleisten. Wer sein Zimmer in einem zweiten Tab öffnete, stand dort als eigener Besuch.
+
 ## 18.10.2026 – Pixelpfoten: Ausflüge und Wettbewerb
 
 - **Ab nach draußen:** Unter 🌳 Ausflug (oder mit „Gassi gehen“) läuft dein Tier durch den Park. Ab Zuneigungsstufe 3 geht es in den Wald, ab 5 an den Strand, ab 7 in die Berge.

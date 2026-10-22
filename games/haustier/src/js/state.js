@@ -37,6 +37,7 @@ export function newState(now = Date.now()) {
     checkinDay: null,       // Tag, an dem die Fragen zum Wohlbefinden zuletzt beantwortet wurden
     visitors: 'members',    // wer meine Tiere besuchen darf: members | friends | none (siehe visits.js)
     outgoing: null,         // eigene Besuche heute: { day, hosts, playdates } für die Besuchsbelohnung
+    diary: [],              // Tagebuch im Seitenfach, neueste zuerst: [{ at, text, pet? }]
   };
 }
 
@@ -54,6 +55,7 @@ export function migrate(raw) {
   if (typeof s.updatedAt !== 'number') s.updatedAt = s.createdAt;
   if (!s.milestones || typeof s.milestones !== 'object') s.milestones = {};
   if (!ITEMS[s.room]) s.room = 'room_living';
+  s.diary = Array.isArray(s.diary) ? s.diary.filter((e) => e && typeof e.text === 'string' && typeof e.at === 'number').slice(0, 20) : [];
   // Spielstände aus der Zeit vor dem Shop bekommen die Startausstattung nachgereicht
   if (s.pets.length && !s.starterGiven) starterInventory(s);
   s.version = VERSION;

@@ -237,6 +237,7 @@ body.embed.admin .admin-nav { position: sticky; top: 0; z-index: 20; background:
 .editor-tools { display: flex; gap: 4px; flex-wrap: wrap; margin: 4px 0; }
 .preview { min-height: 120px; }
 .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.swatches[hidden] { display: none; }
 .swatch { display: flex; align-items: center; gap: 6px; }
 .swatch i { width: 22px; height: 16px; border: 1px solid #000; display: inline-block; }
 
@@ -341,6 +342,10 @@ table.board td small { opacity: .75; }
 .display-panel .swatches { gap: 4px; }
 .display-panel .swatch { gap: 4px; padding: 2px 6px; }
 .display-panel .swatch i { width: 12px; height: 12px; }
+.display-panel .swatches [aria-pressed=true] { font-weight: bold; box-shadow: inset 1px 1px var(--dark), inset -1px -1px var(--hi); }
+html.theme-xp .display-panel .swatches [aria-pressed=true] { box-shadow: inset 0 0 0 2px #316ac5; }
+/* Verschiebbar an der Titelleiste (public/retro.js dragPanel) */
+.display-panel > .titlebar, .lobby-widget > .titlebar { touch-action: none; cursor: default; }
 .display-panel .colors { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 2px 8px; }
 .display-panel .colors label { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
 .display-panel .bg-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -670,16 +675,14 @@ ul.people { list-style: none; margin: 0; padding: 0; }
 ul.people li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 3px 0; }
 ul.people.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 10px; }
 ul.people li > a:first-child { display: inline-flex; align-items: center; gap: 6px; }
-.people-table td, .conv-list td { vertical-align: middle; }
-.people-table td.av, .conv-list td.av { width: 34px; padding: 2px; }
+.people-table td { vertical-align: middle; }
+.people-table td.av { width: 34px; padding: 2px; }
 .searchbar input[type=search], .searchbar input[type=text] { min-width: 180px; }
 .game-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 .game-card .game-title { display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
 table.kv { border-collapse: collapse; width: 100%; }
 table.kv td { padding: 1px 4px; border-bottom: 1px dotted var(--lo); }
 table.kv td.num { text-align: right; font-variant-numeric: tabular-nums; }
-.conv-list tr.unread td { font-weight: bold; }
-.conv-list td.preview { overflow-wrap: anywhere; }
 .conv-head { display: flex; align-items: center; gap: 10px; }
 .conv-head h1 { margin: 0; }
 /* Gewinn und Verlust (Blackjack-Bilanz, auch im Profil) */
@@ -2102,7 +2105,7 @@ button.ml-plus { min-width: 0; padding: 1px 8px; font-size: 12px; }
 .dicon .brk { inset: 0; color: #e00; font: bold 24px/36px Tahoma, sans-serif; text-shadow: 0 0 2px #fff; }
 .dicon.broken .g { filter: grayscale(1); opacity: .65; }
 .dicon .t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; max-width: 100%; width: fit-content; margin: 0 auto;
-  padding: 0 2px; overflow-wrap: anywhere; hyphens: auto; background: var(--desktop); }
+  padding: 0 2px; overflow-wrap: break-word; word-break: normal; hyphens: manual; background: var(--desktop); }
 .dicon.sel { z-index: 2; }
 .dicon.sel .t { -webkit-line-clamp: 6; background: var(--sel-bg); color: var(--sel-text); outline: 1px dotted #ff0; }
 .dicon.sel .g, .dicon.drop-on .g { filter: brightness(.7) sepia(1) hue-rotate(190deg) saturate(3); }
@@ -2118,6 +2121,14 @@ button.ml-plus { min-width: 0; padding: 1px 8px; font-size: 12px; }
   .dicon { position: static; width: auto; font-size: 12px; }
   .dicon .g { width: 44px; height: 44px; font-size: 36px; line-height: 44px; }
 }
+
+/* Symbole als Bild (src/programs.js ico, WinUI.ico): Das Zeichen steht unsichtbar darin, damit Text und Ziehen es behalten */
+.sym { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -.2em; overflow: hidden; white-space: nowrap; text-indent: 3em;
+  font-style: normal; background: center / contain no-repeat; }
+.sym-msgr { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 16'%3E%3Ccircle cx='8' cy='4.6' r='3.2' fill='%2335b534' stroke='%231b6b1a' stroke-width='.7'/%3E%3Cpath d='M2 16 C2 10.5 4.5 8.8 8 8.8 S14 10.5 14 16 Z' fill='%2335b534' stroke='%231b6b1a' stroke-width='.7'/%3E%3Cg transform='translate(8 0)'%3E%3Ccircle cx='8' cy='4.6' r='3.2' fill='%232f6fd8' stroke='%23123f8a' stroke-width='.7'/%3E%3Cpath d='M2 16 C2 10.5 4.5 8.8 8 8.8 S14 10.5 14 16 Z' fill='%232f6fd8' stroke='%23123f8a' stroke-width='.7'/%3E%3C/g%3E%3C/svg%3E"); }
+html.theme-xp .sym-msgr { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='%2335b534' stroke='%231b6b1a' stroke-width='.6'%3E%3Cellipse cx='8' cy='3.7' rx='2.6' ry='3.4' transform='rotate(0 8 8)'/%3E%3Cellipse cx='8' cy='3.7' rx='2.6' ry='3.4' transform='rotate(60 8 8)'/%3E%3Cellipse cx='8' cy='3.7' rx='2.6' ry='3.4' transform='rotate(120 8 8)'/%3E%3Cellipse cx='8' cy='3.7' rx='2.6' ry='3.4' transform='rotate(180 8 8)'/%3E%3Cellipse cx='8' cy='3.7' rx='2.6' ry='3.4' transform='rotate(240 8 8)'/%3E%3Cellipse cx='8' cy='3.7' rx='2.6' ry='3.4' transform='rotate(300 8 8)'/%3E%3C/g%3E%3Ccircle cx='8' cy='8' r='2.9' fill='%23fff' stroke='%231b6b1a' stroke-width='.7'/%3E%3Ccircle cx='8' cy='8' r='1.4' fill='%231d2a1d'/%3E%3Ccircle cx='8.5' cy='7.5' r='.45' fill='%23fff'/%3E%3C/svg%3E"); }
+.sym-karten { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg transform='rotate(-14 10 13)'%3E%3Crect x='3.5' y='3.5' width='12' height='17' rx='1.6' fill='%23fff' stroke='%23333' stroke-width='.8'/%3E%3Cpath d='M8.6 8.4c-.9-1.6-3.3-1.1-3.3.8 0 1.5 1.9 2.7 3.3 4.2 1.4-1.5 3.3-2.7 3.3-4.2 0-1.9-2.4-2.4-3.3-.8z' fill='%23d3202a'/%3E%3C/g%3E%3Cg transform='rotate(9 14 13)'%3E%3Crect x='8' y='3.5' width='12.5' height='17.5' rx='1.6' fill='%23fff' stroke='%23222' stroke-width='.8'/%3E%3Ctext x='9.4' y='7.9' font-family='Arial,sans-serif' font-weight='bold' font-size='4'%3EA%3C/text%3E%3Cpath d='M14.5 9.2c-1.6 2-4 3.3-4 5.3 0 1.3 1.1 2.1 2.2 2.1.6 0 1.1-.2 1.4-.6-.1 1-.5 1.8-1.2 2.4h3.2c-.7-.6-1.1-1.4-1.2-2.4.3.4.8.6 1.4.6 1.1 0 2.2-.8 2.2-2.1 0-2-2.4-3.3-4-5.3z' fill='%23111'/%3E%3C/g%3E%3C/svg%3E"); }
+.dicon .g .sym { width: 34px; height: 34px; vertical-align: middle; }
 
 /* Offene Lobbys (rechts oben auf dem Desktop) */
 .desk-widget.lobby-widget { top: 12px; bottom: auto; width: 272px; margin: 0; z-index: 1; }
@@ -2913,9 +2924,12 @@ html.theme-xp .msgr-logo { font: bold 14px "Trebuchet MS", Tahoma, sans-serif; f
 .msgr-statusmsg { display: block; flex: none; text-align: left; min-width: 0; margin: 0; padding: 2px 8px 5px; border: 0; box-shadow: none; border-radius: 0;
   background: var(--dsn-blue); color: #dfe8ff; font: italic 11px var(--font); cursor: text; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 html.theme-xp .msgr-statusmsg { margin: 4px 6px; padding: 2px 5px; width: auto; background: #fff; color: #4a5a40; border: 1px dashed #9bb48a; border-radius: 3px; }
-.msgr-statusmsg input { width: 100%; box-sizing: border-box; font: inherit; font-style: normal; padding: 1px 3px; }
+.msgr-statusmsg[hidden] { display: none; }
+/* Beim Bearbeiten steht statt des Knopfs ein Eingabefeld da (in einem <button> lässt sich nicht tippen) */
+input.msgr-statusmsg-edit { display: block; flex: none; width: auto; min-width: 0; margin: 2px 6px 4px; padding: 1px 3px; font: 11px var(--font); }
+html.theme-xp input.msgr-statusmsg-edit { margin: 4px 6px; }
 
-/* Werkzeuge: Finden, Verlauf, Anfragen, Einstellungen */
+/* Werkzeuge: Finden, Anfragen, Einstellungen */
 .msgr-tools { display: flex; gap: 2px; padding: 3px 4px; flex: none; border-bottom: 1px solid var(--lo); }
 html.theme-xp .msgr-tools { background: #f3f6ee; border-bottom-color: #c9d6bf; }
 .msgr-tools > a, .msgr-tools > button { position: relative; width: 28px; height: 24px; min-width: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center;

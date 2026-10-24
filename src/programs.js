@@ -7,7 +7,21 @@ function menu(user) {
   return [['blog', '/blog', '📝 Blog'],
     ['dokumente', '📂 Dokumente', [...(user ? [['eigene-dateien', '/eigene-dateien', '🗂️ Eigene Dateien'], ['notizblock', '/notizblock', '🗒️ Notizblock']] : []), ...(user && user.canUpload ? [['upload', '/files/upload', '📤 Datei hochladen']] : []), ['files', '/files', '📁 Downloads'], ['mods', '/mods', '🧩 Modlisten'], ['links', '/links', '🔗 Links'], ['galerie', '/galerie', '🖼️ Galerie']]],
     ['spiele', '🎮 Spiele und Apps', [['kartenspiele', '/kartenspiele', '🂡 Kartenspiele'], ['quiz', '/quiz', '❓ Quiz'], ['werwolf', '/werwolf', '🐺 Werwolf'], ['minesweeper', '/minesweeper', '💣 Minesweeper'], ['kreuzwortraetsel', '/kreuzwortraetsel', '📰 Kreuzworträtsel'], ['sudoku', '/sudoku', '🔢 Sudoku'], ['paint', '/paint', '🎨 Paint'], ['zufall', '/zufall', '🎲 Zufallsgenerator'], ['musik', '/musik', '🎵 Mediaplayer'], ['apps', '/apps', '🕹️ Andere Games']]],
-    ['haustier', '/haustier/', '🐾 Pixelpfoten'], ['board', '/forum', '💬 Forum'], ['nutzer', '/messenger', '💬 Messenger'], ['guestbook', '/guestbook', '📖 Besucherbuch'], ['contact', '/contact', '✉️ Kontakt']];
+    ['haustier', '/haustier/', '🐾 Pixelpfoten'], ['board', '/forum', '💬 Forum'], ['nutzer', '/messenger', '🌼 Messenger'], ['guestbook', '/guestbook', '📖 Besucherbuch'], ['contact', '/contact', '✉️ Kontakt']];
+}
+
+// Symbole, die als Bild gezeichnet werden (retro.css .sym-…): Der Messenger zeigt je nach Design die ICU-Blume oder die
+// DSN-Männchen, die Kartenspiele eine richtige Spielkarte. Das Zeichen bleibt im Text (z. B. beim Ziehen auf den Desktop) und
+// dient als Ersatz, wo kein Bild hinkommt. Gegenstück im Browser: WinUI.ico (public/winui.js).
+const IMG = { '🌼': 'msgr', '🂡': 'karten' };
+const escHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+function ico(icon) {
+  return IMG[icon] ? `<i class="sym sym-${IMG[icon]}" aria-hidden="true">${icon}</i>` : escHtml(icon);
+}
+// Beschriftung „🌼 Messenger“ als HTML, mit Bild-Symbol wo es eins gibt
+function labelHtml(label) {
+  const sp = label.indexOf(' ');
+  return sp > 0 ? ico(label.slice(0, sp)) + escHtml(label.slice(sp)) : escHtml(label);
 }
 
 // Abgeschaltete Bereiche (Seitenverwaltung) verschwinden aus Startmenü, Suche und Desktop
@@ -39,4 +53,4 @@ function list(l) {
   return out;
 }
 
-module.exports = { menu, off, flat, list };
+module.exports = { menu, off, flat, list, ico, labelHtml };

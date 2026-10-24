@@ -754,7 +754,7 @@ async function main() {
       await anna.form('/guestbook', { _csrf: tk, message: 'Hallo von Anna' });
       assert.match((await guest.req('/guestbook')).text_, /href="\/nutzer\/anna" class="userlink">[\s\S]*?Anna B\.<\/a>/);
       const desk = (await anna.req('/', { top: true })).text_;
-      assert.match(desk, /<div class="startmenu"[\s\S]*href="\/messenger">💬 Messenger[\s\S]*href="\/nutzer\/anna">👤 Mein Profil[\s\S]*href="\/konto">🔑 Konto und Passwort/);
+      assert.match(desk, /<div class="startmenu"[\s\S]*href="\/messenger"><i class="sym sym-msgr" aria-hidden="true">🌼<\/i> Messenger[\s\S]*href="\/nutzer\/anna">👤 Mein Profil<\/a>\s*<a href="\/konto">🔑 Konto und Passwort/);
       assert.match(desk, /id="msgrtray"/);
       assert.match(desk, /messenger-hub\.js/);
       assert.match(desk, /Anna B\. abmelden/);
@@ -800,16 +800,15 @@ async function main() {
       assert.equal(JSON.parse((await anna.req('/api/messenger/kontakte')).text_).contacts.find(c => c.user === 'bernd').unread, 1);
       const desk = (await anna.req('/', { top: true })).text_;
       assert.match(desk, /id="msgrtray"[^>]*><i class="st st-offline"><\/i><span class="pm-count">1</);
-      assert.match((await anna.req('/messenger/verlauf')).text_, /<tr class="unread">[\s\S]*1 neu[\s\S]*Hallo Anna!/);
       const conv = (await anna.req('/messenger/mit/bernd')).text_;
       assert.match(conv, /Hallo Anna!\nWie geht es dir\?/);
       assert.match(conv, /messenger\.js/);
       assert.equal(JSON.parse((await anna.req('/api/nachrichten')).text_).unread, 0, 'beim Öffnen gelesen');
       assert.match((await bernd.req('/messenger/mit/bernd')).text_, /gibt es nicht/, 'nicht an sich selbst');
       assert.match((await bernd.req('/messenger/mit/anna')).text_, /✔✔ gelesen/);
-      assert.equal((await guest.req('/messenger/verlauf')).status, 302, 'Gäste müssen sich anmelden');
-      // Frühere Adressen
-      assert.equal((await anna.req('/nachrichten')).headers.get('location'), '/messenger/verlauf');
+      // Frühere Adressen (den Nachrichtenverlauf gibt es nicht mehr, Gespräche öffnet die Kontaktliste)
+      assert.equal((await anna.req('/messenger/verlauf')).headers.get('location'), '/messenger');
+      assert.equal((await anna.req('/nachrichten')).headers.get('location'), '/messenger');
       assert.equal((await anna.req('/nachrichten/bernd')).headers.get('location'), '/messenger/mit/bernd');
 
       // Per fetch (wie das Gesprächsfenster): JSON zurück
@@ -844,9 +843,9 @@ async function main() {
 
       // Verlauf löschen: erst nur für Anna, nach Bernd ganz weg
       t = await anna.csrf('/messenger/mit/bernd');
-      await anna.form('/messenger/mit/bernd/loeschen', { _csrf: t });
-      assert.match((await anna.req('/messenger/verlauf')).text_, /Noch keine Nachrichten/);
-      assert.match((await bernd.req('/messenger/verlauf')).text_, /Klar!/);
+      assert.equal((await anna.form('/messenger/mit/bernd/loeschen', { _csrf: t })).headers.get('location'), '/messenger/mit/bernd');
+      assert.match((await anna.req('/messenger/mit/bernd')).text_, /Noch keine Nachrichten/);
+      assert.match((await bernd.req('/messenger/mit/anna')).text_, /Klar!/);
       t = await bernd.csrf('/messenger/mit/anna');
       await bernd.form('/messenger/mit/anna/loeschen', { _csrf: t });
       assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM private_messages').get().n, 0);
@@ -1319,7 +1318,7 @@ async function main() {
       const { anna, bernd } = members;
       const home = (await guest.req('/', { top: true })).text_;
       // Ein Eintrag für alle Kartenspiele in Spiele und Apps, die einzelnen Spiele führen dorthin
-      assert.match(home, /🎮 Spiele und Apps<\/button><div class="submenu">\s*<a href="\/kartenspiele">🂡 Kartenspiele<\/a>\s*<a href="\/quiz"/);
+      assert.match(home, /🎮 Spiele und Apps<\/button><div class="submenu">\s*<a href="\/kartenspiele"><i class="sym sym-karten" aria-hidden="true">🂡<\/i> Kartenspiele<\/a>\s*<a href="\/quiz"/);
       assert.match(home, /href="\/guestbook">📖 Besucherbuch/);
       for (const g of ['blackjack', 'poker', 'durak', 'uno', 'flip7', 'pilli']) {
         assert.doesNotMatch(home, new RegExp(`href="/${g}"`));
@@ -1896,7 +1895,7 @@ async function main() {
       assert.match(home, /<div class="tray">\s*<button[^>]*id="displaybtn"[\s\S]*id="clock"/);
       const panel = home.slice(home.indexOf('id="displaypanel"'));
       for (const re of [/data-tab="hintergrund"/, /name="bg" value="bild"/, /type="file" name="bild"/, /name="desktop"/, /data-scheme="nacht"/,
-        /data-preset="Matrix"/, /name="titleFrom"/, /<option value="comic">/, /name="design"/, /<option value="xp">/, /name="xp"/,
+        /data-preset="Matrix"/, /name="titleFrom"/, /<option value="comic">/, /name="design"/, /<option value="xp">/, /data-schemes="xp"/, /data-xp="oliv"/,
         /type="range" name="scale" min="75" max="200" step="5"/, /name="scaleAll"/, /name="marquee" value="aus"/,
         /name="widgets"/, /name="css"/, /data-act="apply"/]) assert.match(panel, re);
       const data = JSON.parse(home.match(/<script type="application\/json" id="darstellung-daten">([^<]*)<\/script>/)[1]);

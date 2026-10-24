@@ -80,7 +80,7 @@
                 var items = [];
                 j.groups.forEach(function (g) { g.items.forEach(function (it) { if (!it.external) items.push({ g: g.label, it: it }); }); });
                 box.innerHTML = items.length ? items.map(function (x, i) {
-                  return '<button type="button" class="sc-hit" data-i="' + i + '"><span>' + esc(x.it.icon) + '</span> <b>' + esc(x.it.name) + '</b> <small>' + esc(x.g) + '</small></button>';
+                  return '<button type="button" class="sc-hit" data-i="' + i + '"><span>' + W.ico(x.it.icon) + '</span> <b>' + esc(x.it.name) + '</b> <small>' + esc(x.g) + '</small></button>';
                 }).join('') : '<small class="muted">Nichts gefunden.</small>';
                 box.onclick = function (e) {
                   var b = e.target.closest('.sc-hit');
@@ -123,7 +123,7 @@
   function properties(e) {
     var title = 'Eigenschaften von ' + e.name;
     if (e.sys || e.lib) {
-      return W.dialog(title, '<div class="ms-about"><span class="ms-about-icon">' + esc(e.icon) + '</span><div>' +
+      return W.dialog(title, '<div class="ms-about"><span class="ms-about-icon">' + W.ico(e.icon) + '</span><div>' +
         info([['Art:', esc(e.lib ? 'Datei aus der Bibliothek' : KIND.sys)], ['Ziel:', '<code>' + esc(e.url) + '</code>'],
           e.sys ? ['', '<small>Dieses Symbol hat jeder. Du kannst es vom Desktop nehmen, zurück holst du es unter Systemsteuerung → Desktop.</small>'] : null]) + '</div></div>')
         .then(function () { return null; });

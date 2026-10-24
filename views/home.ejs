@@ -24,7 +24,7 @@
   <section class="home-start">
     <div class="home-h"><h2>🚀 Schnellstart</h2></div>
     <nav class="home-apps sunken" aria-label="Schnellstart">
-      <% for (const a of apps) { %><a class="home-app" href="<%= a.url %>" title="<%= a.hint %>"><span class="ico" aria-hidden="true"><%= a.icon %></span><span class="lbl"><%= a.name %></span></a><% } %>
+      <% for (const a of apps) { %><a class="home-app" href="<%= a.url %>" title="<%= a.hint %>"><span class="ico" aria-hidden="true"><%- ico(a.icon) %></span><span class="lbl"><%= a.name %></span></a><% } %>
     </nav>
   </section>
   <% } %>

@@ -7,9 +7,9 @@
      const shown = ([key, , b]) => Array.isArray(b) ? b.some(shown) : !(navHidden.includes(key) || off[key]);
      function menu(list) { for (const [key, a, b] of list.filter(shown)) {
        if (Array.isArray(b)) { %>
-    <div class="sub"><button type="button" class="menu-item sub-toggle" aria-expanded="false"><%= a %></button><div class="submenu"><% menu(b) %></div></div>
+    <div class="sub"><button type="button" class="menu-item sub-toggle" aria-expanded="false"><%- programs.labelHtml(a) %></button><div class="submenu"><% menu(b) %></div></div>
   <% } else { %>
-    <a href="<%= a %>"><%= b %></a>
+    <a href="<%= a %>"><%- programs.labelHtml(b) %></a>
   <% } } }
      menu(entries); %>
   <% for (const p of navPages) { if (p.slug === 'regeln') continue; %><a href="/p/<%= p.slug %>">📄 <%= p.title %></a><% } %>
@@ -25,7 +25,6 @@
   <% if (user) { %>
     <div class="sub"><button type="button" class="menu-item sub-toggle" aria-expanded="false">👤 Mein Konto</button><div class="submenu">
       <a href="<%= profileUrl(user.username) %>">👤 Mein Profil</a>
-      <a href="/messenger">💬 <span class="only-xp">ICU</span><span class="only-98">DSN Messenger</span></a>
       <a href="/konto">🔑 Konto und Passwort</a>
     </div></div>
     <hr>

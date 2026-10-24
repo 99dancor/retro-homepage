@@ -5,6 +5,9 @@
   'use strict';
   var doc = document;
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  // Symbol als HTML: Messenger und Kartenspiele sind Bilder (retro.css .sym-…, Gegenstück zu ico in src/programs.js)
+  var SYM = { '🌼': 'msgr', '🂡': 'karten' };
+  function ico(icon) { return SYM[icon] ? '<i class="sym sym-' + SYM[icon] + '" aria-hidden="true">' + icon + '</i>' : esc(icon); }
   function csrf() {
     var el = doc.querySelector('[data-csrf]');
     return el ? el.getAttribute('data-csrf') : '';
@@ -39,7 +42,7 @@
       b.className = 'ms-mi' + (it.checked ? ' chk' : '') + (it.sub ? ' wui-sub' : '') + (it.bold ? ' wui-bold' : '');
       b.setAttribute('role', 'menuitem');
       b.disabled = !!it.disabled;
-      b.innerHTML = '<span>' + (it.icon ? esc(it.icon) + ' ' : '') + esc(it.label) + '</span>' + (it.key ? '<span>' + esc(it.key) + '</span>' : '');
+      b.innerHTML = '<span>' + (it.icon ? ico(it.icon) + ' ' : '') + esc(it.label) + '</span>' + (it.key ? '<span>' + esc(it.key) + '</span>' : '');
       if (it.sub) {
         var open = function () {
           if (b.disabled) return;
@@ -136,12 +139,14 @@
     bodyEl.innerHTML = html;
     err.hidden = true;
     acts.innerHTML = '';
+    // „Abbrechen“ schickt das Formular nicht ab (Pflichtfelder sollen nicht meckern), sondern schließt direkt
+    var cancel = null;
     (buttons || [{ label: 'OK', value: 'ok', primary: true }]).forEach(function (b) {
       var el = doc.createElement('button');
       el.type = b.value === 'cancel' ? 'button' : 'submit';
       el.value = b.value; el.textContent = b.label;
       if (b.primary) el.className = 'wui-primary';
-      if (b.value === 'cancel') el.addEventListener('click', function () { finish('cancel'); });
+      if (b.value === 'cancel') el.addEventListener('click', function () { if (cancel) cancel(); });
       acts.appendChild(el);
     });
     var form = d.querySelector('form');
@@ -157,6 +162,7 @@
         return o;
       }
       function finish(value) {
+        cancel = null;
         form.removeEventListener('submit', onSubmit);
         d.querySelector('[data-x]').onclick = null;
         d.oncancel = null;
@@ -175,7 +181,8 @@
         finish(value);
       }
       form.addEventListener('submit', onSubmit);
-      d.querySelector('[data-x]').onclick = function () { finish('cancel'); };
+      cancel = function () { finish('cancel'); };
+      d.querySelector('[data-x]').onclick = cancel;
       d.oncancel = function (e) { e.preventDefault(); finish('cancel'); };
       d.showModal();
       if (opts.onOpen) opts.onOpen(form, bodyEl);
@@ -218,7 +225,7 @@
   function desk() { try { return window.parent !== window && window.parent.RetroDesk ? window.parent.RetroDesk : window.RetroDesk || null; } catch (e) { return null; } }
 
   window.WinUI = {
-    esc: esc, api: api, csrf: csrf, contextMenu: contextMenu, closeMenus: closeMenus, menubar: menubar, dialog: dialog,
+    esc: esc, ico: ico, api: api, csrf: csrf, contextMenu: contextMenu, closeMenus: closeMenus, menubar: menubar, dialog: dialog,
     msgbox: msgbox, confirm: confirmBox, visSelect: visSelect, VIS: VIS, folderOptions: folderOptions, fmtSize: fmtSize, fmtDate: fmtDate, desk: desk,
   };
 })();

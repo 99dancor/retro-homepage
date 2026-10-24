@@ -74,6 +74,7 @@ app.use((req, res, next) => {
     // Design ohne eigene Wahl (Seitenverwaltung → Design): 98, xp, xp-oliv oder xp-silber; display.js liest es aus <html data-design>
     siteDesign: getSetting('theme_design', '98'),
     programs: require('./programs'),
+    ico: require('./programs').ico,
     showCounter: getSetting('theme_show_counter') === '1',
     hitCounter: Number(getSetting('hit_counter', '0')),
     displayName: profiles.displayName,

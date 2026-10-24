@@ -118,8 +118,9 @@
     on('gelesen', function (d) { emit('gelesen', d); });
     on('nachricht', function (d) {
       emit('nachricht', d);
-      var mine = state.me && d.from === state.me.user;
-      if (mine) return;
+      // Selbst geschrieben (hier, in einem anderen Tab oder auf einem anderen Gerät): nichts melden. Der Server kennzeichnet
+      // das mit mine; ist die Verbindung noch nicht begrüßt (state.me fehlt), hilft der Namensvergleich allein nicht.
+      if (d.mine || (state.me && String(d.from).toLowerCase() === String(state.me.user).toLowerCase())) return;
       var open = chatActive(d.partner);
       if (d.kind === 'nudge') {
         sound('nudge');

@@ -192,17 +192,6 @@ const MAX_PM = 5000;
 function unreadCount(userId) {
   return db.prepare('SELECT COUNT(*) AS n FROM private_messages WHERE to_id = ? AND read_at IS NULL AND hidden_to = 0').get(userId).n;
 }
-// Ein Eintrag pro Gesprächspartner, neuestes Gespräch zuerst. SQLite liefert zu MAX(id) die Spalten genau dieser Zeile.
-function conversations(userId) {
-  return db.prepare(`
-    SELECT c.other, MAX(c.id) AS last_id, c.body, c.from_id, c.created_at, SUM(c.unread) AS unread,
-      u.username, u.display_name, u.avatar, u.role
-    FROM (SELECT id, body, from_id, created_at, CASE WHEN from_id = ? THEN to_id ELSE from_id END AS other,
-                 (to_id = ? AND read_at IS NULL) AS unread
-          FROM private_messages WHERE (from_id = ? AND hidden_from = 0) OR (to_id = ? AND hidden_to = 0)) c
-    JOIN users u ON u.id = c.other
-    GROUP BY c.other ORDER BY last_id DESC`).all(userId, userId, userId, userId);
-}
 function thread(meId, otherId, limit = 200) {
   return db.prepare(`SELECT * FROM private_messages
                      WHERE (from_id = ? AND to_id = ? AND hidden_from = 0) OR (from_id = ? AND to_id = ? AND hidden_to = 0)
@@ -463,7 +452,7 @@ module.exports = {
   displayName, profileUrl, PROFILE_VIS, PM_FROM, GB_FROM, SEE_FROM, REQUEST_FROM, number, fmtNumber, NUMBER_BASE, MAX_GB,
   blocked, ignore, ignored, MAX_IGNORES, canRequest, commonFriends, friendsSince, request, cleanNote, canSign, guestbookOf, signGuestbook, deleteGuestbookEntry, cleanDisplayName, nameTaken, findUser,
   friendship, friendAction, FRIEND_MSG, friendsOf, requestsTo, requestsFrom, canViewProfile, canMessage,
-  MAX_PM, unreadCount, conversations, thread, markRead, sendMessage, hideConversation,
+  MAX_PM, unreadCount, thread, markRead, sendMessage, hideConversation,
   STARTS, recordStats, countStart, ownStats, gameStats,
   AVATAR_MAX, saveAvatar, removeAvatar, imageSize, stripJpeg, stripPng, stripWebp,
 };

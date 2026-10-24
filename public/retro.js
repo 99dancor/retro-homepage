@@ -70,7 +70,7 @@
     if (p[1] === 'notizblock' && p[2]) return 'notizblock/' + p[2];
     if (p[1] === 'ansehen') return 'ansehen/' + p[2] + '/' + p[3];
     if (p[1] === 'ordner') return 'ordner/' + p[2];
-    // Messenger: Kontaktliste, jedes Gespräch, Suche und Verlauf in eigenen Fenstern
+    // Messenger: Kontaktliste, jedes Gespräch und die Suche in eigenen Fenstern
     if (p[1] === 'messenger' && p[2]) return 'messenger/' + p[2] + (p[3] ? '/' + p[3] : '');
     return p[1] || '';
   }
@@ -115,7 +115,7 @@
   var deskEl = document.getElementById('desk'), tasks = document.getElementById('tasks');
   var siteTitle = body.dataset.title, me = body.dataset.user;
   var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
-    contact: '✉️', changelog: '📋', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', konto: '🔑', messenger: '💬', musik: '🎵', zufall: '🎲', kartenspiele: '🂡', blackjack: '🃏', poker: '♠️', durak: '🎴', uno: '🟥', flip7: '7️⃣', pilli: '🌶️', quiz: '❓', werwolf: '🐺', minesweeper: '💣', kreuzwortraetsel: '📰', sudoku: '🔢',
+    contact: '✉️', changelog: '📋', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', konto: '🔑', messenger: '🌼', musik: '🎵', zufall: '🎲', kartenspiele: '🂡', blackjack: '🃏', poker: '♠️', durak: '🎴', uno: '🟥', flip7: '7️⃣', pilli: '🌶️', quiz: '❓', werwolf: '🐺', minesweeper: '💣', kreuzwortraetsel: '📰', sudoku: '🔢',
     nutzer: '👤', paint: '🎨', galerie: '🖼️', admin: '⚙️', 'eigene-dateien': '🗂️', einstellungen: '🛠️', notizblock: '🗒️', suche: '🔍',
     ordner: '📁', ansehen: '🖼️', benachrichtigungen: '🔔' };
   var mobile = window.matchMedia('(max-width: 760px)');
@@ -147,7 +147,7 @@
   }
 
   function focus(w) {
-    if (w.el.classList.contains('min')) w.el.classList.remove('min');
+    if (w.el.classList.contains('min')) { w.el.classList.remove('min'); keepVisible(w); }
     w.z = ++zTop; w.el.style.zIndex = w.z;
     active = w;
     wins.forEach(function (o) { o.el.classList.toggle('active', o === w); o.task.classList.toggle('pressed', o === w); });
@@ -178,10 +178,11 @@
     var icon = ICONS[section(w.url)] || '💾';
     w.el.querySelector('.ttl').textContent = w.title;
     w.el.querySelector('iframe').title = w.title;
-    // Der Messenger hat sein eigenes Symbol (Blume bei ICU, Männchen bei DSN), siehe .st-logo in retro.css
-    if (section(w.url) === 'messenger') {
-      w.el.querySelector('.icon').innerHTML = '<i class="st st-logo"></i>';
-      w.task.innerHTML = '<i class="st st-logo"></i> ';
+    // Messenger (Blume bei ICU, Männchen bei DSN) und Kartenspiele haben Bilder als Symbol, siehe .sym-… in retro.css
+    var pic = { messenger: 'msgr', kartenspiele: 'karten' }[section(w.url)];
+    if (pic) {
+      w.el.querySelector('.icon').innerHTML = '<i class="sym sym-' + pic + '" aria-hidden="true"></i>';
+      w.task.innerHTML = '<i class="sym sym-' + pic + '" aria-hidden="true"></i> ';
       w.task.appendChild(document.createTextNode(w.title));
     } else {
       w.el.querySelector('.icon').textContent = icon;
@@ -274,6 +275,77 @@
     sync();
   }
 
+  // Fenster ganz ins Bild holen, z. B. wenn das Browserfenster auf einen kleineren Bildschirm wandert. Größer als der
+  // Desktop wird keins; minimierte Fenster kommen dran, sobald sie wieder auftauchen.
+  function keepVisible(w) {
+    var el = w.el;
+    if (mobile.matches || el.classList.contains('max') || el.classList.contains('min')) return;
+    var dw = deskEl.clientWidth, dh = deskEl.clientHeight;
+    if (!dw || !dh) return;
+    if (el.offsetWidth > dw) el.style.width = dw + 'px';
+    if (el.offsetHeight > dh) el.style.height = dh + 'px';
+    el.style.left = Math.max(0, Math.min(el.offsetLeft, dw - el.offsetWidth)) + 'px';
+    el.style.top = Math.max(0, Math.min(el.offsetTop, dh - el.offsetHeight)) + 'px';
+  }
+
+  // Kleine Fenster ohne Eintrag in der Taskleiste (Eigenschaften von Anzeige, Offene Lobbys) an der Titelleiste verschieben.
+  // Sie bleiben ganz im Bild; mit key merkt sich der Browser den Platz. Auf dem Handy stehen sie fest.
+  var panels = [];
+  function panelZoom(el) { return parseFloat(getComputedStyle(el).zoom) || 1; }
+  function panelArea() {
+    var tb = document.querySelector('.taskbar');
+    return { w: document.documentElement.clientWidth, h: tb ? tb.getBoundingClientRect().top : innerHeight };
+  }
+  function setPanel(el, x, y) {
+    var z = panelZoom(el), a = panelArea(), w = el.offsetWidth * z, h = el.offsetHeight * z;
+    if (!w) return;
+    x = Math.max(0, Math.min(x, a.w - w)); y = Math.max(0, Math.min(y, a.h - h));
+    el.classList.add('moved');
+    el.style.left = x / z + 'px'; el.style.top = y / z + 'px';
+    el.style.right = el.style.bottom = 'auto'; el.style.transform = 'none';
+  }
+  function placePanel(el) {
+    var p = panels.filter(function (o) { return o.el === el; })[0];
+    if (!p || el.hidden) return;
+    if (mobile.matches) { el.classList.remove('moved'); el.style.left = el.style.top = el.style.right = el.style.bottom = el.style.transform = ''; return; }
+    var pos = null;
+    if (p.key) try { pos = JSON.parse(localStorage.getItem(p.key) || 'null'); } catch (e) { /* privat */ }
+    if (pos && isFinite(pos.x) && isFinite(pos.y)) setPanel(el, pos.x, pos.y);
+    else if (el.classList.contains('moved')) { var r = el.getBoundingClientRect(); setPanel(el, r.left, r.top); }
+  }
+  function dragPanel(el, handle, key) {
+    panels.push({ el: el, key: key });
+    handle.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 || mobile.matches || e.target.closest('button, a, input, select')) return;
+      e.preventDefault();
+      var r = el.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+      handle.setPointerCapture(e.pointerId);
+      body.classList.add('dragging');
+      function move(ev) { setPanel(el, ev.clientX - dx, ev.clientY - dy); }
+      function up() {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', up);
+        body.classList.remove('dragging');
+        var now = el.getBoundingClientRect();
+        if (key) try { localStorage.setItem(key, JSON.stringify({ x: Math.round(now.left), y: Math.round(now.top) })); } catch (err) { /* privat */ }
+      }
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+      handle.addEventListener('pointercancel', up);
+    });
+    placePanel(el);
+  }
+  var fitTimer = 0;
+  window.addEventListener('resize', function () {
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(function () {
+      wins.forEach(keepVisible);
+      panels.forEach(function (p) { placePanel(p.el); });
+      save();
+    }, 100);
+  });
+
   function drag(e, w, resize) {
     if (e.button !== 0 || mobile.matches || (!resize && w.el.classList.contains('max'))) return;
     e.preventDefault();
@@ -315,7 +387,7 @@
     return root.classList.contains('zoomed') && root.classList.contains('zoom-all') ? parseFloat(getComputedStyle(root).getPropertyValue('--zoom')) || 1 : 1;
   }
   // Messenger: schmale Kontaktliste, Gespräche wie ein Chatfenster
-  var MSGR = { messenger: [270, 600], 'messenger/mit': [540, 480], 'messenger/finden': [760, 580], 'messenger/verlauf': [660, 520], 'messenger/anfrage': [540, 340] };
+  var MSGR = { messenger: [270, 600], 'messenger/mit': [540, 480], 'messenger/finden': [760, 580], 'messenger/anfrage': [540, 340] };
   function sizeFor(url) {
     var k = winKey(url).split('/').slice(0, 2).join('/');
     return MSGR[k] || SIZES[section(url)] || [820, 580];
@@ -387,6 +459,8 @@
   function isAuthWin(w) { var k = winKey(w.url); return k === 'login' || k === 'register'; }
   window.RetroDesk = {
     open: open,
+    dragPanel: dragPanel,
+    placePanel: placePanel,
     // Adresse des vordersten Fensters (der Messenger fragt, ob ein Gespräch gerade offen ist)
     activeUrl: function () { return active && !active.el.classList.contains('min') ? active.url : null; },
     // Ein Fenster passt sich seinem Inhalt an (Minesweeper je nach Spielfeld), außer es ist maximiert oder auf dem Handy.
@@ -449,6 +523,8 @@
   var firstState = stored.filter(function (s) { return winKey(s.url) === winKey(firstUrl); })[0];
   var main = setup(first, firstUrl, firstState ? Object.assign({}, firstState, { min: false }) : null);
   stored.forEach(function (s) { if (s !== firstState) create(s.url, s); });
+  // Gespeicherte Fenster stammen vielleicht von einem größeren Bildschirm
+  wins.forEach(keepVisible);
   focus(main);
   // Falls das erste Fenster schon fertig war, bevor dieses Skript lief
   try { if (main.iframe.contentDocument.readyState === 'complete' && main.iframe.contentWindow.location.href !== 'about:blank') onLoad(main); } catch (e) { /* egal */ }

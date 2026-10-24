@@ -1,5 +1,16 @@
 # Changelog
 
+## 24.10.2026 – Bugfixes für Desktop und Messenger
+
+- **Dialoge:** „Abbrechen“ schließt jetzt jeden Dialog, z. B. „Website verlassen?“ und „Verknüpfung erstellen“. Bisher blieb der Dialog offen und alles dahinter ließ sich nicht mehr anklicken, bis man ihn mit × schloss.
+- **Suche:** Nach der Auswahl eines Treffers ist das Suchfeld in der Taskleiste wieder leer.
+- **Eigenschaften von Anzeige:** Das Fenster lässt sich an der Titelleiste verschieben. Unter Darstellung → Schema stehen bei Windows XP die XP-Farben Blau, Olivgrün und Silber, bei Windows 98 die bisherigen Schemen. Das extra Farbschema-Feld neben „Fenster und Schaltflächen“ ist weg.
+- **Offene Lobbys:** Das Widget lässt sich an der Titelleiste verschieben, der Platz bleibt im Browser gespeichert.
+- **Kleinerer Bildschirm:** Wandert das Browserfenster auf einen Bildschirm mit kleinerer Auflösung, rücken Fenster, Lobbys und Darstellung ins Bild, statt außerhalb zu hängen.
+- **Messenger:** Eigene Nachrichten erscheinen nicht mehr als neue Nachricht. Die Statusnachricht lässt sich direkt in der Kontaktliste eintippen. Den Nachrichtenverlauf gibt es nicht mehr, Gespräche öffnest du über die Kontaktliste. Unter Startmenü → Mein Konto steht der Messenger nicht mehr doppelt.
+- **Neue Symbole:** Der Messenger zeigt im Startmenü und auf dem Desktop die ICU-Blume (XP) oder die DSN-Männchen (98), die Kartenspiele eine richtige Spielkarte.
+- **Namen auf dem Desktop:** Ein Wort wird nur noch getrennt, wenn es allein nicht in eine Zeile passt, sonst rutscht es ganz in die nächste Zeile.
+
 ## 24.10.2026 – Messenger ICU und DSN, Profile und Konto neu
 
 - **Messenger:** Startmenü → 💬 Messenger öffnet eine Kontaktliste am rechten Rand, im XP-Design als **ICU** (grün, mit Blume wie das alte ICQ), im 98-Design als **DSN Messenger** (blau, mit Männchen wie MSN). Freunde stehen nach Online und Offline sortiert, mit Statusnachricht oder dem, was sie gerade spielen. Doppelklick öffnet ein Gespräch in einem eigenen Fenster. Der Messenger ersetzt die Seiten „Mitglieder“ und „Nachrichten“; alte Links leiten weiter.

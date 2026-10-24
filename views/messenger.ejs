@@ -1,6 +1,6 @@
 <%- include('partials/head') %>
 <%# Messenger: im XP-Design „ICU“, im 98-Design „DSN“. Gleiches HTML, die Optik kommt aus retro.css (html.theme-xp), die Logik aus public/messenger.js.
-    Seiten: liste (Kontaktliste), chat (Gespräch), verlauf (alle Gespräche), finden (Mitglieder finden), anfrage (Freundschaftsanfrage). %>
+    Seiten: liste (Kontaktliste), chat (Gespräch), finden (Mitglieder finden), anfrage (Freundschaftsanfrage). %>
 <% const ICU = '<span class="only-xp">ICU</span><span class="only-98">DSN</span>'; %>
 <% const st = s => '<i class="st st-' + s + '" aria-hidden="true"></i>'; %>
 <% const stLabel = s => s === 'dnd' ? '<span class="only-xp">Nicht stören</span><span class="only-98">Beschäftigt</span>' : (STATUS[s] || 'Offline'); %>
@@ -28,7 +28,6 @@
     <button type="button" class="msgr-statusmsg" data-act="statusmsg" title="Statusnachricht ändern"><%= data.me.msg ? '„' + data.me.msg + '“' : 'Statusnachricht eingeben …' %></button>
     <div class="msgr-tools" role="toolbar" aria-label="Werkzeuge">
       <a href="/messenger/finden" title="Mitglieder finden">🔍</a>
-      <a href="/messenger/verlauf" title="Nachrichtenverlauf" data-count="unread">✉️<i class="cnt" hidden></i></a>
       <button type="button" title="Freundschaftsanfragen" data-act="requests" data-count="requests">👥<i class="cnt" hidden></i></button>
       <span class="spacer"></span>
       <a href="/konto" title="Konto und Passwort">⚙️</a>
@@ -91,25 +90,6 @@
   </div>
   <div class="statusbar"><span data-typing><%= card.status === 'offline' ? name + ' ist offline. Die Nachricht kommt an, sobald ' + name + ' wieder da ist.' : ' ' %></span><span class="fixed" data-readstate><% const lastMine = messages.filter(x => x.from === user.username && x.kind === 'text').pop(); %><%= lastMine ? (lastMine.read ? '✔✔ gelesen' : '✔ gesendet') : '' %></span></div>
 </div>
-
-<% } else if (page === 'verlauf') { %>
-<h1>📜 Nachrichtenverlauf</h1>
-<% if (!conversations.length) { %>
-  <p class="muted">Noch keine Nachrichten. Doppelklick auf einen Freund im <%- ICU %>-Messenger öffnet ein Gespräch, neue Leute findest du unter <a href="/messenger/finden">Mitglieder finden</a>.</p>
-<% } else { %>
-<table class="list conv-list">
-  <tr><th></th><th>Mit</th><th>Letzte Nachricht</th><th>Wann</th></tr>
-  <% for (const c of conversations) { %>
-  <tr class="<%= c.unread ? 'unread' : '' %>">
-    <td class="av"><%- include('partials/avatar', { u: { id: c.other, username: c.username, display_name: c.display_name, avatar: c.avatar }, size: 32 }) %></td>
-    <td><a href="/messenger/mit/<%= uname(c.username) %>"><b><%= displayName(c) %></b></a><% if (c.unread) { %> <span class="badge"><%= c.unread %> neu</span><% } %></td>
-    <td class="preview"><%= c.from_id === user.id ? 'Du: ' : '' %><%= c.body ? (c.body.length > 80 ? c.body.slice(0, 80) + '…' : c.body) : '📳' %></td>
-    <td><%= fmtDate(c.created_at, true) %></td>
-  </tr>
-  <% } %>
-</table>
-<% } %>
-<p><small class="muted">Nachrichten sehen nur ihr beide. Sie liegen unverschlüsselt auf dem Server, mehr dazu unter <a href="/datenschutz#profil">Datenschutz</a>.</small></p>
 
 <% } else if (page === 'finden') { %>
 <div class="msgr-find">
@@ -203,5 +183,5 @@
   </form>
 </div>
 <% } %>
-<% if (page !== 'verlauf') { %><script src="<%= asset('messenger.js') %>"></script><% } %>
+<script src="<%= asset('messenger.js') %>"></script>
 <%- include('partials/foot') %>

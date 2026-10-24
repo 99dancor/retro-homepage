@@ -229,7 +229,7 @@
       var center = '<div class="pk-center"><div class="pk-board">' + (s.board.length ? cards(s.board) : '') + '</div>' +
         (s.pot ? '<div class="pk-pot">Pot <b>' + euro(s.pot) + '</b></div>' : '') +
         (s.phase === 'showdown' ? s.results.map(function (r) { return '<div class="pk-result">🏆 ' + esc(r.winners.join(' und ')) + (r.winners.length > 1 ? ' teilen ' : ' gewinnt ') + esc(r.pot === 'Pot' ? '' : r.pot + ' ') + euro(r.amount) + (r.hand ? ' · ' + esc(r.hand) : '') + '</div>'; }).join('') : '') +
-        (s.phase === 'waiting' ? '<div class="pk-result">' + (s.seats.filter(Boolean).length < 2 ? 'Wartet auf einen zweiten Spieler …' : 'Gleich wird gegeben …') + '</div>' : '') + '</div>';
+        (s.phase === 'waiting' ? '<div class="pk-result">' + (s.seats.filter(Boolean).length < 2 ? 'Wartet auf einen zweiten Spieler …' : s.manual ? '👑 ' + esc(s.host) + ' gibt die nächste Hand.' : 'Gleich wird gegeben …') + '</div>' : '') + '</div>';
       $('pk-felt').innerHTML = '<div class="bj-motto pk-motto">TEXAS HOLD\'EM · BLINDS ' + s.sb + ' / ' + s.bb + '</div>' + center + seats;
       renderBar(s, seat);
       renderSide(s, seat);
@@ -259,16 +259,18 @@
     // Die Leiste mit den Zügen wird nur neu gebaut, wenn sich dafür etwas ändert, damit der Regler beim Ziehen nicht springt
     function renderBar(s, seat) {
       var o = s.options;
-      var sig = JSON.stringify([!!seat, seat && seat.inHand, seat && seat.chips, s.phase, o, s.pot, s.hand, s.street]);
+      var sig = JSON.stringify([!!seat, seat && seat.inHand, seat && seat.chips, s.phase, o, s.pot, s.hand, s.street, s.manual, s.hostId, s.host]);
       if (sig === tab.barSig) return;
       tab.barSig = sig;
       var bar = $('pk-bar'), html;
       if (!seat) html = '<span>' + (s.seats.some(function (x) { return !x; }) ? 'Klick auf „🪑 Platz frei“, um mitzuspielen. Du bringst dein Geld aus der Kasse mit.' : 'Alle Plätze sind besetzt. Du siehst zu.') + '</span>';
       else if (!o) {
         var t = s.turn && s.seats[s.turn.seat];
+        // Startet der Gastgeber, gibt sein Klick die nächste Hand (auch schon, während das Ergebnis noch zu sehen ist)
+        var deal = s.manual && s.phase !== 'playing' && s.seats.filter(function (x) { return x && x.chips > 0 && !x.sittingOut && !x.leaving; }).length >= 2;
         html = s.phase === 'playing' ? (seat.inHand && !seat.folded ? (t ? esc(t.name) + ' ist dran …' : 'Karten werden aufgedeckt …') : 'Du bist in dieser Hand nicht dabei.') :
-          s.phase === 'showdown' ? 'Hand ' + s.hand + ' ist vorbei. Gleich kommt die nächste.' : seat.chips ? 'Warten auf die nächste Hand …' : 'Du hast keine Chips mehr.';
-        html = '<span>' + html + '</span>';
+          s.phase === 'showdown' ? 'Hand ' + s.hand + ' ist vorbei.' + (s.manual ? '' : ' Gleich kommt die nächste.') : seat.chips ? (deal ? 'Zwischen zwei Händen.' : 'Warten auf die nächste Hand …') : 'Du hast keine Chips mehr.';
+        html = '<div class="bj-row"><span>' + html + '</span>' + (deal ? K.start(s.phase === 'showdown' ? 'Nächste Hand' : 'Geben', 'die nächste Hand') : '') + '</div>';
       } else {
         var pot = s.pot, raise = Math.max(o.minTo, Math.min(o.maxTo, tab.raise || o.minTo));
         var quick = function (label, to) { to = Math.max(o.minTo, Math.min(o.maxTo, Math.floor(to))); return '<button type="button" class="small" data-to="' + to + '">' + label + '</button>'; };

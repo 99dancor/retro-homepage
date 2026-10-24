@@ -38,7 +38,7 @@
     if (body !== undefined) { opts.headers['content-type'] = 'application/json'; opts.body = JSON.stringify(body); }
     return fetch(url, opts).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) {
-        if (!r.ok) throw new Error(j.error || 'Fehler ' + r.status);
+        if (!r.ok) { var e = new Error(j.error || 'Fehler ' + r.status); e.data = j; throw e; }
         return j;
       });
     });
@@ -164,14 +164,22 @@
     return '<div class="' + lookCls(felt, back, wood) + '" id="ks-preview"><div class="bj-felt"><span class="bj-card back"></span><span class="bj-card back"></span><span class="bj-card red"><span class="r">A</span><span class="s">♥</span></span></div>' +
       '<small>So sieht der Tisch für alle aus.</small></div>';
   }
+  function seatChoices(o) {
+    var g = game(o.game), min = Math.max(g.min || 1, o.seated || 0), h = '';
+    for (var n = min; n <= (g.max || 8); n++) h += '<option value="' + n + '"' + (n === o.seats ? ' selected' : '') + '>' + n + '</option>';
+    return h;
+  }
   function designForm(o) {
     return '<label>Name:<input type="text" name="name" class="w100" maxlength="60" value="' + esc(o.name) + '"></label>' +
+      '<div class="row"><label>Plätze:<select name="seats" class="w100">' + seatChoices(o) + '</select></label>' +
+      '<label>Nächste Runde startet:<select name="next" class="w100"><option value="host"' + (o.next !== 'auto' ? ' selected' : '') + '>👑 der Gastgeber per Klick</option>' +
+      '<option value="auto"' + (o.next === 'auto' ? ' selected' : '') + '>von selbst, wenn alle bereit sind</option></select></label></div>' +
       '<div class="row"><label>Filz:<select name="felt" class="w100" data-look="felt">' + lookOptions('felt', o.felt) + '</select></label>' +
       '<label>Kartenrücken:<select name="back" class="w100" data-look="back">' + lookOptions('back', o.back) + '</select></label></div>' +
       '<label>Holzrand:<select name="wood" class="w100" data-look="wood">' + lookOptions('wood', o.wood || DEFAULT.wood) + '</select></label>' +
       preview(o.felt, o.back, o.wood || DEFAULT.wood) +
       '<label class="inline"><input type="checkbox" name="hidden"' + (o.hidden ? ' checked' : '') + '> Nicht in der Liste zeigen (nur mit Link)</label>' +
-      '<p><small>Mehr Holz, Filz und Kartenrücken gibt es im 🛒 Shop unter „Tisch“. Das Spiel wählst du oben in der Leiste.</small></p>';
+      '<p><small>Weniger Plätze gehen nicht, als Leute sitzen; wer auf einem wegfallenden Platz sitzt, rückt nach vorn. Mehr Holz, Filz und Kartenrücken gibt es im 🛒 Shop unter „Tisch“. Das Spiel wählst du oben in der Leiste.</small></p>';
   }
   dlg.addEventListener('change', function (e) {
     if (!e.target.dataset.look) return;
@@ -425,7 +433,7 @@
       switched: function () { enter(meta.id, false); },
       salon: function (m) { if (current && current.meta && current.meta.id === m.id) design(m); },
       link: function () { return location.origin + '/kartenspiele?tisch=' + encodeURIComponent(meta.id); },
-      plaque: plaque, free: freeSeat, info: info, side: side, fx: fx,
+      plaque: plaque, free: freeSeat, info: info, side: side, fx: fx, start: startHtml,
     };
     var start = window.KartenSpiele && window.KartenSpiele[id];
     if (!start) { show('tische'); status('Dieses Spiel lässt sich gerade nicht laden.'); return; }
@@ -454,12 +462,12 @@
     el.classList.add('ks-tisch');
     $('ks-bar').innerHTML = '<button type="button" class="ks-tb" data-ks="back" title="Zur Tischliste; dein Platz bleibt frei für dich">◀ <span>Tische</span></button><span class="ks-tsep"></span>' +
       '<b class="ks-tname" title="' + esc(m.name) + '">' + (m.hidden ? '🔒 ' : '') + esc(m.name) + '</b>' +
-      (host ? '<select id="ks-pick" title="Gewechselt wird zwischen zwei Runden; alle bleiben sitzen.">' + GAMES.map(function (x) {
+      (host ? '<select id="ks-pick" title="Spiel wechseln; alle bleiben sitzen. Mitten in einer Runde fragt das Fenster vorher nach.">' + GAMES.map(function (x) {
         return '<option value="' + x.id + '"' + (x.id === m.game ? ' selected' : '') + '>' + x.icon + ' ' + esc(x.id === 'lobby' ? 'Kein Spiel (Lobby)' : x.title) + '</option>';
       }).join('') + '</select>' : '<span class="ks-gname" title="👑 ' + esc(m.host) + ' wählt das Spiel">' + g.icon + ' ' + esc(m.game === 'lobby' ? 'Noch kein Spiel' : g.title) + '</span>') +
       '<span class="ks-info" id="ks-info">' + current.info + '</span><span class="ks-faces" id="ks-faces">' + current.faces + '</span><span class="spacer"></span>' +
       '<button type="button" class="ks-tb" data-ks="shop" title="Getränke, Glücksbringer und mehr; du bleibst sitzen">🛒 <span>Shop</span></button>' +
-      (host ? '<button type="button" class="ks-tb" data-ks="design" title="Name, Holz, Filz und Kartenrücken">🎨 <span>Gestalten</span></button>' : '') +
+      (host ? '<button type="button" class="ks-tb" data-ks="design" title="Name, Plätze, Start der Runden, Holz, Filz und Kartenrücken">🎨 <span>Gestalten</span></button>' : '') +
       '<button type="button" class="ks-tb" data-act="link" title="Link zu diesem Tisch">🔗 <span>Einladen</span></button><span class="ks-tsep"></span>' +
       '<button type="button" class="ks-tb" data-ks="pane" title="Wer am Tisch sitzt, Verlauf und deine Zahlen">☰ <span>Mehr</span></button>';
     pressed();
@@ -480,11 +488,19 @@
     if (e.target.id !== 'ks-pick' || !current || !current.meta) return;
     switchGame(e.target.value);
   });
-  function switchGame(to) {
+  // Mitten in einer Runde fragt das Fenster erst nach: Die Runde wird abgebrochen, Einsätze gehen zurück, sie zählt nicht
+  function switchGame(to, abort) {
     var m = current.meta;
-    req('POST', '/kartenspiele/tisch/' + encodeURIComponent(m.id), { action: 'game', game: to }).catch(function (err) {
-      if ($('ks-pick')) $('ks-pick').value = m.game;
-      oopsAtTable(err);
+    function undo() { if ($('ks-pick')) $('ks-pick').value = m.game; }
+    req('POST', '/kartenspiele/tisch/' + encodeURIComponent(m.id), { action: 'game', game: to, abort: !!abort }).catch(function (err) {
+      undo();
+      if (!err.data || !err.data.busy || abort) { oopsAtTable(err); return; }
+      var g = game(to), was = game(m.game);
+      dialog('🔀 Spiel wechseln', '<p>Gerade läuft noch eine Runde ' + esc(was.title) + '. Wechselst du jetzt zu <b>' + g.icon + ' ' + esc(g.title) + '</b>, wird sie <b>abgebrochen</b>.</p>' +
+        '<p>' + (was.money ? 'Alle Einsätze der Runde gehen zurück. ' : '') + 'Die Runde zählt für niemanden in der Statistik. Alle bleiben sitzen.</p>',
+        [{ label: '<b>Abbrechen und wechseln</b>', value: 'ok', danger: true }, { label: 'Weiterspielen', value: 'cancel' }]).then(function (r) {
+        if (r === 'ok' && current && current.meta && current.meta.id === m.id) switchGame(to, true);
+      });
     });
   }
   gameEl.addEventListener('click', function (e) {
@@ -512,12 +528,13 @@
     else if (k === 'emote') toggleEmotes(b);
     else if (k === 'rules' || k === 'stats') { var a = current.el.querySelector('.bj-nav [data-view=' + (k === 'rules' ? 'regeln' : 'statistik') + ']'); if (a) a.click(); }
     else if (k === 'design') designTable();
+    else if (k === 'start') tableAct({ action: 'start' });
   });
   function designTable() {
     var m = current.meta;
     dialog('🎨 Tisch gestalten', designForm(m), [{ label: 'Speichern', value: 'ok' }, { label: 'Abbrechen', value: 'cancel' }]).then(function (r) {
       if (r !== 'ok') return;
-      req('POST', '/kartenspiele/tisch/' + encodeURIComponent(m.id), { action: 'design', name: field('name'), felt: field('felt'), back: field('back'), wood: field('wood'), hidden: field('hidden') }).catch(oopsAtTable);
+      req('POST', '/kartenspiele/tisch/' + encodeURIComponent(m.id), { action: 'design', name: field('name'), seats: Number(field('seats')), next: field('next'), felt: field('felt'), back: field('back'), wood: field('wood'), hidden: field('hidden') }).catch(oopsAtTable);
     });
   }
   function tableAct(body) {
@@ -547,6 +564,13 @@
       (tags ? '<span class="ks-tags">' + tags + '</span>' : '') + '</span>' +
       '<button type="button" class="bj-name ks-plate" data-user="' + esc(p.user) + '" data-uid="' + p.id + '"><b>' + esc(p.name) + (p.away ? ' 💤' : '') + (p.leaving ? ' 🚪' : '') + '</b>' +
       (o.line ? '<small>' + o.line + '</small>' : '') + '</button>' + prog + (o.note ? '<span class="ks-note">' + o.note + '</span>' : '') + '</div>';
+  }
+  // Startet der Gastgeber die nächste Runde: für ihn der Knopf, für alle anderen, auf wen sie warten
+  function startHtml(label, what) {
+    var m = current && current.meta;
+    if (!m) return '';
+    if (isHost()) return '<button type="button" class="def ks-go" data-ks="start">▶ ' + esc(label) + '</button>';
+    return '<span class="ks-wait">👑 ' + esc(m.host) + ' startet ' + esc(what || 'die nächste Runde') + '.</span>';
   }
   // Freier Platz: ein Klick setzt dich hin (wer schon sitzt, sieht nur, dass er frei ist)
   function freeSeat(i, canSit) {

@@ -268,6 +268,7 @@
       }
       if (s.phase === 'dealer') return '<span>Der Dealer ist dran …</span>';
       if (s.phase === 'playing') return '<span>' + (inHand(seat) ? 'Warten, bis du dran bist …' : 'Du bist in dieser Runde nicht dabei.') + '</span>';
+      if (s.phase === 'result' && s.manual) return '<div class="bj-row"><span>Die Runde ist vorbei.</span>' + K.start('Nächste Runde', 'die nächste Runde') + '</div>';
       return '<span>' + (s.phase === 'result' ? 'Gleich geht es mit der nächsten Runde weiter.' : 'Warten …') + '</span>';
     }
     function val(c) { return c.r === 'A' ? 11 : ['J', 'Q', 'K'].indexOf(c.r) >= 0 ? 10 : Number(c.r); }

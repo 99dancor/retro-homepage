@@ -231,10 +231,10 @@
         var r = s.result;
         h += '<div class="pk-result dk-big">' + (r.durak ? '🎴 ' + esc(r.durak) + ' ist der Durak!' : '🤝 Unentschieden, kein Durak') + '</div>' +
           '<div class="dk-order">' + r.order.map(function (o) { return '<div>' + (o.durak ? '🤡' : o.place === 1 ? '🥇' : o.place + '.') + ' ' + esc(o.name) + (o.durak ? (r.quit ? ' (aufgestanden)' : ' (' + o.cards + ' Karten übrig)') : '') + '</div>'; }).join('') + '</div>' +
-          '<div class="pk-result">Wer noch einmal will, klickt auf „Bereit“.</div>';
+          '<div class="pk-result">' + (s.manual ? '👑 ' + esc(s.host) + ' startet das nächste Spiel.' : 'Wer noch einmal will, klickt auf „Bereit“.') + '</div>';
       } else {
         var n = s.seats.filter(Boolean).length;
-        h += '<div class="pk-result">' + (n < 2 ? 'Wartet auf einen zweiten Spieler …' : s.seats.every(function (x) { return !x || x.ready; }) ? 'Gleich wird gegeben …' : 'Gegeben wird, wenn alle bereit sind.') + '</div>';
+        h += '<div class="pk-result">' + (n < 2 ? 'Wartet auf einen zweiten Spieler …' : s.manual ? '👑 ' + esc(s.host) + ' startet das Spiel · ' + readyCount(s) : s.seats.every(function (x) { return !x || x.ready; }) ? 'Gleich wird gegeben …' : 'Gegeben wird, wenn alle bereit sind.') + '</div>';
       }
       return h + '</div>';
     }
@@ -255,11 +255,19 @@
       });
     }
 
-    // Unten: die eigene Hand und die Knöpfe Nehmen / Fertig / Bereit
+    function readyCount(s) {
+      var p = s.seats.filter(Boolean);
+      return p.filter(function (x) { return x.ready; }).length + ' von ' + p.length + ' bereit';
+    }
+    // Unten: die eigene Hand und die Knöpfe Nehmen / Fertig / Bereit (oder Starten, wenn der Gastgeber startet)
     function renderBar(s, seat) {
       var bar = $('dk-bar'), o = s.options, html = '';
       if (!seat) {
         html = '<span>' + (s.seats.some(function (x) { return !x; }) ? 'Klick auf „🪑 Platz frei“, um mitzuspielen.' : 'Alle Plätze sind besetzt. Du siehst zu.') + '</span>';
+      } else if (s.phase !== 'playing' && s.manual) {
+        var enough = s.seats.filter(Boolean).length >= 2;
+        html = '<div class="bj-row">' + (isHost() ? '<span>' + (enough ? readyCount(s) + '.' : 'Es braucht mindestens 2 Spieler.') + '</span>' + (enough ? K.start('Spiel starten') : '')
+          : '<span>' + (seat.ready ? 'Du bist bereit.' : 'Bereit für ein Spiel?') + '</span><button type="button"' + (seat.ready ? '' : ' class="def"') + ' data-act="ready">' + (seat.ready ? '✋ Doch nicht' : '✓ Bereit') + '</button>' + (enough ? K.start('', 'das Spiel') : '')) + '</div>';
       } else if (s.phase !== 'playing' || !seat.inGame) {
         html = '<div class="bj-row"><span>' + (s.phase === 'playing' ? 'Das Spiel läuft schon. Du spielst ab dem nächsten mit.' : seat.ready ? 'Du bist bereit. Gegeben wird, wenn alle bereit sind.' : 'Bereit für ein Spiel?') + '</span>' +
           (s.phase !== 'playing' ? '<button type="button"' + (seat.ready ? '' : ' class="def"') + ' data-act="ready">' + (seat.ready ? '✋ Doch nicht' : '✓ Bereit') + '</button>' : '') + '</div>';

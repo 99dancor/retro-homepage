@@ -164,7 +164,13 @@
         me: function () { return me; }, seat: mySeat, state: function () { return tab && tab.state; }, mine: function (p) { return !!p && p.id === ME; }, ui: function () { return tab ? tab.ui : {}; }, redraw: function () { if (view === 'tisch') renderTable(); },
         name: function (s, i) { var p = s.seats[i]; return p ? esc(p.name) : '–'; },
         count: function (s) { return '<span data-count="turn">' + secs(s.turn ? s.turn.left : 0) + '</span> s'; },
+        // Text am Ende einer Runde: geht es von selbst weiter oder startet der Gastgeber?
+        next: function (s) { return s.turn && s.turn.hold ? '👑 ' + esc(s.host) + ' startet die nächste Runde.' : 'Gleich geht es weiter …'; },
       };
+      function readyCount(s) {
+        var p = s.seats.filter(Boolean);
+        return p.filter(function (x) { return x.ready; }).length + ' von ' + p.length + ' bereit';
+      }
 
       function onState(s) {
         var first = !tab.state, prev = tab.state;
@@ -232,10 +238,11 @@
           var r = s.result;
           return '<div class="pk-result dk-big">' + (r.winners.length ? '🏆 ' + esc(r.winners.join(' und ')) + (r.winners.length > 1 ? ' gewinnen!' : ' gewinnt!') : 'Kein Sieger') + '</div>' +
             '<div class="dk-order">' + r.order.map(function (o) { return '<div>' + (o.won ? '🥇' : o.place + '.') + ' ' + esc(o.name) + ' <small>' + esc(o.note) + (o.quit ? ', aufgestanden' : '') + '</small></div>'; }).join('') + '</div>' +
-            '<div class="pk-result">Wer noch einmal will, klickt auf „Bereit“.</div>';
+            '<div class="pk-result">' + (s.manual ? '👑 ' + esc(s.host) + ' startet das nächste Spiel.' : 'Wer noch einmal will, klickt auf „Bereit“.') + '</div>';
         }
         var n = s.seats.filter(Boolean).length;
         if (G.idle) return '<div class="pk-result">' + G.idle(s, ctx) + '</div>';
+        if (s.manual) return '<div class="pk-result">' + (n < SEATS[0] ? 'Wartet auf einen zweiten Spieler …' : '👑 ' + esc(s.host) + ' startet das Spiel · ' + readyCount(s)) + '</div>';
         return '<div class="pk-result">' + (n < SEATS[0] ? 'Wartet auf einen zweiten Spieler …' : s.seats.every(function (x) { return !x || x.ready; }) ? 'Gleich wird gegeben …' : 'Gegeben wird, wenn alle bereit sind.') + '</div>';
       }
       // Seitenfach (☰ Mehr): wer sitzt, Verlauf und die eigenen Zahlen
@@ -261,10 +268,17 @@
           html = '<span>' + (s.seats.some(function (x) { return !x; }) ? 'Klick auf „🪑 Platz frei“, um mitzuspielen.' : 'Alle Plätze sind besetzt. Du siehst zu.') + '</span>';
         } else if (G.idle) {
           html = G.bar(s, seat, ctx);
+        } else if (s.phase !== 'playing' && s.manual) {
+          // Der Gastgeber startet; „Bereit“ zeigt ihm, wer so weit ist
+          var enough = s.seats.filter(Boolean).length >= SEATS[0];
+          html = '<div class="bj-row">' + (isHost() ? '<span>' + (enough ? readyCount(s) + '.' : 'Es braucht mindestens ' + SEATS[0] + ' Spieler.') + '</span>' + (enough ? K.start('Spiel starten') : '')
+            : '<span>' + (seat.ready ? 'Du bist bereit.' : 'Bereit für ein Spiel?') + '</span><button type="button"' + (seat.ready ? '' : ' class="def"') + ' data-act="ready">' + (seat.ready ? '✋ Doch nicht' : '✓ Bereit') + '</button>' + (enough ? K.start('', 'das Spiel') : '')) + '</div>';
         } else if (s.phase !== 'playing' || !seat.inGame) {
           html = '<div class="bj-row"><span>' + (s.phase === 'playing' ? 'Das Spiel läuft schon. Du spielst ab dem nächsten mit.' : seat.ready ? 'Du bist bereit. Gegeben wird, wenn alle bereit sind.' : 'Bereit für ein Spiel?') + '</span>' +
             (s.phase !== 'playing' ? '<button type="button"' + (seat.ready ? '' : ' class="def"') + ' data-act="ready">' + (seat.ready ? '✋ Doch nicht' : '✓ Bereit') + '</button>' : '') + '</div>';
         } else html = G.bar(s, seat, ctx);
+        // Am Ende einer Runde wartet der Tisch auf den Gastgeber
+        if (s.phase === 'playing' && s.turn && s.turn.hold) html += '<div class="bj-row ks-next">' + K.start('Nächste Runde') + '</div>';
         $('cg-bar').innerHTML = html;
       }
 
@@ -334,7 +348,8 @@
       function renderRules() {
         var r = rules();
         main.innerHTML = '<div class="bj-pad bj-rules"><h2>📜 Regeln</h2>' + G.rules(r) +
-          '<h3>Am Tisch</h3><ul><li>Gegeben wird, sobald ' + SEATS[0] + ' bis ' + SEATS[1] + ' Spieler sitzen und alle auf „Bereit“ geklickt haben.</li>' +
+          '<h3>Am Tisch</h3><ul><li>' + (tab && tab.state && tab.state.manual ? 'Es geht los, sobald ' + SEATS[0] + ' bis ' + SEATS[1] + ' Spieler sitzen und der Gastgeber (👑) auf „▶ Spiel starten“ klickt; mit „Bereit“ zeigst du ihm, dass du so weit bist. Auch die nächste Runde startet er.'
+            : 'Gegeben wird, sobald ' + SEATS[0] + ' bis ' + SEATS[1] + ' Spieler sitzen und alle auf „Bereit“ geklickt haben.') + ' Wie es weitergeht, stellt der Gastgeber unter 🎨 Gestalten ein.</li>' +
           '<li>Bedenkzeit pro Zug: ' + r.turn + ' Sekunden. Wer kein Fenster offen hat, bekommt nur drei Sekunden. Wer das Fenster länger als anderthalb Minuten zu hat, steht nach dem Spiel auf.</li>' +
           '<li>Wer mitten im Spiel aufsteht, scheidet aus und landet auf dem letzten Platz. Die anderen spielen weiter; bleibt nur einer übrig, hat er gewonnen.</li></ul></div>';
       }

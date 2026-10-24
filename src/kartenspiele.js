@@ -9,6 +9,11 @@
 // Spielwechsel: Wer am alten Tisch sitzt, sitzt danach auf demselben Platz am neuen (passt er nicht mehr, auf dem
 // nächsten freien). Die offenen Fenster bekommen das Ereignis „switch“ und verbinden sich neu. Geld (Blackjack, Poker)
 // kommt aus der gemeinsamen Kasse (src/kasse.js) und geht nach jeder Hand dorthin zurück, bleibt beim Wechsel also beim Spieler.
+// Läuft gerade eine Runde, wechselt der Gastgeber erst nach einer Rückfrage (abort): Die Runde wird abgebrochen, Einsätze
+// gehen zurück und sie zählt nicht (das erledigt remove() des Spiels).
+//
+// Nächste Runde: Steht s.manual (Vorgabe), startet nur der Gastgeber die nächste Runde bzw. das nächste Spiel; die Tische
+// der Spiele lesen das als t.manual. Sonst geht es wie früher von selbst weiter.
 const crypto = require('node:crypto');
 const { db, getSetting } = require('./db');
 const { createGame } = require('./cardtable');
@@ -49,6 +54,7 @@ const tables = new Map();
 const clamp = (n, [min, max]) => Math.max(min, Math.min(max, n));
 // Läuft gerade eine Runde? Dann darf das Spiel nicht wechseln.
 const busy = t => t.phase === 'playing' || t.phase === 'dealer';
+const BUSY = 'Gerade läuft noch eine Runde. Beim Wechseln wird sie abgebrochen.';
 const seatedUsers = t => t.seats.map((x, i) => x && { i, user: { id: x.userId, name: x.name, username: x.username } }).filter(Boolean);
 
 function tableOf(s) {
@@ -72,6 +78,7 @@ function open(s, game, host, players = []) {
   const t = E.create(host, { ...(s.opts[game] || {}), name: s.name, hidden: s.hidden, seats: clamp(Math.max(s.seats, players.length), G.seats) });
   if (!t) return 'Gerade gibt es zu viele Tische. Versuch es später noch einmal.';
   t.spieltisch = s;
+  t.manual = s.manual;
   if (G.money) t.bank = kasse.bank;
   s.game = game; s.tableId = t.id;
   for (const p of players) E.control(t, p.user, { action: 'sit', seat: p.i < t.seatCount ? p.i : -1 });
@@ -83,7 +90,7 @@ function create(user, b = {}) {
   if (tables.size >= MAX_TABLES) return { error: 'Gerade gibt es zu viele Spieltische. Versuch es später noch einmal.' };
   const game = GAMES[b.game] && enabled(b.game) ? b.game : 'lobby';
   const s = {
-    id: crypto.randomBytes(5).toString('hex'), name: `Spieltisch von ${user.name}`, hidden: false, seats: 4,
+    id: crypto.randomBytes(5).toString('hex'), name: `Spieltisch von ${user.name}`, hidden: false, seats: 4, manual: true,
     felt: 'gruen', back: 'klassisch', wood: 'eiche', game, tableId: null, opts: {},
   };
   applySettings(s, b, user);
@@ -95,6 +102,7 @@ function create(user, b = {}) {
 function applySettings(s, b, user) {
   if (typeof b.name === 'string' && b.name.trim()) s.name = b.name.trim().slice(0, 60);
   if ('hidden' in b) s.hidden = !!b.hidden;
+  if (b.next === 'host' || b.next === 'auto') s.manual = b.next === 'host';
   if (Number(b.seats) >= 1 && Number(b.seats) <= 8) s.seats = Math.floor(Number(b.seats));
   if (FELTS.includes(b.felt) && kasse.owns(user.id, b.felt)) s.felt = b.felt;
   if (BACKS.includes(b.back) && kasse.owns(user.id, b.back)) s.back = b.back;
@@ -145,7 +153,8 @@ function deco(userId, s) {
 function meta(s) {
   const t = tableOf(s), G = GAMES[s.game];
   return {
-    id: s.id, name: s.name, hidden: s.hidden, seats: s.seats, felt: s.felt, back: s.back, wood: s.wood,
+    id: s.id, name: s.name, hidden: s.hidden, seats: t.seatCount, felt: s.felt, back: s.back, wood: s.wood, next: s.manual ? 'host' : 'auto',
+    seated: t.seats.filter(Boolean).length,
     deco: Object.fromEntries(t.seats.filter(Boolean).map(x => [x.userId, deco(x.userId, s)])),
     game: s.game, title: G.title, icon: G.icon, money: !!G.money, hostId: t.hostId, host: t.hostName, busy: busy(t),
   };
@@ -171,17 +180,18 @@ function list(user) {
 
 const send = (t, event, data) => { for (const c of t.clients) c.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); };
 
-// Spiel wechseln (nur der Gastgeber, nur zwischen zwei Runden)
-function switchGame(s, user, game) {
+// Spiel wechseln (nur der Gastgeber). Mitten in einer Runde nur mit abort: Die Runde wird abgebrochen und zählt nicht.
+function switchGame(s, user, game, abort = false) {
   if (!isHost(s, user)) return 'Nur der Gastgeber wählt das Spiel.';
   if (!GAMES[game] || !enabled(game)) return 'Dieses Spiel gibt es gerade nicht.';
   const old = tableOf(s);
   if (game === s.game) return null;
-  if (busy(old)) return 'Gerade läuft noch eine Runde. Gewechselt wird danach.';
+  const running = busy(old);
+  if (running && !abort) return BUSY;
   const players = seatedUsers(old), G = GAMES[game];
   if (players.length > G.seats[1]) return `${G.title} geht mit höchstens ${G.seats[1]} Spielern, am Tisch sitzen ${players.length}.`;
   const host = { id: old.hostId, name: old.hostName };
-  const from = GAMES[s.game].title;
+  const from = GAMES[s.game].title, money = !!GAMES[s.game].money;
   // Erst die Fenster umlenken, dann den alten Tisch schließen (dabei landet das Geld in der Kasse)
   send(old, 'switch', { game });
   engine(s.game).remove(old);
@@ -189,20 +199,46 @@ function switchGame(s, user, game) {
   if (err) { tables.delete(s.id); return err; }
   const t = tableOf(s);
   t.log.unshift(game === 'lobby' ? `${host.name} hat ${from} beendet.` : `${host.name} hat ${G.title} gewählt.`);
+  if (running) t.log.unshift(`${host.name} hat die laufende Runde ${from} abgebrochen. Sie zählt nicht${money ? ', alle Einsätze sind zurück' : ''}.`);
   return null;
 }
 
-// Name, Sichtbarkeit, Holz, Filz und Kartenrücken; die offenen Fenster bekommen das gleich mit
+// Name, Sichtbarkeit, Plätze, wer die nächste Runde startet, Holz, Filz und Kartenrücken; die offenen Fenster bekommen das gleich mit
 function settings(s, user, b) {
   if (!isHost(s, user)) return 'Nur der Gastgeber gestaltet den Tisch.';
   if (b.wood && !WOODS.includes(b.wood)) return 'Diesen Tischrand gibt es nicht.';
   for (const [k, what] of Object.entries(LOOKS)) {
     if (b[k] && b[k] !== s[k] && kasse.SHOP[b[k]] && kasse.SHOP[b[k]].kind === k && !kasse.owns(user.id, b[k])) return `${what} „${kasse.SHOP[b[k]].title}“ musst du erst im Shop kaufen.`;
   }
-  applySettings(s, b, user);
   const t = tableOf(s);
+  if (b.seats != null) {
+    const err = resize(s, Number(b.seats));
+    if (err) return err;
+  }
+  const { seats, ...rest } = b;
+  applySettings(s, rest, user);
   t.name = s.name; t.hidden = s.hidden;
+  if (t.manual !== s.manual) { t.manual = s.manual; engine(s.game).wake?.(t); }
   announce(s);
+  return null;
+}
+// Plätze nachträglich ändern: nie weniger, als Leute sitzen. Wer auf einem wegfallenden Platz sitzt, rückt zwischen zwei
+// Runden auf einen freien nach vorn; während einer Runde geht weniger nur, wenn die hinteren Plätze frei sind.
+function resize(s, n) {
+  const t = tableOf(s), [min, max] = GAMES[s.game].seats;
+  if (!Number.isInteger(n) || n === t.seatCount) return null;
+  if (n < min || n > max) return `${GAMES[s.game].title} geht mit ${min} bis ${max} Plätzen.`;
+  const people = t.seats.filter(Boolean).length;
+  if (people > n) return `Am Tisch sitzen ${people} Leute, weniger Plätze gehen nicht.`;
+  if (t.seats.slice(n).some(Boolean)) {
+    if (busy(t)) return 'Während der Runde rückt niemand um. Weniger Plätze gehen nach der Runde.';
+    for (let i = n; i < t.seats.length; i++) {
+      if (!t.seats[i]) continue;
+      const j = t.seats.findIndex((x, k) => !x && k < n);
+      t.seats[j] = t.seats[i]; t.seats[i] = null;
+    }
+  }
+  t.seatCount = n; s.seats = n;
   return null;
 }
 function announce(s) { send(tableOf(s), 'salon', meta(s)); }
@@ -315,23 +351,26 @@ function control(s, user, b) {
     const other = seatedAt(user.id);
     if (other && other !== s) return `Du sitzt schon am Spieltisch „${other.name}“. Steh dort erst auf.`;
   }
-  if (a === 'ready' && s.game === 'lobby') return 'Erst wählt der Gastgeber ein Spiel.';
+  if ((a === 'ready' || a === 'start') && s.game === 'lobby') return 'Erst wählt der Gastgeber ein Spiel.';
   if (a === 'settings') {
     if (!E.isHost(t, user)) return 'Nur der Gastgeber ändert die Einstellungen.';
-    const { action, ...rest } = b;
+    const { action, seats, ...rest } = b;
+    if (seats != null) {
+      const err = resize(s, Number(seats));
+      if (err) return err;
+    }
     if ('hidden' in b) s.hidden = !!b.hidden;
     if (typeof rest.name === 'string' && rest.name.trim()) s.name = rest.name.trim().slice(0, 60);
     const err = E.control(t, user, { ...rest, action });
     if (err) return err;
-    const { name, seats, hidden, ...opts } = rest;
+    const { name, hidden, ...opts } = rest;
     s.opts[s.game] = { ...s.opts[s.game], ...opts };
-    s.seats = t.seatCount;
     return null;
   }
   return E.control(t, user, b);
 }
 
 module.exports = {
-  GAMES, FELTS, BACKS, WOODS, EMOTES, FX, games, looks, pet: petOf, buy, equip, deco, enabled, engine, get, list, create, quick, round, fx, meta, switchGame, settings, announce, close, control, isHost, seatedAt, tableOf,
+  GAMES, FELTS, BACKS, WOODS, EMOTES, FX, BUSY, games, looks, pet: petOf, buy, equip, deco, enabled, engine, get, list, create, quick, round, fx, meta, switchGame, settings, announce, close, control, isHost, seatedAt, tableOf,
   _tables: tables,
 };

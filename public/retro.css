@@ -1589,6 +1589,10 @@ tr.me td { background: #ffffcc; color: #000; }
 .ks-dock .ks-picks button { padding: 4px 8px; }
 .ks-dock button { min-width: 0; padding: 4px 12px; }
 .ks-dock small, .ks-dock .bj-controls small { text-shadow: none; }
+/* Startet der Gastgeber die nächste Runde: sein Knopf, für alle anderen ein Hinweis */
+.ks-dock .ks-go { font-weight: bold; }
+.ks-wait { font-style: italic; opacity: .85; white-space: nowrap; }
+.ks-next { margin-top: 2px; }
 .ks-dock-x { flex: none; display: flex; align-items: center; align-self: stretch; }
 .ks-dock-x .ks-tsep { margin: 2px 4px 2px 0; }
 .ks-dock-x button { padding: 4px 8px; white-space: nowrap; }

@@ -172,7 +172,7 @@ function state(t, viewerId) {
     }),
     turn: t.turn && { kind: t.turn.kind, seat: t.turn.seat, left: Math.max(0, t.turn.deadline - Date.now()) },
     waiting: playing(t) && t.turn && t.turn.kind === 'pass' ? waitingOn(t).map(s => t.seats.indexOf(s)) : [],
-    result: t.result, viewers: viewers(t), log: t.log.slice(0, 20),
+    result: t.result, viewers: viewers(t), log: t.log.slice(0, 20), manual: !!t.manual,
     rules: { turn: cfg.turn, pass: cfg.pass }, now: Date.now(), version: t.version,
   };
   // Eigene Karten und was der Betrachter gerade tun kann
@@ -258,17 +258,18 @@ function stand(t, seat, why = 'steht auf') {
 }
 
 // ---------- Ablauf ----------
-// Zwischen zwei Spielen: sitzen mindestens zwei da und sind alle bereit, wird gegeben
+// Zwischen zwei Spielen: sitzen mindestens zwei da und sind alle bereit, wird gegeben. Startet der Gastgeber
+// (t.manual, vom Spieltisch), ist „Bereit“ nur ein Zeichen an ihn und es geht los, wenn er auf „Starten“ klickt.
 function maybeStart(t) {
-  if (t.phase === 'playing') return;
+  if (t.phase === 'playing' || t.manual) return;
   const s = seated(t);
   if (s.length >= 2 && s.every(x => x.ready)) { if (!t.timer) later(t, START_MS, () => startGame(t)); }
   else stopTimer(t);
 }
 
-function startGame(t) {
+function startGame(t, force = false) {
   const players = seated(t);
-  if (players.length < 2 || !players.every(s => s.ready)) return;
+  if (players.length < 2 || (!force && !players.every(s => s.ready))) return;
   t.deck = newDeck();
   // Die unterste Karte bestimmt Trumpf; sie liegt offen unter dem Stapel und wird als Letzte gezogen
   t.trump = t.deck[0];
@@ -483,6 +484,13 @@ function control(t, user, b) {
       if (!isHost(t, user)) return 'Nur der Gastgeber ändert die Einstellungen.';
       applySettings(t, b);
       return null;
+    case 'start':
+      if (!isHost(t, user)) return 'Nur der Gastgeber startet das Spiel.';
+      if (playing(t)) return 'Das Spiel läuft schon.';
+      if (seated(t).length < 2) return 'Es braucht mindestens zwei Spieler.';
+      stopTimer(t);
+      startGame(t, true);
+      return null;
     default: return 'Unbekannte Aktion.';
   }
 }
@@ -513,6 +521,11 @@ function join(t, user, res) {
   };
 }
 
+// Nach einem Wechsel der Einstellung „Nächste Runde“
+function wake(t) {
+  if (t.manual) { if (!playing(t)) stopTimer(t); } else maybeStart(t);
+}
+
 // Tisch schließen: ein laufendes Spiel zählt nicht
 function remove(t) {
   stopTimer(t);
@@ -535,7 +548,7 @@ function cleanup(force = false) {
 setInterval(cleanup, 30e3).unref();
 
 module.exports = {
-  config, create, get, list, state, control, join, remove, broadcast, isHost, tableOf,
+  config, create, get, list, state, control, join, remove, broadcast, isHost, tableOf, wake,
   userTotals, recentGames, leaderboard, resetStats, beats, newDeck, room,
   MAX_SEATS, RANKS, SUITS,
   _tables: tables, _startGame: startGame, _startBout: startBout, _endBout: endBout,

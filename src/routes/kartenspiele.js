@@ -127,9 +127,11 @@ router.post('/tisch/:id', gate, loadTable, auth.rateLimit('ksctl', 300, 60), (re
     err = ks.fx(s, req.user, b);
     return err ? fail(res, 400, err) : res.json({ ok: true });
   }
-  if (b.action === 'game') err = ks.switchGame(s, req.user, String(b.game || ''));
+  if (b.action === 'game') err = ks.switchGame(s, req.user, String(b.game || ''), b.abort === true);
   else if (b.action === 'design') err = ks.settings(s, req.user, b);
   else err = ks.control(s, req.user, b);
+  // Mitten in einer Runde fragt das Fenster erst nach und schickt dann abort mit
+  if (err === ks.BUSY) return res.status(409).json({ error: err, busy: true });
   if (err) return fail(res, 400, err);
   const t = ks.tableOf(s);
   if (t) ks.engine(s.game).broadcast(t);

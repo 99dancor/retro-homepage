@@ -3,7 +3,7 @@
 // live per Server-Sent Events; Züge gehen per POST mit dem Formular-Token im Kopf x-csrf-token. Aufbau wie routes/durak.js.
 const express = require('express');
 const { getSetting } = require('../db');
-const profiles = require('../profiles');
+const us = require('../usersettings');
 const auth = require('../auth');
 
 const fail = (res, status, error) => res.status(status).json({ error });
@@ -61,10 +61,10 @@ module.exports = function cardGameRouter(cg) {
     res.json({ ok: true });
   });
 
-  // Bestenliste: nur wer sein Profil dem Betrachter zeigt, erscheint mit Namen
+  // Bestenliste: Jeder wählt unter Systemsteuerung → Profil und Statistik, ob er mit Namen, anonym oder gar nicht drinsteht
   router.get('/statistik', gate, (req, res) => {
-    const board = cg.leaderboard().filter(u => profiles.canViewProfile(req.user, u)).slice(0, 100).map(u => ({
-      id: u.id, name: profiles.displayName(u), user: u.username, avatar: u.avatar, games: u.games, wins: u.wins, bonus: u.bonus, best: u.best, rounds: u.rounds, top: u.top, low: u.low,
+    const board = us.boardList(cg.id, cg.leaderboard(), req.user).slice(0, 100).map(u => ({
+      id: u.id, name: u.name, user: u.user, avatar: u.avatar, games: u.games, wins: u.wins, bonus: u.bonus, best: u.best, rounds: u.rounds, top: u.top, low: u.low,
     }));
     res.json({
       board,

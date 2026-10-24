@@ -7,6 +7,7 @@ const express = require('express');
 const ks = require('../kartenspiele');
 const kasse = require('../kasse');
 const profiles = require('../profiles');
+const us = require('../usersettings');
 const auth = require('../auth');
 
 const router = express.Router();
@@ -58,8 +59,8 @@ router.post('/schnell', gate, auth.rateLimit('kstable', 20, 600), (req, res) => 
 
 // Kasse: Kontostand, Bestenliste nach Bilanz und Nachkaufen außerhalb eines Geldtisches
 router.get('/kasse', gate, (req, res) => {
-  const board = kasse.leaderboard().filter(u => profiles.canViewProfile(req.user, u)).slice(0, 100)
-    .map(u => ({ id: u.id, name: profiles.displayName(u), user: u.username, balance: u.balance, bought: u.bought, buyins: u.buyins, net: u.net }));
+  const board = us.boardList('kartenspiele', kasse.leaderboard(), req.user).slice(0, 100)
+    .map(u => ({ id: u.id, name: u.name, user: u.user, balance: u.balance, bought: u.bought, buyins: u.buyins, net: u.net }));
   res.json({ kasse: wallet(req.user), board });
 });
 router.post('/kasse', gate, auth.rateLimit('kskasse', 30, 600), (req, res) => {

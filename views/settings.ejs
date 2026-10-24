@@ -1,0 +1,122 @@
+<%- include('partials/head') %>
+<%# Systemsteuerung für alle (src/routes/settings.js). Anzeige und Sounds öffnen die Fenster neben der Uhr (public/settings.js). %>
+<% const section = (key, icon, label, href, extra) => ({ key, icon, label, href, extra }); %>
+<div class="cpl" id="cpl" data-csrf="<%= csrf %>">
+  <aside class="cpl-side">
+    <h2>🛠️ Systemsteuerung</h2>
+    <p><small><%= user ? 'Alles, was du für dich einstellst. Die Seite selbst verwaltet der Admin unter Seitenverwaltung.' : 'Ohne Konto bleibt alles in diesem Browser.' %></small></p>
+    <% if (page !== 'start') { %><p><a href="/einstellungen">⬅ Zur Übersicht</a></p><% } %>
+  </aside>
+  <div class="cpl-main">
+  <% if (page === 'start') { %>
+    <div class="cpl-grid">
+      <button type="button" class="cpl-item" data-panel="displaybtn"><span>🖥️</span><b>Anzeige</b><small>Windows 98 oder XP, Farben, Hintergrund, Größe der Oberfläche</small></button>
+      <% if (user) { %>
+        <a class="cpl-item" href="/einstellungen/desktop"><span>🗂️</span><b>Desktop und Taskleiste</b><small>readme.txt, Standardsymbole, Lobby-Widget, Suche</small></a>
+        <a class="cpl-item" href="/einstellungen/statistik"><span>📊</span><b>Profil und Statistik</b><small>Wer welche Spielwerte sieht, Bestenlisten, Vitrine</small></a>
+        <a class="cpl-item" href="/einstellungen/speicher"><span>💽</span><b>Speicherplatz</b><small>Belegt und frei, Papierkorb</small></a>
+        <a class="cpl-item" href="/account#benachrichtigungen"><span>🔔</span><b>Benachrichtigungen</b><small>Auf der Seite und als Push</small></a>
+      <% } %>
+      <button type="button" class="cpl-item" data-panel="volumebtn"><span>🔊</span><b>Sounds</b><small>Lautstärke von Musik und Effekten</small></button>
+      <% if (user) { %>
+        <a class="cpl-item" href="/account"><span>🔑</span><b>Konto und Passwort</b><small>Profil, Profilbild, Passwort</small></a>
+        <a class="cpl-item" href="/account#spielstaende"><span>💾</span><b>Spielstände</b><small>Gespeicherte Spiele ansehen und löschen</small></a>
+      <% } %>
+      <a class="cpl-item" href="/datenschutz"><span>🔒</span><b>Datenschutz</b><small>Was die Seite speichert und warum</small></a>
+      <% if (!user) { %><a class="cpl-item" href="/login?next=/einstellungen"><span>👤</span><b>Anmelden</b><small>Mit Konto gibt es eigene Ordner, Textdokumente und mehr</small></a><% } %>
+    </div>
+    <% if (user && user.isAdmin) { %>
+    <h3 class="cpl-h">Verwaltung</h3>
+    <div class="cpl-grid">
+      <a class="cpl-item" href="/admin"><span>⚙️</span><b>Seitenverwaltung</b><small>Inhalte, Mitglieder, Design und Einstellungen der Seite</small></a>
+      <a class="cpl-item" href="/admin/desktop"><span>🖥️</span><b>Desktop für alle</b><small>readme.txt, Standardsymbole, Grenzen, Speicher</small></a>
+    </div>
+    <% } %>
+
+  <% } else if (page === 'desktop') { %>
+    <h1>🗂️ Desktop und Taskleiste</h1>
+    <% if (saved) { %><div class="msg">✔ Gespeichert. Der Desktop zeigt es beim nächsten Laden.</div><% } %>
+    <form method="post" action="/einstellungen/desktop" data-desk-refresh>
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <fieldset class="groupbox"><legend>Symbole, die jeder hat</legend>
+        <p><small>Was du ausblendest, liegt nur bei dir nicht mehr auf dem Desktop.</small></p>
+        <% for (const i of icons) { %><label class="inline"><input type="checkbox" name="icon" value="<%= i.key %>"<%= d.hidden.includes(i.key) ? '' : ' checked' %>> <%= i.icon %> <%= i.name %></label><% } %>
+      </fieldset>
+      <fieldset class="groupbox"><legend>Symbole anordnen</legend>
+        <label class="inline"><input type="radio" name="arrange" value="frei"<%= d.arrange === 'frei' ? ' checked' : '' %>> Frei (wohin du sie ziehst)</label>
+        <label class="inline"><input type="radio" name="arrange" value="name"<%= d.arrange === 'name' ? ' checked' : '' %>> Automatisch nach Name</label>
+        <label class="inline"><input type="radio" name="arrange" value="typ"<%= d.arrange === 'typ' ? ' checked' : '' %>> Automatisch nach Art</label>
+      </fieldset>
+      <fieldset class="groupbox"><legend>Widgets und Taskleiste</legend>
+        <% if (lobbyOn) { %><label class="inline"><input type="checkbox" name="lobbies" value="1"<%= d.lobbies ? ' checked' : '' %>> „Offene Lobbys“ auf dem Desktop zeigen</label><br><% } else { %><input type="hidden" name="lobbies" value="<%= d.lobbies ? '1' : '' %>"><% } %>
+        <% if (searchOn) { %><label class="inline"><input type="checkbox" name="search" value="1"<%= d.search ? ' checked' : '' %>> Suchfeld in der Taskleiste (Strg+K)</label><% } else { %><input type="hidden" name="search" value="<%= d.search ? '1' : '' %>"><% } %>
+        <p><small>Besucherzähler und Buttons blendest du unter 🖥️ Anzeige → Effekte aus.</small></p>
+      </fieldset>
+      <div class="actions"><button>Speichern</button></div>
+    </form>
+    <fieldset class="groupbox"><legend>Deine Grenzen</legend>
+      <table class="kv">
+        <tr><td>Ordner</td><td class="num"><%= counts.folders %> von <%= limits.folders %></td></tr>
+        <tr><td>Textdokumente</td><td class="num"><%= counts.texts %> von <%= limits.texts %> (je bis <%= limits.chars.toLocaleString('de-DE') %> Zeichen)</td></tr>
+        <tr><td>Verknüpfungen und Internetlinks</td><td class="num"><%= counts.links %> von <%= limits.links %></td></tr>
+        <tr><td>Papierkorb</td><td class="num">löscht nach <%= limits.trashDays %> Tagen</td></tr>
+      </table>
+    </fieldset>
+
+  <% } else if (page === 'statistik') { %>
+    <h1>📊 Profil und Statistik</h1>
+    <% if (saved) { %><div class="msg">✔ Gespeichert.</div><% } %>
+    <p>Du bestimmst, wer welche Spielwerte in deinem Profil sieht und ob du in Bestenlisten stehst. Ausgeblendetes zählt weiter, es wird nur nicht gezeigt.
+      <a href="<%= profileUrl(user.username) %>">Profil ansehen</a> · als <a href="<%= profileUrl(user.username) %>?ansicht=guest">Gast</a>, <a href="<%= profileUrl(user.username) %>?ansicht=member">Mitglied</a>, <a href="<%= profileUrl(user.username) %>?ansicht=friend">Freund</a></p>
+    <form method="post" action="/einstellungen/statistik" class="stat-form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <% const pinned = new Set(s.showcase.map(p => p.app + '|' + p.key)); %>
+      <p><small>📌 setzt einen Wert in die Vitrine ganz oben im Profil (höchstens 4). ▲▼ ändert die Reihenfolge der Spiele.</small></p>
+      <div class="stat-games" data-sortable>
+      <% for (const g of games) { const c = s.games[g.slug] || {}; %>
+        <fieldset class="groupbox stat-game" data-slug="<%= g.slug %>">
+          <legend><%= g.title %></legend>
+          <input type="hidden" name="order" value="<%= g.slug %>">
+          <div class="stat-head">
+            <label>Wer sieht es im Profil?<select name="see_<%= g.slug %>"><% for (const [k, l] of Object.entries(SEE)) { %><option value="<%= k %>"<%= (c.see || (s.auto ? 'profil' : 'private')) === k ? ' selected' : '' %>><%= l %></option><% } %></select></label>
+            <% if (Object.hasOwn(BOARD_GAMES, g.slug)) { %><label>In Bestenlisten:<select name="board_<%= g.slug %>"><% for (const [k, l] of Object.entries(BOARD)) { %><option value="<%= k %>"<%= (c.board || 'name') === k ? ' selected' : '' %>><%= l %></option><% } %></select></label><% } else { %><input type="hidden" name="board_<%= g.slug %>" value="name"><% } %>
+            <span class="stat-move"><button type="button" class="small" data-move="-1" title="Nach oben">▲</button><button type="button" class="small" data-move="1" title="Nach unten">▼</button></span>
+          </div>
+          <% if (g.stats.length) { %><details><summary>Einzelne Werte (<%= g.stats.length %>)</summary>
+            <table class="kv stat-values">
+            <% for (const st of g.stats) { %><tr>
+              <td><label class="inline"><input type="checkbox" name="show_<%= g.slug %>" value="<%= st.key %>"<%= (c.hide || []).includes(st.key) ? '' : ' checked' %>> <%= st.key %></label></td>
+              <td class="num"><%= st.text || Number(st.value).toLocaleString('de-DE', { maximumFractionDigits: 2 }) %></td>
+              <td><label class="inline pin" title="In die Vitrine"><input type="checkbox" name="pin" value="<%= g.slug %>|<%= st.key %>"<%= pinned.has(g.slug + '|' + st.key) ? ' checked' : '' %>> 📌</label></td>
+            </tr><% } %>
+            </table>
+          </details><% } else { %><p><small class="muted">Noch keine Werte.</small></p><% } %>
+        </fieldset>
+      <% } %>
+      </div>
+      <label class="inline"><input type="checkbox" name="auto" value="1"<%= s.auto ? ' checked' : '' %>> Neue Spiele automatisch im Profil zeigen</label>
+      <fieldset class="groupbox"><legend>Auf der Seite</legend>
+        <% for (const [k, l] of Object.entries(SITE)) { %><label class="inline"><input type="checkbox" name="site" value="<%= k %>"<%= s.site[k] ? ' checked' : '' %>> <%= l %></label><% } %>
+      </fieldset>
+      <div class="actions"><button>Speichern</button></div>
+    </form>
+
+  <% } else if (page === 'speicher') { %>
+    <h1>💽 Speicherplatz</h1>
+    <% const COLORS = ['#2a78d6', '#eb6834', '#1f9e5a', '#c6409a', '#8a63d2']; let at = 0; const total = space.limit || Math.max(space.used, 1);
+       const stops = space.parts.map((p, i) => { const from = at; at += p.bytes / total * 100; return `${COLORS[i % COLORS.length]} ${from.toFixed(2)}% ${at.toFixed(2)}%`; }); %>
+    <div class="drive">
+      <div class="drive-pie" role="img" aria-label="<%= space.limit ? space.pct + ' Prozent belegt' : 'Belegt: ' + fmtSize(space.used) %>" style="background: conic-gradient(<%= stops.concat([`#f4f4f4 ${at.toFixed(2)}% 100%`]).join(', ') %>)"></div>
+      <table class="kv drive-legend">
+        <% space.parts.forEach((p, i) => { %><tr><td><i class="drive-key" style="background:<%= COLORS[i % COLORS.length] %>"></i><%= p.label %></td><td class="num"><%= fmtSize(p.bytes) %></td></tr><% }) %>
+        <tr class="drive-sum"><td><b>Belegt</b></td><td class="num"><b><%= fmtSize(space.used) %></b></td></tr>
+        <% if (space.limit) { %><tr><td><i class="drive-key free"></i>Frei</td><td class="num"><%= fmtSize(space.free) %></td></tr><tr><td>Speicher insgesamt</td><td class="num"><%= fmtSize(space.limit) %></td></tr><% } else { %><tr><td colspan="2"><small>Ohne Grenze.</small></td></tr><% } %>
+      </table>
+    </div>
+    <p><small>Ein Speicher für alles: Downloads, Mediaplayer, Paint-Bilder, Bilder in Beiträgen und Textdokumente. Was im Papierkorb liegt, zählt mit, bis es nach <%= limits.trashDays %> Tagen von selbst verschwindet.</small></p>
+    <div class="actions"><a class="btn" href="/eigene-dateien">🗂️ Eigene Dateien</a><a class="btn" href="/eigene-dateien?ordner=papierkorb">🗑️ Papierkorb (<%= trashN %>)</a></div>
+  <% } %>
+  </div>
+</div>
+<script src="<%= asset('settings.js') %>"></script>
+<%- include('partials/foot') %>

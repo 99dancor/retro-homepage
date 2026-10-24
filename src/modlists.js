@@ -109,7 +109,7 @@ function save(list, user, body) {
   const desc = str(body.description, MAX.desc);
   const cur = list ? list.visibility : 'public';
   let visibility = VIS.includes(body.visibility) ? body.visibility : cur;
-  if (body.visibility === 'groups' && cur === 'groups') visibility = 'groups';   // Gruppen vergibt nur der Admin in der Systemsteuerung
+  if (body.visibility === 'groups' && cur === 'groups') visibility = 'groups';   // Gruppen vergibt nur der Admin in der Seitenverwaltung
   const sugg = Object.hasOwn(SUGGESTIONS, body.suggestions) ? body.suggestions : (list ? list.suggestions : 'all');
   const cats = cleanCategories(parseJson(body.data));
   return tx(() => {

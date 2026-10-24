@@ -232,6 +232,14 @@ router.post('/t/:id/delete', requireAdmin, loadTopic, (req, res) => {
 // ---------- Editor: Vorschau und Bilder ----------
 router.post('/preview', auth.requireLogin, (req, res) => res.type('html').send(mdBlocks(String(req.body.md || '').slice(0, MAX_BODY))));
 router.post('/media', (req, res, next) => (req.user ? next() : res.status(401).json([])), auth.rateLimit('board-media', 30, 3600),
-  up.boardMediaUpload.array('images'), auth.csrfCheck, (req, res) => res.json(up.saveMedia(req.files, req.user.id)));
+  up.boardMediaUpload.array('images'), auth.csrfCheck, (req, res) => {
+    // Bilder in Beiträgen zählen zum Speicher des Mitglieds (src/quota.js)
+    const quota = require('../quota'), size = (req.files || []).reduce((n, f) => n + f.size, 0);
+    if (!quota.fits(req.user, size)) {
+      for (const f of req.files || []) up.removeQuietly(f.path);
+      return res.status(413).json({ error: quota.fullMessage(req.user) });
+    }
+    res.json(up.saveMedia(req.files, req.user.id));
+  });
 
 module.exports = router;

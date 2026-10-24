@@ -1,0 +1,20 @@
+<%- include('partials/head') %>
+<%# Freigegebener Ordner (/ordner/<Kennung>): zeigt nur, was der Betrachter ohnehin sehen darf (src/desk.js, shared) %>
+<div class="explorer-head">
+  <h1>📁 <%= s.folder.name %></h1>
+  <p><small>Freigegeben von <a href="<%= ownerUrl %>"><%= ownerName %></a> · <%= { friends: 'für Freunde', members: 'für angemeldete Mitglieder', public: 'für alle' }[s.folder.share_vis] %></small></p>
+</div>
+<% if (mine) { %><p class="msg">ℹ️ So sehen andere deinen Ordner. Dinge, die nur für dich sichtbar sind, fehlen hier. Die Freigabe änderst du in <a href="/eigene-dateien?ordner=<%= s.folder.id %>">Eigene Dateien</a> unter Eigenschaften.</p><% } %>
+<% if (!s.items.length) { %><p class="muted">Dieser Ordner ist leer, oder du darfst nichts davon sehen.</p><% } else { %>
+<div class="icon-view">
+  <% for (const it of s.items) { %>
+    <a class="icon-item" href="<%= it.url %>"<%- it.external ? ' target="_blank" rel="noopener noreferrer"' : '' %> title="<%= it.name %>">
+      <span class="icon-pic"><% if (it.thumb) { %><img src="<%= it.thumb %>" alt="" loading="lazy"><% } else { %><%= it.icon %><% } %></span>
+      <span class="icon-label"><%= it.name %></span>
+      <% if (it.host) { %><small><%= it.host %></small><% } %>
+    </a>
+  <% } %>
+</div>
+<% } %>
+<div class="statusbar"><span><%= s.items.length %> <%= s.items.length === 1 ? 'Objekt' : 'Objekte' %></span><span class="fixed">📁 Freigabe</span></div>
+<%- include('partials/foot') %>

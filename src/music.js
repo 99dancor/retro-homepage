@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const multer = require('multer');
-const { db, getSetting, MUSIC_DIR } = require('./db');
+const { db, getSetting, tx, MUSIC_DIR } = require('./db');
 
 const AUDIO_EXT = ['.mp3', '.ogg', '.oga', '.opus', '.wav', '.flac', '.m4a', '.aac', '.webm', '.weba'];
 const VIDEO_EXT = ['.mp4', '.m4v', '.webm', '.ogv', '.mov'];
@@ -39,8 +39,14 @@ function canUpload(user) {
   const mode = getSetting('music_upload', 'members');
   return mode === 'members' || (mode === 'upload' && user.canUpload);
 }
-function quotaBytes() { return Math.max(0, Number(getSetting('music_quota_mb', '500')) || 0) * 1024 * 1024; }
-function usedBytes(userId) { return db.prepare('SELECT COALESCE(SUM(size), 0) AS n FROM tracks WHERE uploader_id = ?').get(userId).n; }
+// Titel samt Datei löschen (Mediaplayer, Eigene Dateien, Papierkorb)
+function deleteTrack(t) {
+  if (t.stored_name) fs.rm(path.join(MUSIC_DIR, t.stored_name), { force: true }, () => {});
+  tx(() => {
+    db.prepare('DELETE FROM tracks WHERE id = ?').run(t.id);
+    db.prepare("DELETE FROM acl WHERE item_type = 'track' AND item_id = ?").run(t.id);
+  });
+}
 
 // ---------- Titelangaben ----------
 // ID3v2 (2.2 bis 2.4) am Anfang einer MP3, sonst ID3v1 am Ende. Andere Formate: nichts.
@@ -104,4 +110,4 @@ function fromFilename(name) {
   return m ? { artist: m[1].trim(), title: m[2].trim() } : { title: base };
 }
 
-module.exports = { adminUpload, memberUpload, canUpload, quotaBytes, usedBytes, readTags, fromFilename, kindOf, MEMBER_FILE_MB, MUSIC_DIR, AUDIO_EXT, VIDEO_EXT };
+module.exports = { adminUpload, memberUpload, canUpload, deleteTrack, readTags, fromFilename, kindOf, MEMBER_FILE_MB, MUSIC_DIR, AUDIO_EXT, VIDEO_EXT };

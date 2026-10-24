@@ -598,7 +598,7 @@
   media.addEventListener('timeupdate', function () { if (!counted && media.currentTime > 30) countPlay(); });
   media.addEventListener('loadedmetadata', function () {
     if (lob) syncLobby();
-    // Titel aus der Systemsteuerung kennen ihre Länge erst jetzt; der Server erfährt sie mit dem Abspiel-Zähler
+    // Titel aus der Seitenverwaltung kennen ihre Länge erst jetzt; der Server erfährt sie mit dem Abspiel-Zähler
     else if (current && !current.duration && isFinite(media.duration)) { current.duration = media.duration; renderQueue(); }
     showTime();
   });
@@ -1362,7 +1362,11 @@
   nowPlaying();
   render();
   load().then(function () {
-    var want = new URLSearchParams(location.search).get('lobby');
+    var q = new URLSearchParams(location.search), want = q.get('lobby');
+    // Aus Eigene Dateien und vom Desktop: ?titel=ID stellt den Titel in die Wiedergabeliste, ?playlist=ID zeigt die Playlist
+    var tid = Number(q.get('titel')), pid = Number(q.get('playlist'));
+    if (tid && byId[tid]) enqueue([byId[tid]]);
+    if (pid && playlist('pl:' + pid)) show('pl:' + pid);
     if (want && CAN_LOBBY) {
       if (lib.me) joinLobby(want); else status('Melde dich an, um der Lobby beizutreten.');
     }

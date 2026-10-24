@@ -496,6 +496,7 @@
 
   var api = { list: list, create: create, link: link, settings: settings, leave: leave, join: join };
   window.RetroPaintLobby = api;
+  // ?lobby=ID tritt bei (Link aus der Lobby oder dem Desktop-Widget), ?lobby=neu öffnet gleich „Neue Lobby“
   var want = new URLSearchParams(location.search).get('lobby');
-  if (want) join(want);
+  if (want === 'neu') create(); else if (want) join(want);
 }());

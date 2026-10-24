@@ -4,7 +4,7 @@
 const express = require('express');
 const { getSetting } = require('../db');
 const bj = require('../blackjack');
-const profiles = require('../profiles');
+const us = require('../usersettings');
 
 const router = express.Router();
 const on = () => getSetting('bj_enabled', '1') === '1';
@@ -63,10 +63,10 @@ router.post('/tisch/:id', gate, loadTable, auth.rateLimit('bjctl', 240, 60), (re
   res.json({ ok: true });
 });
 
-// Bestenliste: nur wer sein Profil dem Betrachter zeigt, erscheint mit Namen
+// Bestenliste: Jeder wählt unter Systemsteuerung → Profil und Statistik, ob er mit Namen, anonym oder gar nicht drinsteht
 router.get('/statistik', gate, (req, res) => {
-  const board = bj.leaderboard().filter(u => profiles.canViewProfile(req.user, u)).slice(0, 100).map(u => ({
-    id: u.id, name: profiles.displayName(u), user: u.username, avatar: u.avatar, balance: u.balance, buyins: u.buyins, bought: u.bought,
+  const board = us.boardList('blackjack', bj.leaderboard(), req.user).slice(0, 100).map(u => ({
+    id: u.id, name: u.name, user: u.user, avatar: u.avatar, balance: u.balance, buyins: u.buyins, bought: u.bought,
     hands: u.hands, wins: u.wins, blackjacks: u.blackjacks, bestWin: u.best_win, bestStreak: u.best_streak,
   }));
   res.json({

@@ -9,9 +9,13 @@ const p = require('../profiles');
 const GAMES = require('../games');
 const paint = require('../paint');
 const notify = require('../notify');
+const us = require('../usersettings');
+const desk = require('../desk');
 
 const router = express.Router();
 const PER_PAGE = 50;
+// Vorschau des eigenen Profils: welche Sichtbarkeiten (von Profil und Links) der jeweilige Betrachter sehen würde
+const PREVIEW = { guest: ['public'], member: ['public', 'members'], friend: ['public', 'members', 'friends'] };
 // Rücksprung nach einem Formular: nur Pfade dieser Seite
 const back = (v, fallback) => (typeof v === 'string' && /^\/(?![/\\])/.test(v) ? v : fallback);
 const notFound = res => res.status(404).render('error', { title: 'Nicht gefunden', message: 'Dieses Mitglied gibt es nicht (mehr).' });
@@ -44,16 +48,23 @@ router.get('/nutzer/:name', (req, res) => {
   const me = req.user;
   if (!u || (u.disabled && !(me && me.isAdmin))) return notFound(res);
   const relation = me ? p.friendship(me.id, u.id) : 'none';
-  const visible = p.canViewProfile(me, u);
-  const data = { title: p.displayName(u), u, relation, visible, canMessage: p.canMessage(me, u), msg: Object.hasOwn(p.FRIEND_MSG, req.query.ok || '') ? p.FRIEND_MSG[req.query.ok] : null };
+  // ?ansicht=guest|member|friend: Der Besitzer sieht sein Profil so wie andere (Systemsteuerung → Profil und Statistik)
+  const preview = me && me.id === u.id && Object.hasOwn(PREVIEW, req.query.ansicht) ? req.query.ansicht : null;
+  const visible = preview ? PREVIEW[preview].includes(u.profile_visibility) : p.canViewProfile(me, u);
+  const data = { title: p.displayName(u), u, relation, visible, preview, canMessage: p.canMessage(me, u), msg: Object.hasOwn(p.FRIEND_MSG, req.query.ok || '') ? p.FRIEND_MSG[req.query.ok] : null };
   if (visible) {
+    const view = us.profileView(u.id, me, p.gameStats(u.id, me), preview);
     const boardOpen = getSetting('board_enabled') === '1' && (getSetting('board_members_only') !== '1' || me);
     const tv = auth.visibilitySql(me, 'track', 't');
     Object.assign(data, {
       friends: p.friendsOf(u.id),
       guestbook: u.gb_from === 'off' ? null : p.guestbookOf(u.id),
       canSign: p.canSign(me, u), maxGb: p.MAX_GB,
-      games: p.gameStats(u.id, me),
+      games: view.games, showcase: view.showcase, site: view.site, siteSettings: view.siteSettings, rel: view.rel,
+      // Internetlinks vom Desktop, die der Betrachter sehen darf; der Besitzer sieht auch private (grau)
+      links: db.prepare("SELECT * FROM desk_items WHERE user_id = ? AND kind = 'link' AND deleted_at IS NULL ORDER BY name COLLATE NOCASE LIMIT 50").all(u.id)
+        .filter(it => (preview ? PREVIEW[preview].includes(it.visibility) : desk.canSeeDesk(me, it)) && !desk.trashed(it))
+        .map(it => ({ name: it.name, url: it.target, icon: it.icon || '🌐', host: desk.hostOf(it.target), private: it.visibility === 'private' })),
       // Bilder aus Paint, die der Betrachter sehen darf (die neuesten acht)
       artworks: paint.galleryOn() ? paint.byUser(u.id, me, 9).map(a => paint.row(a, me)) : null,
       counts: {
@@ -198,7 +209,7 @@ router.post('/account/avatar', auth.requireLogin, auth.rateLimit('avatar', 20, 3
 }), auth.csrfCheck, (req, res) => {
   if (!req.file) return accountBack(res, 'err=bild');
   let name;
-  try { name = p.saveAvatar(req.file.buffer); } catch { return accountBack(res, 'err=bild'); }
+  try { name = p.saveAvatar(req.file.buffer); } catch (e) { return accountBack(res, e.code === 'quadrat' ? 'err=quadrat' : 'err=bild'); }
   p.removeAvatar(req.user.avatar);
   db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(name, req.user.id);
   accountBack(res, 'ok=bild');
@@ -245,7 +256,7 @@ stats.patch('/:app', auth.rateLimit('stats', 120, 60), statsApp, express.json({ 
     const g = Object.hasOwn(GAMES, req.params.app) ? { title: GAMES[req.params.app].title, url: GAMES[req.params.app].url || `/${req.params.app}/` }
       : { title: (db.prepare('SELECT title FROM apps WHERE slug = ?').get(req.params.app) || {}).title || req.params.app, url: `/apps/${req.params.app}` };
     notify.send(prev.user_id, 'highscore', {
-      title: `🏆 ${p.displayName(req.user)} hat deinen Rekord in ${g.title} geknackt`,
+      title: `🏆 ${us.recordName(req.params.app, req.user.id, p.displayName(req.user))} hat deinen Rekord in ${g.title} geknackt`,
       body: `${key}: ${value.toLocaleString('de-DE')} (dein Rekord: ${prev.value.toLocaleString('de-DE')})`, url: g.url,
     });
   });

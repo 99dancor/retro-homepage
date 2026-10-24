@@ -11,6 +11,10 @@ const util = require('./util');
 const themes = require('./themes');
 const profiles = require('./profiles');
 const notify = require('./notify');
+const us = require('./usersettings');
+const desk = require('./desk');
+const deskRoutes = require('./routes/desk');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -67,6 +71,9 @@ app.use((req, res, next) => {
     galleryEnabled: getSetting('paint_enabled', '1') === '1' && getSetting('paint_gallery', '1') === '1',
     navHidden: (getSetting('nav_hidden') || '').split(','),
     marquee: getSetting('theme_marquee'),
+    // Design ohne eigene Wahl (Seitenverwaltung → Design): 98, xp, xp-oliv oder xp-silber; display.js liest es aus <html data-design>
+    siteDesign: getSetting('theme_design', '98'),
+    programs: require('./programs'),
     showCounter: getSetting('theme_show_counter') === '1',
     hitCounter: Number(getSetting('hit_counter', '0')),
     displayName: profiles.displayName,
@@ -91,15 +98,21 @@ app.use((req, res, next) => {
   const render = res.render.bind(res);
   res.render = (view, opts, cb) => {
     req.shell = true;
-    // Die Systemsteuerung ist ein Fenster wie alle anderen, nur mit eigenem Titel
+    // Die Seitenverwaltung ist ein Fenster wie alle anderen, nur mit eigenem Titel
     const title = (opts && opts.title) || '';
-    return render('desktop', { title: view.startsWith('admin/') ? 'Systemsteuerung' + (title ? ' – ' + title : '') : title, src: req.originalUrl }, cb);
+    return render('desktop', {
+      title: view.startsWith('admin/') ? 'Seitenverwaltung' + (title ? ' – ' + title : '') : title, src: req.originalUrl,
+      // Symbole, Widget und Suche (public/desk.js), dazu die Darstellung am Konto, falls „auf allen Geräten“ gewählt ist
+      desk: deskRoutes.deskData(req, res.locals), deskDisplay: req.user ? us.get(req.user.id, 'display') : null,
+    }, cb);
   };
   next();
 });
 app.use((req, res, next) => (req.is('multipart/form-data') ? next() : auth.csrfCheck(req, res, next)));
 app.use(analytics.middleware);
 
+app.use('/api/einstellungen', settingsRoutes.api);
+app.use('/api', deskRoutes.api);
 app.use('/api/saves', require('./routes/saves'));
 app.use('/api/entwuerfe', require('./routes/drafts').router);
 app.use('/api/pixelpfoten', require('./routes/pixelpfoten'));
@@ -125,6 +138,8 @@ app.use('/sudoku', require('./routes/sudoku'));
 const paintRoutes = require('./routes/paint');
 app.use('/paint', paintRoutes.router);
 app.use('/galerie', paintRoutes.gallery);
+app.use('/einstellungen', settingsRoutes.router);
+app.use('/', deskRoutes.router);
 app.use('/', require('./routes/notify'));
 app.use('/', require('./routes/games'));
 app.use('/', profileRoutes.router);
@@ -152,5 +167,8 @@ if (!db.prepare('SELECT 1 FROM users LIMIT 1').get()) {
 // Haustier-Erinnerungen und alte Benachrichtigungen aufräumen
 require('./petwatch').start();
 setInterval(notify.cleanup, 6 * 3600e3).unref();
+// Papierkorb: Was länger als desk_trash_days drin liegt, wird endgültig gelöscht
+setTimeout(desk.purgeOld, 60e3).unref();
+setInterval(desk.purgeOld, 6 * 3600e3).unref();
 
 app.listen(PORT, () => console.log(`Website läuft auf Port ${PORT}`));

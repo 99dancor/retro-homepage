@@ -20,7 +20,7 @@
           <option value="upload" <%= s.paint_save === 'upload' ? 'selected' : '' %>>nur Mitglieder mit Upload-Recht</option>
           <option value="admin" <%= s.paint_save === 'admin' ? 'selected' : '' %>>nur Admin</option>
         </select></label>
-      <label>Speicherplatz pro Mitglied <input type="number" name="paint_quota_mb" min="1" max="100000" value="<%= s.paint_quota_mb %>" style="width:90px"> MB</label>
+      <p><small>Paint-Bilder zählen zum Speicher jedes Mitglieds, den du unter <a href="/admin/desktop">Desktop</a> festlegst.</small></p>
       <label>Größte Leinwand <input type="number" name="paint_max_w" min="16" max="4000" value="<%= s.paint_max_w %>" style="width:80px"> × <input type="number" name="paint_max_h" min="16" max="4000" value="<%= s.paint_max_h %>" style="width:80px"> Pixel</label>
     </fieldset>
     <fieldset class="groupbox"><legend>Galerie</legend>

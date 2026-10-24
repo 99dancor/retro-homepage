@@ -1,7 +1,9 @@
 // Darstellung: jeder Besucher richtet sich die Seite wie seinen eigenen Desktop ein (🖥️ neben der Uhr).
-// Alles liegt nur im Browser (localStorage "darstellung", ein eigenes Bild unter "darstellung-bild")
-// und wird nie an den Server geschickt. Läuft schon im <head>, damit nichts in falschen Farben aufblitzt:
-// Farben, Schrift, Hintergrund und eigenes CSS landen in einem <style> am Ende des <head>.
+// Alles liegt im Browser (localStorage "darstellung", ein eigenes Bild unter "darstellung-bild"). Dieses Skript schickt
+// selbst nichts an den Server: Wählt ein Mitglied „Auf allen meinen Geräten“, meldet es nur das Ereignis
+// darstellung:gespeichert, und der Desktop (public/desk.js) legt die Einstellung am Konto ab – ohne Größe und eigenes Bild.
+// Läuft schon im <head>, damit nichts in falschen Farben aufblitzt: Design (Windows 98 oder XP), Größe der Oberfläche,
+// Farben, Schrift, Hintergrund und eigenes CSS landen als Klassen an <html> und in einem <style> am Ende des <head>.
 (function () {
   'use strict';
   var KEY = 'darstellung', IMG_KEY = 'darstellung-bild';
@@ -9,7 +11,9 @@
   var data = { presets: {}, fonts: {} };
   try { data = JSON.parse(document.getElementById('darstellung-daten').textContent); } catch (e) { /* ohne Vorlagen */ }
 
-  var SIZES = ['normal', 'gross', 'sehr-gross'], SCHEMES = ['seite', 'nacht', 'kontrast'];
+  var SCHEMES = ['seite', 'nacht', 'kontrast'], DESIGNS = ['seite', '98', 'xp'], XP = ['blau', 'oliv', 'silber'];
+  // Die alten Stufen der Schriftgröße werden zu Prozent der Oberfläche
+  var OLD_SIZE = { gross: 115, 'sehr-gross': 130 };
   var MARQUEE = ['an', 'still', 'aus'], MODES = ['tile', 'cover', 'center'];
   var COLORS = { desktop: '--desktop', win: '--win', titleFrom: '--title-from', titleTo: '--title-to', text: '--text', link: '--link' };
   // Muster liegen über der Hintergrundfarbe
@@ -20,7 +24,8 @@
     raster: 'linear-gradient(rgba(0,0,0,.18) 1px, transparent 1px) 0 0 / 20px 20px, linear-gradient(90deg, rgba(0,0,0,.18) 1px, transparent 1px) 0 0 / 20px 20px',
     wellen: 'radial-gradient(circle at 50% 100%, transparent 9px, rgba(255,255,255,.14) 10px 12px, transparent 13px) 0 0 / 28px 14px',
   };
-  var DEFAULTS = { size: 'normal', scheme: 'seite', colors: {}, font: '', bg: 'seite', bgMode: 'tile', marquee: 'an', widgets: true, css: '' };
+  var DEFAULTS = { design: 'seite', xp: 'blau', scale: 100, scaleAll: true, scheme: 'seite', colors: {}, font: '', bg: 'seite', bgMode: 'tile',
+    marquee: 'an', widgets: true, css: '', sync: false, t: 0 };
   var HEX = /^#[0-9a-f]{6}$/i, IMG = /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/;
 
   var pick = function (list, v, d) { return list.indexOf(v) >= 0 ? v : d; };
@@ -28,8 +33,14 @@
     p = p || {};
     var colors = {};
     for (var k in COLORS) if (p.colors && HEX.test(p.colors[k])) colors[k] = p.colors[k].toLowerCase();
+    var scale = Number(p.scale);
+    scale = isFinite(scale) && p.scale !== undefined && p.scale !== null ? Math.max(75, Math.min(200, Math.round(scale / 5) * 5)) : OLD_SIZE[p.size] || 100;
     return {
-      size: pick(SIZES, p.size, 'normal'),
+      design: pick(DESIGNS, p.design, 'seite'),
+      xp: pick(XP, p.xp, 'blau'),
+      // Größe der Oberfläche in Prozent, gilt immer nur für dieses Gerät
+      scale: scale,
+      scaleAll: p.scaleAll !== false,
       scheme: pick(SCHEMES, p.scheme, 'seite'),
       colors: colors,
       font: Object.prototype.hasOwnProperty.call(data.fonts, p.font) ? p.font : '',
@@ -39,9 +50,18 @@
       marquee: pick(MARQUEE, p.marquee, p.still === true ? 'still' : 'an'),
       widgets: p.widgets !== false,
       css: typeof p.css === 'string' ? p.css.slice(0, 20000) : '',
+      // Auch am Konto speichern (nur für Mitglieder, siehe oben); t: wann zuletzt gespeichert, das Neuere gewinnt
+      sync: p.sync === true,
+      t: isFinite(p.t) ? Math.max(0, Math.floor(p.t)) : 0,
     };
   }
-  function isDefault(p) { return JSON.stringify(p) === JSON.stringify(clean(DEFAULTS)); }
+  function isDefault(p) { var a = clean(p), b = clean(DEFAULTS); a.t = b.t = 0; return JSON.stringify(a) === JSON.stringify(b); }
+  // Was am Konto liegt: alles außer Größe, eigenem Bild und dem Haken selbst
+  function forAccount(p) {
+    var o = {};
+    for (var k in p) if (k !== 'scale' && k !== 'scaleAll' && k !== 'sync') o[k] = p[k];
+    return o;
+  }
 
   function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function load() { var p; try { p = JSON.parse(read(KEY)); } catch (e) { p = null; } return clean(p); }
@@ -76,10 +96,22 @@
     return out.join('\n');
   }
 
+  // Design: eigene Wahl oder die der Seite (<html data-design>, Seitenverwaltung → Design). Hoher Kontrast bleibt ohne XP-Rundungen.
+  function designOf(p) {
+    if (p.design !== 'seite') return { xp: p.design === 'xp', scheme: p.xp };
+    var site = root.getAttribute('data-design') || '98';
+    return { xp: /^xp/.test(site), scheme: site === 'xp-oliv' ? 'oliv' : site === 'xp-silber' ? 'silber' : 'blau' };
+  }
   function apply(p, img) {
     p = p || load();
     if (img === undefined) img = loadImage();
-    SIZES.forEach(function (s) { root.classList.toggle('fs-' + s, s === p.size && s !== 'normal'); });
+    var d = designOf(p), xp = d.xp && p.scheme !== 'kontrast';
+    root.classList.toggle('theme-xp', xp);
+    root.classList.toggle('xp-oliv', xp && d.scheme === 'oliv');
+    root.classList.toggle('xp-silber', xp && d.scheme === 'silber');
+    root.classList.toggle('zoomed', p.scale !== 100);
+    root.classList.toggle('zoom-all', p.scale !== 100 && p.scaleAll);
+    if (p.scale !== 100) root.style.setProperty('--zoom', String(p.scale / 100)); else root.style.removeProperty('--zoom');
     SCHEMES.forEach(function (s) { root.classList.toggle('scheme-' + s, s === p.scheme && s !== 'seite'); });
     root.classList.toggle('still', p.marquee !== 'an');
     var el = document.getElementById('darstellung-css');
@@ -93,7 +125,21 @@
     if (document.body) {
       document.querySelectorAll('marquee').forEach(function (m) { try { if (p.marquee === 'still') m.stop(); else m.start(); } catch (e) { /* egal */ } });
     }
+    try { window.dispatchEvent(new Event('darstellung:angewendet')); } catch (e) { /* alter Browser */ }
   }
+  // Am Konto gespeichert und neuer als hier? Dann übernehmen (nur auf dem Desktop, der die Daten mitbringt).
+  // Größe der Oberfläche und ein eigenes Bild bleiben, wie sie auf diesem Gerät sind.
+  (function adopt() {
+    var el = document.getElementById('darstellung-konto'), acct;
+    if (!el) return;
+    try { acct = JSON.parse(el.textContent); } catch (e) { return; }
+    var local = load();
+    if (!acct || !(acct.t > local.t)) return;
+    var next = clean(Object.assign({}, acct, { scale: local.scale, scaleAll: local.scaleAll, sync: true }));
+    var img = loadImage();
+    if (next.bg === 'bild' && !img) next.bg = 'seite';
+    save(next, img);
+  })();
   apply();
   // Eigenes CSS soll auch nach Stylesheets wirken, die erst später im <head> stehen
   document.addEventListener('DOMContentLoaded', function () { var el = document.getElementById('darstellung-css'); if (el) document.head.appendChild(el); apply(); });
@@ -137,7 +183,11 @@
     function fill() {
       var cs = getComputedStyle(root);
       for (var k in COLORS) f[k].value = toHex(cs.getPropertyValue(COLORS[k]));
-      f.bg.value = cur.bg; f.bgMode.value = cur.bgMode; f.font.value = cur.font; f.size.value = cur.size;
+      f.bg.value = cur.bg; f.bgMode.value = cur.bgMode; f.font.value = cur.font;
+      f.design.value = cur.design; f.xp.value = cur.xp; f.scale.value = cur.scale; f.scaleAll.checked = cur.scaleAll;
+      panel.querySelector('[data-scale-out]').textContent = cur.scale + ' %';
+      panel.querySelector('[data-xp-row]').hidden = !designOf(cur).xp || cur.design === 'seite';
+      if (f.sync) f.sync.checked = cur.sync;
       f.marquee.value = cur.marquee; f.widgets.checked = cur.widgets;
       if (document.activeElement !== f.css) f.css.value = cur.css;
       info.textContent = curImg ? 'Eigenes Bild gewählt' : '';
@@ -156,8 +206,14 @@
       panel.hidden = true; btn.setAttribute('aria-expanded', false);
     }
     function commit() {
+      cur.t = Date.now();
       if (!save(cur, curImg)) { error('Der Browser hat nicht genug Platz zum Speichern. Nimm ein kleineres Bild.'); return false; }
+      var wasSync = saved.sync;
       saved = clean(cur); savedImg = curImg; error('');
+      // Für den Desktop: am Konto ablegen oder dort wieder entfernen
+      if (saved.sync || wasSync) {
+        try { window.dispatchEvent(new CustomEvent('darstellung:gespeichert', { detail: { sync: saved.sync, display: forAccount(saved) } })); } catch (e) { /* alter Browser */ }
+      }
       return true;
     }
 
@@ -177,7 +233,7 @@
         panel.querySelectorAll('.tab-page').forEach(function (pg) { pg.hidden = pg.dataset.page !== t.dataset.tab; });
       } else if (t.dataset.act === 'cancel') close(false);
       else if (t.dataset.act === 'apply') commit();
-      else if (t.dataset.act === 'reset') { curImg = ''; update(function (p) { for (var k in DEFAULTS) p[k] = DEFAULTS[k]; p.colors = {}; }); }
+      else if (t.dataset.act === 'reset') { curImg = ''; update(function (p) { var sync = p.sync; for (var k in DEFAULTS) p[k] = DEFAULTS[k]; p.colors = {}; p.sync = sync; }); }
       else if (t.dataset.scheme) update(function (p) { p.scheme = t.dataset.scheme; p.colors = {}; });
       else if (t.dataset.preset && data.presets[t.dataset.preset]) update(function (p) { p.scheme = 'seite'; p.colors = Object.assign({}, data.presets[t.dataset.preset]); });
       else if (t.matches('a[href]') && window.RetroDesk) {
@@ -191,13 +247,16 @@
       var n = e.target.name;
       if (COLORS[n]) update(function (p) { p.colors[n] = e.target.value; });
       else if (n === 'css') update(function (p) { p.css = e.target.value; });
+      // Beim Ziehen am Regler nur die Zahl zeigen, vergrößert wird beim Loslassen
+      else if (n === 'scale') panel.querySelector('[data-scale-out]').textContent = e.target.value + ' %';
     });
     form.addEventListener('change', function (e) {
       var n = e.target.name;
       if (n === 'bild') return readImage(e.target);
       if (n === 'bg' && e.target.value === 'bild' && !curImg) { f.bild.click(); fill(); return; }
-      if (['bg', 'bgMode', 'font', 'size', 'marquee'].indexOf(n) >= 0) update(function (p) { p[n] = e.target.value; });
-      else if (n === 'widgets') update(function (p) { p.widgets = e.target.checked; });
+      if (['bg', 'bgMode', 'font', 'marquee', 'design', 'xp'].indexOf(n) >= 0) update(function (p) { p[n] = e.target.value; });
+      else if (n === 'scale') update(function (p) { p.scale = Number(e.target.value); });
+      else if (n === 'widgets' || n === 'scaleAll' || n === 'sync') update(function (p) { p[n] = e.target.checked; });
     });
 
     // Eigenes Bild: verkleinert und als data:-Adresse im Browser abgelegt, nie hochgeladen

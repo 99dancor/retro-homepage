@@ -278,9 +278,8 @@ function paintersFor(l, ownerId, ids) {
   for (const u of online(l)) if (!known.has(u.id)) known.set(u.id, { ...who(u), strokes: 0 });
   return [...known.values()].filter(p => p.id !== ownerId && (pick ? pick.has(p.id) : p.strokes > 0));
 }
-function quotaOk(user, oldSize, size) {
-  return user.isAdmin || paint.usedBytes(user.id) - oldSize + size <= paint.quotaBytes();
-}
+// Ein Speicher für alles (src/quota.js)
+const quotaOk = (user, oldSize, size) => require('./quota').fits(user, size, oldSize);
 // Entwurf beim Ersteller sichern, wenn sich seit dem letzten etwas geändert hat
 function saveDraft(l) {
   if (l.seq === l.draftSeq || l.seq === l.savedSeq) return;
@@ -314,7 +313,7 @@ function save(l, user, b) {
   const prevId = b.asNew ? null : l.saved.get(user.id);
   const old = prevId && db.prepare('SELECT * FROM artworks WHERE id = ? AND owner_id = ? AND draft = 0').get(prevId, user.id);
   const enc = png.encode(l.img), th = png.encode(png.thumb(l.img)), size = enc.length + th.length;
-  if (!quotaOk(user, old ? old.size : 0, size)) return { error: `Dein Speicher für Bilder ist voll (${Math.round(paint.quotaBytes() / 1048576)} MB). Lösche alte Bilder unter Datei → Öffnen.`, status: 413 };
+  if (!quotaOk(user, old ? old.size : 0, size)) return { error: require('./quota').fullMessage(user), status: 413 };
   const name = paint.store(enc, th), t = now();
   let id;
   if (old) {

@@ -352,10 +352,43 @@ function stripWebp(b) {
 }
 const STRIP = { jpg: stripJpeg, png: stripPng, webp: stripWebp, gif: b => b };
 
+// Breite und Höhe aus dem Dateikopf, null wenn sie sich nicht finden lassen
+function imageSize(b, type) {
+  try {
+    if (type === 'png') return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
+    if (type === 'gif') return { w: b.readUInt16LE(6), h: b.readUInt16LE(8) };
+    if (type === 'jpg') {
+      for (let i = 2; i + 9 < b.length;) {
+        if (b[i] !== 0xff) return null;
+        const m = b[i + 1];
+        if (m === 0xff) { i++; continue; }
+        if (m >= 0xc0 && m <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(m)) return { w: b.readUInt16BE(i + 7), h: b.readUInt16BE(i + 5) };
+        if (m === 0xda) return null;
+        i += 2 + b.readUInt16BE(i + 2);
+      }
+      return null;
+    }
+    if (type === 'webp') {
+      const c = b.toString('latin1', 12, 16);
+      if (c === 'VP8 ') return { w: b.readUInt16LE(26) & 0x3fff, h: b.readUInt16LE(28) & 0x3fff };
+      if (c === 'VP8L') return { w: 1 + (((b[22] & 0x3f) << 8) | b[21]), h: 1 + (((b[24] & 0x0f) << 10) | (b[23] << 2) | ((b[22] & 0xc0) >> 6)) };
+      if (c === 'VP8X') return { w: 1 + b.readUIntLE(24, 3), h: 1 + b.readUIntLE(27, 3) };
+    }
+  } catch { /* zu kurz */ }
+  return null;
+}
+// Profilbilder sind quadratisch: Der Browser schneidet sie beim Hochladen zu (public/avatar-crop.js).
+// GIFs bleiben, wie sie sind (sonst wäre die Bewegung weg), und werden mittig quadratisch gezeigt.
+function squareEnough(buf, type) {
+  const d = type === 'gif' ? null : imageSize(buf, type);
+  return !d || Math.abs(d.w - d.h) <= Math.max(1, Math.round(Math.max(d.w, d.h) * 0.02));
+}
+
 // Speichert ein Profilbild und gibt seinen Dateinamen zurück; wirft bei ungültigen Bildern
 function saveAvatar(buf) {
   const type = imageType(buf);
   if (!type) throw new Error('Das ist kein Bild (PNG, JPEG, GIF oder WebP).');
+  if (!squareEnough(buf, type)) throw Object.assign(new Error('Das Profilbild muss quadratisch sein.'), { code: 'quadrat' });
   let clean;
   try { clean = STRIP[type](buf); } catch { throw new Error('Das Bild ist beschädigt.'); }
   const name = crypto.randomBytes(16).toString('hex') + '.' + type;
@@ -371,5 +404,5 @@ module.exports = {
   friendship, friendAction, FRIEND_MSG, friendsOf, requestsTo, requestsFrom, canViewProfile, canMessage,
   MAX_PM, unreadCount, conversations, thread, markRead, sendMessage, hideConversation,
   STARTS, recordStats, countStart, ownStats, gameStats,
-  AVATAR_MAX, saveAvatar, removeAvatar, stripJpeg, stripPng, stripWebp,
+  AVATAR_MAX, saveAvatar, removeAvatar, imageSize, stripJpeg, stripPng, stripWebp,
 };

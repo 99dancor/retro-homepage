@@ -63,7 +63,7 @@
     }
     if (info.me && info.me.admin && info.relation !== 'self') {
       rows.push('<hr>');
-      item('⚙️ In der Systemsteuerung', function () { openPage('/admin/users/' + info.id); });
+      item('⚙️ In der Seitenverwaltung', function () { openPage('/admin/users/' + info.id); });
     }
     menu.innerHTML = head + '<div class="um-items">' + rows.join('') + '</div>';
     menu.onclick = function (e) {

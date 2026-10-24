@@ -31,6 +31,13 @@
     </div>
   </fieldset>
   <fieldset class="groupbox"><legend>🪟 Fenster & Schrift</legend>
+    <label>Grunddesign:
+      <select name="theme_design">
+        <% for (const [k, label] of Object.entries(designs)) { %>
+          <option value="<%= k %>" <%= s.theme_design === k ? 'selected' : '' %>><%= label %></option>
+        <% } %>
+      </select></label>
+    <small>Gilt für alle, die unter 🖥️ nichts anderes gewählt haben. Windows XP bringt eigene Farben, Schrift und den Hügel-Hintergrund mit. Farben, Hintergrund und Schrift hier gelten für Windows 98; Lauftext, Besucherzähler und eigenes CSS für beide.</small>
     <div class="row">
       <label>Fensterfarbe:<br><input type="color" name="theme_window_color" value="<%= s.theme_window_color %>"></label>
       <label>Titelleiste links:<br><input type="color" name="theme_title_from" value="<%= s.theme_title_from %>"></label>

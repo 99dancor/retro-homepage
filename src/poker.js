@@ -118,7 +118,7 @@ function recordWin(seat, net) {
   const prev = db.prepare('SELECT user_id, best_win FROM pk_sessions WHERE best_win > 0 ORDER BY best_win DESC, updated_at LIMIT 1').get();
   if (!prev || prev.user_id === seat.userId || net <= prev.best_win) return;
   require('./notify').send(prev.user_id, 'highscore', {
-    title: `🏆 ${seat.name} hat deinen Poker-Rekord geknackt`,
+    title: `🏆 ${require('./usersettings').recordName('poker', seat.userId, seat.name)} hat deinen Poker-Rekord geknackt`,
     body: `Größter Gewinn in einer Hand: +${net.toLocaleString('de-DE')} € (dein Rekord: +${prev.best_win.toLocaleString('de-DE')} €)`, url: '/kartenspiele?statistik=poker',
   });
 }

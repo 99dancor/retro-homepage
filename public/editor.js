@@ -292,7 +292,11 @@
       list.forEach(function (f) { fd.append('images', f, f.name || 'bild.png'); });
       status.textContent = 'Lade ' + list.length + ' Bild(er) hoch…';
       fetch(uploadUrl, { method: 'POST', body: fd, headers: { Accept: 'application/json' }, credentials: 'same-origin' })
-        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function (r) {
+          // Voller Speicher: Der Server sagt, was zu tun ist
+          if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.error || r.status); });
+          return r.json();
+        })
         .then(function (saved) {
           if (!saved.length) throw new Error('kein Bild');
           insertImages(saved);

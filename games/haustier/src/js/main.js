@@ -958,7 +958,7 @@ function contestHtml() {
   if (contest.error) return `<p>⚠️ ${esc(contest.error)}</p>`;
   const cup = (place) => (place <= 3 ? iconSvg('cup' + place) : place + '.');
   const rows = contest.top.length ? contest.top.map((e) => `<tr class="${e.me ? 'me' : ''}"><td>${cup(e.place)}</td>
-      <td>${SPECIES[e.pet.species] ? SPECIES[e.pet.species].icon : '🐾'} <b>${esc(e.pet.name)}</b> <small>· <a href="${esc(e.url)}" target="_top">${esc(e.name)}</a></small></td>
+      <td>${SPECIES[e.pet.species] ? SPECIES[e.pet.species].icon : '🐾'} <b>${esc(e.pet.name)}</b> <small>· ${e.url ? `<a href="${esc(e.url)}" target="_top">${esc(e.name)}</a>` : esc(e.name)}</small></td>
       <td class="num">${num(e.score)}</td></tr>`).join('')
     : '<tr><td colspan="3"><small>Heute ist noch niemand gelaufen. Sei die oder der Erste!</small></td></tr>';
   const meRow = contest.mine && !contest.top.some((e) => e.me)

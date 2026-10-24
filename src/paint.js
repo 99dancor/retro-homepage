@@ -24,8 +24,6 @@ function canSave(user) {
   const mode = getSetting('paint_save', 'members');
   return mode === 'members' || (mode === 'upload' && user.canUpload);
 }
-function quotaBytes() { return Math.max(0, Number(getSetting('paint_quota_mb', '50')) || 0) * 1024 * 1024; }
-function usedBytes(userId) { return db.prepare('SELECT COALESCE(SUM(size), 0) AS n FROM artworks WHERE owner_id = ?').get(userId).n; }
 
 // Wer darf ein Bild sehen? Besitzer, Mitmaler aus einer Lobby und Admin immer, sonst je nach Sichtbarkeit.
 // Öffentliche Bilder, die noch auf die Freigabe warten, und Entwürfe sehen nur sie.
@@ -151,7 +149,7 @@ function gallery(viewer, limit = 500) {
 }
 
 module.exports = {
-  VIS, MAX_FILE, enabled, guestsOk, galleryOn, lobbiesOn, moderation, maxSize, canSave, quotaBytes, usedBytes,
+  VIS, MAX_FILE, enabled, guestsOk, galleryOn, lobbiesOn, moderation, maxSize, canSave,
   canSee, isPainter, visibleSql, pngSize, cleanPng, checkFiles, file, store, removeFiles, filesOf, needsApproval, get, row, byUser, gallery,
   painters, setPainters, mine, shared,
 };

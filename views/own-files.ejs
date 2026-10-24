@@ -1,116 +1,211 @@
 <%- include('partials/head') %>
-<%# Eigene Dateien: alles, was du hochgeladen oder gespeichert hast (src/routes/ownfiles.js) %>
-<h1>🗂️ Eigene Dateien</h1>
-<% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+<%# Eigene Dateien als Explorer (src/routes/ownfiles.js): Baum links, Inhalt rechts. Auswahl, Rechtsklick, Ziehen und Dialoge in public/explorer.js %>
 <%
+  const KIND = { folder: 'Dateiordner', text: 'Textdokument', shortcut: 'Verknüpfung', link: 'Internetverknüpfung', datei: 'Datei (Downloads)',
+    medien: 'Bild in Beiträgen', titel: 'Mediaplayer-Titel', playlist: 'Playlist', bild: 'Paint-Bild', quiz: 'Quiz' };
+  const VISI = { private: '🔒 Nur ich', friends: '⭐ Nur Freunde', members: '👥 Angemeldete', public: '🌐 Öffentlich', groups: '👪 Gruppen', link: '🔗 Mit Adresse' };
   const visSelect = (kind, cur) => {
     const keys = VIS[kind].concat(cur === 'groups' ? ['groups'] : []);
     return '<select name="visibility" aria-label="Wer darf es sehen?">' + keys.map(k => `<option value="${k}"${k === cur ? ' selected' : ''}>${LABEL[k]}</option>`).join('') + '</select>';
   };
-  const del = (url, what) => `<form method="post" action="${url}/loeschen" class="inline" data-confirm="${what} wirklich löschen?"><input type="hidden" name="_csrf" value="${csrf}"><button class="small danger" title="Löschen">🗑</button></form>`;
-  const quota = q => fmtSize(q.used) + (q.total ? ' von ' + fmtSize(q.total) : '');
-  const total = files.length + tracks.length + playlists.length + artworks.length + quizzes.length + media.length;
+  const del = (url, what) => `<form method="post" action="${url}/loeschen" class="inline" data-confirm="${what} in den Papierkorb verschieben?"><input type="hidden" name="_csrf" value="${csrf}"><button class="small danger" title="In den Papierkorb">🗑</button></form>`;
+  const libCount = k => counts[k] || 0;
+  const here = view === 'folder' ? (folder ? folder.id : 0) : null;
+  const pct = space.limit ? space.pct : 0;
+  const placeName = id => id === null || id === undefined ? '' : id === 0 ? '🖥️ Desktop' : names[id] ? '📁 ' + names[id] : '';
 %>
-<div class="kpis">
-  <a class="kpi" href="#downloads"><small>📁 Downloads</small><b><%= files.length %></b><small><%= fmtSize(usage.files) %></small></a>
-  <a class="kpi" href="#mediaplayer"><small>🎵 Mediaplayer</small><b><%= tracks.length %></b><small><%= quota(usage.music) %></small></a>
-  <% if (paintEnabled || artworks.length) { %><a class="kpi" href="#bilder"><small>🎨 Paint-Bilder</small><b><%= artworks.length %></b><small><%= quota(usage.paint) %></small></a><% } %>
-  <% if (quizEnabled || quizzes.length) { %><a class="kpi" href="#quizze"><small>❓ Quizze</small><b><%= quizzes.length %></b><small>&nbsp;</small></a><% } %>
-  <a class="kpi" href="#medien"><small>🖼️ Bilder in Beiträgen</small><b><%= media.length %></b><small><%= fmtSize(usage.media) %></small></a>
-</div>
-<p class="muted"><small>Hier verwaltest du, was du selbst hochgeladen oder gespeichert hast. „Nur Freunde“ heißt: nur Mitglieder, mit denen du befreundet bist.</small></p>
-
-<fieldset class="groupbox" id="downloads"><legend>📁 Downloads</legend>
-  <% if (user.canUpload) { %><p class="actions" style="margin-top:0"><a class="btn small" href="/files/upload">📤 Datei hochladen</a></p><% } %>
-  <% if (!files.length) { %><p class="muted">Noch keine Dateien.</p><% } else { %>
-  <table class="list own-list">
-    <tr><th>Name und Sichtbarkeit</th><th class="num">Größe</th><th class="num">⬇</th><th>Datum</th><th></th></tr>
-    <% for (const f of files) { %><tr>
-      <td><form method="post" action="/eigene-dateien/datei/<%= f.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
-        <input type="text" name="title" value="<%= f.title %>" maxlength="200" aria-label="Titel"><%- visSelect('datei', f.visibility) %><button class="small">💾</button></form>
-        <small><a href="/files/dl/<%= f.id %>">💾 <%= f.original_name %></a></small></td>
-      <td class="num"><%= fmtSize(f.size) %></td><td class="num"><%= f.downloads %></td><td><%= fmtDate(f.created_at) %></td>
-      <td><%- del('/eigene-dateien/datei/' + f.id, 'Die Datei') %></td>
-    </tr><% } %>
-  </table>
-  <% } %>
-</fieldset>
-
-<fieldset class="groupbox" id="mediaplayer"><legend>🎵 Mediaplayer: Musik, Videos und YouTube-Links</legend>
-  <p class="actions" style="margin-top:0"><a class="btn small" href="/musik">🎵 Mediaplayer öffnen</a><% if (canUploadMusic) { %><small class="muted">Hochladen geht im Mediaplayer unter „📤 Hochladen“.</small><% } %></p>
-  <% if (!tracks.length) { %><p class="muted">Noch keine Titel.</p><% } else { %>
-  <table class="list own-list">
-    <tr><th>Titel und Sichtbarkeit</th><th>Art</th><th class="num">Größe</th><th>Datum</th><th></th></tr>
-    <% for (const t of tracks) { %><tr>
-      <td><form method="post" action="/eigene-dateien/titel/<%= t.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
-        <input type="text" name="title" value="<%= t.title %>" maxlength="200" aria-label="Titel"><%- visSelect('titel', t.visibility) %><button class="small">💾</button></form>
-        <% if (t.artist) { %><small><%= t.artist %></small><% } %></td>
-      <td><%= { audio: '🎵 Audio', video: '🎬 Video', youtube: '▶️ YouTube' }[t.kind] || t.kind %></td>
-      <td class="num"><%= t.size ? fmtSize(t.size) : '–' %></td><td><%= fmtDate(t.created_at) %></td>
-      <td><%- del('/eigene-dateien/titel/' + t.id, 'Der Titel') %></td>
-    </tr><% } %>
-  </table>
-  <% } %>
-</fieldset>
-
-<fieldset class="groupbox" id="playlists"><legend>📃 Playlists</legend>
-  <% if (!playlists.length) { %><p class="muted">Noch keine Playlists. Anlegen kannst du sie im Mediaplayer.</p><% } else { %>
-  <table class="list own-list">
-    <tr><th>Name und Sichtbarkeit</th><th class="num">Titel</th><th>Geändert</th><th></th></tr>
-    <% for (const p of playlists) { %><tr>
-      <td><form method="post" action="/eigene-dateien/playlist/<%= p.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
-        <input type="text" name="title" value="<%= p.title %>" maxlength="100" aria-label="Name"><%- visSelect('playlist', p.visibility) %><button class="small">💾</button></form></td>
-      <td class="num"><%= p.n %></td><td><%= fmtDate(p.updated_at) %></td>
-      <td><%- del('/eigene-dateien/playlist/' + p.id, 'Die Playlist') %></td>
-    </tr><% } %>
-  </table>
-  <% } %>
-</fieldset>
-
-<% if (paintEnabled || artworks.length) { %>
-<fieldset class="groupbox" id="bilder"><legend>🎨 Bilder aus Paint</legend>
-  <% if (!artworks.length) { %><p class="muted">Noch keine gespeicherten Bilder.</p><% } else { %>
-  <table class="list own-list">
-    <tr><th></th><th>Titel und Sichtbarkeit</th><th class="num">Größe</th><th>Geändert</th><th></th></tr>
-    <% for (const a of artworks) { %><tr>
-      <td><img class="own-thumb" src="/paint/bild/<%= a.id %>/vorschau.png?v=<%= a.updated_at %>" alt="" loading="lazy"></td>
-      <td><form method="post" action="/eigene-dateien/bild/<%= a.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
-        <input type="text" name="title" value="<%= a.title %>" maxlength="80" aria-label="Titel"><%- visSelect('bild', a.visibility) %><button class="small">💾</button></form>
-        <small><%= a.width %> × <%= a.height %><%= a.draft ? ' · Entwurf aus einer Lobby' : '' %><%= a.visibility === 'public' && !a.approved ? ' · wartet auf Freigabe' : '' %></small></td>
-      <td class="num"><%= fmtSize(a.size) %></td><td><%= fmtDate(a.updated_at) %></td>
-      <td><%- del('/eigene-dateien/bild/' + a.id, 'Das Bild') %></td>
-    </tr><% } %>
-  </table>
-  <% } %>
-</fieldset>
-<% } %>
-
-<% if (quizEnabled || quizzes.length) { %>
-<fieldset class="groupbox" id="quizze"><legend>❓ Quizze</legend>
-  <% if (!quizzes.length) { %><p class="muted">Noch keine gespeicherten Quizze. Speichern kannst du sie als Spielleiter im Quiz.</p><% } else { %>
-  <table class="list own-list">
-    <tr><th>Quiz</th><th class="num">Fragen</th><th>Geändert</th><th></th></tr>
-    <% for (const q of quizzes) { %><tr>
-      <td><form method="post" action="/eigene-dateien/quiz/<%= q.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
-        <b><%= q.title %></b><select name="shared" aria-label="Teilen"><option value="0">Nur ich</option><option value="1" <%= q.shared ? 'selected' : '' %>>Für Mitglieder geteilt</option></select><button class="small">💾</button></form></td>
-      <td class="num"><%= q.questions %></td><td><%= fmtDate(q.updated_at) %></td>
-      <td><%- del('/eigene-dateien/quiz/' + q.id, 'Das Quiz') %></td>
-    </tr><% } %>
-  </table>
-  <% } %>
-</fieldset>
-<% } %>
-
-<fieldset class="groupbox" id="medien"><legend>🖼️ Bilder in Forum und Blog</legend>
-  <% if (!media.length) { %><p class="muted">Noch keine Bilder hochgeladen.</p><% } else { %>
-  <p class="muted"><small>Diese Bilder kann jeder sehen, der die Adresse kennt. Gelöschte Bilder fehlen danach in den Beiträgen, in denen sie stehen.</small></p>
-  <div class="thumbs">
-    <% for (const m of media) { %><figure>
-      <a href="/media/<%= m.stored_name %>" target="_blank" rel="noopener"><img src="/media/<%= m.stored_name %>" alt="<%= m.original_name %>" loading="lazy"></a>
-      <figcaption><%= m.original_name %><br><small><%= fmtSize(m.size) %> · <%= fmtDate(m.created_at) %></small> <%- del('/eigene-dateien/medien/' + m.id, 'Das Bild') %></figcaption>
-    </figure><% } %>
+<div class="explorer" id="explorer" data-csrf="<%= csrf %>" data-view="<%= view %>" data-folder="<%= here === null ? '' : here %>" data-kind="<%= kind || '' %>"
+     data-upload="<%= user.canUpload ? '1' : '' %>" data-parent="<%= folder ? folder.parent : '' %>" data-entry="<%= folder ? JSON.stringify(folder) : '' %>">
+  <div class="ex-toolbar" role="toolbar">
+    <button type="button" class="small" data-ex="back" title="Zurück">⬅ Zurück</button>
+    <button type="button" class="small" data-ex="up" title="Eine Ebene höher"<%= view === 'home' ? ' disabled' : '' %>>⬆</button>
+    <span class="ex-sep"></span>
+    <% if (view === 'trash') { %>
+      <button type="button" class="small" data-ex="restore" disabled>↩ Wiederherstellen</button>
+      <button type="button" class="small" data-ex="purge" disabled>✖ Endgültig löschen</button>
+      <button type="button" class="small" data-ex="empty"<%= items.length ? '' : ' disabled' %>>🗑 Papierkorb leeren</button>
+    <% } else { %>
+      <% if (view === 'folder' || view === 'home') { %><button type="button" class="small" data-ex="new" aria-haspopup="true">✨ Neu ▾</button><% } %>
+      <% if (user.canUpload && view === 'folder') { %><a class="btn small" href="/files/upload?ordner=<%= here %>">📤 Hochladen</a><% } %>
+      <button type="button" class="small" data-ex="move" disabled>📁 Verschieben nach…</button>
+      <button type="button" class="small" data-ex="delete" disabled>🗑 Löschen</button>
+      <button type="button" class="small" data-ex="props"<%= view === 'folder' && folder ? '' : ' disabled' %>>ℹ Eigenschaften</button>
+    <% } %>
+    <span class="spacer"></span>
+    <button type="button" class="small ex-tree-toggle" data-ex="tree" aria-expanded="false">📂 Ordner</button>
   </div>
-  <% } %>
-</fieldset>
-<div class="statusbar"><span><%= total %> <%= total === 1 ? "Eintrag" : "Einträge" %></span><span>📁 <%= fmtSize(usage.files) %> · 🎵 <%= quota(usage.music) %> · 🎨 <%= quota(usage.paint) %> · 🖼️ <%= fmtSize(usage.media) %></span></div>
+  <div class="ex-address"><span>Adresse</span><div class="sunken ex-path">
+    <a href="/eigene-dateien">🗂️ Eigene Dateien</a>
+    <% if (view === 'folder') { %> › <a href="/eigene-dateien?ordner=0">🖥️ Desktop</a><% for (const c of crumbs) { %> › <a href="/eigene-dateien?ordner=<%= c.id %>">📁 <%= c.name %></a><% } %><% } %>
+    <% if (view === 'lib') { const l = LIBS.find(x => x[0] === kind); %> › 📚 Bibliotheken › <%= l[1] %> <%= l[2] %><% } %>
+    <% if (view === 'trash') { %> › 🗑️ Papierkorb<% } %>
+  </div></div>
+  <div class="ex-main">
+    <nav class="ex-tree sunken" aria-label="Ordner">
+      <ul class="tree">
+        <li><a href="/eigene-dateien" class="ex-node<%= view === 'home' ? ' current' : '' %>">🗂️ Eigene Dateien</a>
+          <ul>
+            <li><a href="/eigene-dateien?ordner=0" class="ex-node<%= here === 0 ? ' current' : '' %>" data-drop="0">🖥️ Desktop</a>
+              <% (function node(list) { if (!list.length) return; %><ul><% for (const f of list) { %>
+                <li><a href="/eigene-dateien?ordner=<%= f.id %>" class="ex-node<%= here === f.id ? ' current' : '' %>" data-drop="<%= f.id %>">📁 <%= f.name %><%= f.shared ? ' 📤' : '' %></a><% node(f.children) %></li>
+              <% } %></ul><% })(tree) %>
+            </li>
+            <li class="ex-group">📚 Bibliotheken
+              <ul><% for (const [k, ic, label] of LIBS) { if (k === 'bild' && !paintEnabled && !libCount(k)) continue; if (k === 'quiz' && !quizEnabled && !libCount(k)) continue; %>
+                <li><a href="/eigene-dateien?bib=<%= k %>" class="ex-node<%= kind === k ? ' current' : '' %>"><%= ic %> <%= label %> <small>(<%= libCount(k) %>)</small></a></li>
+              <% } %></ul>
+            </li>
+            <li><a href="/eigene-dateien?ordner=papierkorb" class="ex-node<%= view === 'trash' ? ' current' : '' %>" data-drop="papierkorb">🗑️ Papierkorb<%= trashN ? ' (' + trashN + ')' : '' %></a></li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+    <div class="ex-pane">
+      <% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+
+      <% if (view === 'home') { %>
+        <h2 class="ex-h">Ordner</h2>
+        <div class="icon-view">
+          <a class="icon-item" href="/eigene-dateien?ordner=0" data-drop="0"><span class="icon-pic">🖥️</span><span class="icon-label">Desktop</span></a>
+          <% for (const f of items) { %><a class="icon-item" href="/eigene-dateien?ordner=<%= f.id %>" data-drop="<%= f.id %>"><span class="icon-pic">📁</span><span class="icon-label"><%= f.name %></span></a><% } %>
+          <a class="icon-item" href="/eigene-dateien?ordner=papierkorb" data-drop="papierkorb"><span class="icon-pic"><%= trashN ? '🗑️' : '🗑️' %></span><span class="icon-label">Papierkorb<%= trashN ? ' (' + trashN + ')' : '' %></span></a>
+        </div>
+        <h2 class="ex-h">Bibliotheken</h2>
+        <p class="muted"><small>Eine Bibliothek zeigt immer alles einer Art, egal in welchem Ordner es liegt. Ziehe Einträge auf einen Ordner links, um sie einzusortieren.</small></p>
+        <div class="icon-view">
+          <% for (const [k, ic, label] of LIBS) { if (k === 'bild' && !paintEnabled && !libCount(k)) continue; if (k === 'quiz' && !quizEnabled && !libCount(k)) continue; %>
+            <a class="icon-item" href="/eigene-dateien?bib=<%= k %>"><span class="icon-pic"><%= ic %></span><span class="icon-label"><%= label %></span><small><%= libCount(k) %> <%= libCount(k) === 1 ? 'Eintrag' : 'Einträge' %></small></a>
+          <% } %>
+        </div>
+        <h2 class="ex-h">Speicher</h2>
+        <div class="space-bar" role="img" aria-label="<%= space.limit ? pct + ' Prozent belegt' : 'ohne Grenze' %>"><i style="width:<%= pct %>%"></i></div>
+        <p><small><%= fmtSize(space.used) %> belegt<%= space.limit ? ' von ' + fmtSize(space.limit) + ', ' + fmtSize(space.free) + ' frei' : ' (ohne Grenze)' %> · <a href="/einstellungen/speicher">Details</a></small></p>
+
+      <% } else if (view === 'folder' || (view === 'lib' && kind === 'text')) { %>
+        <% if (folder && folder.share) { %><p class="msg">📤 Freigegeben für <%= { friends: 'deine Freunde', members: 'angemeldete Mitglieder', public: 'alle' }[folder.share.vis] %>: <a href="/ordner/<%= folder.share.token %>" target="_blank" rel="noopener">Ordner so ansehen, wie andere ihn sehen</a>. Andere sehen darin nur, was sie ohnehin sehen dürfen.</p><% } %>
+        <% if (!items.length) { %><p class="muted ex-empty"><%= view === 'lib' ? 'Noch keine Textdokumente. Neue legst du im Notizblock an oder mit Rechtsklick auf den Desktop → Neu → Textdokument.' : 'Dieser Ordner ist leer. Zieh Einträge aus den Bibliotheken auf den Ordner links, oder lege mit „✨ Neu“ etwas an.' %></p>
+        <% } else { %>
+        <table class="list ex-list" data-list>
+          <thead><tr><th>Name</th><th>Art</th><th class="num">Größe</th><th>Geändert</th><th>Sichtbar für</th><% if (view === 'lib') { %><th>Ordner</th><% } %></tr></thead>
+          <tbody>
+          <% for (const e of items) { %>
+            <tr tabindex="0" data-ref="<%= e.ref %>" data-url="<%= e.url %>" data-kind="<%= e.kind %>" data-name="<%= e.name %>" data-vis="<%= e.vis || '' %>"<% if (e.external) { %> data-external="1" data-host="<%= e.host %>"<% } %><% if (e.kind === 'folder') { %> data-drop="<%= e.id %>"<% } %><% if (e.share) { %> data-share="<%= e.share.vis %>" data-token="<%= e.share.token %>"<% } %><% if (e.kind === 'shortcut' || e.kind === 'link') { %> data-target="<%= e.url %>" data-icon="<%= e.icon %>"<% } %><%= e.broken ? ' class=broken' : '' %> draggable="true">
+              <td><a href="<%= e.url %>" class="ex-name"<%- e.external ? ' target="_blank" rel="noopener noreferrer"' : '' %>><span class="ex-ic"><%= e.icon %><%= e.kind === 'shortcut' || e.kind === 'link' ? '' : '' %></span><%= e.name %></a><% if (e.broken) { %> <small class="muted">✕ Ziel fehlt</small><% } %></td>
+              <td><%= KIND[e.kind] || e.kind %><%= e.host ? ' (' + e.host + ')' : '' %></td>
+              <td class="num"><%= e.kind === 'folder' || e.kind === 'shortcut' || e.kind === 'link' ? '' : fmtSize(e.size || 0) %></td>
+              <td><%= fmtDate(e.date, true) %></td>
+              <td><%= e.kind === 'folder' ? (e.share ? '📤 Freigegeben' : '🔒 Nur ich') : VISI[e.vis] || '' %></td>
+              <% if (view === 'lib') { %><td><%= placeName(e.folder) %></td><% } %>
+            </tr>
+          <% } %>
+          </tbody>
+        </table>
+        <% } %>
+
+      <% } else if (view === 'trash') { %>
+        <p class="muted"><small>Was hier liegt, sehen andere nicht mehr. Nach <%= limits.trashDays %> Tagen wird es endgültig gelöscht. Es zählt bis dahin zu deinem Speicher.</small></p>
+        <% if (!items.length) { %><p class="muted ex-empty">Der Papierkorb ist leer.</p><% } else { %>
+        <table class="list ex-list" data-list>
+          <thead><tr><th>Name</th><th>Ursprünglicher Ort</th><th>Gelöscht am</th><th>Art</th><th class="num">Größe</th></tr></thead>
+          <tbody>
+          <% for (const e of items) { %>
+            <tr tabindex="0" data-ref="<%= e.ref %>" data-kind="<%= e.kind %>" data-name="<%= e.name %>">
+              <td><span class="ex-ic"><%= e.icon %></span><%= e.name %></td>
+              <td><%= e.lib ? (e.folder > 0 ? placeName(e.folder) : e.folder === 0 ? '🖥️ Desktop' : '📚 ' + (KIND[e.kind] || '')) : placeName(e.parent) %></td>
+              <td><%= fmtDate(e.deleted, true) %></td>
+              <td><%= KIND[e.kind] || e.kind %></td>
+              <td class="num"><%= e.kind === 'folder' || e.kind === 'shortcut' || e.kind === 'link' ? '' : fmtSize(e.size || 0) %></td>
+            </tr>
+          <% } %>
+          </tbody>
+        </table>
+        <% } %>
+
+      <% } else if (view === 'lib') { const live = rows.filter(r => Object.hasOwn(places, r.id)); %>
+        <% if (kind === 'datei') { %>
+          <% if (user.canUpload) { %><p class="actions" style="margin-top:0"><a class="btn small" href="/files/upload">📤 Datei hochladen</a></p><% } %>
+          <% if (!live.length) { %><p class="muted">Noch keine Dateien.</p><% } else { %>
+          <table class="list own-list ex-list" data-list>
+            <tr><th>Name und Sichtbarkeit</th><th class="num">Größe</th><th class="num">⬇</th><th>Ordner</th><th></th></tr>
+            <% for (const f of live) { %><tr data-ref="datei:<%= f.id %>" data-url="/ansehen/datei/<%= f.id %>" data-kind="datei" data-name="<%= f.title %>" draggable="true">
+              <td><form method="post" action="/eigene-dateien/datei/<%= f.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
+                <input type="text" name="title" value="<%= f.title %>" maxlength="200" aria-label="Titel"><%- visSelect('datei', f.visibility) %><button class="small">💾</button></form>
+                <small><a href="/ansehen/datei/<%= f.id %>">👁 <%= f.original_name %></a> · <%= fmtDate(f.created_at) %></small></td>
+              <td class="num"><%= fmtSize(f.size) %></td><td class="num"><%= f.downloads %></td><td><%= placeName(places[f.id]) %></td>
+              <td><%- del('/eigene-dateien/datei/' + f.id, 'Die Datei') %></td>
+            </tr><% } %>
+          </table>
+          <% } %>
+        <% } else if (kind === 'titel') { %>
+          <p class="actions" style="margin-top:0"><a class="btn small" href="/musik">🎵 Mediaplayer öffnen</a><% if (canUploadMusic) { %><small class="muted">Hochladen geht im Mediaplayer unter „📤 Hochladen“.</small><% } %></p>
+          <% if (!live.length) { %><p class="muted">Noch keine Titel.</p><% } else { %>
+          <table class="list own-list ex-list" data-list>
+            <tr><th>Titel und Sichtbarkeit</th><th>Art</th><th class="num">Größe</th><th>Ordner</th><th></th></tr>
+            <% for (const t of live) { %><tr data-ref="titel:<%= t.id %>" data-url="/musik?titel=<%= t.id %>" data-kind="titel" data-name="<%= t.title %>" draggable="true">
+              <td><form method="post" action="/eigene-dateien/titel/<%= t.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
+                <input type="text" name="title" value="<%= t.title %>" maxlength="200" aria-label="Titel"><%- visSelect('titel', t.visibility) %><button class="small">💾</button></form>
+                <% if (t.artist) { %><small><%= t.artist %></small><% } %></td>
+              <td><%= { audio: '🎵 Audio', video: '🎬 Video', youtube: '▶️ YouTube' }[t.kind] || t.kind %></td>
+              <td class="num"><%= t.size ? fmtSize(t.size) : '–' %></td><td><%= placeName(places[t.id]) %></td>
+              <td><%- del('/eigene-dateien/titel/' + t.id, 'Den Titel') %></td>
+            </tr><% } %>
+          </table>
+          <% } %>
+        <% } else if (kind === 'playlist') { %>
+          <% if (!live.length) { %><p class="muted">Noch keine Playlists. Anlegen kannst du sie im Mediaplayer.</p><% } else { %>
+          <table class="list own-list ex-list" data-list>
+            <tr><th>Name und Sichtbarkeit</th><th class="num">Titel</th><th>Ordner</th><th></th></tr>
+            <% for (const p of live) { %><tr data-ref="playlist:<%= p.id %>" data-url="/musik?playlist=<%= p.id %>" data-kind="playlist" data-name="<%= p.title %>" draggable="true">
+              <td><form method="post" action="/eigene-dateien/playlist/<%= p.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
+                <input type="text" name="title" value="<%= p.title %>" maxlength="100" aria-label="Name"><%- visSelect('playlist', p.visibility) %><button class="small">💾</button></form></td>
+              <td class="num"><%= p.n %></td><td><%= placeName(places[p.id]) %></td>
+              <td><%- del('/eigene-dateien/playlist/' + p.id, 'Die Playlist') %></td>
+            </tr><% } %>
+          </table>
+          <% } %>
+        <% } else if (kind === 'bild') { %>
+          <% if (!live.length) { %><p class="muted">Noch keine gespeicherten Bilder.</p><% } else { %>
+          <table class="list own-list ex-list" data-list>
+            <tr><th></th><th>Titel und Sichtbarkeit</th><th class="num">Größe</th><th>Ordner</th><th></th></tr>
+            <% for (const a of live) { %><tr data-ref="bild:<%= a.id %>" data-url="/paint?bild=<%= a.id %>" data-kind="bild" data-name="<%= a.title %>" draggable="true">
+              <td><img class="own-thumb" src="/paint/bild/<%= a.id %>/vorschau.png?v=<%= a.updated_at %>" alt="" loading="lazy"></td>
+              <td><form method="post" action="/eigene-dateien/bild/<%= a.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
+                <input type="text" name="title" value="<%= a.title %>" maxlength="80" aria-label="Titel"><%- visSelect('bild', a.visibility) %><button class="small">💾</button></form>
+                <small><%= a.width %> × <%= a.height %><%= a.draft ? ' · Entwurf aus einer Lobby' : '' %><%= a.visibility === 'public' && !a.approved ? ' · wartet auf Freigabe' : '' %></small></td>
+              <td class="num"><%= fmtSize(a.size) %></td><td><%= placeName(places[a.id]) %></td>
+              <td><%- del('/eigene-dateien/bild/' + a.id, 'Das Bild') %></td>
+            </tr><% } %>
+          </table>
+          <% } %>
+        <% } else if (kind === 'quiz') { %>
+          <% if (!live.length) { %><p class="muted">Noch keine gespeicherten Quizze. Speichern kannst du sie als Spielleiter im Quiz.</p><% } else { %>
+          <table class="list own-list ex-list" data-list>
+            <tr><th>Quiz</th><th class="num">Fragen</th><th>Ordner</th><th></th></tr>
+            <% for (const q of live) { %><tr data-ref="quiz:<%= q.id %>" data-url="/quiz" data-kind="quiz" data-name="<%= q.title %>" draggable="true">
+              <td><form method="post" action="/eigene-dateien/quiz/<%= q.id %>" class="own-edit"><input type="hidden" name="_csrf" value="<%= csrf %>">
+                <b><%= q.title %></b><select name="shared" aria-label="Teilen"><option value="0">Nur ich</option><option value="1" <%= q.shared ? 'selected' : '' %>>Für Mitglieder geteilt</option></select><button class="small">💾</button></form></td>
+              <td class="num"><%= q.questions %></td><td><%= placeName(places[q.id]) %></td>
+              <td><%- del('/eigene-dateien/quiz/' + q.id, 'Das Quiz') %></td>
+            </tr><% } %>
+          </table>
+          <% } %>
+        <% } else if (kind === 'medien') { %>
+          <% if (!live.length) { %><p class="muted">Noch keine Bilder hochgeladen.</p><% } else { %>
+          <p class="muted"><small>Diese Bilder kann jeder sehen, der die Adresse kennt. Gelöschte Bilder fehlen danach in den Beiträgen, in denen sie stehen.</small></p>
+          <div class="thumbs">
+            <% for (const m of live) { %><figure data-ref="medien:<%= m.id %>" data-url="/ansehen/medien/<%= m.id %>" data-kind="medien" data-name="<%= m.original_name %>" draggable="true">
+              <a href="/ansehen/medien/<%= m.id %>"><img src="/media/<%= m.stored_name %>" alt="<%= m.original_name %>" loading="lazy"></a>
+              <figcaption><%= m.original_name %><br><small><%= fmtSize(m.size) %> · <%= fmtDate(m.created_at) %><%= places[m.id] !== null && places[m.id] !== undefined ? ' · ' + placeName(places[m.id]) : '' %></small> <%- del('/eigene-dateien/medien/' + m.id, 'Das Bild') %></figcaption>
+            </figure><% } %>
+          </div>
+          <% } %>
+        <% } %>
+      <% } %>
+    </div>
+  </div>
+  <div class="statusbar"><span data-status><%= view === 'home' ? 'Eigene Dateien' : (view === 'lib' && kind !== 'text' ? rows.filter(r => Object.hasOwn(places, r.id)).length : items.length) + ' Objekt(e)' %></span><span class="fixed">💽 <%= fmtSize(space.used) %><%= space.limit ? ' von ' + fmtSize(space.limit) : '' %></span></div>
+</div>
+<script src="<%= asset('winui.js') %>"></script>
+<script src="<%= asset('deskui.js') %>"></script>
+<script src="<%= asset('explorer.js') %>"></script>
 <%- include('partials/foot') %>

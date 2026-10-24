@@ -108,6 +108,22 @@ const SNIPPETS = {
   modLog: ['src/db.js', 'CREATE TABLE IF NOT EXISTS mod_suggestion_log (', 10],
   modActor: ['src/routes/mods.js', 'const actorOf = (req, guestName)', 1],
   modsLocal: ['public/mods.js', "var KEY = 'modliste:' + listId;", 1],
+  userSettings: ['src/db.js', 'CREATE TABLE IF NOT EXISTS user_settings (', 5],
+  deskItems: ['src/db.js', 'CREATE TABLE IF NOT EXISTS desk_items (', 19],
+  folderItems: ['src/db.js', 'CREATE TABLE IF NOT EXISTS folder_items (', 10],
+  deskSee: ['src/desk.js', 'function canSeeDesk(viewer, item) {', 11],
+  deskText: ['src/desk.js', 'if (text.length > L.chars) return', 1],
+  deskTrash: ['src/desk.js', 'function purgeOld() {', 4],
+  deskShare: ['src/desk.js', 'function shareAllows(viewer, f) {', 6],
+  deskGuest: ['public/desk.js', "function guestPos() { try { return JSON.parse(read('desk-pos')", 2],
+  externalLink: ['public/deskui.js', "function go() { var w = window.open(url, '_blank', 'noopener,noreferrer');", 1],
+  search: ['src/routes/desk.js', "api.get('/suche'", 4],
+  displaySync: ['public/desk.js', "window.addEventListener('darstellung:gespeichert'", 4],
+  displayAccount: ['public/display.js', 'function forAccount(p) {', 5],
+  boardList: ['src/usersettings.js', 'function boardList(slug, rows, viewer) {', 12],
+  recordName: ['src/usersettings.js', 'const recordName = (slug, userId, name)', 1],
+  avatarCrop: ['public/avatar-crop.js', "var out = document.createElement('canvas');", 4],
+  profileLinks: ['views/profile.ejs', 'rel="noopener noreferrer nofollow"', 1],
 };
 
 let cache = null;

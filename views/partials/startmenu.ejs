@@ -1,12 +1,9 @@
 <div class="startmenu" id="startmenu" data-title="<%= site.title %>">
   <a href="/">🏠 Startseite</a>
-  <%# Einträge: [Schlüssel, Adresse, Beschriftung] oder [Gruppe, Beschriftung, [Einträge]] → Untermenü wie bei Windows 98, auch verschachtelt %>
-  <% const entries = [['blog','/blog','📝 Blog'],
-       ['dokumente','📂 Dokumente',[...(user ? [['eigene-dateien','/eigene-dateien','🗂️ Eigene Dateien']] : []),...(user && user.canUpload ? [['upload','/files/upload','📤 Datei hochladen']] : []),['files','/files','📁 Downloads'],['mods','/mods','🧩 Modlisten'],['links','/links','🔗 Links'],['galerie','/galerie','🖼️ Galerie']]],
-       ['spiele','🎮 Spiele und Apps',[['kartenspiele','/kartenspiele','🂡 Kartenspiele'],['quiz','/quiz','❓ Quiz'],['werwolf','/werwolf','🐺 Werwolf'],['minesweeper','/minesweeper','💣 Minesweeper'],['kreuzwortraetsel','/kreuzwortraetsel','📰 Kreuzworträtsel'],['sudoku','/sudoku','🔢 Sudoku'],['paint','/paint','🎨 Paint'],['zufall','/zufall','🎲 Zufallsgenerator'],['musik','/musik','🎵 Mediaplayer'],['apps','/apps','🕹️ Andere Games']]],
-       ['haustier','/haustier/','🐾 Pixelpfoten'],['board','/forum','💬 Forum'],['nutzer','/nutzer','👥 Mitglieder'],['guestbook','/guestbook','📖 Besucherbuch'],['contact','/contact','✉️ Kontakt']];
-     const off = { guestbook: !guestbookEnabled, board: !boardEnabled, kartenspiele: !cardsEnabled,
-       paint: !paintEnabled, quiz: !quizEnabled, werwolf: !werwolfEnabled, galerie: !galleryEnabled, contact: !contactEnabled };
+  <%# Einträge aus src/programs.js: [Schlüssel, Adresse, Beschriftung] oder [Gruppe, Beschriftung, [Einträge]] → Untermenü wie bei Windows 98, auch verschachtelt.
+      Jeden Eintrag kann man auf den Desktop ziehen, dann entsteht dort eine Verknüpfung (public/desk.js). %>
+  <% const entries = programs.menu(user);
+     const off = programs.off({ guestbookEnabled, boardEnabled, cardsEnabled, paintEnabled, quizEnabled, werwolfEnabled, galleryEnabled, contactEnabled });
      const shown = ([key, , b]) => Array.isArray(b) ? b.some(shown) : !(navHidden.includes(key) || off[key]);
      function menu(list) { for (const [key, a, b] of list.filter(shown)) {
        if (Array.isArray(b)) { %>
@@ -17,6 +14,8 @@
      menu(entries); %>
   <% for (const p of navPages) { if (p.slug === 'regeln') continue; %><a href="/p/<%= p.slug %>">📄 <%= p.title %></a><% } %>
   <hr>
+  <a href="/einstellungen">🛠️ Systemsteuerung</a>
+  <% if (user && user.isAdmin) { %><a href="/admin">⚙️ Seitenverwaltung</a><% } %>
   <%# Info: Regeln, Changelog und Datenschutz unten im Startmenü %>
   <div class="sub"><button type="button" class="menu-item sub-toggle" aria-expanded="false">ℹ️ Info</button><div class="submenu">
     <% if (rulesPage) { %><a href="/p/regeln">📜 Regeln</a><% } %>
@@ -29,7 +28,6 @@
       <a href="/nachrichten" id="pm-menu">💌 Nachrichten<% if (unreadPm) { %> (<%= unreadPm %>)<% } %></a>
       <a href="/account">🔑 Kontoeinstellungen</a>
     </div></div>
-    <% if (user.isAdmin) { %><a href="/admin">⚙️ Systemsteuerung</a><% } %>
     <hr>
     <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="menu-item">🚪 <%= user.name %> abmelden…</button></form>
   <% } else { %>
@@ -39,7 +37,15 @@
   <% } %>
 </div>
 <div class="taskbar">
-  <button class="start" id="startbtn" aria-expanded="false" aria-controls="startmenu">🪟 Start</button>
+  <button class="start" id="startbtn" aria-expanded="false" aria-controls="startmenu"><span class="start-logo" aria-hidden="true">🪟</span> <span class="start-text">Start</span></button>
+  <span class="grip" aria-hidden="true"></span>
+  <%# Suche (Strg+K), Logik in public/desk.js. Abschaltbar in der Seitenverwaltung und pro Mitglied in der Systemsteuerung %>
+  <% if (typeof desk !== 'undefined' && desk.search) { %>
+  <div class="tb-search" id="tbsearch" role="search">
+    <button type="button" class="tb-search-btn" title="Suchen (Strg+K)" aria-label="Suchen">🔍</button>
+    <input type="search" id="tbsearch-q" placeholder="Suchen…" aria-label="Suchen (Strg+K)" autocomplete="off" spellcheck="false" aria-controls="searchpop" aria-expanded="false" maxlength="100">
+  </div>
+  <% } %>
   <div class="tasks" id="tasks"><% if (typeof shellTask !== 'undefined') { %><span class="task"><%= shellTask %></span><% } %></div>
   <div class="tray">
     <% if (user) { %><a class="tray-btn pm-tray" id="pmtray" href="/nachrichten" title="<%= unreadPm ? unreadPm + ' ungelesene Nachrichten' : 'Nachrichten' %>"<%= unreadPm ? '' : ' hidden' %>>💌<span class="pm-count"><%= unreadPm %></span></a><% } %>
@@ -49,6 +55,12 @@
     <span id="clock"></span>
   </div>
 </div>
+<% if (typeof desk !== 'undefined' && desk.search) { %>
+<div class="window search-pop" id="searchpop" role="dialog" aria-label="Suchergebnisse" hidden>
+  <div class="body"><div class="res" id="searchres" role="listbox" aria-label="Treffer"></div>
+    <div class="res-foot"><a href="/suche" data-all>🔍 Alle Ergebnisse anzeigen</a><small>Findet nur, was du auch öffnen darfst.</small></div></div>
+</div>
+<% } %>
 <%- include('display-panel') %>
 <% if (user) { %>
 <%# Benachrichtigungen: öffnet sich über die 🔔 neben der Uhr, Logik in public/notify.js %>

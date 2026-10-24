@@ -1,0 +1,16 @@
+<%- include('partials/head') %>
+<%# Notizblock (🗒️): reine Textdokumente wie der Windows-Editor. Logik in public/notepad.js, Speichern über /api/notizblock (src/routes/desk.js) %>
+<% const info = { id: doc.id, name: doc.name, vis: doc.vis, mine: doc.mine, readonly: doc.readonly, readme: !!doc.readme, folder: doc.folder || 0, trashed: !!doc.trashed }; %>
+<div class="np" id="np" data-csrf="<%= csrf %>" data-doc="<%= JSON.stringify(info) %>" data-max="<%= maxChars %>" data-user="<%= user ? user.id : '' %>">
+  <div id="np-menu"></div>
+  <% if (doc.readme) { %><div class="np-note">ℹ️ Diese Datei hat jeder auf dem Desktop. Lesen geht immer, ändern kann sie nur der Admin.</div><% } %>
+  <% if (doc.owner) { %><div class="np-note">📄 Von <a href="<%= doc.owner.url %>"><%= doc.owner.name %></a>, nur zum Lesen.<% if (user) { %> Datei → Speichern unter legt eine eigene Kopie an.<% } %></div><% } %>
+  <% if (doc.trashed) { %><div class="np-note">🗑️ Liegt im Papierkorb. Zum Bearbeiten erst wiederherstellen.</div><% } %>
+  <% if (!user && !doc.readme) { %><div class="np-note">🔑 Ohne Konto lässt sich nichts speichern. <a href="/login?next=/notizblock">Anmelden</a></div><% } %>
+  <div class="np-draft" id="np-draft" hidden>💾 Hier gibt es ungespeicherte Änderungen vom <b></b>. <button type="button" class="small" data-draft="load">Wiederherstellen</button> <button type="button" class="small" data-draft="drop">Verwerfen</button></div>
+  <textarea id="np-text" class="np-text" spellcheck="false" aria-label="Text"<%= doc.readonly ? ' readonly' : '' %>><%= doc.body %></textarea>
+  <div class="statusbar"><span id="np-pos">Zeile 1, Spalte 1</span><span id="np-count" class="fixed"></span><span id="np-vis" class="fixed"></span></div>
+</div>
+<script src="<%= asset('winui.js') %>"></script>
+<script src="<%= asset('notepad.js') %>"></script>
+<%- include('partials/foot') %>

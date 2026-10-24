@@ -1,5 +1,22 @@
 # Changelog
 
+## 24.10.2026 – Desktop 2.0: eigener Desktop, Windows XP, Systemsteuerung für alle
+
+- **Eigener Desktop:** Jedes Mitglied richtet seinen Desktop selbst ein. Rechtsklick auf eine freie Stelle → Neu → Ordner, Textdokument, Verknüpfung (zu einer Seite hier, z. B. Forenthema, Modliste, Profil) oder Internetverknüpfung. Programme lassen sich aus dem Startmenü auf den Desktop ziehen. Symbole liegen auf einem Raster, frei verschiebbar oder sortiert nach Name bzw. Art; Rahmen aufziehen markiert mehrere, F2 benennt um, Entf löscht. Gäste können die Symbole verschieben, das merkt sich ihr Browser. Am Handy: lange drücken statt Rechtsklick.
+- **Ordner und Eigene Dateien:** Ordner liegen in der Datenbank. Ein Doppelklick öffnet sie im Explorer (Eigene Dateien) mit Ordnerbaum links. Dort lassen sich auch alle eigenen Uploads, Paint-Bilder, Mediaplayer-Titel, Playlists und Quizze in Ordner ziehen; die Bibliotheken zeigen weiter alles einer Art. Ordner kann man per Link für Freunde, Angemeldete oder alle freigeben, andere sehen darin nur, was sie ohnehin sehen dürfen.
+- **Notizblock:** Textdokumente mit Zeichen- und Anzahlgrenze, Sichtbarkeit pro Datei (nur ich, Freunde, Angemeldete, alle). Auf jedem Desktop liegt eine **readme.txt**, die alles erklärt; ändert der Admin sie, erscheint sie bei allen wieder mit NEU.
+- **Papierkorb:** Gelöschtes landet erst im Papierkorb und lässt sich zurückholen, nach 30 Tagen (einstellbar) ist es weg. Ziehen auf den Papierkorb löscht auch.
+- **Ein Speicher für alles:** Downloads, Musik, Paint-Bilder, Bilder in Beiträgen und Textdokumente zählen zusammen gegen ein Kontingent pro Mitglied (Standard 2 GB). Hochladen in Ordner dürfen alle mit Upload-Recht.
+- **Offene Lobbys:** Ein Widget rechts oben listet für Angemeldete alle offenen Lobbys aller Programme (Kartenspiele, Paint, Quiz, Werwolf, Mediaplayer), Freunde zuerst, mit „➕ Neue Lobby“. Zuklappbar und in der Systemsteuerung abschaltbar.
+- **Suche in der Taskleiste:** Feld neben Start, Strg+K springt hinein. Findet beim Tippen Programme, eigene Dateien, Forum, Blog, Seiten, Downloads, Modlisten, Galerie und Mitglieder, nur was man auch öffnen darf. „Alle Ergebnisse“ öffnet ein Suchfenster mit Filtern. Suchbegriffe werden nicht gespeichert.
+- **Windows XP:** Unter 🖥️ → Darstellung gibt es jetzt „Windows 98“ oder „Windows XP“ in Blau, Olivgrün und Silber, mit runden Titelleisten, grünem Start-Knopf und schattierter Taskleiste wie im Original. Alles ist selbst gezeichnet. Der Admin legt unter Seitenverwaltung → Design das Grunddesign für alle fest.
+- **Größe der Oberfläche:** Regler von 75 bis 200 % in 5er-Schritten, wahlweise nur Taskleiste, Menüs und Symbole oder auch der Inhalt der Fenster. Strg+Plus/Minus des Browsers bleibt unangetastet. Mit Konto lässt sich die Darstellung auf allen Geräten gleich halten.
+- **Systemsteuerung für alle:** Startmenü → 🛠️ Systemsteuerung sammelt Anzeige, Sounds, Desktop und Taskleiste, Profil und Statistik, Speicherplatz, Benachrichtigungen, Konto und Passwort, Spielstände und Datenschutz. Die bisherige Admin-Systemsteuerung heißt jetzt **Seitenverwaltung**.
+- **Seitenverwaltung → Desktop:** readme.txt bearbeiten, Standardsymbole für alle, Grenzen (Zeichen, Textdokumente, Ordner, Links, Tage im Papierkorb), Speicher pro Mitglied, wer wie viel belegt, und was Mitglieder öffentlich zeigen (privat stellen oder entfernen).
+- **Statistik selbst bestimmen:** Pro Spiel wählt jeder, wer die Werte im Profil sieht, blendet einzelne Werte aus, sortiert die Spiele und setzt bis zu vier Werte in eine **Vitrine** oben im Profil. In Bestenlisten steht man mit Namen, anonym oder gar nicht; bei Rekord-Nachrichten heißt man dann „Jemand“. „Auf der Seite“ (Forenbeiträge, Besucherbuch, Musik, Freunde, Zuletzt im Forum) ist einzeln abschaltbar. Das eigene Profil lässt sich als Gast, Mitglied oder Freund ansehen.
+- **Profilbilder quadratisch:** Nach der Dateiauswahl wählt man einen quadratischen Ausschnitt (ziehen, Mausrad oder Regler), hochgeladen werden 256 × 256 Pixel. Profilbilder erscheinen überall 1:1.
+- **Links im Profil:** Internetverknüpfungen vom Desktop, die nicht privat sind, stehen im Profil.
+
 ## 22.10.2026 – Modlisten neu: Kategorien, Server-Haken und Vorschläge
 
 - **Für alle Mitglieder:** Unter Startmenü → Dokumente → 🧩 Modlisten legt jetzt jedes Mitglied eigene Listen an: Titel, Spiel, kurze Beschreibung und wer sie sehen darf (alle, Angemeldete, nur Freunde oder nur du). Bearbeiten dürfen Besitzer und Admin.

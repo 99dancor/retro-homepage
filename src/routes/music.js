@@ -7,12 +7,13 @@ const express = require('express');
 const { db, now, getSetting, tx } = require('../db');
 const auth = require('../auth');
 const music = require('../music');
+const quota = require('../quota');
 const lobby = require('../lobby');
 const youtube = require('../youtube');
 
 const router = express.Router();
 const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
-// Mitglieder wählen zwischen öffentlich, angemeldet, nur Freunde und privat; Gruppen vergibt der Admin in der Systemsteuerung
+// Mitglieder wählen zwischen öffentlich, angemeldet, nur Freunde und privat; Gruppen vergibt der Admin in der Seitenverwaltung
 const OWN_VIS = ['public', 'members', 'friends', 'private'];
 const ownVis = (v, fallback) => (OWN_VIS.includes(v) ? v : fallback);
 const lobbyOn = () => getSetting('lobby_enabled', '1') === '1';
@@ -53,7 +54,7 @@ router.get('/bibliothek', (req, res) => {
   const tv = auth.visibilitySql(u, 'track', 't');
   const tracks = db.prepare(`SELECT t.*, us.username, us.display_name, us.role FROM tracks t LEFT JOIN users us ON us.id = t.uploader_id
                              WHERE ${tv.sql} ORDER BY t.artist COLLATE NOCASE, t.title COLLATE NOCASE`).all(...tv.params)
-    // Gespeicherte YouTube-Links verschwinden, solange YouTube in der Systemsteuerung aus ist
+    // Gespeicherte YouTube-Links verschwinden, solange YouTube in der Seitenverwaltung aus ist
     .filter(t => t.kind !== 'youtube' || youtubeOn()).map(t => trackRow(t, u));
   const visible = new Set(tracks.map(t => t.id));
   let playlists = [];
@@ -69,7 +70,7 @@ router.get('/bibliothek', (req, res) => {
   res.json({
     me: u ? { id: u.id, name: u.name, admin: u.isAdmin } : null,
     canUpload,
-    quota: canUpload && !u.isAdmin ? { used: music.usedBytes(u.id), total: music.quotaBytes(), fileMb: music.MEMBER_FILE_MB } : null,
+    quota: canUpload && !u.isAdmin ? { used: quota.usedBytes(u.id), total: quota.limitBytes(u), fileMb: music.MEMBER_FILE_MB } : null,
     tracks, playlists,
   });
 });
@@ -84,7 +85,7 @@ router.get('/stream/:id', (req, res, next) => {
 });
 
 // Nach 30 Sekunden oder am Ende zählt ein Titel als gehört (nur die Zahl, ohne Konto)
-// Titel aus der Systemsteuerung kennen ihre Länge noch nicht: die misst der Browser beim Abspielen
+// Titel aus der Seitenverwaltung kennen ihre Länge noch nicht: die misst der Browser beim Abspielen
 router.post('/titel/:id/gespielt', auth.rateLimit('plays', 120, 600), (req, res) => {
   const t = db.prepare('SELECT * FROM tracks WHERE id = ?').get(Number(req.params.id));
   const d = Number((req.body || {}).duration);
@@ -106,9 +107,9 @@ router.post('/hochladen', needLogin, pickUpload, auth.csrfCheck, (req, res) => {
   const f = req.file;
   if (!f) return fail(res, 400, 'Das ist keine Musik- oder Videodatei (MP3, OGG, WAV, FLAC, M4A, MP4, WebM …).');
   const u = req.user;
-  if (!u.isAdmin && music.usedBytes(u.id) + f.size > music.quotaBytes()) {
+  if (!quota.fits(u, f.size)) {
     fs.rm(f.path, { force: true }, () => {});
-    return fail(res, 413, `Dein Speicher für Musik und Videos ist voll (${getSetting('music_quota_mb', '500')} MB). Lösche alte Titel, um Platz zu schaffen.`);
+    return fail(res, 413, quota.fullMessage(u));
   }
   const kind = music.kindOf(f);
   const tags = kind === 'audio' ? music.readTags(f.path) : {}, guess = music.fromFilename(f.originalname);
@@ -149,7 +150,7 @@ function ownTrack(req, res, next) {
 }
 router.post('/titel/:id', needLogin, ownTrack, (req, res) => {
   const t = req.track, b = req.body || {};
-  // Mit Gruppen-Freigabe aus der Systemsteuerung bleibt die Sichtbarkeit, solange hier nichts anderes gewählt wird
+  // Mit Gruppen-Freigabe aus der Seitenverwaltung bleibt die Sichtbarkeit, solange hier nichts anderes gewählt wird
   const vis = b.visibility === t.visibility ? t.visibility : ownVis(b.visibility, t.visibility);
   db.prepare('UPDATE tracks SET title = ?, artist = ?, album = ?, visibility = ? WHERE id = ?')
     .run(str(b.title) || t.title, str(b.artist) || null, str(b.album) || null, vis, t.id);
@@ -157,16 +158,9 @@ router.post('/titel/:id', needLogin, ownTrack, (req, res) => {
   res.json({ ok: true });
 });
 router.post('/titel/:id/loeschen', needLogin, ownTrack, (req, res) => {
-  deleteTrack(req.track);
+  music.deleteTrack(req.track);
   res.json({ ok: true });
 });
-function deleteTrack(t) {
-  if (t.stored_name) fs.rm(path.join(music.MUSIC_DIR, t.stored_name), { force: true }, () => {});
-  tx(() => {
-    db.prepare('DELETE FROM tracks WHERE id = ?').run(t.id);
-    db.prepare("DELETE FROM acl WHERE item_type = 'track' AND item_id = ?").run(t.id);
-  });
-}
 
 // ---------- Playlists ----------
 router.post('/playlists', needLogin, (req, res) => {
@@ -285,4 +279,4 @@ router.post('/lobby/:id', lobbyGate, loadLobby, auth.rateLimit('lobbyctl', 300, 
   res.json({ ok: true });
 });
 
-module.exports = { router, deleteTrack };
+module.exports = { router };

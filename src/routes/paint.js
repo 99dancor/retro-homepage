@@ -6,6 +6,7 @@ const multer = require('multer');
 const { db, now, tx } = require('../db');
 const auth = require('../auth');
 const paint = require('../paint');
+const quota = require('../quota');
 const { fmtSize } = require('../util');
 
 const router = express.Router();
@@ -57,7 +58,7 @@ router.get('/bilder', (req, res) => {
   if (!u) return fail(res, 401, 'Bitte melde dich an.');
   if (req.query.tab === 'shared') return res.json({ artworks: paint.shared(u.id).map(a => paint.row(a, u)) });
   const list = paint.mine(u.id);
-  res.json({ artworks: list.map(a => paint.row(a, u)), quota: paint.canSave(u) && !u.isAdmin ? { used: paint.usedBytes(u.id), total: paint.quotaBytes() } : null });
+  res.json({ artworks: list.map(a => paint.row(a, u)), quota: paint.canSave(u) && quota.limitBytes(u) ? { used: quota.usedBytes(u.id), total: quota.limitBytes(u) } : null });
 });
 router.get('/bilder/:id', (req, res) => {
   const a = paint.get(req.params.id);
@@ -88,9 +89,7 @@ router.post('/bilder', needLogin, needSave, auth.csrfCheck, files, (req, res) =>
   const u = req.user, f = paint.checkFiles(req.files);
   if (f.error) return fail(res, 400, f.error);
   const size = f.image.length + f.thumb.length;
-  if (!u.isAdmin && paint.usedBytes(u.id) + size > paint.quotaBytes()) {
-    return fail(res, 413, `Dein Speicher für Bilder ist voll (${fmtSize(paint.quotaBytes())}). Lösche alte Bilder unter Datei → Öffnen, um Platz zu schaffen.`);
-  }
+  if (!quota.fits(u, size)) return fail(res, 413, quota.fullMessage(u));
   const b = req.body || {}, vis = paint.VIS.includes(b.visibility) ? b.visibility : 'private', t = now();
   const name = paint.store(f.image, f.thumb);
   const id = Number(db.prepare(`INSERT INTO artworks(owner_id, title, width, height, stored_name, size, visibility, approved, created_at, updated_at)
@@ -104,7 +103,7 @@ router.post('/bild/:id/bild', needLogin, needSave, auth.csrfCheck, own, files, (
   if (f.error) return fail(res, 400, f.error);
   if (a.owner_id !== u.id) return fail(res, 403, 'Das Bild gehört jemand anderem. Speichere eine eigene Kopie mit „Speichern unter“.');
   const size = f.image.length + f.thumb.length;
-  if (!u.isAdmin && paint.usedBytes(u.id) - a.size + size > paint.quotaBytes()) return fail(res, 413, `Dein Speicher für Bilder ist voll (${fmtSize(paint.quotaBytes())}).`);
+  if (!quota.fits(u, size, a.size)) return fail(res, 413, quota.fullMessage(u));
   const name = paint.store(f.image, f.thumb), b = req.body || {};
   // Ein Entwurf aus einer Lobby wird beim Speichern ein normales Bild, auf Wunsch mit neuem Titel und neuer Sichtbarkeit
   const title = str(b.title) || a.title, vis = paint.VIS.includes(b.visibility) ? b.visibility : a.visibility;

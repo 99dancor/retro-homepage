@@ -3,6 +3,7 @@
 //   display: Darstellung, wenn „Auf allen meinen Geräten“ gewählt ist (ohne Größe und eigenes Bild, die bleiben pro Gerät)
 //   desk:    Desktop (readme.txt gelesen, Lobby-Widget, Suche, ausgeblendete Standardsymbole und ihre Plätze)
 //   stats:   wer welche Spielwerte im Profil sieht, ob und wie man in Bestenlisten steht, Vitrine
+//   cards:   eigene Ansicht am Kartentisch (Hintergrund und Tischrand, nur für einen selbst)
 const { db, now } = require('./db');
 const { FONTS } = require('./themes');
 
@@ -90,7 +91,15 @@ const BOARD_GAMES = {
   minesweeper: 'Minesweeper', kreuzwortraetsel: 'Kreuzworträtsel', sudoku: 'Sudoku', haustier: 'Pixelpfoten (Wettbewerb)',
 };
 
-const CLEAN = { display: cleanDisplay, desk: cleanDesk, stats: cleanStats };
+// Eigene Ansicht am Kartentisch: Hintergrund um den Tisch (die Farben stehen in public/retro.css unter .ks-floor-*) und
+// ein Holzrand statt dem des Gastgebers ('' = wie der Gastgeber; ob man ihn hat, prüft src/routes/kartenspiele.js)
+const CARD_FLOORS = { lounge: 'Lounge (dunkles Holz)', parkett: 'Parkett', teppich: 'Casino-Teppich', fliesen: 'Fliesen', nacht: 'Nachthimmel', desktop: 'Wie mein Desktop' };
+function cleanCards(p) {
+  p = p && typeof p === 'object' ? p : {};
+  return { floor: pick(Object.keys(CARD_FLOORS), p.floor, 'lounge'), wood: typeof p.wood === 'string' && KEY.test(p.wood) ? p.wood : '' };
+}
+
+const CLEAN = { display: cleanDisplay, desk: cleanDesk, stats: cleanStats, cards: cleanCards };
 
 function readAll(userId) {
   const r = db.prepare('SELECT data FROM user_settings WHERE user_id = ?').get(userId);
@@ -182,4 +191,4 @@ function boardList(slug, rows, viewer) {
   return out;
 }
 
-module.exports = { get, set, statsOf, cleanDisplay, cleanDesk, cleanStats, orderGames, profileView, boardModes, boardMode, recordName, boardList, DESK, SEE, BOARD, SITE, DISPLAY, BOARD_GAMES };
+module.exports = { get, set, statsOf, cleanDisplay, cleanDesk, cleanStats, cleanCards, CARD_FLOORS, orderGames, profileView, boardModes, boardMode, recordName, boardList, DESK, SEE, BOARD, SITE, DISPLAY, BOARD_GAMES };

@@ -48,7 +48,11 @@ function games() {
 const ofKind = kind => Object.keys(kasse.SHOP).filter(id => kasse.SHOP[id].kind === kind);
 const WOODS = ofKind('wood'), FELTS = ofKind('felt'), BACKS = ofKind('back');
 const LOOKS = { wood: 'Den Tischrand', felt: 'Den Filz', back: 'Den Kartenrücken' };
-const looks = () => Object.fromEntries(['wood', 'felt', 'back'].map(k => [k, ofKind(k).map(id => ({ id, title: kasse.SHOP[id].title, price: kasse.SHOP[id].price }))]));
+const looks = () => ({
+  ...Object.fromEntries(['wood', 'felt', 'back'].map(k => [k, ofKind(k).map(id => ({ id, title: kasse.SHOP[id].title, price: kasse.SHOP[id].price }))])),
+  // Hintergrund um den Tisch wählt jeder für sich (Systemeinstellung „cards“ in src/usersettings.js)
+  floor: Object.entries(require('./usersettings').CARD_FLOORS).map(([id, title]) => ({ id, title, price: 0 })),
+});
 
 const tables = new Map();
 const clamp = (n, [min, max]) => Math.max(min, Math.min(max, n));

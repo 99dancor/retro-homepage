@@ -1221,7 +1221,13 @@ async function main() {
       const list = await api(bernd, '/kartenspiele/tische', undefined, 'GET');
       assert.deepEqual(list.json.tables.map(t => [t.name, t.game, t.seats]), [['Freitagsrunde', 'blackjack', 3]]);
       const meta = await api(bernd, `/kartenspiele/tisch/${cardTable}`, undefined, 'GET');
-      assert.deepEqual([meta.json.game, meta.json.felt, meta.json.back, meta.json.money], ['blackjack', 'blau', 'gold', true]);
+      assert.deepEqual([meta.json.game, meta.json.felt, meta.json.back, meta.json.money, meta.json.next], ['blackjack', 'blau', 'gold', true, 'host']);
+      // Eigene Ansicht: Hintergrund frei, Holz nur, wenn man es hat
+      assert.match((await api(bernd, '/kartenspiele/ansicht', { floor: 'parkett', wood: 'ebenholz' })).json.error, /erst im Shop/);
+      const v = await api(bernd, '/kartenspiele/ansicht', { floor: 'parkett', wood: 'eiche' });
+      assert.deepEqual(v.json.view, { floor: 'parkett', wood: 'eiche' });
+      assert.deepEqual((await api(bernd, '/kartenspiele/ansicht', { floor: '<b>', wood: '' })).json.view, { floor: 'lounge', wood: '' });
+      assert.equal((await api(bernd, '/kartenspiele/tische', undefined, 'GET')).json.view.floor, 'lounge');
     });
 
 
@@ -1290,12 +1296,17 @@ async function main() {
       assert.equal(mine.chips, wallet, 'Chips aus der Kasse');
       assert.equal(his.chips, 1000);
       assert.match(st.log.join(' '), /hat Poker gewählt/);
+      // Die nächste Hand gibt der Gastgeber
+      assert.equal(st.manual, true);
+      assert.equal((await at(bernd, { action: 'start' })).status, 400, 'nur der Gastgeber gibt');
+      assert.equal((await at(anna, { action: 'start' })).status, 200);
       while (st.phase !== 'playing') st = await p.state();
       assert.ok(st.seats.find(x => x && x.user === 'anna').cards[0].r, 'eigene Karten sichtbar');
       assert.deepEqual(st.seats.find(x => x && x.user === 'bernd').cards, [null, null], 'fremde Karten nicht');
       assert.equal(st.pot, 15);
-      // Mitten in der Hand wird nicht gewechselt
-      assert.match((await at(anna, { action: 'game', game: 'durak' })).json.error, /Runde/);
+      // Mitten in der Hand fragt das Fenster erst nach (409), gewechselt wird nur mit abort
+      const busy = await at(anna, { action: 'game', game: 'durak' });
+      assert.deepEqual([busy.status, busy.json.busy], [409, true]);
       const who = st.seats[st.turn.seat].user === 'anna' ? anna : bernd;
       assert.equal((await at(who === anna ? bernd : anna, { action: 'fold' })).status, 400, 'nicht dran');
       assert.equal((await at(who, { action: 'fold' })).status, 200);
@@ -1322,6 +1333,7 @@ async function main() {
         assert.deepEqual(st.seats.filter(Boolean).map(x => x.user).sort(), ['anna', 'bernd'], game + ': alle sitzen noch');
         if (game === 'uno') assert.equal((await at(anna, { action: 'settings', target: 100 })).status, 200);
         for (const m of [anna, bernd]) assert.equal((await at(m, { action: 'ready' })).status, 200);
+        assert.equal((await at(anna, { action: 'start' })).status, 200, game + ': der Gastgeber startet');
         while (st.phase !== 'playing') st = await live.state();
         if (hand) {
           assert.equal(st.hand.length, hand, game + ': eigene Karten');
@@ -1346,6 +1358,11 @@ async function main() {
       assert.match((await at(anna, { action: 'ready' })).json.error, /wählt der Gastgeber/);
       assert.equal((await at(anna, { action: 'design', felt: 'rot', back: 'karo', name: 'Samstagsrunde' })).status, 200);
       assert.deepEqual((await api(bernd, '/kartenspiele/tische', undefined, 'GET')).json.tables.map(t => [t.name, t.game]), [['Samstagsrunde', 'lobby']]);
+      // Plätze und wer die nächste Runde startet, auch nach dem Aufmachen
+      assert.equal((await at(anna, { action: 'design', seats: 6, next: 'auto' })).status, 200);
+      const re = await api(bernd, `/kartenspiele/tisch/${cardTable}`, undefined, 'GET');
+      assert.deepEqual([re.json.seats, re.json.next], [6, 'auto']);
+      assert.match((await at(anna, { action: 'design', seats: 1 })).json.error, /weniger Plätze gehen nicht/);
       // Shop: Bernd kauft einen Saft, der steht dann an seinem Platz; Holzränder nur, wenn gekauft
       const sh = await api(bernd, '/kartenspiele/shop', undefined, 'GET');
       assert.ok(sh.json.items.some(x => x.id === 'korb' && !x.owned));

@@ -42,7 +42,13 @@ router.get('/tische', gate, (req, res) => {
   const mine = ks.seatedAt(req.user.id);
   const friends = new Set(profiles.friendsOf(req.user.id).map(u => u.id));
   const tables = ks.list(req.user).map(t => ({ ...t, friends: t.faces.filter(f => f && friends.has(f.id)).map(f => f.name) }));
-  res.json({ tables, mine: mine ? mine.id : null, games: ks.games(), kasse: wallet(req.user), owned: owned(req.user), me: { id: req.user.id, name: req.user.name, user: req.user.username, admin: req.user.isAdmin } });
+  res.json({ tables, mine: mine ? mine.id : null, games: ks.games(), kasse: wallet(req.user), owned: owned(req.user), view: us.get(req.user.id, 'cards'), me: { id: req.user.id, name: req.user.name, user: req.user.username, admin: req.user.isAdmin } });
+});
+// Eigene Ansicht am Tisch: Hintergrund und Tischrand nur für einen selbst. Holz nur, wenn man es hat (oder es nichts kostet).
+router.post('/ansicht', gate, auth.rateLimit('ksview', 60, 600), (req, res) => {
+  const b = req.body || {}, wood = String(b.wood || '');
+  if (wood && (!ks.WOODS.includes(wood) || !kasse.owns(req.user.id, wood))) return fail(res, 400, 'Diesen Tischrand musst du erst im Shop kaufen.');
+  res.json({ view: us.set(req.user.id, 'cards', { floor: b.floor, wood }) });
 });
 router.post('/tische', gate, auth.rateLimit('kstable', 20, 600), (req, res) => {
   const b = req.body || {};

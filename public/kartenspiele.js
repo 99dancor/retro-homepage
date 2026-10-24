@@ -15,6 +15,8 @@
   var main = $('ks-main'), statusEl = $('ks-status'), meEl = $('ks-me'), dlg = $('ks-dlg'), gameEl = $('ks-game');
   var Sound = window.RetroSound || { play: function () {} };
   var view = 'tische', tables = [], tablesSig = '', mine = null, me = null, kasse = null, board = null, current = null, shop = null, owned = [];
+  // Eigene Ansicht am Tisch (Hintergrund, Tischrand statt dem des Gastgebers), am Konto gespeichert
+  var myView = { floor: 'lounge', wood: '' };
   var DEFAULT = { felt: 'gruen', back: 'klassisch', wood: 'eiche' };
   // Wie die Spiele ihr Fenster erwarten: Kürzel der Element-Ids und Klassen (die Spiele bauen aufeinander auf)
   var LOOK = { blackjack: ['bj', 'bj'], poker: ['pk', 'bj pk'], durak: ['dk', 'bj pk dk'] };
@@ -106,7 +108,7 @@
   function loadTables() {
     return req('GET', '/kartenspiele/tische').then(function (j) {
       var sig = JSON.stringify([j.tables, j.mine]);
-      tables = j.tables; mine = j.mine; me = j.me; kasse = j.kasse; owned = j.owned || owned;
+      tables = j.tables; mine = j.mine; me = j.me; kasse = j.kasse; owned = j.owned || owned; myView = j.view || myView;
       renderMe();
       if (view === 'tische' && !current && sig !== tablesSig) renderTables();
       tablesSig = sig;
@@ -182,6 +184,7 @@
       '<p><small>Weniger Plätze gehen nicht, als Leute sitzen; wer auf einem wegfallenden Platz sitzt, rückt nach vorn. Mehr Holz, Filz und Kartenrücken gibt es im 🛒 Shop unter „Tisch“. Das Spiel wählst du oben in der Leiste.</small></p>';
   }
   dlg.addEventListener('change', function (e) {
+    if (e.target.dataset.myview && $('ks-viewprev')) { $('ks-viewprev').outerHTML = viewPreview(field('floor'), field('wood')); return; }
     if (!e.target.dataset.look) return;
     var p = $('ks-preview');
     if (p) p.className = lookCls(field('felt'), field('back'), field('wood'));
@@ -456,8 +459,9 @@
   function design(m) {
     current.meta = m;
     var el = current.el, g = game(m.game), host = isHost();
-    ['felt', 'back', 'wood'].forEach(function (kind) {
-      LOOKS[kind].forEach(function (x) { el.classList.toggle('ks-' + kind + '-' + x.id, x.id === (m[kind] || DEFAULT[kind])); });
+    var mineLook = { wood: myWood() || m.wood || DEFAULT.wood, floor: myView.floor || 'lounge' };
+    ['felt', 'back', 'wood', 'floor'].forEach(function (kind) {
+      LOOKS[kind].forEach(function (x) { el.classList.toggle('ks-' + kind + '-' + x.id, x.id === (mineLook[kind] || m[kind] || DEFAULT[kind])); });
     });
     el.classList.add('ks-tisch');
     $('ks-bar').innerHTML = '<button type="button" class="ks-tb" data-ks="back" title="Zur Tischliste; dein Platz bleibt frei für dich">◀ <span>Tische</span></button><span class="ks-tsep"></span>' +
@@ -468,6 +472,7 @@
       '<span class="ks-info" id="ks-info">' + current.info + '</span><span class="ks-faces" id="ks-faces">' + current.faces + '</span><span class="spacer"></span>' +
       '<button type="button" class="ks-tb" data-ks="shop" title="Getränke, Glücksbringer und mehr; du bleibst sitzen">🛒 <span>Shop</span></button>' +
       (host ? '<button type="button" class="ks-tb" data-ks="design" title="Name, Plätze, Start der Runden, Holz, Filz und Kartenrücken">🎨 <span>Gestalten</span></button>' : '') +
+      '<button type="button" class="ks-tb" data-ks="view" title="Hintergrund und Tischrand, nur für dich">🖼️ <span>Ansicht</span></button>' +
       '<button type="button" class="ks-tb" data-act="link" title="Link zu diesem Tisch">🔗 <span>Einladen</span></button><span class="ks-tsep"></span>' +
       '<button type="button" class="ks-tb" data-ks="pane" title="Wer am Tisch sitzt, Verlauf und deine Zahlen">☰ <span>Mehr</span></button>';
     pressed();
@@ -529,12 +534,39 @@
     else if (k === 'rules' || k === 'stats') { var a = current.el.querySelector('.bj-nav [data-view=' + (k === 'rules' ? 'regeln' : 'statistik') + ']'); if (a) a.click(); }
     else if (k === 'design') designTable();
     else if (k === 'start') tableAct({ action: 'start' });
+    else if (k === 'view') viewTable();
   });
   function designTable() {
     var m = current.meta;
     dialog('🎨 Tisch gestalten', designForm(m), [{ label: 'Speichern', value: 'ok' }, { label: 'Abbrechen', value: 'cancel' }]).then(function (r) {
       if (r !== 'ok') return;
       req('POST', '/kartenspiele/tisch/' + encodeURIComponent(m.id), { action: 'design', name: field('name'), seats: Number(field('seats')), next: field('next'), felt: field('felt'), back: field('back'), wood: field('wood'), hidden: field('hidden') }).catch(oopsAtTable);
+    });
+  }
+  // Eigene Ansicht: Hintergrund und Tischrand nur für mich; die anderen sehen den Tisch weiter so, wie ihn der Gastgeber gestaltet hat
+  function myWood() { return myView.wood && (owned.indexOf(myView.wood) >= 0 || LOOKS.wood.some(function (x) { return x.id === myView.wood && !x.price; })) ? myView.wood : ''; }
+  function viewPreview(floor, wood) {
+    var m = current.meta;
+    return '<div class="ks-preview ks-floorview ks-tisch ks-felt-' + esc(m.felt || DEFAULT.felt) + ' ks-back-' + esc(m.back || DEFAULT.back) + ' ks-wood-' + esc(wood || m.wood || DEFAULT.wood) + ' ks-floor-' + esc(floor) + '" id="ks-viewprev">' +
+      '<div class="bj-felt"><span class="bj-card back"></span><span class="bj-card red"><span class="r">A</span><span class="s">♥</span></span></div><small>Nur du siehst den Tisch so.</small></div>';
+  }
+  function viewTable() {
+    var m = current.meta, hostWood = LOOKS.wood.filter(function (x) { return x.id === (m.wood || DEFAULT.wood); })[0];
+    var woods = '<option value="">Wie der Gastgeber (' + esc(hostWood ? hostWood.title : m.wood) + ')</option>' + LOOKS.wood.map(function (x) {
+      var has = owned.indexOf(x.id) >= 0 || !x.price;
+      return '<option value="' + x.id + '"' + (x.id === myWood() ? ' selected' : '') + (has ? '' : ' disabled') + '>' + esc(x.title) + (has ? '' : ' (erst im 🛒 Shop kaufen)') + '</option>';
+    }).join('');
+    var floors = LOOKS.floor.map(function (x) { return '<option value="' + x.id + '"' + (x.id === myView.floor ? ' selected' : '') + '>' + esc(x.title) + '</option>'; }).join('');
+    dialog('🖼️ Meine Ansicht', '<p>Hintergrund und Tischrand stellst du hier <b>nur für dich</b> ein. Die anderen sehen den Tisch weiter so, wie der Gastgeber ihn gestaltet hat. Das gilt an jedem Spieltisch.</p>' +
+      '<div class="row"><label>Hintergrund:<select name="floor" class="w100" data-myview="1">' + floors + '</select></label>' +
+      '<label>Tischrand:<select name="wood" class="w100" data-myview="1">' + woods + '</select></label></div>' + viewPreview(myView.floor, myWood()),
+      [{ label: 'Speichern', value: 'ok' }, { label: 'Abbrechen', value: 'cancel' }]).then(function (r) {
+      if (r !== 'ok') return;
+      req('POST', '/kartenspiele/ansicht', { floor: field('floor'), wood: field('wood') }).then(function (j) {
+        myView = j.view;
+        if (current && current.meta) design(current.meta);
+        statusAtTable('Deine Ansicht ist gespeichert.');
+      }).catch(oopsAtTable);
     });
   }
   function tableAct(body) {

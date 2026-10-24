@@ -1210,6 +1210,11 @@ async function main() {
       assert.doesNotMatch(page, /kartenspiele\.js/, 'Gäste bekommen kein Spiel');
       assert.match((await anna.req('/kartenspiele')).text_, /usermenu\.js[\s\S]*blackjack\.js[\s\S]*poker\.js[\s\S]*durak\.js[\s\S]*cardtable\.js[\s\S]*uno\.js[\s\S]*flip7\.js[\s\S]*pilli\.js[\s\S]*kartenspiele\.js/);
       assert.equal((await api(guest, '/kartenspiele/tische', undefined, 'GET')).status, 401);
+      // Karten im Code: jeder Ausschnitt wird in seiner Datei gefunden
+      const code = (await api(anna, '/kartenspiele/code', undefined, 'GET')).json.snippets;
+      assert.ok(Object.keys(code).length >= 10);
+      for (const [name, c] of Object.entries(code)) assert.ok(!c.missing && c.code, `Ausschnitt ${name} (${c.file}) fehlt`);
+      assert.match(code.shuffle.code, /crypto\.randomInt/);
 
       const k = await api(anna, '/kartenspiele/kasse', undefined, 'GET');
       assert.deepEqual([k.json.kasse.balance, k.json.kasse.net, k.json.kasse.buyins], [1000, 0, 1]);

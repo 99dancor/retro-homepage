@@ -85,6 +85,7 @@
     if (v === 'tische') loadTables();
     if (v === 'kasse') loadKasse();
     if (v === 'shop') loadShop();
+    if (v === 'code') loadCode();
   }
   root.querySelector('.bj-nav').addEventListener('click', function (e) {
     var a = e.target.closest('[data-view]');
@@ -96,6 +97,7 @@
     if (view === 'tische') renderTables();
     else if (view === 'kasse') renderKasse();
     else if (view === 'shop') paintShop();
+    else if (view === 'code') renderCode();
     else renderGames();
   }
   function renderMe() {
@@ -218,17 +220,66 @@
       '<p><small>Wer anonym bleiben möchte oder sein Profil vor dir verbirgt, steht hier ohne Namen. Wie du selbst drinstehst, stellst du in der <a href="/einstellungen/statistik">Systemsteuerung</a> ein.</small></p></div>';
   }
 
+  // Karten im Code: echte Ausschnitte vom Server (GET /kartenspiele/code), die Erklärungen stehen hier
+  var code = null;
+  function loadCode() {
+    if (code) return;
+    req('GET', '/kartenspiele/code').then(function (j) { code = j.snippets; if (view === 'code' && !current) renderCode(); }).catch(oops);
+  }
+  var CODE = [
+    ['Eine Karte ist ein kleines Objekt', [
+      ['suits', 'Eine französische Karte hat eine Farbe <code>s</code> (♠ ♥ ♦ ♣) und einen Rang <code>r</code>. Das Herz-Ass ist also einfach <code>{ r: \'A\', s: \'♥\' }</code>.'],
+      ['shoe', 'Blackjack legt mehrere Decks zu einem Schlitten zusammen (normal 6 × 52 = 312 Karten) und mischt ihn einmal ganz durch. Ist nur noch ein Viertel übrig, kommt ein neuer.'],
+      ['poker', 'Poker nimmt ein Deck mit 52 Karten. Das Ass steht hier am Ende der Ränge und ist die höchste Karte.'],
+      ['durak', 'Durak spielt mit 36 Karten, also nur 6 bis Ass. Die unterste Karte des Stapels zeigt den Trumpf.'],
+    ]],
+    ['Gemischt wird auf dem Server, mit echtem Zufall', [
+      ['shuffle', 'Alle Spiele mischen nach Fisher-Yates: von hinten nach vorn tauscht jede Karte mit einer zufälligen Karte davor (oder mit sich selbst). So ist jede Reihenfolge gleich wahrscheinlich. <code>crypto.randomInt</code> holt den Zufall vom Betriebssystem und nicht aus <code>Math.random</code>, man kann die nächste Karte also nicht aus früheren ausrechnen. Dein Browser mischt nie mit.'],
+    ]],
+    ['Eigene Decks für UNO, Flip 7 und Pilli Pilli', [
+      ['uno', '108 Karten: je Farbe eine 0, zwei von 1 bis 9 und je zwei Aussetzen, Richtungswechsel und Zieh zwei, dazu je vier Farbwahl und Zieh vier. <code>k</code> gibt jeder Karte eine eigene Nummer, damit sich zwei gleiche Karten unterscheiden lassen.'],
+      ['flip7', 'Von jeder Zahl gibt es so viele Karten, wie sie zählt: eine 1, zwei 2en, … zwölf 12en. Dazu eine 0, sechs Bonuskarten und je drei von jeder Aktion.'],
+      ['pilli', '55 Zahlenkarten von 1 bis 55 und ein Joker. Jede Zahl gibt es nur einmal, deshalb reicht die Zahl selbst als Nummer.'],
+    ]],
+    ['Was du nicht sehen darfst, kommt gar nicht erst an', [
+      ['broadcast', 'Nach jedem Zug baut der Server für jeden am Tisch einen eigenen Stand und schickt ihn über die Live-Verbindung.'],
+      ['shown', 'Beim Poker sieht jeder nur seine eigenen Karten, bis aufgedeckt wird …'],
+      ['pokerCards', '… fremde Karten werden durch <code>null</code> ersetzt, bevor der Stand den Server verlässt. Dein Browser bekommt sie also nie, auch nicht in den Entwicklerwerkzeugen.'],
+      ['hole', 'Die verdeckte Karte des Dealers beim Blackjack ist bis zum Aufdecken ebenfalls <code>null</code>.'],
+      ['seatView', 'Bei UNO, Flip 7 und Pilli Pilli erfahren die anderen nur, wie viele Karten du auf der Hand hast.'],
+    ]],
+    ['Wie aus den Daten Karten werden', [
+      ['face', 'Im Browser wird aus <code>{ r, s }</code> eine Karte aus HTML und CSS, ganz ohne Bilder. Aus <code>null</code> wird die Rückseite.'],
+      ['flow', 'Für den Kartenfluss merkt sich das Fenster nach jedem Neuzeichnen, wo jede Karte liegt: offene nach ihrem Namen (zum Beispiel A♥), verdeckte nach ihrem Platz. Liegt eine Karte danach woanders, gleitet sie hin; eine neue kommt vom Stapel.'],
+    ]],
+  ];
+  function snippetHtml(c, note) {
+    if (!c) return '';
+    if (c.missing) return '<p class="msg err">Ausschnitt aus ' + esc(c.file) + ' nicht gefunden.</p>';
+    return '<figure class="code-snippet"><figcaption><a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.file) + ', Zeile ' + c.from + (c.to > c.from ? '–' + c.to : '') + '</a></figcaption>' +
+      '<pre>' + c.code.split('\n').map(function (l, k) { return '<span class="ln">' + (c.from + k) + '</span>' + esc(l); }).join('\n') + '</pre><p>' + note + '</p></figure>';
+  }
+  function renderCode() {
+    main.innerHTML = '<div class="bj-pad ks-code"><h2>🔍 Karten im Code</h2><p>So bauen, mischen und verstecken die Spiele ihre Karten. Die Ausschnitte kommen direkt aus den Dateien auf dem Server; ein Klick auf den Dateinamen öffnet die Stelle auf GitHub.</p>' +
+      (code ? CODE.map(function (sec) {
+        return '<h3>' + esc(sec[0]) + '</h3>' + sec[1].map(function (x) { return snippetHtml(code[x[0]], x[1]); }).join('');
+      }).join('') : '<p class="bj-empty">Lädt …</p>') + '</div>';
+  }
+
   // Bestenlisten und Regeln: das Spiel ohne Tisch aufbauen
   function renderGames() {
     main.innerHTML = '<div class="bj-pad"><h2>📊 Bestenlisten und Regeln</h2><p>Jedes Spiel hat seine eigene Bestenliste und Statistik; deine Zahlen stehen auch in deinem <a href="/nutzer/' + encodeURIComponent(me ? me.user : '') + '">Profil</a>.</p>' +
       '<div class="ks-games">' + playable().map(function (g) {
         return '<button type="button" data-stats="' + g.id + '">' + g.icon + ' ' + esc(g.title) + '</button>';
       }).join('') + '</div>' +
-      '<h3>So funktionieren die Spieltische</h3><ul class="bj-rules"><li>Am Spieltisch wählt der Gastgeber (👑) das Spiel und wechselt es zwischen zwei Runden, ohne dass jemand aufstehen muss.</li>' +
+      '<h3>So funktionieren die Spieltische</h3><ul class="bj-rules"><li>Am Spieltisch wählt der Gastgeber (👑) das Spiel und wechselt es, ohne dass jemand aufstehen muss. Mitten in einer Runde fragt das Fenster vorher nach: Die Runde wird abgebrochen, zählt nicht, und alle Einsätze gehen zurück.</li>' +
+      '<li>Die nächste Runde startet der Gastgeber per Klick. Unter 🎨 Gestalten kann er das auf „von selbst“ stellen und dort auch die Zahl der Plätze ändern.</li>' +
       '<li>„⚡ Schnell spielen“ setzt dich an den vollsten Tisch mit freiem Platz, „➕ Neuer Spieltisch“ macht sofort einen auf. Name, Holz, Filz und Kartenrücken stellt der Gastgeber am Tisch unter 🎨 Gestalten ein.</li>' +
       '<li>Versteckte Tische siehst nur du und wer den Link hat. Leere Tische schließen nach 10 Minuten. Du kannst nur an einem Tisch gleichzeitig sitzen.</li>' +
       '<li>Am Tisch: ☰ Mehr zeigt, wer sitzt, den ganzen Verlauf und deine Zahlen. Mit 😀 ▾ schickst du eine Reaktion, ein Klick auf dein Glas stößt an, ein Klick auf ein Tier streichelt es.</li>' +
-      '<li>Im 🛒 Shop kaufst du mit Spielgeld Getränke, Untersetzer, Glücksbringer, ein Plätzchen für dein Pixelpfoten-Tier und Neues für deine Tische, oder du schmeißt eine Runde für alle. Jede Woche ist ein Teil im Angebot.</li></ul></div>';
+      '<li>Im 🛒 Shop kaufst du mit Spielgeld Getränke, Untersetzer, Glücksbringer, ein Plätzchen für dein Pixelpfoten-Tier und Neues für deine Tische, oder du schmeißt eine Runde für alle. Jede Woche ist ein Teil im Angebot.</li>' +
+      '<li>Hintergrund und Tischrand stellt jeder für sich unter 🖼️ Ansicht ein; die anderen sehen weiter ihre eigene Wahl.</li></ul>' +
+      '<p>Wie die Karten gebaut, gemischt und verdeckt gehalten werden, zeigt <a href="#code" data-view="code">🔍 Karten im Code</a>.</p></div>';
   }
 
   main.addEventListener('click', function (e) {
@@ -239,6 +290,7 @@
     if (b.dataset.watch) { enter(b.dataset.watch, false); return; }
     if (b.dataset.quick) { quick(b.dataset.quick); return; }
     if (b.dataset.stats) { mount(b.dataset.stats, null, false, 'statistik'); return; }
+    if (b.dataset.view) { e.preventDefault(); show(b.dataset.view); return; }
     if (b.dataset.user) { if (window.RetroUserMenu) window.RetroUserMenu.open(e, b.dataset.user, {}); return; }
     var a = b.dataset.act;
     if (a === 'create') createTable();
@@ -968,7 +1020,7 @@
     if (want) enter(want, false);
     else if (statsFor && game(statsFor).id) mount(statsFor, null, false, 'statistik');
     else if (mine) enter(mine, false);
-    else if (hash === 'kasse' || hash === 'shop' || hash === 'statistik') show(hash);
+    else if (hash === 'kasse' || hash === 'shop' || hash === 'statistik' || hash === 'code') show(hash);
   });
   show('tische');
 })();

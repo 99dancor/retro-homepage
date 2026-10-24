@@ -9,6 +9,7 @@ const kasse = require('../kasse');
 const profiles = require('../profiles');
 const us = require('../usersettings');
 const auth = require('../auth');
+const privacy = require('../privacy');
 
 const router = express.Router();
 const fail = (res, status, error) => res.status(status).json({ error });
@@ -98,6 +99,31 @@ router.post('/shop', gate, auth.rateLimit('ksshop', 60, 600), (req, res) => {
   else err = 'Unbekannte Aktion.';
   if (err) return fail(res, 400, err);
   res.json(shop(req.user));
+});
+
+// Karten im Code: wie die Spiele ihre Karten bauen, mischen und verdeckt halten. Die Ausschnitte kommen aus den Dateien
+// selbst (privacy.collect), die Erklärungen dazu schreibt das Fenster (public/kartenspiele.js, renderCode).
+const CODE = {
+  suits: ['src/blackjack.js', "const SUITS = ['♠'", 2],
+  shoe: ['src/blackjack.js', 'function newShoe(decks) {', 6],
+  poker: ['src/poker.js', 'function newDeck() {', 6],
+  durak: ['src/durak.js', 'function newDeck() {', 6],
+  shuffle: ['src/cardtable.js', 'function shuffle(a) {', 4],
+  uno: ['src/uno.js', '// c: Farbe (r/y/g/b, w = schwarz)', 11],
+  flip7: ['src/flip7.js', '// t: n Zahl, m Bonus, a Aktion', 10],
+  pilli: ['src/pilli.js', '// v: Wert, j: Joker', 6],
+  hole: ['src/blackjack.js', 'const dealer = t.holeHidden', 1],
+  shown: ['src/poker.js', 'const shown = s => s.userId === viewerId', 1],
+  pokerCards: ['src/poker.js', 'cards: s.inHand ? (shown(s)', 1],
+  seatView: ['src/uno.js', 'function seatView(t, s) {', 3],
+  broadcast: ['src/cardtable.js', 'function broadcast(t) {', 8],
+  face: ['public/blackjack.js', 'function card(c, i) {', 5],
+  flow: ['public/kartenspiele.js', "scope.querySelectorAll('.bj-card').forEach(function (el) {", 7],
+};
+let code = null;
+router.get('/code', gate, (req, res) => {
+  code ||= privacy.collect(CODE);
+  res.json({ snippets: code, repo: privacy.REPO });
 });
 
 router.get('/tisch/:id', gate, loadTable, (req, res) => {

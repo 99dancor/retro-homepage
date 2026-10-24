@@ -399,6 +399,8 @@ html.still .blink { animation: none; }
 .code-snippet pre { margin: 0; font-size: 12px; line-height: 1.4; white-space: pre; }
 .code-snippet .ln { display: inline-block; width: 3.5em; padding-right: .8em; text-align: right; opacity: .5; user-select: none; }
 .code-snippet p { margin: 3px 0 0; }
+.ks-code .code-snippet pre { overflow-x: auto; max-width: 100%; }
+.ks-code h3 { margin-top: 16px; }
 .shots { display: flex; flex-wrap: wrap; gap: 10px; }
 .shot { margin: 4px 0; flex: 0 1 auto; max-width: 100%; }
 .shot img { display: block; border: 1px solid var(--lo); box-shadow: 2px 2px 0 var(--lo); }

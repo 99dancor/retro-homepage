@@ -126,18 +126,17 @@ const SNIPPETS = {
   profileLinks: ['views/profile.ejs', 'rel="noopener noreferrer nofollow"', 1],
 };
 
-let cache = null;
-function snippets() {
-  if (cache) return cache;
-  cache = {};
-  const files = {};
-  for (const [name, [file, find, count]] of Object.entries(SNIPPETS)) {
+// Liest die Ausschnitte aus den Dateien: { name: [Datei, Zeile, die den Anfang markiert, Anzahl Zeilen] }.
+// Auch die Kartenspiele zeigen so ihren Code (src/routes/kartenspiele.js, „Karten im Code“).
+function collect(map) {
+  const out = {}, files = {};
+  for (const [name, [file, find, count]] of Object.entries(map)) {
     try { files[file] ||= fs.readFileSync(path.join(ROOT, file), 'utf8').split('\n'); } catch { files[file] = []; }
     const i = files[file].findIndex(l => l.includes(find));
-    if (i < 0) { cache[name] = { file, missing: true }; continue; }
+    if (i < 0) { out[name] = { file, missing: true }; continue; }
     const lines = files[file].slice(i, i + count);
     const indent = Math.min(...lines.filter(l => l.trim()).map(l => l.match(/^ */)[0].length));
-    cache[name] = {
+    out[name] = {
       file,
       from: i + 1,
       to: i + lines.length,
@@ -145,7 +144,9 @@ function snippets() {
       url: `${REPO}${file}#L${i + 1}-L${i + lines.length}`,
     };
   }
-  return cache;
+  return out;
 }
+let cache = null;
+const snippets = () => (cache ||= collect(SNIPPETS));
 
-module.exports = { snippets, REPO: REPO.replace(/\/blob\/main\/$/, '') };
+module.exports = { snippets, collect, REPO: REPO.replace(/\/blob\/main\/$/, '') };

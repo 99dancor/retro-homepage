@@ -316,7 +316,7 @@
         '<label>Name:<input type="text" name="name" class="w100" maxlength="60" value="' + esc(s.name) + '"></label>' +
         '<label>Plätze:<select name="seats" class="w100">' + seatOpts(s.seatCount) + '</select></label>' +
         '<label class="inline"><input type="checkbox" name="hidden"' + (s.hidden ? ' checked' : '') + '> Nicht in der Liste zeigen (nur mit Link)</label>' +
-        '<p><small>Weniger Plätze gehen nur, wenn die hinteren frei sind.</small></p>',
+        '<p><small>Weniger Plätze gehen, solange alle Platz haben; wer hinten sitzt, rückt zwischen den Runden auf.</small></p>',
         [{ label: 'Speichern', value: 'ok' }, { label: 'Abbrechen', value: 'cancel' }]).then(function (r) {
         if (r === 'ok') ctl('settings', { name: field('name'), seats: Number(field('seats')), hidden: field('hidden') });
       });

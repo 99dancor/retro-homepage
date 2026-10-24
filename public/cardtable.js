@@ -291,7 +291,7 @@
 
       function settings() {
         var s = tab.state;
-        dialog('⚙️ Tisch-Einstellungen', tableForm(s.name, s.seatCount, s.hidden, s.opts, 'Weniger Plätze gehen nur, wenn die hinteren frei sind. Regeln ändern sich erst ab dem nächsten Spiel.'),
+        dialog('⚙️ Tisch-Einstellungen', tableForm(s.name, s.seatCount, s.hidden, s.opts, 'Weniger Plätze gehen, solange alle Platz haben; wer hinten sitzt, rückt zwischen den Runden auf. Regeln ändern sich erst ab dem nächsten Spiel.'),
           [{ label: 'Speichern', value: 'ok' }, { label: 'Abbrechen', value: 'cancel' }]).then(function (r) {
           if (r === 'ok') ctl('settings', formValues());
         });

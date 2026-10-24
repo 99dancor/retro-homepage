@@ -4,6 +4,7 @@
 //   desk:    Desktop (readme.txt gelesen, Lobby-Widget, Suche, ausgeblendete Standardsymbole und ihre Plätze)
 //   stats:   wer welche Spielwerte im Profil sieht, ob und wie man in Bestenlisten steht, Vitrine
 //   cards:   eigene Ansicht am Kartentisch (Hintergrund und Tischrand, nur für einen selbst)
+//   icu:     Messenger (ICU/DSN): Töne, Hinweis „ist jetzt online“, automatisch abwesend, beim Anmelden öffnen
 const { db, now } = require('./db');
 const { FONTS } = require('./themes');
 
@@ -99,7 +100,23 @@ function cleanCards(p) {
   return { floor: pick(Object.keys(CARD_FLOORS), p.floor, 'lounge'), wood: typeof p.wood === 'string' && KEY.test(p.wood) ? p.wood : '' };
 }
 
-const CLEAN = { display: cleanDisplay, desk: cleanDesk, stats: cleanStats, cards: cleanCards };
+// Messenger-Töne (public/sound.js, msgr-*): „klassisch“ klingt je nach Design wie ICU oder wie DSN
+const ICU_SOUNDS = { klassisch: 'Wie das Design (ICU oder DSN)', pling: 'Pling', glocke: 'Glocke', tuer: 'Tür auf', summen: 'Summen', aus: '(Kein Ton)' };
+const ICU_AWAY = [0, 5, 10, 15, 30, 60];
+function cleanIcu(p) {
+  p = p && typeof p === 'object' ? p : {};
+  const snd = p.sounds && typeof p.sounds === 'object' ? p.sounds : {};
+  const tone = (v, d) => pick(Object.keys(ICU_SOUNDS), v, d);
+  return {
+    sounds: { msg: tone(snd.msg, 'klassisch'), online: tone(snd.online, 'tuer'), nudge: tone(snd.nudge, 'summen') },
+    toast: bool(p.toast, true),            // Hinweis unten rechts, wenn ein Freund online kommt
+    quietDnd: bool(p.quietDnd, true),      // bei „Nicht stören“ keine Töne und Hinweise
+    autostart: bool(p.autostart, false),   // Messenger öffnet sich mit dem Desktop
+    away: ICU_AWAY.includes(p.away) ? p.away : 10,  // nach so vielen Minuten ohne Maus und Tastatur „abwesend“ (0 = nie)
+  };
+}
+
+const CLEAN = { display: cleanDisplay, desk: cleanDesk, stats: cleanStats, cards: cleanCards, icu: cleanIcu };
 
 function readAll(userId) {
   const r = db.prepare('SELECT data FROM user_settings WHERE user_id = ?').get(userId);
@@ -191,4 +208,5 @@ function boardList(slug, rows, viewer) {
   return out;
 }
 
-module.exports = { get, set, statsOf, cleanDisplay, cleanDesk, cleanStats, cleanCards, CARD_FLOORS, orderGames, profileView, boardModes, boardMode, recordName, boardList, DESK, SEE, BOARD, SITE, DISPLAY, BOARD_GAMES };
+module.exports = {
+  ICU_SOUNDS, ICU_AWAY, get, set, statsOf, cleanDisplay, cleanDesk, cleanStats, cleanCards, CARD_FLOORS, orderGames, profileView, boardModes, boardMode, recordName, boardList, DESK, SEE, BOARD, SITE, DISPLAY, BOARD_GAMES };

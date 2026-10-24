@@ -643,6 +643,14 @@ CREATE TABLE IF NOT EXISTS folder_items (
   PRIMARY KEY (kind, item_id)
 );
 CREATE INDEX IF NOT EXISTS fi_folder ON folder_items(user_id, folder_id);
+-- Messenger (ICU/DSN): wen ein Mitglied ignoriert. Ignorierte können nicht schreiben, anfragen, einladen und sehen einen immer offline.
+CREATE TABLE IF NOT EXISTS ignores (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  other_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, other_id)
+);
+CREATE INDEX IF NOT EXISTS ig_other ON ignores(other_id);
 CREATE INDEX IF NOT EXISTS qz_user ON quizzes(user_id, updated_at);
 CREATE INDEX IF NOT EXISTS qr_user ON quiz_results(user_id);
 CREATE INDEX IF NOT EXISTS qr_game ON quiz_results(game_id);
@@ -695,6 +703,18 @@ addColumn('modlists', 'owner_id', 'INTEGER REFERENCES users(id) ON DELETE SET NU
 addColumn('modlists', 'suggestions', "TEXT NOT NULL DEFAULT 'all'");  // Vorschläge: all | members | off
 addColumn('mod_items', 'category', "TEXT NOT NULL DEFAULT ''");
 addColumn('mod_items', 'on_server', 'INTEGER NOT NULL DEFAULT 0');  // läuft auf dem aktiven Server
+// Messenger (ICU/DSN, src/messenger.js). Ob jemand gerade da ist, weiß nur der Arbeitsspeicher; hier steht, was er gewählt hat.
+addColumn('users', 'status', "TEXT NOT NULL DEFAULT 'online'");     // online | away | dnd | invisible
+addColumn('users', 'status_msg', 'TEXT');                            // Statusnachricht, bis 80 Zeichen
+addColumn('users', 'last_seen', 'INTEGER');                          // zuletzt mit dem Messenger verbunden (Anzeige nur grob)
+addColumn('users', 'presence_from', "TEXT NOT NULL DEFAULT 'friends'");  // wer sieht, dass ich online bin: members | friends | nobody
+addColumn('users', 'activity_from', "TEXT NOT NULL DEFAULT 'friends'");  // wer sieht, was ich gerade spiele
+addColumn('users', 'invite_from', "TEXT NOT NULL DEFAULT 'friends'");    // wer mich zu Spielen einladen darf
+addColumn('users', 'request_from', "TEXT NOT NULL DEFAULT 'all'");       // wer mich als Freund anfragen darf: all | fof | nobody
+addColumn('users', 'show_last_seen', 'INTEGER NOT NULL DEFAULT 1');
+addColumn('friends', 'note', 'TEXT');                                // kurzer Satz zur Freundschaftsanfrage
+addColumn('private_messages', 'kind', "TEXT NOT NULL DEFAULT 'text'"); // text | nudge (Anstupsen) | invite (Einladung)
+addColumn('private_messages', 'meta', 'TEXT');                       // Einladung: JSON mit Ziel
 // Seit den Kategorien gibt es keine Felder Version und optional mehr: beides wandert in die Bemerkung
 db.exec(`UPDATE mod_items SET notes = trim(
     CASE WHEN required = 0 THEN 'optional' ELSE '' END ||

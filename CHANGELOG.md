@@ -1,5 +1,16 @@
 # Changelog
 
+## 24.10.2026 – Messenger ICU und DSN, Profile und Konto neu
+
+- **Messenger:** Startmenü → 💬 Messenger öffnet eine Kontaktliste am rechten Rand, im XP-Design als **ICU** (grün, mit Blume wie das alte ICQ), im 98-Design als **DSN Messenger** (blau, mit Männchen wie MSN). Freunde stehen nach Online und Offline sortiert, mit Statusnachricht oder dem, was sie gerade spielen. Doppelklick öffnet ein Gespräch in einem eigenen Fenster. Der Messenger ersetzt die Seiten „Mitglieder“ und „Nachrichten“; alte Links leiten weiter.
+- **Gespräche live:** Nachrichten kommen sofort an, ohne Neuladen. Enter sendet, Umschalt+Enter macht eine neue Zeile. Du siehst „tippt gerade …“, ✔ gesendet und ✔✔ gelesen. 📳 Anstupsen lässt das Fenster des anderen wackeln (einmal pro Minute), 🎲 Einladen schickt einen Tisch oder eine Lobby, in der du gerade sitzt, mit „Beitreten“.
+- **Status:** Online, Abwesend, Nicht stören (DSN: Beschäftigt) oder Unsichtbar, dazu eine Statusnachricht. Wer eine Weile weder Maus noch Tastatur benutzt, wird von selbst „Abwesend“. Neben der Uhr zeigt ein Symbol den eigenen Status und blinkt bei ungelesenen Nachrichten. Unten rechts erscheint ein Hinweis, wenn ein Freund online kommt oder dir jemand schreibt, mit eigenen Tönen für ICU und DSN.
+- **Jeder hat eine Nummer:** Wie bei ICQ hat jedes Konto eine feste Nummer (ab 10 001). „Mitglieder finden“ sucht nach Name oder Nummer, filtert nach online, gemeinsamen Freunden oder Admins und zeigt, wer gerade aktiv ist.
+- **Freundschaftsanfragen:** Zur Anfrage kann man einen kurzen Satz schreiben. Wer wartet, steht unter „Warten auf Antwort“. Annehmen, Ablehnen oder Ignorieren geht in einem eigenen Fenster.
+- **Profil neu:** Das Profil ist jetzt das Info-Fenster aus dem Messenger: oben Status, Statusnachricht, was gerade läuft (mit Beitreten), 💬 Nachricht, 🎲 Einladen und unter ⋯ Ignorieren; darunter Reiter für Übersicht, Spiele, Bilder, Freundebuch und Freunde. „Ihr beide“ zeigt, seit wann ihr Freunde seid und wen ihr gemeinsam kennt.
+- **Konto und Passwort:** Ein Dialog mit Reitern wie bei Windows ersetzt die Kontoeinstellungen und „Profil und Statistik“: Profil (Bild, Name, Statusnachricht, Über mich mit Vorschau), Privatsphäre, Statistik, Benachrichtigungen (mit Messenger-Tönen), Kennwort und Spielstände. OK, Abbrechen und Übernehmen speichern alle Reiter auf einmal. „Profil bearbeiten“ im Messenger und im Profil führt hierher.
+- **Privatsphäre:** Neu einstellbar ist, wer sieht, dass du online bist und was du spielst, wer dich anfragen und wer dich einladen darf, und ob „zuletzt online“ (nur grob) erscheint. Vorgabe ist „nur Freunde“. Wen du ignorierst, der kann dir nicht schreiben, dich nicht anfragen oder einladen und sieht dich offline.
+
 ## 24.10.2026 – Kartenspiele: moderner Tisch, Kartenfluss und UNO-Hausregeln
 
 - **Moderner Tisch:** Karten mit weichem Schatten und klarer Schrift, runde Bilder mit Namensschildern aus dunklem Glas, Abzeichen als Pillen, ein schmaler Bedenkzeit-Balken, der von Grün nach Rot läuft, und Filz mit feinem Gewebe und Licht von oben. Werkzeugleiste, Fach und Fensterrahmen bleiben im Desktop-Look (98 oder XP).

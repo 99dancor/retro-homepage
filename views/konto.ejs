@@ -1,0 +1,231 @@
+<%- include('partials/head') %>
+<%# „Konto und Passwort“ (src/routes/konto.js): ein Dialog mit Reitern wie bei Windows. Formulare mit data-save schickt
+    public/konto.js bei OK und Übernehmen ab, die übrigen (Profilbild, Kennwort, Löschen) wirken sofort. %>
+<% const ICU = '<span class="only-xp">ICU</span><span class="only-98">DSN</span>'; %>
+<% const opts = (map, cur) => Object.entries(map).map(([k, v]) => `<option value="${k}"${cur === k ? ' selected' : ''}>${v}</option>`).join(''); %>
+<% const TAB = [['profil', 'Profil'], ['privatsphaere', 'Privatsphäre'], ['statistik', 'Statistik'], ['benachrichtigungen', 'Benachrichtigungen'], ['kennwort', 'Kennwort'], ['spielstaende', 'Spielstände']]; %>
+<div class="konto" id="konto" data-csrf="<%= csrf %>" data-tab="<%= tab %>">
+  <div class="konto-msg" aria-live="polite">
+    <% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+    <% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Konto und Passwort">
+    <% for (const [k, l] of TAB) { %><button type="button" role="tab" id="t-<%= k %>" data-tab="<%= k %>" aria-controls="<%= k %>" aria-selected="<%= tab === k %>"<%- tab === k ? '' : ' tabindex="-1"' %>><%= l %></button><% } %>
+  </div>
+
+  <%# ---------- Profil ---------- %>
+  <section class="tab-page" id="profil" role="tabpanel" aria-labelledby="t-profil"<%= tab === 'profil' ? '' : ' hidden' %>>
+    <div class="konto-two">
+      <div class="konto-pic">
+        <%- include('partials/avatar', { u: profile, size: 96 }) %>
+        <form method="post" action="/account/avatar" enctype="multipart/form-data" data-avatar-crop>
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <label class="btn small konto-file">📷 Bild wählen …<input type="file" name="avatar" accept="image/png,image/jpeg,image/gif,image/webp" required></label>
+          <button class="small" data-upload>Hochladen</button>
+        </form>
+        <% if (profile.avatar) { %><form method="post" action="/account/avatar/loeschen" data-confirm="Profilbild entfernen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small">Entfernen</button></form><% } %>
+        <p><small class="muted">PNG, JPEG, GIF oder WebP bis 2 MB. Du wählst danach einen quadratischen Ausschnitt; Aufnahmeort und Kamera entfernt die Seite.</small></p>
+      </div>
+      <form method="post" action="/account/profil" data-save="profil" class="konto-form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <div class="konto-fixed">
+          <span>Benutzername:</span><b><%= profile.username %></b>
+          <span><%- ICU %>-Nummer:</span><b><%= fmtNumber(number) %></b>
+          <span>Mitglied seit:</span><span><%= fmtDate(profile.created_at) %></span>
+        </div>
+        <label>Anzeigename (leer = <%= profile.username %>):<input type="text" name="display_name" maxlength="32" value="<%= profile.display_name || '' %>" placeholder="<%= profile.username %>" data-preview="name"></label>
+        <label>Statusnachricht (steht im <%- ICU %> unter deinem Namen):<input type="text" name="status_msg" maxlength="80" value="<%= profile.status_msg || '' %>" placeholder="z. B. Bin beim Poker, schreib mir!" data-preview="msg"></label>
+        <label>Über mich: <small class="konto-count" data-count-for="about"></small><textarea name="about" id="about" maxlength="1000" rows="5"><%= profile.about || '' %></textarea></label>
+        <fieldset class="groupbox"><legend>So sehen dich andere im <%- ICU %></legend>
+          <div class="konto-card sunken">
+            <%- include('partials/avatar', { u: profile, size: 36 }) %>
+            <div><b data-show="name"><%= displayName(profile) %></b> <small class="muted">· <%- ICU %> <%= fmtNumber(number) %></small>
+              <small data-show="msg"><%= profile.status_msg ? '„' + profile.status_msg + '“' : '' %></small></div>
+          </div>
+        </fieldset>
+        <p><small class="muted">Name und Bild stehen an deinen Beiträgen und in Lobbys. Angemeldet wirst du weiter mit dem Benutzernamen.
+          <a href="<%= profileUrl(profile.username) %>">👤 Mein Profil ansehen</a></small></p>
+      </form>
+    </div>
+  </section>
+
+  <%# ---------- Privatsphäre ---------- %>
+  <section class="tab-page" id="privatsphaere" role="tabpanel" aria-labelledby="t-privatsphaere"<%= tab === 'privatsphaere' ? '' : ' hidden' %>>
+    <form method="post" action="/konto/privatsphaere" data-save="privatsphaere">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <fieldset class="groupbox"><legend>Wer darf …</legend>
+        <table class="konto-who">
+          <tr><td><label for="pv">… mein Profil sehen?</label></td><td><select id="pv" name="profile_visibility"><%- opts(PROFILE_VIS, profile.profile_visibility) %></select></td></tr>
+          <tr><td><label for="pr">… sehen, dass ich online bin?</label></td><td><select id="pr" name="presence_from"><%- opts(SEE_FROM, profile.presence_from) %></select></td></tr>
+          <tr><td><label for="ac">… sehen, was ich gerade spiele?</label></td><td><select id="ac" name="activity_from"><%- opts(SEE_FROM, profile.activity_from) %></select></td></tr>
+          <tr><td><label for="pm">… mir Nachrichten schreiben?</label></td><td><select id="pm" name="pm_from"><%- opts(PM_FROM, profile.pm_from) %></select></td></tr>
+          <tr><td><label for="rq">… mich als Freund anfragen?</label></td><td><select id="rq" name="request_from"><%- opts(REQUEST_FROM, profile.request_from) %></select></td></tr>
+          <tr><td><label for="gb">… in mein Freundebuch schreiben?</label></td><td><select id="gb" name="gb_from"><%- opts(GB_FROM, profile.gb_from) %></select></td></tr>
+          <tr><td><label for="iv">… mich zu Spielen einladen?</label></td><td><select id="iv" name="invite_from"><%- opts(SEE_FROM, profile.invite_from) %></select></td></tr>
+        </table>
+        <label class="inline"><input type="checkbox" name="show_last_seen" value="1"<%= profile.show_last_seen ? ' checked' : '' %>> „Zuletzt online“ zeigen (nur ungefähr: heute, gestern, vor 3 Tagen), für alle, die meinen Status sehen dürfen</label>
+      </fieldset>
+    </form>
+    <fieldset class="groupbox"><legend>🚫 Ignorierte Mitglieder (<%= ignored.length %>)</legend>
+      <% if (!ignored.length) { %><p class="muted"><small>Niemand. Ignorieren geht im Profil (⋯) oder bei einer Anfrage.</small></p><% } else { %>
+      <div class="konto-ign sunken">
+        <% for (const i of ignored) { %>
+        <form method="post" action="/messenger/ignorieren" class="konto-ign-row">
+          <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="user" value="<%= i.username %>"><input type="hidden" name="on" value="0">
+          <input type="hidden" name="back" value="/konto?reiter=privatsphaere&ok=ignore#privatsphaere">
+          <%- include('partials/avatar', { u: i, size: 18 }) %> <span><%= displayName(i) %> <small class="muted">@<%= i.username %> · seit <%= fmtDate(i.created_at) %></small></span>
+          <button class="small">Nicht mehr ignorieren</button>
+        </form>
+        <% } %>
+      </div>
+      <% } %>
+      <form method="post" action="/messenger/ignorieren" class="konto-ign-add">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="on" value="1">
+        <input type="hidden" name="back" value="/konto?reiter=privatsphaere&ok=ignore#privatsphaere">
+        <label for="ign-user">Hinzufügen:</label><input type="text" id="ign-user" name="user" maxlength="40" placeholder="Benutzername" required><button class="small">🚫 Ignorieren</button>
+      </form>
+      <p><small class="muted">Ignorierte können dir nicht schreiben, dich nicht anfragen oder einladen und nicht in dein Freundebuch schreiben. Sie sehen dich immer als offline und erfahren nicht, dass du sie ignorierst. Eine Freundschaft endet dabei.</small></p>
+    </fieldset>
+    <p><small class="muted">Was gespeichert wird, steht unter <a href="/datenschutz#profil">Datenschutz</a>.</small></p>
+  </section>
+
+  <%# ---------- Statistik ---------- %>
+  <section class="tab-page" id="statistik" role="tabpanel" aria-labelledby="t-statistik"<%= tab === 'statistik' ? '' : ' hidden' %>>
+    <p>Wer welche Spielwerte in deinem Profil sieht und ob du in Bestenlisten stehst. Ausgeblendetes zählt weiter, es wird nur nicht gezeigt.<br>
+      <small>Was andere sehen: <a href="<%= profileUrl(profile.username) %>?ansicht=guest">als Gast</a> · <a href="<%= profileUrl(profile.username) %>?ansicht=member">als Mitglied</a> · <a href="<%= profileUrl(profile.username) %>?ansicht=friend">als Freund</a></small></p>
+    <form method="post" action="/einstellungen/statistik" class="stat-form" data-save="statistik">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <% const pinned = new Set(s.showcase.map(x => x.app + '|' + x.key)); %>
+      <p><small>📌 setzt einen Wert in die Vitrine ganz oben im Profil (höchstens 4). ▲▼ ändert die Reihenfolge der Spiele.</small></p>
+      <div class="stat-games">
+      <% for (const g of games) { const c = s.games[g.slug] || {}; %>
+        <fieldset class="groupbox stat-game" data-slug="<%= g.slug %>">
+          <legend><%= g.title %></legend>
+          <input type="hidden" name="order" value="<%= g.slug %>">
+          <div class="stat-head">
+            <label>Wer sieht es im Profil?<select name="see_<%= g.slug %>"><% for (const [k, l] of Object.entries(SEE)) { %><option value="<%= k %>"<%= (c.see || (s.auto ? 'profil' : 'private')) === k ? ' selected' : '' %>><%= l %></option><% } %></select></label>
+            <% if (Object.hasOwn(BOARD_GAMES, g.slug)) { %><label>In Bestenlisten:<select name="board_<%= g.slug %>"><% for (const [k, l] of Object.entries(BOARD)) { %><option value="<%= k %>"<%= (c.board || 'name') === k ? ' selected' : '' %>><%= l %></option><% } %></select></label><% } else { %><input type="hidden" name="board_<%= g.slug %>" value="name"><% } %>
+            <span class="stat-move"><button type="button" class="small" data-move="-1" title="Nach oben">▲</button><button type="button" class="small" data-move="1" title="Nach unten">▼</button></span>
+          </div>
+          <% if (g.stats.length) { %><details><summary>Einzelne Werte (<%= g.stats.length %>)</summary>
+            <table class="kv stat-values">
+            <% for (const st of g.stats) { %><tr>
+              <td><label class="inline"><input type="checkbox" name="show_<%= g.slug %>" value="<%= st.key %>"<%= (c.hide || []).includes(st.key) ? '' : ' checked' %>> <%= st.key %></label></td>
+              <td class="num"><%= st.text || Number(st.value).toLocaleString('de-DE', { maximumFractionDigits: 2 }) %></td>
+              <td><label class="inline pin" title="In die Vitrine"><input type="checkbox" name="pin" value="<%= g.slug %>|<%= st.key %>"<%= pinned.has(g.slug + '|' + st.key) ? ' checked' : '' %>> 📌</label></td>
+            </tr><% } %>
+            </table>
+          </details><% } else { %><p><small class="muted">Noch keine Werte.</small></p><% } %>
+        </fieldset>
+      <% } %>
+      </div>
+      <label class="inline"><input type="checkbox" name="auto" value="1"<%= s.auto ? ' checked' : '' %>> Neue Spiele automatisch im Profil zeigen</label>
+      <fieldset class="groupbox"><legend>Auf der Seite</legend>
+        <% for (const [k, l] of Object.entries(SITE)) { %><label class="inline"><input type="checkbox" name="site" value="<%= k %>"<%= s.site[k] ? ' checked' : '' %>> <%= l %></label><% } %>
+      </fieldset>
+    </form>
+  </section>
+
+  <%# ---------- Benachrichtigungen ---------- %>
+  <section class="tab-page" id="benachrichtigungen" role="tabpanel" aria-labelledby="t-benachrichtigungen"<%= tab === 'benachrichtigungen' ? '' : ' hidden' %>>
+    <form method="post" action="/account/benachrichtigungen" data-save="benachrichtigungen">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <fieldset class="groupbox"><legend>Was soll Bescheid geben?</legend>
+      <table class="list notify-prefs">
+        <tr><th>Was</th><th>🔔 Anzeigen</th><th>📱 Push</th></tr>
+        <% for (const [k, d] of notifyKinds) { %>
+        <tr><td><%= d.label %></td>
+          <td><input type="checkbox" name="site_<%= k %>" value="1" aria-label="<%= d.label %> anzeigen"<%= notifyPrefs[k].site ? ' checked' : '' %>></td>
+          <td><input type="checkbox" name="push_<%= k %>" value="1" aria-label="<%= d.label %> als Push"<%= notifyPrefs[k].push ? ' checked' : '' %>></td></tr>
+        <% } %>
+      </table>
+      <p><small class="muted">„Anzeigen“ heißt: in der 🔔 neben der Uhr und auf der Startseite. Nachrichten und Einladungen kommen dort nur an, solange der Messenger nicht offen ist.</small></p>
+      </fieldset>
+    </form>
+    <form method="post" action="/konto/messenger" data-save="messenger">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <fieldset class="groupbox"><legend>💬 Messenger (<%- ICU %>)</legend>
+        <div class="konto-snd">
+          <% for (const [k, l] of [['msg', 'Neue Nachricht'], ['online', 'Freund kommt online'], ['nudge', 'Anstupsen']]) { %>
+            <label for="snd-<%= k %>"><%= l %></label>
+            <select id="snd-<%= k %>" name="snd_<%= k %>" data-sound-kind="<%= k %>"><% for (const [sk, sl] of Object.entries(ICU_SOUNDS)) { %><option value="<%= sk %>"<%= icu.sounds[k] === sk ? ' selected' : '' %>><%= sl %></option><% } %></select>
+            <button type="button" class="small" data-play="snd-<%= k %>" title="Anhören">▶</button>
+          <% } %>
+        </div>
+        <label class="inline"><input type="checkbox" name="toast" value="1"<%= icu.toast ? ' checked' : '' %>> Hinweis unten rechts, wenn ein Freund online kommt</label>
+        <label class="inline"><input type="checkbox" name="quietDnd" value="1"<%= icu.quietDnd ? ' checked' : '' %>> Bei „<span class="only-xp">Nicht stören</span><span class="only-98">Beschäftigt</span>“ keine Töne und keine Hinweise</label>
+        <label class="inline"><input type="checkbox" name="autostart" value="1"<%= icu.autostart ? ' checked' : '' %>> Messenger beim Öffnen des Desktops starten</label>
+        <label>Automatisch „Abwesend“ nach
+          <select name="away"><% for (const n of ICU_AWAY) { %><option value="<%= n %>"<%= icu.away === n ? ' selected' : '' %>><%= n ? n + ' Minuten ohne Maus und Tastatur' : 'nie' %></option><% } %></select></label>
+      </fieldset>
+    </form>
+    <fieldset class="groupbox"><legend>📱 Push auf Handy und Browser</legend>
+    <div id="push" data-csrf="<%= csrf %>">
+      <p id="push-state" class="muted">Prüfe, ob dieser Browser Push kann …</p>
+      <div class="actions"><button type="button" class="small" id="push-on" hidden>📱 Push auf diesem Gerät einschalten</button><button type="button" class="small" id="push-off" hidden>Auf diesem Gerät ausschalten</button><button type="button" class="small" id="push-test" hidden>🔔 Test schicken</button></div>
+      <p id="push-ios" class="muted" hidden><small>Auf dem iPhone und iPad geht Push nur, wenn du die Seite über „Teilen → Zum Home-Bildschirm“ hinzufügst und von dort öffnest (ab iOS 16.4).</small></p>
+    </div>
+    <% if (devices.length) { %>
+    <table class="list">
+      <tr><th>Gerät</th><th>Angemeldet</th><th>Zuletzt benachrichtigt</th><th></th></tr>
+      <% for (const d of devices) { %>
+      <tr><td><%= d.label || 'Unbekannt' %></td><td><%= fmtDate(d.created_at) %></td><td><%= d.last_used ? fmtDate(d.last_used, true) : '–' %></td>
+        <td><form method="post" action="/account/geraete/<%= d.id %>/loeschen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Abmelden</button></form></td></tr>
+      <% } %>
+    </table>
+    <% } %>
+    </fieldset>
+  </section>
+
+  <%# ---------- Kennwort ---------- %>
+  <section class="tab-page" id="kennwort" role="tabpanel" aria-labelledby="t-kennwort"<%= tab === 'kennwort' ? '' : ' hidden' %>>
+    <fieldset class="groupbox"><legend>Kennwort ändern</legend>
+    <form method="post" action="/konto/kennwort" class="konto-pw">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="text" name="username" value="<%= profile.username %>" autocomplete="username" hidden>
+      <label>Aktuelles Kennwort:<input type="password" name="current" autocomplete="current-password" required></label>
+      <label>Neues Kennwort (mindestens 8 Zeichen):<input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
+      <label>Neues Kennwort wiederholen:<input type="password" name="password2" autocomplete="new-password" minlength="8" required></label>
+      <div class="actions"><button>🔑 Kennwort ändern</button></div>
+    </form>
+    <p><small class="muted">Danach bist du auf allen anderen Geräten abgemeldet.</small></p>
+    </fieldset>
+    <fieldset class="groupbox"><legend>Angemeldete Geräte</legend>
+      <p>Außer diesem bist du noch auf <b><%= sessions %></b> <%= sessions === 1 ? 'anderen Gerät' : 'anderen Geräten' %> angemeldet.</p>
+      <% if (sessions) { %><form method="post" action="/konto/abmelden" data-confirm="Auf allen anderen Geräten abmelden?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small">🚪 Überall sonst abmelden</button></form><% } %>
+    </fieldset>
+  </section>
+
+  <%# ---------- Spielstände ---------- %>
+  <section class="tab-page" id="spielstaende" role="tabpanel" aria-labelledby="t-spielstaende"<%= tab === 'spielstaende' ? '' : ' hidden' %>>
+    <% if (!saves.length) { %>
+    <p>Noch keine Spielstände. <% if (!navHidden.includes('haustier')) { %><a href="/haustier/">Pixelpfoten</a> und die <% } else { %>Die <% } %>Browser-Spiele unter <a href="/apps">Andere Games</a> speichern hier, solange du angemeldet bist.</p>
+    <% } else { %>
+    <table class="list">
+      <tr><th>Spiel</th><th>Platz</th><th>Gespeichert</th><th>Größe</th><th></th></tr>
+      <% for (const sv of saves) { %>
+      <tr>
+        <td><% if (sv.url) { %><a href="<%= sv.url %>"><%= sv.title %></a><% } else { %><%= sv.app_slug %><% } %></td>
+        <td><%= sv.slot %></td>
+        <td><%= fmtDate(sv.updated_at) %></td>
+        <td><%= fmtSize(sv.size) %></td>
+        <td><form method="post" action="/konto/spielstand/loeschen" class="inline" data-confirm="Spielstand wirklich löschen?">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <input type="hidden" name="app" value="<%= sv.app_slug %>"><input type="hidden" name="slot" value="<%= sv.slot %>">
+          <button class="small danger">Löschen</button></form></td>
+      </tr>
+      <% } %>
+    </table>
+    <% } %>
+  </section>
+
+  <div class="konto-foot">
+    <small class="muted" data-dirty hidden>Noch nicht gespeichert</small><span class="spacer"></span>
+    <button type="button" class="def" data-k="ok">OK</button><button type="button" data-k="cancel">Abbrechen</button><button type="button" data-k="apply" disabled>Übernehmen</button>
+  </div>
+</div>
+<script src="<%= asset('winui.js') %>"></script>
+<script src="<%= asset('avatar-crop.js') %>"></script>
+<script src="<%= asset('push.js') %>"></script>
+<script src="<%= asset('konto.js') %>"></script>
+<%- include('partials/foot') %>

@@ -73,4 +73,4 @@ function apps(locals) {
   ].filter(a => a && !locals.navHidden.includes(a[0])).map(([app, icon, name, url]) => ({ app, icon, name, url }));
 }
 
-module.exports = { list, apps };
+module.exports = { list, apps, collect };

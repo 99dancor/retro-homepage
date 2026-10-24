@@ -217,7 +217,7 @@
           return '<tr' + (u.id === ME ? ' class="bj-me-row"' : '') + '><td>' + (['🥇', '🥈', '🥉'][i] || i + 1) + '</td><td>' + (u.user ? '<button type="button" class="bj-link" data-user="' + esc(u.user) + '">' + esc(u.name) + '</button>' : '<i class="anon-name">' + esc(u.name) + '</i>') + '</td>' +
             '<td class="num ' + cls(u.net) + '"><b>' + euro(u.net, true) + '</b></td><td class="num">' + euro(u.balance) + '</td><td class="num">' + u.buyins + '</td></tr>';
         }).join('') + '</tbody></table>' : '<p class="bj-empty">Noch hat niemand eine Kasse.</p>') +
-      '<p><small>Wer anonym bleiben möchte oder sein Profil vor dir verbirgt, steht hier ohne Namen. Wie du selbst drinstehst, stellst du in der <a href="/einstellungen/statistik">Systemsteuerung</a> ein.</small></p></div>';
+      '<p><small>Wer anonym bleiben möchte oder sein Profil vor dir verbirgt, steht hier ohne Namen. Wie du selbst drinstehst, stellst du unter <a href="/konto?reiter=statistik#statistik">Konto und Passwort → Statistik</a> ein.</small></p></div>';
   }
 
   // Karten im Code: echte Ausschnitte vom Server (GET /kartenspiele/code), die Erklärungen stehen hier

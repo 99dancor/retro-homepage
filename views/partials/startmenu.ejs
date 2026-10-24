@@ -25,8 +25,8 @@
   <% if (user) { %>
     <div class="sub"><button type="button" class="menu-item sub-toggle" aria-expanded="false">👤 Mein Konto</button><div class="submenu">
       <a href="<%= profileUrl(user.username) %>">👤 Mein Profil</a>
-      <a href="/nachrichten" id="pm-menu">💌 Nachrichten<% if (unreadPm) { %> (<%= unreadPm %>)<% } %></a>
-      <a href="/account">🔑 Kontoeinstellungen</a>
+      <a href="/messenger">💬 <span class="only-xp">ICU</span><span class="only-98">DSN Messenger</span></a>
+      <a href="/konto">🔑 Konto und Passwort</a>
     </div></div>
     <hr>
     <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="menu-item">🚪 <%= user.name %> abmelden…</button></form>
@@ -48,7 +48,8 @@
   <% } %>
   <div class="tasks" id="tasks"><% if (typeof shellTask !== 'undefined') { %><span class="task"><%= shellTask %></span><% } %></div>
   <div class="tray">
-    <% if (user) { %><a class="tray-btn pm-tray" id="pmtray" href="/nachrichten" title="<%= unreadPm ? unreadPm + ' ungelesene Nachrichten' : 'Nachrichten' %>"<%= unreadPm ? '' : ' hidden' %>>💌<span class="pm-count"><%= unreadPm %></span></a><% } %>
+    <%# Messenger neben der Uhr: eigener Status und ungelesene Nachrichten, Logik in public/messenger-hub.js %>
+    <% if (user) { %><a class="tray-btn msgr-tray<%= unreadPm ? ' msgr-new' : '' %>" id="msgrtray" href="/messenger" title="Messenger" aria-label="Messenger"><i class="st st-offline"></i><span class="pm-count"<%= unreadPm ? '' : ' hidden' %>><%= unreadPm %></span></a><% } %>
     <% if (user) { %><button type="button" class="tray-btn notify-btn" id="notifybtn" title="Benachrichtigungen" aria-label="Benachrichtigungen" aria-expanded="false" aria-controls="notifypanel">🔔<span class="notify-count"<%= unreadNotify ? '' : ' hidden' %>><%= unreadNotify %></span></button><% } %>
     <button type="button" class="tray-btn" id="displaybtn" title="Darstellung anpassen" aria-label="Darstellung anpassen" aria-expanded="false" aria-controls="displaypanel">🖥️</button>
     <button type="button" class="tray-btn" id="volumebtn" title="Lautstärke" aria-label="Lautstärke" aria-expanded="false" aria-controls="volumepanel">🔊</button>
@@ -68,7 +69,7 @@
   <div class="titlebar"><span class="ttl">🔔 Benachrichtigungen</span></div>
   <div class="body">
     <div class="notify-list sunken" id="notifylist"><p class="muted">Lade …</p></div>
-    <div class="actions"><button type="button" class="small" data-nact="read">✔ Alle gelesen</button><a class="btn small" href="/benachrichtigungen">Alle anzeigen</a><a class="btn small" href="/account#benachrichtigungen" title="Einstellungen">⚙️</a></div>
+    <div class="actions"><button type="button" class="small" data-nact="read">✔ Alle gelesen</button><a class="btn small" href="/benachrichtigungen">Alle anzeigen</a><a class="btn small" href="/konto?reiter=benachrichtigungen#benachrichtigungen" title="Einstellungen">⚙️</a></div>
   </div>
 </div>
 <% } %>

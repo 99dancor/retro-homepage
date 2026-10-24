@@ -1,0 +1,207 @@
+<%- include('partials/head') %>
+<%# Messenger: im XP-Design „ICU“, im 98-Design „DSN“. Gleiches HTML, die Optik kommt aus retro.css (html.theme-xp), die Logik aus public/messenger.js.
+    Seiten: liste (Kontaktliste), chat (Gespräch), verlauf (alle Gespräche), finden (Mitglieder finden), anfrage (Freundschaftsanfrage). %>
+<% const ICU = '<span class="only-xp">ICU</span><span class="only-98">DSN</span>'; %>
+<% const st = s => '<i class="st st-' + s + '" aria-hidden="true"></i>'; %>
+<% const stLabel = s => s === 'dnd' ? '<span class="only-xp">Nicht stören</span><span class="only-98">Beschäftigt</span>' : (STATUS[s] || 'Offline'); %>
+<% const uname = name => encodeURIComponent(name); %>
+<% const day = t => new Date(t * 1000).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' }); %>
+<% const hm = t => new Date(t * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }); %>
+
+<% if (page === 'liste') { %>
+<div class="msgr-full msgr-main" id="msgr" data-site="<%= site.title %>" data-csrf="<%= csrf %>"<% if (user) { %> data-me="<%= user.username %>"<% } %>>
+  <% if (!user) { %>
+    <div class="msgr-head"><span class="msgr-logo"><i class="st st-logo"></i><%- ICU %></span></div>
+    <div class="msgr-guest">
+      <p><b>Willkommen beim <%- ICU %>-Messenger!</b></p>
+      <p>Hier siehst du, welche Freunde online sind, schreibst ihnen, lädst sie an Spieltische ein und findest neue Leute.</p>
+      <p><a class="btn" href="/login?next=/messenger">🔑 Anmelden</a></p>
+      <p><a href="/messenger/finden">🔍 Mitglieder finden</a></p>
+    </div>
+  <% } else { %>
+    <div class="msgr-head">
+      <%- include('partials/avatar', { u: user, size: 34 }) %>
+      <div class="who"><b data-me-name><%= displayName(user) %></b>
+        <button type="button" class="msgr-mystatus" data-menu="status" aria-haspopup="true"><span class="only-xp">ICU# <%= fmtNumber(data.me.number) %></span><span class="only-98">(<span data-me-status><%= STATUS[data.me.status] || 'Offline' %></span>) ▾</span></button></div>
+      <span class="msgr-logo"><i class="st st-logo"></i><%- ICU %></span>
+    </div>
+    <button type="button" class="msgr-statusmsg" data-act="statusmsg" title="Statusnachricht ändern"><%= data.me.msg ? '„' + data.me.msg + '“' : 'Statusnachricht eingeben …' %></button>
+    <div class="msgr-tools" role="toolbar" aria-label="Werkzeuge">
+      <a href="/messenger/finden" title="Mitglieder finden">🔍</a>
+      <a href="/messenger/verlauf" title="Nachrichtenverlauf" data-count="unread">✉️<i class="cnt" hidden></i></a>
+      <button type="button" title="Freundschaftsanfragen" data-act="requests" data-count="requests">👥<i class="cnt" hidden></i></button>
+      <span class="spacer"></span>
+      <a href="/konto" title="Konto und Passwort">⚙️</a>
+    </div>
+    <div class="msgr-list" id="msgrlist" role="listbox" aria-label="Kontakte" tabindex="0">
+      <noscript><% for (const c of data.contacts) { %><p><a href="/messenger/mit/<%= uname(c.user) %>"><%= c.name %></a></p><% } %></noscript>
+    </div>
+    <div class="msgr-want only-98">
+      <div class="t">Ich möchte …</div>
+      <a href="/messenger/finden">➕ einen Kontakt hinzufügen</a>
+      <button type="button" class="linkish" data-act="write">✉️ eine Sofortnachricht senden</button>
+      <a href="/messenger/finden">🔍 Mitglieder finden</a>
+      <a href="/konto">✏️ mein Profil bearbeiten</a>
+    </div>
+    <div class="msgr-bottom only-xp">
+      <button type="button" class="small" data-menu="main" aria-haspopup="true"><i class="st st-logo"></i> ICU ▴</button>
+      <button type="button" class="small" data-menu="status" aria-haspopup="true"><i class="st st-<%= data.me.status %>" data-me-icon></i> <span data-me-status><%= STATUS[data.me.status] || 'Offline' %></span> ▴</button>
+    </div>
+    <div class="statusbar"><span data-statusline><%= data.contacts.filter(c => c.status !== 'offline').length %> von <%= data.contacts.length %> online</span><span class="fixed" data-unreadline>✉️ <%= data.unread %></span></div>
+    <script type="application/json" id="msgr-daten"><%- JSON.stringify({ data, prefs, status: STATUS }).replace(/</g, '\\u003c') %></script>
+  <% } %>
+</div>
+
+<% } else if (page === 'chat') { %>
+<% const name = displayName(u); %>
+<div class="msgr-full msgr-chat" id="chat" data-site="<%= site.title %>" data-partner="<%= u.username %>" data-name="<%= name %>" data-me="<%= user.username %>" data-myname="<%= displayName(user) %>" data-csrf="<%= csrf %>">
+  <div class="msgr-chat-head">
+    <%- include('partials/avatar', { u, size: 40 }) %>
+    <div class="who"><b><a href="<%= profileUrl(u.username) %>"><%= name %></a></b><% if (relation === 'friends') { %> <span class="badge">⭐ Freund</span><% } %>
+      <small data-card><%- st(card.status) %> <%- stLabel(card.status) %><% if (card.activity) { %> · <%= card.activity.icon %> <%= card.activity.what %> „<%= card.activity.name %>“<% } %><% if (card.msg) { %> · „<%= card.msg %>“<% } %><% if (card.lastSeen) { %> · zuletzt <%= card.lastSeen %><% } %> · <%- ICU %> <%= fmtNumber(card.number) %></small></div>
+    <div class="btns">
+      <a class="btn small" href="<%= profileUrl(u.username) %>">👤 Profil</a>
+      <% if (canMessage) { %><button type="button" class="small" data-act="nudge" title="Anstupsen: das Fenster wackelt kurz">📳 Anstupsen</button><% } %>
+      <% if (canInvite) { %><button type="button" class="small" data-act="invite" aria-haspopup="true">🎲 Einladen ▾</button><% } %>
+    </div>
+  </div>
+  <% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+  <div class="msgr-hist" id="hist" aria-live="polite">
+    <% if (!messages.length) { %><p class="sys" data-empty>Noch keine Nachrichten. Sag Hallo!</p><% } %>
+    <% let lastDay = ''; for (const x of messages) { const d = day(x.at), mine = x.from === user.username; %>
+      <% if (d !== lastDay) { lastDay = d; %><div class="sys day">— <%= d %> —</div><% } %>
+      <% if (x.kind === 'nudge') { %><div class="sys nudge" id="n<%= x.id %>">📳 <%= mine ? 'Du hast ' + name + ' angestupst.' : name + ' hat dich angestupst!' %></div>
+      <% } else if (x.kind === 'invite' && x.meta) { %><div class="sys invite" id="n<%= x.id %>"><%= x.meta.icon %> <%= mine ? 'Du hast ' + name : name + ' hat dich' %> eingeladen: <%= x.meta.what %> „<%= x.meta.name %>“<% if (!mine) { %> · <a href="<%= x.meta.url %>">Beitreten</a><% } %></div>
+      <% } else { %><div class="m <%= mine ? 'me' : 'them' %>" id="n<%= x.id %>" data-id="<%= x.id %>"><div class="h"><b><%= mine ? displayName(user) : name %></b><span class="only-98"> sagt</span> <small><%= hm(x.at) %></small></div><p><%= x.body %></p></div><% } %>
+    <% } %>
+  </div>
+  <% if (canMessage) { %>
+  <form method="post" action="/messenger/mit/<%= uname(u.username) %>" class="msgr-send" id="sendform">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <textarea name="body" maxlength="<%= maxLength %>" required placeholder="Nachricht an <%= name %> …" aria-label="Nachricht" autofocus><%= draft %></textarea>
+    <button class="def">Senden<span class="only-xp"> ▸</span></button>
+  </form>
+  <% } else { %>
+    <p class="msgr-locked">🔒 <%= name %> bekommt gerade keine Nachrichten von dir.</p>
+  <% } %>
+  <div class="msgr-chat-foot">
+    <small class="hint">Enter = Senden · Umschalt+Enter = neue Zeile</small><span class="spacer"></span>
+    <% if (messages.length) { %><form method="post" action="/messenger/mit/<%= uname(u.username) %>/loeschen" class="inline" data-confirm="Den Verlauf für dich löschen? Die Kopie von <%= name %> bleibt, bis sie dort auch gelöscht wird.">
+      <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small">🗑 Verlauf löschen</button></form><% } %>
+  </div>
+  <div class="statusbar"><span data-typing><%= card.status === 'offline' ? name + ' ist offline. Die Nachricht kommt an, sobald ' + name + ' wieder da ist.' : ' ' %></span><span class="fixed" data-readstate><% const lastMine = messages.filter(x => x.from === user.username && x.kind === 'text').pop(); %><%= lastMine ? (lastMine.read ? '✔✔ gelesen' : '✔ gesendet') : '' %></span></div>
+</div>
+
+<% } else if (page === 'verlauf') { %>
+<h1>📜 Nachrichtenverlauf</h1>
+<% if (!conversations.length) { %>
+  <p class="muted">Noch keine Nachrichten. Doppelklick auf einen Freund im <%- ICU %>-Messenger öffnet ein Gespräch, neue Leute findest du unter <a href="/messenger/finden">Mitglieder finden</a>.</p>
+<% } else { %>
+<table class="list conv-list">
+  <tr><th></th><th>Mit</th><th>Letzte Nachricht</th><th>Wann</th></tr>
+  <% for (const c of conversations) { %>
+  <tr class="<%= c.unread ? 'unread' : '' %>">
+    <td class="av"><%- include('partials/avatar', { u: { id: c.other, username: c.username, display_name: c.display_name, avatar: c.avatar }, size: 32 }) %></td>
+    <td><a href="/messenger/mit/<%= uname(c.username) %>"><b><%= displayName(c) %></b></a><% if (c.unread) { %> <span class="badge"><%= c.unread %> neu</span><% } %></td>
+    <td class="preview"><%= c.from_id === user.id ? 'Du: ' : '' %><%= c.body ? (c.body.length > 80 ? c.body.slice(0, 80) + '…' : c.body) : '📳' %></td>
+    <td><%= fmtDate(c.created_at, true) %></td>
+  </tr>
+  <% } %>
+</table>
+<% } %>
+<p><small class="muted">Nachrichten sehen nur ihr beide. Sie liegen unverschlüsselt auf dem Server, mehr dazu unter <a href="/datenschutz#profil">Datenschutz</a>.</small></p>
+
+<% } else if (page === 'finden') { %>
+<div class="msgr-find">
+<% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+<form method="get" action="/messenger/finden" class="find-q">
+  <label for="find-q">Name oder Nummer:</label><input type="search" id="find-q" name="q" value="<%= q %>" placeholder="z. B. anna oder 10 007" autofocus><button style="font-weight:bold">🔍 Suchen</button>
+  <% if (user) { %><span></span><div class="find-filter">
+    <label class="inline"><input type="checkbox" name="online" value="1"<%= f.online ? ' checked' : '' %>> nur gerade online</label>
+    <label class="inline"><input type="checkbox" name="gemeinsam" value="1"<%= f.gemeinsam ? ' checked' : '' %>> nur mit gemeinsamen Freunden</label>
+    <label class="inline"><input type="checkbox" name="admins" value="1"<%= f.admins ? ' checked' : '' %>> Admins</label>
+  </div><span></span><% } %>
+</form>
+<% if (!user) { %><p class="muted"><small>Gäste finden nur Mitglieder mit öffentlichem Profil. <a href="/login?next=/messenger/finden">Anmelden</a> zeigt alle.</small></p><% } %>
+<% if (!list.length) { %><p class="muted">Niemand gefunden.</p><% } else { %>
+<table class="list people-table">
+  <tr><th></th><th>Name</th><% if (user) { %><th>Status</th><th>Gemeinsam</th><th></th><% } else { %><th>Mitglied seit</th><% } %></tr>
+  <% for (const x of list) { %>
+  <tr>
+    <td class="av"><%- include('partials/avatar', { u: { id: x.id, username: x.user, display_name: x.name, avatar: x.avatar && x.avatar.replace('/avatar/', '') }, size: 28 }) %></td>
+    <td><a href="<%= profileUrl(x.user) %>"><b><%= x.name %></b></a> <small class="muted">@<%= x.user %> · <%= fmtNumber(x.number) %></small>
+      <% if (x.admin) { %> <span class="badge gray">Admin</span><% } %><% if (x.friend) { %> <span class="badge">⭐ Freund</span><% } %><% if (x.self) { %> <span class="badge gray">Du</span><% } %></td>
+    <% if (user) { %>
+    <td class="nowrap"><%- st(x.status) %> <%- stLabel(x.status) %><% if (x.activity) { %> · <%= x.activity.icon %> <%= x.activity.what %><% } %><% if (x.lastSeen) { %> <small class="muted">· <%= x.lastSeen %></small><% } %></td>
+    <td><small class="muted"><%= x.common ? x.common + (x.common === 1 ? ' Freund' : ' Freunde') : '–' %></small></td>
+    <td class="nowrap"><% if (!x.self) { %>
+      <% if (x.relation === 'none' && x.canRequest) { %><a class="btn small" href="/messenger/anfrage/<%= uname(x.user) %>">➕ Hinzufügen</a>
+      <% } else if (x.relation === 'sent') { %><span class="btn small disabled">⏳ Angefragt</span>
+      <% } else if (x.relation === 'received') { %><a class="btn small" href="/messenger/anfrage/<%= uname(x.user) %>">❔ Antworten</a><% } %>
+      <% if (x.canMessage) { %><a class="btn small" href="/messenger/mit/<%= uname(x.user) %>" title="Nachricht schreiben">💬</a><% } %>
+    <% } %></td>
+    <% } else { %><td><%= fmtDate(x.created) %></td><% } %>
+  </tr>
+  <% } %>
+</table>
+<% } %>
+<% if (pages > 1) { %>
+  <p class="actions"><% for (let i = 1; i <= pages; i++) { %><a class="btn small" href="/messenger/finden?page=<%= i %><%= q ? '&q=' + encodeURIComponent(q) : '' %><%= f.online ? '&online=1' : '' %><%= f.gemeinsam ? '&gemeinsam=1' : '' %><%= f.admins ? '&admins=1' : '' %>"><%= i === pageNo ? '[' + i + ']' : i %></a><% } %></p>
+<% } %>
+<% if (user) { %>
+<fieldset class="groupbox"><legend>Gerade aktiv auf der Seite (<%= active.length + hiddenActive %>)</legend>
+  <% if (!active.length) { %><p class="muted"><small>Gerade zeigt niemand seinen Status für dich.</small></p><% } %>
+  <div class="mini-people">
+    <% for (const a of active) { %><a href="<%= profileUrl(a.user) %>"><%- st(a.status) %> <%= a.name %><%= a.activity ? ' ' + a.activity.icon : '' %></a><% } %>
+    <% if (hiddenActive > 0) { %><small class="muted">+ <%= hiddenActive %>, die ihren Status nur Freunden oder niemandem zeigen</small><% } %>
+  </div>
+</fieldset>
+<% } %>
+<div class="statusbar"><span><%= total %> <%= total === 1 ? 'Treffer' : 'Treffer' %></span><span class="fixed"><%= memberCount %> Mitglieder</span></div>
+</div>
+
+<% } else if (page === 'anfrage') { %>
+<% const name = displayName(u); %>
+<div class="msgr-request">
+  <% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+  <div class="msgr-req-card">
+    <%- include('partials/avatar', { u, size: 64 }) %>
+    <div>
+      <p><b><%= name %></b> <small class="muted">@<%= u.username %> · <%- ICU %> <%= fmtNumber(card.number) %> · Mitglied seit <%= fmtDate(u.created_at) %></small></p>
+      <% if (incoming) { %>
+        <p>möchte dich zu den Kontakten hinzufügen. Freunde sehen, wann du online bist und was du spielst (so wie du es unter <a href="/konto#privatsphaere">Privatsphäre</a> eingestellt hast).</p>
+        <% if (incoming.note) { %><div class="sunken note-text">„<%= incoming.note %>“</div><% } %>
+      <% } else if (relation === 'friends') { %>
+        <p>⭐ Ihr seid Freunde.</p>
+      <% } else if (relation === 'sent') { %>
+        <p>⏳ Du hast <%= name %> schon angefragt. Sobald <%= name %> annimmt, steht ihr gegenseitig in der Kontaktliste.</p>
+      <% } else if (!canRequest) { %>
+        <p>🔒 <%= name %> nimmt gerade keine Anfragen von dir an.</p>
+      <% } else { %>
+        <p>Als Freund hinzufügen? <%= name %> bekommt eine Anfrage und kann annehmen oder ablehnen.</p>
+      <% } %>
+      <% if (common.length) { %><p><small class="muted">Gemeinsam: <%= common.length %> <%= common.length === 1 ? 'Freund' : 'Freunde' %> (<%= common.slice(0, 5).map(c => displayName(c)).join(', ') %><%= common.length > 5 ? ' …' : '' %>)</small></p><% } %>
+    </div>
+  </div>
+  <form method="post" action="<%= profileUrl(u.username) %>/freund" class="msgr-req-form">
+    <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="/messenger/anfrage/<%= uname(u.username) %>">
+    <% if (relation === 'none' && canRequest) { %>
+      <label>Ein kurzer Satz dazu (freiwillig, bis 200 Zeichen):<textarea name="note" maxlength="200" placeholder="Hi, wir saßen gestern zusammen am Durak-Tisch …"></textarea></label>
+    <% } %>
+    <div class="actions">
+      <% if (visible) { %><a class="btn small" href="<%= profileUrl(u.username) %>">👤 Profil ansehen</a><% } %>
+      <span class="spacer"></span>
+      <% if (relation !== 'friends') { %><button class="small" type="submit" form="ignoreform">🚫 Ignorieren</button><% } %>
+      <% if (relation === 'received') { %><button class="small" name="action" value="decline">Ablehnen</button><button class="small def" name="action" value="accept">✔ Annehmen</button>
+      <% } else if (relation === 'sent') { %><button class="small" name="action" value="cancel">⏳ Anfrage zurückziehen</button>
+      <% } else if (relation === 'none' && canRequest) { %><button class="small def" name="action" value="add">➕ Anfrage schicken</button>
+      <% } else if (relation === 'friends') { %><a class="btn small def" href="/messenger/mit/<%= uname(u.username) %>">💬 Nachricht</a><% } %>
+    </div>
+  </form>
+  <form method="post" action="/messenger/ignorieren" id="ignoreform" data-confirm="<%= name %> ignorieren? <%= name %> kann dir dann nicht mehr schreiben, dich nicht anfragen und nicht einladen. Rückgängig unter Konto und Passwort → Privatsphäre.">
+    <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="user" value="<%= u.username %>"><input type="hidden" name="back" value="/messenger">
+  </form>
+</div>
+<% } %>
+<% if (page !== 'verlauf') { %><script src="<%= asset('messenger.js') %>"></script><% } %>
+<%- include('partials/foot') %>

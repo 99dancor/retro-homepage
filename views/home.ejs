@@ -1,53 +1,89 @@
 <%- include('partials/head') %>
-<div class="content"><%- homeHtml %></div>
-<div class="home-links">
-  <% if (rulesUrl) { %><a class="btn small" href="<%= rulesUrl %>">📜 Regelkodex</a><% } else if (user && user.isAdmin) { %><small class="muted">📜 Für den Link zum Regelkodex lege unter <a href="/admin/pages/new">Eigene Seiten</a> eine Seite mit der Adresse <code>regeln</code> an.</small><% } %>
-  <button type="button" class="small" id="guide-start">🧭 Kurzer Rundgang</button>
-</div>
+<%# Startseite (src/routes/public.js): oben die Begrüßung, links Schnellstart und das Neueste der Seite, rechts das letzte
+    Update und Persönliches. Am Handy steht alles untereinander, die Reihenfolge dort steht in public/retro.css („Startseite“). %>
+<div class="home">
+<header class="home-hero">
+  <img class="home-logo" src="<%= asset('favicon.svg') %>" alt="" width="40" height="40">
+  <div class="home-hero-text">
+    <h1><%= site.title %></h1>
+    <% if (site.tagline) { %><p><%= site.tagline %></p><% } %>
+  </div>
+</header>
 <div class="construction"></div>
 
-<div class="home-cols">
-<div class="home-new">
-<h2>📝 Neueste Beiträge</h2>
-<% if (!posts.length) { %><p class="muted">Noch keine Beiträge.</p><% } %>
-<% for (const p of posts) { %>
-  <div class="post">
-    <a href="/blog/<%= p.slug %>"><b><%= p.title %></b></a> <span class="meta">– <%= fmtDate(p.created_at) %></span>
-    <% if (p.summary) { %><div><%= p.summary %></div><% } %>
-  </div>
-<% } %>
+<div class="home-main">
+  <section class="home-welcome">
+    <div class="content"><%- homeHtml %></div>
+    <div class="home-links">
+      <% if (rulesUrl) { %><a class="btn small" href="<%= rulesUrl %>">📜 Regelkodex</a><% } else if (user && user.isAdmin) { %><small class="muted">📜 Für den Link zum Regelkodex lege unter <a href="/admin/pages/new">Eigene Seiten</a> eine Seite mit der Adresse <code>regeln</code> an.</small><% } %>
+      <button type="button" class="small" id="guide-start">🧭 Kurzer Rundgang</button>
+    </div>
+  </section>
 
-<% if (topics.length && !navHidden.includes('board')) { %>
-<h2>💬 Neu im Forum</h2>
-<table class="list">
-  <% for (const t of topics) { %>
-  <tr><td><a href="/forum/t/<%= t.id %>?page=last"><%= t.title %></a></td><td class="num"><small><%= t.replies %> <%= t.replies === 1 ? 'Antwort' : 'Antworten' %></small></td><td class="num"><small><%= fmtDate(t.last_post_at, true) %></small></td></tr>
+  <% if (apps.length) { %>
+  <section class="home-start">
+    <div class="home-h"><h2>🚀 Schnellstart</h2></div>
+    <nav class="home-apps sunken" aria-label="Schnellstart">
+      <% for (const a of apps) { %><a class="home-app" href="<%= a.url %>" title="<%= a.hint %>"><span class="ico" aria-hidden="true"><%= a.icon %></span><span class="lbl"><%= a.name %></span></a><% } %>
+    </nav>
+  </section>
   <% } %>
-</table>
-<% } %>
 
-<% if (files.length && !navHidden.includes('files')) { %>
-<h2>📁 Neue Downloads</h2>
-<table class="list">
-  <tr><th>Datei</th><th>Kategorie</th><th class="num">Größe</th></tr>
-  <% for (const f of files) { %>
-  <tr><td><a href="/files/dl/<%= f.id %>"><%= f.title %></a></td><td><%= f.category %><%= f.game ? ' / ' + f.game : '' %></td><td class="num"><%= fmtSize(f.size) %></td></tr>
+  <section class="home-posts">
+    <div class="home-h"><h2>📝 Neueste Beiträge</h2><% if (posts.length && !navHidden.includes('blog')) { %><a href="/blog">Alle Beiträge »</a><% } %></div>
+    <% if (!posts.length) { %><p class="muted">Noch keine Beiträge.</p><% } else { %>
+    <div class="home-list sunken">
+      <% for (const p of posts) { %>
+      <div class="home-post">
+        <a href="/blog/<%= p.slug %>"><b><%= p.title %></b></a> <small class="meta"><%= fmtDate(p.created_at) %></small>
+        <% if (p.summary) { %><div class="sum"><%= p.summary %></div><% } %>
+      </div>
+      <% } %>
+    </div>
+    <% } %>
+  </section>
+
+  <% if (topics.length && !navHidden.includes('board')) { %>
+  <section class="home-forum">
+    <div class="home-h"><h2>💬 Neu im Forum</h2><a href="/forum">Zum Forum »</a></div>
+    <table class="list">
+      <% for (const t of topics) { %>
+      <tr><td><a href="/forum/t/<%= t.id %>?page=last"><%= t.title %></a></td><td class="num"><small><%= t.replies %> <%= t.replies === 1 ? 'Antwort' : 'Antworten' %></small></td><td class="num"><small><%= fmtDate(t.last_post_at, true) %></small></td></tr>
+      <% } %>
+    </table>
+  </section>
   <% } %>
-</table>
-<% } %>
 
-<% if (guestbookEnabled && guestbook.length) { %>
-<h2>📖 Zuletzt im Besucherbuch</h2>
-<% for (const g of guestbook) { %>
-  <div class="panel" style="margin-bottom:6px"><b><%= g.name || 'Anonym' %>:</b> <%= g.message.length > 160 ? g.message.slice(0, 160) + '…' : g.message %></div>
-<% } %>
-<p><a href="/guestbook">» Ins Besucherbuch eintragen</a></p>
-<% } %>
+  <% if (files.length && !navHidden.includes('files')) { %>
+  <section class="home-files">
+    <div class="home-h"><h2>📁 Neue Downloads</h2><a href="/files">Alle Downloads »</a></div>
+    <table class="list">
+      <tr><th>Datei</th><th>Kategorie</th><th class="num">Größe</th></tr>
+      <% for (const f of files) { %>
+      <tr><td><a href="/files/dl/<%= f.id %>"><%= f.title %></a></td><td><%= f.category %><%= f.game ? ' / ' + f.game : '' %></td><td class="num"><%= fmtSize(f.size) %></td></tr>
+      <% } %>
+    </table>
+  </section>
+  <% } %>
 </div>
 
-<aside class="home-me">
-<% if (user) { %>
-  <fieldset class="groupbox"><legend>🔔 Für dich</legend>
+<aside class="home-side">
+  <% if (update) { const MAX = 8; %>
+  <%# Kurzfassung des letzten Updates aus CHANGELOG.md (src/changelog.js); der erste Satz jedes Punkts steht im Tooltip %>
+  <fieldset class="groupbox home-update"><legend>🆕 Neu auf der Seite</legend>
+    <p class="home-update-head"><% if (update.date) { %><small>Update vom <%= update.date %></small><% } %><b><%= update.title %></b></p>
+    <% if (update.items.length) { %>
+    <ul class="home-tags">
+      <% for (const it of update.items.slice(0, MAX)) { %><li class="tag" title="<%= it.text %>"><%= it.label %></li><% } %>
+      <% if (update.items.length > MAX) { %><li class="more">und <%= update.items.length - MAX %> weitere</li><% } %>
+    </ul>
+    <% } %>
+    <div class="actions"><a class="btn small" href="/changelog">📋 Alles im Changelog</a></div>
+  </fieldset>
+  <% } %>
+
+  <% if (user) { %>
+  <fieldset class="groupbox home-me"><legend>🔔 Für dich</legend>
     <% if (!notes.length) { %><p class="muted">Nichts Neues. Hier erscheinen Nachrichten, Freundschaftsanfragen, Antworten im Forum und mehr.</p><% } else { %>
     <div class="notify-page">
       <% for (const n of notes) { %>
@@ -57,14 +93,25 @@
     <% } %>
     <div class="actions"><a class="btn small" href="/benachrichtigungen">Alle anzeigen</a><a class="btn small" href="/account#benachrichtigungen">⚙️ Einstellungen</a></div>
   </fieldset>
-<% } else { %>
-  <fieldset class="groupbox"><legend>👋 Mitmachen</legend>
+  <% } else { %>
+  <fieldset class="groupbox home-me"><legend>👋 Mitmachen</legend>
     <p>Mit einem Konto schreibst du im Forum, spielst Blackjack, Poker, Durak, UNO, Flip 7, Pilli Pilli und Minesweeper, löst das tägliche Kreuzworträtsel und Sudoku, malst in Paint, sammelst Freunde und bekommst hier Nachrichten und Benachrichtigungen.</p>
     <div class="actions"><a class="btn" href="/login">🔑 Anmelden</a><% if (registrationOpen) { %><a class="btn" href="/register">✏️ Registrieren</a><% } %></div>
   </fieldset>
-<% } %>
+  <% } %>
+
+  <% if (guestbookEnabled && guestbook.length) { %>
+  <fieldset class="groupbox home-gb"><legend>📖 Zuletzt im Besucherbuch</legend>
+    <% for (const g of guestbook) { %>
+    <div class="panel"><b><%= g.name || 'Anonym' %>:</b> <%= g.message.length > 160 ? g.message.slice(0, 160) + '…' : g.message %></div>
+    <% } %>
+    <div class="actions"><a class="btn small" href="/guestbook">✏️ Ins Besucherbuch eintragen</a></div>
+  </fieldset>
+  <% } %>
 </aside>
 </div>
+<%# Im Fenster auf dem Desktop wandert die Statusleiste in den Fensterrand (public/retro.js) %>
+<div class="statusbar home-status"><span><%= user ? '👤 Angemeldet als ' + user.name : '👤 Du bist als Gast hier' %></span></div>
 
 <dialog class="window guide" id="guide">
   <div class="titlebar"><span class="ttl">🧭 Kurzer Rundgang</span></div>

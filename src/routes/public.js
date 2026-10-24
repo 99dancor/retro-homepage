@@ -13,11 +13,30 @@ const GAMES = require('../games');
 const privacy = require('../privacy');
 const profiles = require('../profiles');
 const { FONTS } = require('../themes');
+const programs = require('../programs');
+const changelog = require('../changelog');
 
 const router = express.Router();
 
 // ---------- Startseite ----------
-// Startseite: links das Neueste der Seite, rechts die eigenen Benachrichtigungen (oder Anmelden/Registrieren)
+// Schnellstart auf der Startseite: diese Programme in dieser Reihenfolge, sofern Startmenü und Seitenverwaltung sie zeigen.
+// Der Text erscheint beim Drüberfahren.
+const HOME_APPS = {
+  kartenspiele: 'Blackjack, Poker, Durak, UNO, Flip 7 und Pilli Pilli am Spieltisch',
+  haustier: 'Tiere pflegen, Gassi gehen und andere besuchen',
+  paint: 'Malen wie früher, allein oder zusammen',
+  musik: 'Musik, Videos und YouTube, auch gemeinsam in Lobbys',
+  minesweeper: 'Der Klassiker aus Windows 98',
+  kreuzwortraetsel: 'Jeden Tag ein neues Rätsel',
+  sudoku: 'Jeden Tag drei neue Sudokus',
+  quiz: 'Quiz erstellen oder einem Raum beitreten',
+  werwolf: 'Die Seite ist der Erzähler, am Tisch oder online',
+  board: 'Mitreden, fragen und verabreden',
+};
+const HOME_ORDER = Object.keys(HOME_APPS);
+
+// Startseite: oben Begrüßung, links Schnellstart und das Neueste der Seite,
+// rechts das letzte Update und die eigenen Benachrichtigungen (oder Anmelden/Registrieren)
 router.get('/', (req, res) => {
   const pv = auth.visibilitySql(req.user, 'post', 'p');
   const fv = auth.visibilitySql(req.user, 'file', 'f');
@@ -33,6 +52,11 @@ router.get('/', (req, res) => {
                                     FROM board_topics t ORDER BY t.last_post_at DESC LIMIT 5`).all() : [],
     notes: req.user ? notify.list(req.user.id, 8) : [],
     rulesUrl: rules && auth.canSee(req.user, 'page', rules) ? '/p/regeln' : null,
+    apps: programs.list(res.locals).filter(p => HOME_APPS[p.key])
+      .sort((a, b) => HOME_ORDER.indexOf(a.key) - HOME_ORDER.indexOf(b.key))
+      // Weiches Trennzeichen, damit „Kreuzworträtsel“ unter dem Symbol sauber umbricht
+      .map(p => ({ ...p, name: p.name.replace('Kreuzworträtsel', 'Kreuzwort\u00adrätsel'), hint: HOME_APPS[p.key] })),
+    update: changelog.latest(),
   });
 });
 
@@ -248,7 +272,7 @@ router.get('/zufall', (req, res) => res.render('zufall', { title: 'Zufallsgenera
 let changelogHtml = null;
 router.get('/changelog', (req, res) => {
   if (changelogHtml === null) {
-    try { changelogHtml = md(fs.readFileSync(path.join(__dirname, '..', '..', 'CHANGELOG.md'), 'utf8').replace(/^# .*\n/, '')); }
+    try { changelogHtml = md(fs.readFileSync(changelog.FILE, 'utf8').replace(/^# .*\n/, '')); }
     catch { changelogHtml = '<p>Noch keine Einträge.</p>'; }
   }
   res.render('changelog', { title: 'Changelog', changelogHtml });

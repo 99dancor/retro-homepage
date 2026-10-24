@@ -1164,11 +1164,66 @@ button.bj-chip:focus-visible { outline: 2px solid #ffd700; outline-offset: 2px; 
 .notify-prefs td:first-child, .notify-prefs th:first-child { text-align: left; }
 #push [hidden] { display: none; }
 
-/* Startseite: links Neues, rechts Persönliches */
-.home-links { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
-.home-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
-.home-me .groupbox { margin-top: 12px; }
-@media (max-width: 640px) { .home-cols { grid-template-columns: minmax(0, 1fr); } .home-me { order: -1; } }
+/* Startseite (views/home.ejs): oben die Begrüßung mit Titel der Seite, links Schnellstart und Neues,
+   rechts das letzte Update und Persönliches. Am Handy alles untereinander, Reihenfolge über order. */
+.home { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); gap: 0 16px; align-items: start; }
+.home > .home-hero, .home > .construction { grid-column: 1 / -1; }
+.home-hero { display: flex; align-items: center; gap: 12px; padding: 10px 14px; color: var(--xp-title-text, #fff);
+  background: linear-gradient(90deg, var(--title-from), var(--title-to)); }
+.home-hero-text { min-width: 0; }
+.home-hero h1 { margin: 0; font-size: 22px; line-height: 1.2; overflow-wrap: anywhere; }
+.home-hero p { margin: 2px 0 0; font-size: 12px; opacity: .9; }
+.home-logo { width: 40px; height: 40px; flex: none; image-rendering: pixelated; box-shadow: 2px 2px 0 rgba(0, 0, 0, .3); }
+.home > .construction { height: 6px; margin: 0 0 12px; }
+.home-main, .home-side { min-width: 0; }
+.home-main > section { margin-bottom: 16px; }
+.home-welcome .content > :first-child { margin-top: 0; }
+.home-welcome .content > :last-child { margin-bottom: 0; }
+.home-links { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 0; }
+.home-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 5px; }
+.home-h h2 { margin: 0; font-size: 15px; }
+.home-h a { font-size: 12px; white-space: nowrap; }
+/* Schnellstart: große Symbole wie in einem Explorer-Fenster */
+.home-apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 2px; padding: 6px; }
+.home-app, .home-app:visited { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 7px 2px 6px; min-width: 0;
+  text-align: center; text-decoration: none; color: var(--field-text); }
+.home-app .ico { font-size: 28px; line-height: 32px; height: 32px; }
+.home-app .lbl { font-size: 12px; line-height: 1.25; padding: 0 3px; max-width: 100%; overflow-wrap: break-word; }
+.home-app:hover { background: var(--hover); }
+.home-app:hover .lbl { text-decoration: underline; }
+.home-app:focus-visible { outline: 1px dotted var(--field-text); outline-offset: -2px; }
+.home-app:active .lbl { background: var(--sel-bg); color: var(--sel-text); }
+/* Beiträge als Liste im weißen Feld, Forum und Downloads als Tabellen */
+.home-list { padding: 2px; }
+.home-list a { color: var(--field-link); }
+.home-post { padding: 5px 8px; border-bottom: 1px dotted color-mix(in srgb, var(--field-text) 25%, transparent); }
+.home-post:last-child { border-bottom: 0; }
+.home-post .meta { white-space: nowrap; }
+.home-post .sum { font-size: 12px; opacity: .85; }
+/* Rechte Spalte */
+.home-side fieldset.groupbox { margin: 0 0 14px; }
+.home-side fieldset.groupbox > p:first-of-type { margin-top: 2px; }
+.home-update-head { margin: 0 0 8px; }
+.home-update-head small { display: block; }
+.home-tags { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.home-tags .tag { margin: 0; padding: 1px 6px; font-size: 12px; cursor: default; }
+.home-tags .more { font-size: 12px; padding: 1px 2px; opacity: .75; }
+.home-update .actions, .home-gb .actions { margin-top: 10px; }
+.home-gb .panel { margin-bottom: 6px; font-size: 12px; overflow-wrap: break-word; }
+.home + .statusbar { margin: 4px -10px -10px; }
+/* Windows XP: Kopf oben rund, Titel mit Schatten wie in der Titelleiste. Mit Nacht wären die blauen Überschriften
+   der Rahmen auf Dunkelgrau kaum zu lesen. */
+html.theme-xp .home-hero { border-radius: 6px 6px 0 0; }
+html.theme-xp .home-hero h1 { font-family: "Trebuchet MS", var(--font); text-shadow: var(--xp-title-shadow); }
+html.theme-xp.scheme-nacht .home .groupbox > legend { color: var(--link); }
+@media (max-width: 760px) {
+  .home { display: flex; flex-direction: column; align-items: stretch; }
+  .home-main, .home-side { display: contents; }
+  .home-welcome { order: 1; } .home-update { order: 2; } .home-me { order: 3; } .home-start { order: 4; }
+  .home-posts { order: 5; } .home-forum { order: 6; } .home-files { order: 7; } .home-gb { order: 8; }
+  .home-hero { padding: 8px 10px; }
+  .home-hero h1 { font-size: 19px; }
+}
 .guide { width: min(420px, calc(100vw - 24px)); padding: 0; }
 .guide::backdrop { background: rgba(0, 0, 0, .25); }
 .guide #guide-step h3 { margin: 0 0 6px; }

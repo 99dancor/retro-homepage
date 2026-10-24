@@ -9,7 +9,7 @@
 <div class="icon-view">
   <% for (const it of s.items) { %>
     <a class="icon-item" href="<%= it.url %>"<%- it.external ? ' target="_blank" rel="noopener noreferrer"' : '' %> title="<%= it.name %>">
-      <span class="icon-pic"><% if (it.thumb) { %><img src="<%= it.thumb %>" alt="" loading="lazy"><% } else { %><%= it.icon %><% } %></span>
+      <span class="icon-pic"><% if (it.thumb) { %><img src="<%= it.thumb %>" alt="" loading="lazy"><% } else { %><%- ico(it.icon) %><% } %></span>
       <span class="icon-label"><%= it.name %></span>
       <% if (it.host) { %><small><%= it.host %></small><% } %>
     </a>

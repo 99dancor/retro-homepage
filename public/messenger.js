@@ -97,10 +97,11 @@
     }).concat([null, { html: '💭 Statusnachricht …', run: function () { editStatusMsg(); } }]));
   }
 
+  // Muss vor dem Aufruf unten stehen: contactList() setzt die echte Funktion ein
+  var editStatusMsg = function () {};
   if (root.id === 'msgr') contactList(); else chatWindow();
 
   // ================= Kontaktliste =================
-  var editStatusMsg = function () {};
   function contactList() {
     var raw = {};
     try { raw = JSON.parse(document.getElementById('msgr-daten').textContent); } catch (e) { /* leer */ }
@@ -161,7 +162,7 @@
       var nm = root.querySelector('[data-me-name]');
       if (nm) nm.textContent = me.name;
       var b = root.querySelector('.msgr-statusmsg');
-      if (b && !b.querySelector('input')) b.textContent = me.msg ? '„' + me.msg + '“' : 'Statusnachricht eingeben …';
+      if (b) b.textContent = me.msg ? '„' + me.msg + '“' : 'Statusnachricht eingeben …';
       setTitle(xp() ? 'ICU – ' + me.name : 'DSN Messenger');
     }
     function rowOf(user) { return [].filter.call(list.querySelectorAll('.msgr-c'), function (r) { return r.dataset.user === user; })[0]; }
@@ -225,7 +226,6 @@
         e.stopPropagation();
         menu(b, [
           { html: '🔍 Mitglieder finden / hinzufügen', run: function () { go('/messenger/finden'); } },
-          { html: '📜 Nachrichtenverlauf', run: function () { go('/messenger/verlauf'); } },
           { html: '👥 Anfragen (' + data.requests.length + ')', disabled: !data.requests.length, run: function () { requests(b); } },
           null,
           { html: '👤 Mein Profil', run: function () { go(profileUrl(ME)); } },
@@ -244,24 +244,26 @@
       }));
     }
 
-    // Statusnachricht direkt in der Liste bearbeiten: Enter speichert, Esc bricht ab
+    // Statusnachricht direkt in der Liste bearbeiten: Enter speichert, Esc bricht ab. Das Feld ersetzt den Knopf solange,
+    // denn in einem <button> lässt sich nicht tippen.
     editStatusMsg = function () {
       var b = root.querySelector('.msgr-statusmsg');
-      if (!b || b.querySelector('input')) return;
-      b.innerHTML = '';
+      if (!b || b.hidden) return;
       var inp = document.createElement('input');
       inp.type = 'text'; inp.maxLength = 80; inp.value = me.msg || ''; inp.placeholder = 'Was machst du gerade?';
+      inp.className = 'msgr-statusmsg-edit';
       inp.setAttribute('aria-label', 'Statusnachricht');
-      b.appendChild(inp);
+      b.hidden = true;
+      b.parentNode.insertBefore(inp, b.nextSibling);
       inp.focus(); inp.select();
       var done = false;
       function finish(save) {
         if (done) return;
         done = true;
         var v = inp.value.trim();
-        b.textContent = '…';
-        if (save && v !== (me.msg || '')) setStatus(undefined, v).catch(function (err) { alert(err.message); showMe(); });
-        else { b.textContent = ''; showMe(); }
+        inp.remove(); b.hidden = false;
+        if (save && v !== (me.msg || '')) { b.textContent = '…'; setStatus(undefined, v).catch(function (err) { alert(err.message); showMe(); }); }
+        else showMe();
       }
       inp.addEventListener('keydown', function (e) {
         e.stopPropagation();
@@ -276,7 +278,7 @@
       if (type === 'kontakte-daten') { data = d; me = Object.assign({}, me, d.me); render(); }
       else if (type === 'ich') { me = Object.assign({}, me, d); showMe(); }
       else if (type === 'ungelesen') { data.unread = d.n || 0; render(); }
-      else if (type === 'nachricht' && d.from !== ME) {
+      else if (type === 'nachricht' && !d.mine && d.from !== ME) {
         // Neue Nachricht: Zähler am Kontakt sofort hochsetzen, die genaue Liste kommt gleich vom Desktop
         var c = find(d.partner);
         if (c) { c.unread = (c.unread || 0) + (d.kind === 'nudge' ? 0 : 1); render(); }
@@ -317,7 +319,7 @@
       var near = hist.scrollHeight - hist.scrollTop - hist.clientHeight < 60;
       var d = day(x.at);
       if (d !== lastDay) { lastDay = d; var s = document.createElement('div'); s.className = 'sys day'; s.textContent = d; hist.appendChild(s); }
-      var mine = x.from === ME, el = document.createElement('div');
+      var mine = x.mine || x.from === ME, el = document.createElement('div');
       el.id = 'n' + x.id;
       if (x.kind === 'nudge') {
         el.className = 'sys nudge';
@@ -365,7 +367,7 @@
     listen(function (type, d) {
       if (type === 'nachricht' && d.partner === partner) {
         add(d);
-        if (d.from !== ME) {
+        if (!d.mine && d.from !== ME) {
           stopTyping();
           pendingRead = true; markRead();
         }
@@ -438,6 +440,6 @@
     if (inv && /[?&]einladen/.test(location.search)) setTimeout(function () { inv.click(); }, 100);
   }
 
-  // Seiten ohne Liste oder Gespräch (Verlauf, Finden, Anfrage): nichts weiter zu tun
+  // Seiten ohne Liste oder Gespräch (Finden, Anfrage): nichts weiter zu tun
   function menuOnly() {}
 })();

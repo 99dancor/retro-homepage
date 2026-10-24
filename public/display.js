@@ -163,6 +163,8 @@
   document.addEventListener('DOMContentLoaded', function () {
     var btn = document.getElementById('displaybtn'), panel = document.getElementById('displaypanel');
     if (!btn || !panel) return;
+    // Das Fenster lässt sich an der Titelleiste verschieben (public/retro.js)
+    if (window.RetroDesk && window.RetroDesk.dragPanel) window.RetroDesk.dragPanel(panel, panel.querySelector('.titlebar'));
     var form = panel.querySelector('form'), f = form.elements;
     var errBox = panel.querySelector('[data-error]'), info = panel.querySelector('[data-bild-info]');
     var saved, savedImg, cur, curImg;
@@ -184,9 +186,14 @@
       var cs = getComputedStyle(root);
       for (var k in COLORS) f[k].value = toHex(cs.getPropertyValue(COLORS[k]));
       f.bg.value = cur.bg; f.bgMode.value = cur.bgMode; f.font.value = cur.font;
-      f.design.value = cur.design; f.xp.value = cur.xp; f.scale.value = cur.scale; f.scaleAll.checked = cur.scaleAll;
+      f.design.value = cur.design; f.scale.value = cur.scale; f.scaleAll.checked = cur.scaleAll;
       panel.querySelector('[data-scale-out]').textContent = cur.scale + ' %';
-      panel.querySelector('[data-xp-row]').hidden = !designOf(cur).xp || cur.design === 'seite';
+      // Schema zeigt nur, was zum gewählten Design passt: bei XP die drei XP-Farben, sonst die 98-Schemen
+      var d = designOf(cur), xp = d.xp && cur.scheme !== 'kontrast';
+      panel.querySelector('[data-schemes=xp]').hidden = !xp;
+      panel.querySelector('[data-schemes="98"]').hidden = xp;
+      panel.querySelectorAll('[data-xp]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.xp === d.scheme); });
+      panel.querySelectorAll('[data-scheme]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.scheme === cur.scheme && !Object.keys(cur.colors).length); });
       if (f.sync) f.sync.checked = cur.sync;
       f.marquee.value = cur.marquee; f.widgets.checked = cur.widgets;
       if (document.activeElement !== f.css) f.css.value = cur.css;
@@ -199,6 +206,7 @@
       cur = clean(saved); curImg = savedImg;
       error(''); fill();
       panel.hidden = false; btn.setAttribute('aria-expanded', true);
+      if (window.RetroDesk && window.RetroDesk.placePanel) window.RetroDesk.placePanel(panel);
       panel.querySelector('[role=tab][aria-selected=true]').focus();
     }
     function close(keep) {
@@ -235,6 +243,8 @@
       else if (t.dataset.act === 'apply') commit();
       else if (t.dataset.act === 'reset') { curImg = ''; update(function (p) { var sync = p.sync; for (var k in DEFAULTS) p[k] = DEFAULTS[k]; p.colors = {}; p.sync = sync; }); }
       else if (t.dataset.scheme) update(function (p) { p.scheme = t.dataset.scheme; p.colors = {}; });
+      // XP-Farbe: gilt nur mit XP, also wird aus „Wie die Seite“ ausdrücklich Windows XP
+      else if (t.dataset.xp) update(function (p) { if (p.design !== 'xp') p.design = 'xp'; p.xp = t.dataset.xp; p.scheme = 'seite'; p.colors = {}; });
       else if (t.dataset.preset && data.presets[t.dataset.preset]) update(function (p) { p.scheme = 'seite'; p.colors = Object.assign({}, data.presets[t.dataset.preset]); });
       else if (t.matches('a[href]') && window.RetroDesk) {
         // Links öffnen auf dem Desktop ein eigenes Fenster
@@ -254,7 +264,9 @@
       var n = e.target.name;
       if (n === 'bild') return readImage(e.target);
       if (n === 'bg' && e.target.value === 'bild' && !curImg) { f.bild.click(); fill(); return; }
-      if (['bg', 'bgMode', 'font', 'marquee', 'design', 'xp'].indexOf(n) >= 0) update(function (p) { p[n] = e.target.value; });
+      // Beim Wechsel auf XP fallen 98-Schemen und eigene Farben weg, die man dort nicht mehr sieht und nicht mehr wählen kann
+      if (n === 'design') update(function (p) { p.design = e.target.value; if (designOf(p).xp) { p.scheme = p.scheme === 'kontrast' ? 'kontrast' : 'seite'; p.colors = {}; } });
+      else if (['bg', 'bgMode', 'font', 'marquee'].indexOf(n) >= 0) update(function (p) { p[n] = e.target.value; });
       else if (n === 'scale') update(function (p) { p.scale = Number(e.target.value); });
       else if (n === 'widgets' || n === 'scaleAll' || n === 'sync') update(function (p) { p[n] = e.target.checked; });
     });

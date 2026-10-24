@@ -130,12 +130,7 @@ router.post('/messenger/mit/:name/einladen', needUser, auth.rateLimit('msgrinvit
 });
 router.post('/messenger/mit/:name/loeschen', needUser, partner, (req, res) => {
   p.hideConversation(req.user.id, req.partner.id);
-  res.redirect('/messenger/verlauf');
-});
-
-// ---------- Verlauf (alle Gespräche) ----------
-router.get('/messenger/verlauf', needUser, (req, res) => {
-  res.render('messenger', { title: 'Nachrichtenverlauf', page: 'verlauf', conversations: p.conversations(req.user.id), STATUS: m.STATUS });
+  res.redirect(chatUrl(req.partner.username));
 });
 
 // ---------- Mitglieder finden ----------
@@ -212,8 +207,10 @@ router.get('/nutzer', (req, res) => {
 });
 router.get('/nachrichten', (req, res) => {
   if (req.query.an) return res.redirect(301, chatUrl(String(req.query.an).trim().replace(/^@/, '')));
-  res.redirect(301, '/messenger/verlauf');
+  res.redirect(301, '/messenger');
 });
+// Den Nachrichtenverlauf gibt es nicht mehr: Gespräche öffnet die Kontaktliste
+router.get('/messenger/verlauf', (req, res) => res.redirect(301, '/messenger'));
 router.get('/nachrichten/:name', (req, res) => res.redirect(301, chatUrl(req.params.name)));
 // Ungelesene Nachrichten (der Desktop bekommt sie live, das hier bleibt für Seiten ohne Live-Verbindung)
 router.get('/api/nachrichten', (req, res) => {

@@ -179,7 +179,8 @@ function deliver(from, to, body, kind = 'text', meta = null) {
   const out = message(row, { [from.id]: from.username, [to.id]: to.username });
   send(to.id, 'nachricht', { ...out, partner: from.username, name: p.displayName(from) });
   send(to.id, 'ungelesen', { n: p.unreadCount(to.id) });
-  send(from.id, 'nachricht', { ...out, partner: to.username, name: p.displayName(to) });
+  // mine: Das Konto hat die Nachricht selbst geschickt (andere Tabs und Geräte zeigen sie dann nicht als neu)
+  send(from.id, 'nachricht', { ...out, partner: to.username, name: p.displayName(to), mine: true });
   return out;
 }
 // Gelesen: dem Absender die Haken zeigen, dem Leser den Zähler

@@ -37,7 +37,7 @@
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <fieldset class="groupbox"><legend>Symbole, die jeder hat</legend>
         <p><small>Was du ausblendest, liegt nur bei dir nicht mehr auf dem Desktop.</small></p>
-        <% for (const i of icons) { %><label class="inline"><input type="checkbox" name="icon" value="<%= i.key %>"<%= d.hidden.includes(i.key) ? '' : ' checked' %>> <%= i.icon %> <%= i.name %></label><% } %>
+        <% for (const i of icons) { %><label class="inline"><input type="checkbox" name="icon" value="<%= i.key %>"<%= d.hidden.includes(i.key) ? '' : ' checked' %>> <%- ico(i.icon) %> <%= i.name %></label><% } %>
       </fieldset>
       <fieldset class="groupbox"><legend>Symbole anordnen</legend>
         <label class="inline"><input type="radio" name="arrange" value="frei"<%= d.arrange === 'frei' ? ' checked' : '' %>> Frei (wohin du sie ziehst)</label>

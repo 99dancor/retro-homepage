@@ -90,7 +90,7 @@
           <tbody>
           <% for (const e of items) { %>
             <tr tabindex="0" data-ref="<%= e.ref %>" data-url="<%= e.url %>" data-kind="<%= e.kind %>" data-name="<%= e.name %>" data-vis="<%= e.vis || '' %>"<% if (e.external) { %> data-external="1" data-host="<%= e.host %>"<% } %><% if (e.kind === 'folder') { %> data-drop="<%= e.id %>"<% } %><% if (e.share) { %> data-share="<%= e.share.vis %>" data-token="<%= e.share.token %>"<% } %><% if (e.kind === 'shortcut' || e.kind === 'link') { %> data-target="<%= e.url %>" data-icon="<%= e.icon %>"<% } %><%= e.broken ? ' class=broken' : '' %> draggable="true">
-              <td><a href="<%= e.url %>" class="ex-name"<%- e.external ? ' target="_blank" rel="noopener noreferrer"' : '' %>><span class="ex-ic"><%= e.icon %><%= e.kind === 'shortcut' || e.kind === 'link' ? '' : '' %></span><%= e.name %></a><% if (e.broken) { %> <small class="muted">✕ Ziel fehlt</small><% } %></td>
+              <td><a href="<%= e.url %>" class="ex-name"<%- e.external ? ' target="_blank" rel="noopener noreferrer"' : '' %>><span class="ex-ic"><%- ico(e.icon) %></span><%= e.name %></a><% if (e.broken) { %> <small class="muted">✕ Ziel fehlt</small><% } %></td>
               <td><%= KIND[e.kind] || e.kind %><%= e.host ? ' (' + e.host + ')' : '' %></td>
               <td class="num"><%= e.kind === 'folder' || e.kind === 'shortcut' || e.kind === 'link' ? '' : fmtSize(e.size || 0) %></td>
               <td><%= fmtDate(e.date, true) %></td>
@@ -110,7 +110,7 @@
           <tbody>
           <% for (const e of items) { %>
             <tr tabindex="0" data-ref="<%= e.ref %>" data-kind="<%= e.kind %>" data-name="<%= e.name %>">
-              <td><span class="ex-ic"><%= e.icon %></span><%= e.name %></td>
+              <td><span class="ex-ic"><%- ico(e.icon) %></span><%= e.name %></td>
               <td><%= e.lib ? (e.folder > 0 ? placeName(e.folder) : e.folder === 0 ? '🖥️ Desktop' : '📚 ' + (KIND[e.kind] || '')) : placeName(e.parent) %></td>
               <td><%= fmtDate(e.deleted, true) %></td>
               <td><%= KIND[e.kind] || e.kind %></td>

@@ -32,6 +32,13 @@
     if (e.kind === 'folder') return !!e.share;
     return !!e.vis && e.vis !== 'private' && e.vis !== 'link';
   }
+  // Verknüpfungen auf den Messenger oder die Kartenspiele zeigen deren Bild, auch wenn sie noch mit dem alten Zeichen angelegt wurden
+  function iconOf(e) {
+    var path = String(e.url || '').split(/[?#]/)[0];
+    if (path === '/messenger') return '🌼';
+    if (path === '/kartenspiele') return '🂡';
+    return e.icon || '📄';
+  }
   function render() {
     if (!box) return;
     var keep = selected.map(function (e) { return e.ref; }), gp = me ? null : guestPos();
@@ -42,7 +49,7 @@
       el.setAttribute('role', 'option');
       el.tabIndex = -1;
       el.title = e.name + (e.external ? '\n' + (e.host || e.url) : e.broken ? '\nZiel fehlt' : '');
-      el.innerHTML = '<span class="g">' + (e.thumb ? '<img src="' + esc(e.thumb) + '" alt="" loading="lazy">' : esc(e.icon || '📄')) +
+      el.innerHTML = '<span class="g">' + (e.thumb ? '<img src="' + esc(e.thumb) + '" alt="" loading="lazy">' : W.ico(iconOf(e))) +
         (e.kind === 'shortcut' || e.kind === 'link' || e.link ? '<i class="lnk" aria-hidden="true"></i>' : '') +
         (shared(e) ? '<i class="shr" title="Für andere sichtbar">👥</i>' : '') +
         (e.isNew ? '<i class="neu">NEU</i>' : '') + (e.broken ? '<i class="brk" aria-hidden="true">✕</i>' : '') + '</span>' +
@@ -461,6 +468,7 @@
     var min = read('lobby-widget-min') === '1';
     lw.classList.toggle('collapsed', min);
     lw.querySelector('[data-lw=min]').setAttribute('aria-expanded', !min);
+    if (R.placePanel) R.placePanel(lw);
     poll();
   }
   function poll() {
@@ -477,7 +485,7 @@
     if (!list.length) { el.innerHTML = '<p class="lob-empty">Gerade ist nichts offen. Mach doch selbst eine auf!</p>'; return; }
     function row(l) {
       var who = l.max ? l.players + '/' + l.max : l.players + (l.players === 1 ? ' Person' : ' Leute');
-      return '<div class="lob"><span class="ic">' + esc(l.icon) + '</span><span class="nm" title="' + esc(l.name) + '">' + esc(l.name) + '</span>' +
+      return '<div class="lob"><span class="ic">' + W.ico(l.icon) + '</span><span class="nm" title="' + esc(l.name) + '">' + esc(l.name) + '</span>' +
         '<button type="button" class="small" data-join="' + esc(l.url) + '">' + (l.mine ? 'Zurück' : 'Beitreten') + '</button>' +
         '<span class="sub">' + esc(l.what) + ' · ' + esc(who) + (l.status ? ' · ' + esc(l.status) : '') +
         (l.friends.length ? ' · <span class="fr">⭐ ' + esc(l.friends.join(', ')) + '</span>' : '') + '</span></div>';
@@ -487,6 +495,8 @@
       (rest.length ? (fr.length ? '<div class="lob-group">Alle anderen</div>' : '') + rest.map(row).join('') : '');
   }
   if (lw) {
+    // An der Titelleiste verschieben; der Platz bleibt im Browser gespeichert
+    if (R.dragPanel) R.dragPanel(lw, lw.querySelector('.titlebar'), 'lobby-widget-pos');
     lw.addEventListener('click', function (ev) {
       var b = ev.target.closest('button');
       if (!b) return;
@@ -530,7 +540,7 @@
       html += '<h4>' + esc(g.label) + (g.more ? ' <a href="/suche?q=' + encodeURIComponent(q) + '&amp;nur=' + esc(g.key) + '">mehr …</a>' : '') + '</h4>';
       g.items.forEach(function (it) {
         var i = hits.push(it) - 1;
-        html += '<div class="r" role="option" data-i="' + i + '">' + (it.thumb || it.avatar ? '<img class="ic" src="' + esc(it.thumb || it.avatar) + '" alt="">' : '<span class="ic">' + esc(it.icon) + '</span>') +
+        html += '<div class="r" role="option" data-i="' + i + '">' + (it.thumb || it.avatar ? '<img class="ic" src="' + esc(it.thumb || it.avatar) + '" alt="">' : '<span class="ic">' + W.ico(it.icon) + '</span>') +
           '<span class="w">' + mark(it.name, q) + '</span>' + (it.sub ? '<small>' + esc(it.sub) + '</small>' : '') + (it.external ? '<small>↗</small>' : '') + '</div>';
       });
     });
@@ -539,8 +549,10 @@
     paintHits();
     sOpen(true);
   }
-  function go(it) { sOpen(false); sIn.blur(); sBox.classList.remove('open'); if (it.external) D.openExternal(it.url); else R.open(it.url, true); }
-  function all() { var q = sIn.value.trim(); sOpen(false); sBox.classList.remove('open'); R.open(q ? '/suche?q=' + encodeURIComponent(q) : '/suche', true); }
+  // Nach der Auswahl ist die Suche wieder leer, wie bei Windows
+  function reset() { clearTimeout(sTimer); sSeq++; sOpen(false); sIn.value = ''; hits = []; hl = -1; sRes.innerHTML = ''; sIn.blur(); sBox.classList.remove('open'); }
+  function go(it) { reset(); if (it.external) D.openExternal(it.url); else R.open(it.url, true); }
+  function all() { var q = sIn.value.trim(); reset(); R.open(q ? '/suche?q=' + encodeURIComponent(q) : '/suche', true); }
   function focusSearch() {
     if (!sIn) return false;
     closeStart();
@@ -567,14 +579,14 @@
         hl = (hl + (k.key === 'ArrowDown' ? 1 : hits.length - 1)) % hits.length;
         paintHits();
       } else if (k.key === 'Enter') { k.preventDefault(); if (hl >= 0 && hits[hl] && !sPop.hidden) go(hits[hl]); else all(); }
-      else if (k.key === 'Escape') { k.preventDefault(); sOpen(false); sIn.value = ''; sIn.blur(); sBox.classList.remove('open'); }
+      else if (k.key === 'Escape') { k.preventDefault(); reset(); }
     });
     sIn.addEventListener('focus', function () { if (hits.length && sIn.value.trim().length >= 2) sOpen(true); });
     sIn.addEventListener('blur', function () { setTimeout(function () { if (document.activeElement !== sIn && sPop.hidden) sBox.classList.remove('open'); }, 150); });
     sBox.querySelector('.tb-search-btn').addEventListener('click', function (e) { e.stopPropagation(); if (sBox.classList.contains('open') && sIn.value.trim()) all(); else focusSearch(); });
     sRes.addEventListener('click', function (e) {
       var a = e.target.closest('a');
-      if (a) { e.preventDefault(); sOpen(false); sBox.classList.remove('open'); R.open(a.getAttribute('href'), true); return; }
+      if (a) { e.preventDefault(); reset(); R.open(a.getAttribute('href'), true); return; }
       var r = e.target.closest('.r');
       if (r) go(hits[Number(r.dataset.i)]);
     });

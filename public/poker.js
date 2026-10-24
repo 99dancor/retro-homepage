@@ -210,7 +210,8 @@
         '<div class="pk-hole">' + (s.cards.length ? cards(s.cards) : '') + (s.best && !s.folded ? '<div class="pk-best">' + esc(s.best) + '</div>' : '') + '</div>' +
         K.plaque({ p: s, host: st.hostId === s.id, turn: turn, left: turnLeft(st), total: rules().turn * 1000, tags: tags, line: euro(s.chips), note: note }) + '</div>';
       if (s.bet) {
-        var b = spot(slot, st.seatCount, .55);
+        // Oben und unten liegen die Karten zwischen Platz und Mitte, dort rückt der Einsatz weiter nach innen
+        var b = spot(slot, st.seatCount, .55 - .2 * Math.abs(Math.sin(Math.PI / 2 + slot * 2 * Math.PI / st.seatCount)));
         html += '<div class="pk-bet" style="left:' + b.x.toFixed(1) + '%;top:' + b.y.toFixed(1) + '%">' + chip(s.bet) + ' ' + euro(s.bet) + '</div>';
       }
       return html;
@@ -259,15 +260,15 @@
     // Die Leiste mit den Zügen wird nur neu gebaut, wenn sich dafür etwas ändert, damit der Regler beim Ziehen nicht springt
     function renderBar(s, seat) {
       var o = s.options;
-      var sig = JSON.stringify([!!seat, seat && seat.inHand, seat && seat.chips, s.phase, o, s.pot, s.hand, s.street, s.manual, s.hostId, s.host]);
+      // Startet der Gastgeber, gibt sein Klick die nächste Hand (auch schon, während das Ergebnis noch zu sehen ist)
+      var deal = s.manual && s.phase !== 'playing' && s.seats.filter(function (x) { return x && x.chips > 0 && !x.sittingOut && !x.leaving; }).length >= 2;
+      var sig = JSON.stringify([!!seat, seat && seat.inHand, seat && seat.chips, s.phase, o, s.pot, s.hand, s.street, s.manual, s.hostId, s.host, deal, s.seats.some(function (x) { return !x; })]);
       if (sig === tab.barSig) return;
       tab.barSig = sig;
       var bar = $('pk-bar'), html;
       if (!seat) html = '<span>' + (s.seats.some(function (x) { return !x; }) ? 'Klick auf „🪑 Platz frei“, um mitzuspielen. Du bringst dein Geld aus der Kasse mit.' : 'Alle Plätze sind besetzt. Du siehst zu.') + '</span>';
       else if (!o) {
         var t = s.turn && s.seats[s.turn.seat];
-        // Startet der Gastgeber, gibt sein Klick die nächste Hand (auch schon, während das Ergebnis noch zu sehen ist)
-        var deal = s.manual && s.phase !== 'playing' && s.seats.filter(function (x) { return x && x.chips > 0 && !x.sittingOut && !x.leaving; }).length >= 2;
         html = s.phase === 'playing' ? (seat.inHand && !seat.folded ? (t ? esc(t.name) + ' ist dran …' : 'Karten werden aufgedeckt …') : 'Du bist in dieser Hand nicht dabei.') :
           s.phase === 'showdown' ? 'Hand ' + s.hand + ' ist vorbei.' + (s.manual ? '' : ' Gleich kommt die nächste.') : seat.chips ? (deal ? 'Zwischen zwei Händen.' : 'Warten auf die nächste Hand …') : 'Du hast keine Chips mehr.';
         html = '<div class="bj-row"><span>' + html + '</span>' + (deal ? K.start(s.phase === 'showdown' ? 'Nächste Hand' : 'Geben', 'die nächste Hand') : '') + '</div>';

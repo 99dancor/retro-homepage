@@ -274,7 +274,8 @@
       var ex = bar.querySelector('.extra');
       if (ex) ex.textContent = extra;
     }
-    function queue() { if (!queued) { queued = true; (w.iframe.contentWindow.requestAnimationFrame || setTimeout)(sync); } }
+    // Beim Schließen oder Verlassen der Seite kann der Beobachter noch einmal feuern, wenn das Fenster schon weg ist
+    function queue() { var cw = w.iframe.contentWindow; if (!queued && cw) { queued = true; (cw.requestAnimationFrame || setTimeout)(sync); } }
     if (window.MutationObserver) new MutationObserver(queue).observe(doc.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'class', 'style', 'data-status'] });
     sync();
   }

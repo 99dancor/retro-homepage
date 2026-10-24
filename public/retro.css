@@ -739,18 +739,21 @@ html.scheme-nacht .neg, html.scheme-kontrast .neg { color: #ff8a8a; }
 .bj-label { font-weight: bold; letter-spacing: 2px; opacity: .8; font-size: 1em; margin-bottom: 4px; }
 .bj-motto { position: absolute; left: 0; right: 0; top: calc(40px + var(--c) * 1.65); text-align: center; font: italic .9em Georgia, serif; opacity: .65; }
 .bj-cards { display: inline-flex; vertical-align: middle; padding-right: calc(var(--c) * .32); }
-.bj-card { width: var(--c); height: calc(var(--c) * 1.41); margin-right: calc(var(--c) * -.32); background: #fff; color: #000; border: 1px solid #333; border-radius: calc(var(--c) * .09); position: relative;
-  font: bold calc(var(--c) * .32)/1.05 Georgia, serif; box-shadow: 2px 2px 0 rgba(0,0,0,.35); animation: bj-deal .25s ease-out both; flex: none; }
+.bj-card { width: var(--c); height: calc(var(--c) * 1.41); margin-right: calc(var(--c) * -.32); background: linear-gradient(160deg, #fff 55%, #eeebe4); color: #1a1a1a;
+  border: 1px solid rgba(0,0,0,.22); border-radius: calc(var(--c) * .1); position: relative; font: 700 calc(var(--c) * .31)/1.05 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  box-shadow: 0 1px 1px rgba(0,0,0,.25), 0 3px 8px rgba(0,0,0,.28); animation: bj-deal .25s ease-out both; flex: none; }
 .bj-card .r { position: absolute; left: 8%; top: 4%; text-align: center; }
 .bj-card .s { position: absolute; right: 8%; bottom: 2%; font-size: 1.6em; }
-.bj-card.red { color: #c00000; }
-.bj-card.back { background: var(--back, repeating-linear-gradient(45deg, var(--title-from) 0 4px, var(--title-to) 4px 8px)); border: 3px solid #fff; outline: 1px solid #333; }
+.bj-card.red { color: #d0161b; }
+.bj-card.back { background: var(--back, repeating-linear-gradient(45deg, var(--title-from) 0 4px, var(--title-to) 4px 8px)); border: 3px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.28), 0 3px 8px rgba(0,0,0,.28); }
 @keyframes bj-deal { from { transform: translateY(-14px) rotate(-6deg); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .bj-card { animation: none; } }
-.bj-badge { display: inline-block; background: #000; color: #ff0; font: bold .9em var(--font); padding: 1px 6px; border-radius: 9px; vertical-align: middle; white-space: nowrap; }
-.bj-badge.win, .bj-badge.blackjack { background: #ffd700; color: #000; }
-.bj-badge.lose, .bj-badge.bust { background: #7a0000; color: #fff; }
-.bj-badge.push { background: #555; color: #fff; }
+.bj-badge { display: inline-block; background: rgba(12,14,20,.78); color: #ffe066; font: 600 .85em/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 1px 9px; border-radius: 999px;
+  vertical-align: middle; white-space: nowrap; box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 2px 6px rgba(0,0,0,.35); }
+.bj-badge.win, .bj-badge.blackjack { background: linear-gradient(180deg, #ffe36e, #f4b400); color: #3a2a00; }
+.bj-badge.lose, .bj-badge.bust { background: linear-gradient(180deg, #e0453a, #a3170f); color: #fff; }
+.bj-badge.push { background: linear-gradient(180deg, #8a93a3, #5b6372); color: #fff; }
 .bj-seat { position: absolute; transform: translateX(-50%); width: 19%; min-width: 120px; text-align: center; top: 46%; }
 .bj-seat.empty { opacity: .8; }
 .bj-free { font-style: italic; opacity: .6; }
@@ -811,7 +814,7 @@ button.bj-chip:focus-visible { outline: 2px solid #ffd700; outline-offset: 2px; 
 .pk-board { min-height: calc(var(--c) * 1.41); }
 .pk-board .bj-card { margin-right: calc(var(--c) * .1); }
 .pk-board .bj-cards { padding-right: 0; }
-.pk-pot { background: rgba(0,0,0,.45); padding: 1px 10px; border-radius: 9px; }
+.pk-pot { background: rgba(10,12,18,.55); padding: 2px 12px; border-radius: 999px; box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset; font-weight: 600; }
 .pk-result { text-shadow: 1px 1px #000; font-weight: bold; color: #ffd700; }
 .pk-seat { position: absolute; transform: translate(-50%, -50%); width: 17%; min-width: 96px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 1px;
   padding: 3px 2px; border-radius: 8px; background: rgba(0,0,0,.28); }
@@ -823,7 +826,7 @@ button.bj-chip:focus-visible { outline: 2px solid #ffd700; outline-offset: 2px; 
 .pk-seat.won { box-shadow: 0 0 0 2px #ffd700, 0 0 12px #ffd700; }
 .pk-hole { min-height: calc(var(--c) * 1.41); }
 .pk-act { min-height: 1.2em; font-size: .9em; opacity: .9; text-shadow: 1px 1px #000; }
-.pk-best { font-size: .85em; background: #000; color: #ff0; padding: 0 6px; border-radius: 9px; }
+.pk-best { font-size: .85em; background: rgba(12,14,20,.78); color: #ffe066; padding: 0 8px; border-radius: 999px; }
 .pk-bet { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; text-shadow: 1px 1px #000; font-weight: bold; }
 .pk-bet .bj-chip { --d: calc(var(--c) * .5); }
 .pk-button { position: absolute; transform: translate(-50%, -50%); width: calc(var(--c) * .45); height: calc(var(--c) * .45); min-width: 18px; min-height: 18px; border-radius: 50%;
@@ -869,8 +872,8 @@ button.bj-chip:focus-visible { outline: 2px solid #ffd700; outline-offset: 2px; 
 .dk-hand .bj-card { cursor: pointer; transition: transform .1s; margin-right: calc(var(--c) * -.12); }
 .dk-hand .bj-card.ok:hover, .dk-hand .bj-card.ok:focus-visible { transform: translateY(-8px); z-index: 1; outline: 0; }
 .dk-hand .bj-card.dim { filter: brightness(.82); cursor: default; }
-.dk-hand .bj-card.trump { box-shadow: 2px 2px 0 rgba(0,0,0,.35), inset 0 -4px 0 #ffd700; }
-.dk-hand .bj-card.picked { transform: translateY(-14px); box-shadow: 0 0 0 3px #ff0, 2px 2px 0 rgba(0,0,0,.35); z-index: 2; }
+.dk-hand .bj-card.trump { box-shadow: 0 3px 8px rgba(0,0,0,.28), inset 0 -4px 0 #f4b400; }
+.dk-hand .bj-card.picked { transform: translateY(-14px); box-shadow: 0 0 0 3px #ffe066, 0 8px 16px rgba(0,0,0,.4); z-index: 2; }
 @media (max-width: 760px) {
   .dk-felt { --c: clamp(20px, min(6.5cqw, 8.5cqh), 54px); }
   .dk-center { width: 74%; }
@@ -1596,8 +1599,10 @@ tr.me td { background: #ffffcc; color: #000; }
     linear-gradient(180deg, var(--wood-hi, #b98250), var(--wood-lo, #6b4321));
   box-shadow: 0 10px 24px rgba(0,0,0,.6), inset 0 2px 1px rgba(255,255,255,.3), inset 0 -3px 2px rgba(0,0,0,.5); }
 .ks-tisch .bj-felt::after { inset: calc(4% + var(--rim, 16px)) calc(2.5% + var(--rim, 16px)); border-radius: calc(var(--ks-r, 120px) - var(--rim, 16px));
-  background: var(--felt-pat, none), radial-gradient(ellipse at 50% 35%, var(--felt-hi, #1f7a3a), var(--felt-lo, #0d4d22) 80%);
-  box-shadow: inset 0 0 0 2px rgba(0,0,0,.35), inset 0 6px 18px rgba(0,0,0,.55);
+  background: radial-gradient(ellipse 55% 42% at 50% 34%, rgba(255,255,255,.09), transparent 72%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,.022) 0 1px, transparent 1px 3px), repeating-linear-gradient(-45deg, rgba(0,0,0,.045) 0 1px, transparent 1px 3px),
+    var(--felt-pat, none), radial-gradient(ellipse at 50% 35%, var(--felt-hi, #1f7a3a), var(--felt-lo, #0d4d22) 80%);
+  box-shadow: inset 0 0 0 2px rgba(0,0,0,.35), inset 0 8px 28px rgba(0,0,0,.6), inset 0 -2px 10px rgba(0,0,0,.35);
   outline: 2px solid var(--inlay, #e2c06a); outline-offset: calc(var(--rim, 16px) / 2 - 1px); }
 .ks-layer { position: absolute; inset: 0; pointer-events: none; }
 .ks-orn { position: absolute; width: calc(var(--rim, 16px) * 3.2); height: calc(var(--rim, 16px) * 1.3); }
@@ -1667,8 +1672,9 @@ tr.me td { background: #ffffcc; color: #000; }
 .ks-dock-x .ks-tsep { margin: 2px 4px 2px 0; }
 .ks-dock-x button { padding: 4px 8px; white-space: nowrap; }
 
-/* Platz-Plakette: Bild im grauen Rahmen mit Abzeichen, darunter ein graues Namensschild. Wer dran ist, hat ein blaues
-   Schild wie ein aktives Fenster und darunter die Bedenkzeit als Fortschrittsbalken; wer nicht mitspielt, ist grau. */
+/* Platz-Plakette: rundes Bild mit hellem Ring und Abzeichen, darunter ein Namensschild aus dunklem Glas. Wer dran ist,
+   hat ein leuchtendes Schild in der Farbe der Titelleiste und darunter die Bedenkzeit als schmalen Balken; wer nicht
+   mitspielt, ist blass. */
 .ks-room .pk-seat { width: auto; min-width: 0; padding: 0; gap: 4px; background: none; border-radius: 0; z-index: 2; }
 /* Oben am Tisch hängt die Plakette am Platz und die Karten darunter, sonst ragt das Bild über den Rand */
 .ks-room .pk-seat.up { flex-direction: column-reverse; transform: translate(-50%, -46px); }
@@ -1677,30 +1683,42 @@ tr.me td { background: #ffffcc; color: #000; }
 .ks-room .bj-seat { width: auto; min-width: 0; display: flex; flex-direction: column; align-items: center; z-index: 2; }
 .ks-room .pk-best { margin-top: 3px; }
 .ks-plaque { position: relative; display: flex; flex-direction: column; align-items: center; --face: clamp(30px, calc(var(--c, 40px) * .82), 50px); }
-.ks-face { position: relative; display: inline-flex; flex: none; width: var(--face, 40px); height: var(--face, 40px); background: var(--win);
-  box-shadow: 0 0 0 1px var(--dark), 0 0 0 3px var(--win), 0 0 0 4px #000, 3px 3px 0 4px rgba(0,0,0,.45); margin: 4px; }
-.ks-face .ks-ava { width: 100%; height: 100%; border-radius: 0; box-shadow: none; font-size: calc(var(--face, 40px) * .5); }
-.ks-crown { position: absolute; left: -.75em; top: -.95em; font-size: calc(var(--face, 40px) * .38); font-style: normal; line-height: 1; filter: drop-shadow(1px 1px 1px rgba(0,0,0,.6)); }
+.ks-face { position: relative; display: inline-flex; flex: none; width: var(--face, 40px); height: var(--face, 40px); border-radius: 30%; background: #2b2f3a;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 0 0 3px rgba(0,0,0,.35), 0 6px 14px rgba(0,0,0,.45); margin: 4px; }
+.ks-face .ks-ava { width: 100%; height: 100%; border-radius: inherit; box-shadow: none; font-size: calc(var(--face, 40px) * .5); }
+.ks-crown { position: absolute; left: -.75em; top: -.95em; font-size: calc(var(--face, 40px) * .38); font-style: normal; line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
 .ks-tags { position: absolute; right: -12px; bottom: -7px; display: flex; gap: 2px; }
-.ks-tag { padding: 2px 3px; font: bold 10px/1 var(--font); font-style: normal; white-space: nowrap; background: #fff; color: #000; border: 1px solid #000; text-shadow: none; }
-.ks-plate, .pk-seat .ks-plate, .bj-seat .ks-plate { display: block; min-width: 76px; max-width: 150px; margin-top: 4px; padding: 2px 8px 3px; line-height: 1.2; text-align: center;
-  font-weight: normal; text-shadow: none; text-decoration: none; background: var(--win); color: var(--text);
-  box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--lo), 2px 2px 0 rgba(0,0,0,.45); }
-.ks-plate b { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ks-plate small { display: block; font-size: 11px; white-space: nowrap; }
-.pk-seat .ks-plate:hover, .bj-seat .ks-plate:hover { background: var(--win); }
-.pk-seat.turn .ks-plate, .bj-seat.turn .ks-plate { background: linear-gradient(90deg, var(--title-from), var(--title-to)); color: #fff; }
+.ks-tag { padding: 2px 5px; font: 700 10px/1 system-ui, -apple-system, "Segoe UI", sans-serif; font-style: normal; white-space: nowrap; background: #fff; color: #1a1a1a;
+  border-radius: 999px; text-shadow: none; box-shadow: 0 1px 4px rgba(0,0,0,.45); }
+.ks-plate, .pk-seat .ks-plate, .bj-seat .ks-plate { display: block; min-width: 76px; max-width: 150px; margin-top: 5px; padding: 3px 10px 4px; line-height: 1.2; text-align: center;
+  font-weight: normal; text-shadow: none; text-decoration: none; border: 0; border-radius: 10px; background: rgba(14,17,24,.72); color: #fff;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 4px 12px rgba(0,0,0,.4); }
+.ks-plate b { display: block; font: 600 12px/1.25 system-ui, -apple-system, "Segoe UI", sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ks-plate small { display: block; font: 11px/1.25 system-ui, -apple-system, "Segoe UI", sans-serif; white-space: nowrap; opacity: .8; }
+button.ks-plate:hover, .pk-seat .ks-plate:hover, .bj-seat .ks-plate:hover { background: rgba(30,35,48,.82); }
+button.ks-plate:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.pk-seat.turn .ks-plate, .bj-seat.turn .ks-plate { background: linear-gradient(135deg, var(--title-from), var(--title-to)); color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.3), 0 0 0 2px rgba(255,255,255,.18), 0 0 18px 2px var(--title-to); }
+.pk-seat.turn .ks-plate small, .bj-seat.turn .ks-plate small { opacity: 1; }
+.ks-room .pk-seat.mine .bj-name, .ks-room .bj-seat.mine .bj-name { text-decoration: none; }
+/* Der Dealer sitzt am Kopf des Tisches auf dem Filz, nicht auf dem Holz */
+.ks-room .bj-dealer { top: calc(4% + var(--rim, 16px) + 8px); }
+.ks-room .bj-motto { top: calc(4% + var(--rim, 16px) + 44px + var(--c) * 1.65); }
+.ks-room .bj-hand.active { outline: 0; border-radius: 12px; background: rgba(255,255,255,.07); box-shadow: 0 0 0 2px rgba(255,224,102,.85), 0 0 20px rgba(255,224,102,.3); }
 .pk-seat.folded .ks-ava, .pk-seat.out .ks-ava, .bj-seat.out .ks-ava { filter: grayscale(1) brightness(.75); }
-.pk-seat.folded .ks-plate, .pk-seat.out .ks-plate, .bj-seat.out .ks-plate { color: #808080; text-shadow: 1px 1px var(--hi); }
-.pk-seat.won .ks-face { box-shadow: 0 0 0 1px var(--dark), 0 0 0 3px #ffd700, 0 0 0 4px #000, 0 0 16px 4px #ffd700; }
-.dk-seat.lost .ks-face { box-shadow: 0 0 0 1px var(--dark), 0 0 0 3px #ff5050, 0 0 0 4px #000, 0 0 16px 4px #ff5050; }
-.ks-prog { display: block; width: 80px; height: 11px; margin-top: 3px; padding: 2px; background: var(--field); box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi), 2px 2px 0 rgba(0,0,0,.45); }
-.ks-prog i { display: block; height: 100%; width: var(--p, 100%); background: repeating-linear-gradient(90deg, var(--title-from) 0 5px, transparent 5px 7px); animation: ks-drain linear forwards; }
-@keyframes ks-drain { from { width: var(--p, 100%); } to { width: 0; } }
-.ks-note { margin-top: 2px; font-size: .85em; white-space: nowrap; color: #fff; text-shadow: 1px 1px #000; }
-.ks-free { display: inline-flex; flex-direction: column; align-items: center; min-width: 0; padding: 3px 10px 4px; font-size: 12px; line-height: 1.25; }
+.pk-seat.folded .ks-plate, .pk-seat.out .ks-plate, .bj-seat.out .ks-plate { color: rgba(255,255,255,.5); background: rgba(14,17,24,.45); }
+.pk-seat.won .ks-face { box-shadow: 0 0 0 2px #ffe066, 0 0 0 3px rgba(0,0,0,.35), 0 0 18px 5px #ffd700; }
+.dk-seat.lost .ks-face { box-shadow: 0 0 0 2px #ff6b5e, 0 0 0 3px rgba(0,0,0,.35), 0 0 18px 5px #ff5050; }
+.ks-prog { display: block; width: 72px; height: 5px; margin-top: 5px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,.2); box-shadow: 0 1px 3px rgba(0,0,0,.45); }
+.ks-prog i { display: block; height: 100%; width: var(--p, 100%); border-radius: inherit; background: #5ad17a; animation: ks-drain linear forwards; }
+@keyframes ks-drain { from { width: var(--p, 100%); } 70% { background: #f2c94c; } to { width: 0; background: #eb5757; } }
+.ks-note { margin-top: 2px; font-size: .85em; white-space: nowrap; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.ks-free { display: inline-flex; flex-direction: column; align-items: center; min-width: 0; padding: 4px 12px 5px; font-size: 12px; line-height: 1.25; }
 .ks-free > span { font-size: 20px; }
-span.ks-free { color: rgba(255,255,255,.55); box-shadow: 0 0 0 1px rgba(255,255,255,.3); padding: 6px 10px; font-style: italic; white-space: nowrap; }
+button.ks-free { border: 1px dashed rgba(255,255,255,.55); border-radius: 12px; background: rgba(14,17,24,.35); color: #fff; box-shadow: none; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+button.ks-free:hover { background: rgba(14,17,24,.55); border-color: #fff; }
+button.ks-free:active { box-shadow: none; }
+span.ks-free { color: rgba(255,255,255,.55); border: 1px dashed rgba(255,255,255,.3); border-radius: 999px; padding: 6px 12px; font-style: italic; white-space: nowrap; }
 
 /* Dinge auf dem Holz: rechts das Getränk auf dem Untersetzer, links der Glücksbringer oder das Tier auf seinem Platz */
 .ks-at { position: absolute; transform: translate(-50%, -50%); }

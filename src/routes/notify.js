@@ -1,5 +1,5 @@
 'use strict';
-// Benachrichtigungen: Liste (🔔 neben der Uhr und /benachrichtigungen), Einstellungen in den Kontoeinstellungen,
+// Benachrichtigungen: Liste (🔔 neben der Uhr und /benachrichtigungen), Einstellungen unter Konto und Passwort,
 // Push-Geräte und der Service Worker, der Push-Nachrichten anzeigt.
 const path = require('node:path');
 const express = require('express');
@@ -42,11 +42,12 @@ router.post('/benachrichtigungen/loeschen', auth.requireLogin, (req, res) => {
 // ---------- Einstellungen ----------
 router.post('/account/benachrichtigungen', auth.requireLogin, (req, res) => {
   notify.savePrefs(req.user.id, req.body);
-  res.redirect('/account?ok=notify#benachrichtigungen');
+  if (req.accepts(['html', 'json']) === 'json') return res.json({ ok: true });
+  res.redirect('/konto?reiter=benachrichtigungen&ok=notify#benachrichtigungen');
 });
 router.post('/account/geraete/:id/loeschen', auth.requireLogin, (req, res) => {
   notify.removeDevice(req.user.id, Number(req.params.id));
-  res.redirect('/account?ok=geraet#benachrichtigungen');
+  res.redirect('/konto?reiter=benachrichtigungen&ok=geraet#benachrichtigungen');
 });
 
 // ---------- Push ----------

@@ -3,9 +3,9 @@
 <div class="actions" style="margin-top:0">
   <% if (items.some(n => !n.read)) { %><form method="post" action="/benachrichtigungen/alle-gelesen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small">✔ Alle als gelesen markieren</button></form><% } %>
   <% if (items.length) { %><form method="post" action="/benachrichtigungen/loeschen" class="inline" data-confirm="Alle Benachrichtigungen löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">🗑 Alle löschen</button></form><% } %>
-  <a class="btn small" href="/account#benachrichtigungen">⚙️ Einstellungen</a>
+  <a class="btn small" href="/konto?reiter=benachrichtigungen#benachrichtigungen">⚙️ Einstellungen</a>
 </div>
-<% if (!items.length) { %><p class="muted">Noch keine Benachrichtigungen. Was du bekommst, stellst du in den <a href="/account#benachrichtigungen">Kontoeinstellungen</a> ein.</p><% } else { %>
+<% if (!items.length) { %><p class="muted">Noch keine Benachrichtigungen. Was du bekommst, stellst du unter <a href="/konto?reiter=benachrichtigungen#benachrichtigungen">Konto und Passwort</a> ein.</p><% } else { %>
 <div class="notify-page">
   <% for (const n of items) { %>
   <div class="notify-row<%= n.read ? '' : ' unread' %>">

@@ -11,7 +11,7 @@
     ['🗔 Fenster', 'Jede Seite öffnet sich als Fenster. Du kannst sie verschieben, an der Ecke größer ziehen, maximieren und über die Taskleiste wechseln.'],
     ['🔔 Neben der Uhr', 'Die 🔔 zeigt Benachrichtigungen, 🖥️ ändert Farben, Schrift und Hintergrund, 🔊 die Lautstärke.' + (user ? '' : ' Die 🔔 gibt es nach dem Anmelden.')],
     ['🎮 Spielen', 'Blackjack, Poker, Durak, UNO, Flip 7 und Pilli Pilli stehen unter <b>Spiele und Apps → Kartenspiele</b>, Minesweeper, das tägliche Kreuzworträtsel und Sudoku, Paint und mehr direkt unter <b>Spiele und Apps</b>, Pixelpfoten direkt im Startmenü. Mit Konto werden Spielstände und Statistik gespeichert.'],
-    user ? ['👤 Dein Konto', 'Unter <b>Mein Konto</b> findest du Profil, Nachrichten und die Kontoeinstellungen. Dort stellst du auch ein, welche Benachrichtigungen du bekommst, auf Wunsch als Push aufs Handy.']
+    user ? ['👤 Dein Konto', 'Unter <b>Mein Konto</b> findest du dein Profil, den Messenger (im XP-Design ICU, im 98-Design DSN) mit Freunden und Nachrichten, und <b>Konto und Passwort</b>. Dort stellst du auch ein, wer dich sieht und welche Benachrichtigungen du bekommst, auf Wunsch als Push aufs Handy.']
       : ['🔑 Mitmachen', 'Mit einem Konto kannst du im Forum schreiben, Freunde finden und Benachrichtigungen bekommen. Anmelden und Registrieren findest du unten im Startmenü.'],
   ];
   var i = 0;

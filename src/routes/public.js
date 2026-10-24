@@ -9,7 +9,6 @@ const mail = require('../mail');
 const notify = require('../notify');
 const up = require('../uploads');
 const { md } = require('../util');
-const GAMES = require('../games');
 const privacy = require('../privacy');
 const profiles = require('../profiles');
 const { FONTS } = require('../themes');
@@ -353,50 +352,6 @@ router.post('/register', auth.rateLimit('reg', 5, 3600), (req, res, next) => {
   notify.toAdmins('👤 Neue Registrierung: ' + username, 'Ein neues Mitglied hat sich angemeldet.', '/nutzer/' + encodeURIComponent(username), 'admin:register');
   auth.startSession(req, res, id);
   res.redirect(localPath(req.body.next) || '/');
-});
-
-// Meldungen nach den Profil-Formularen (src/routes/profiles.js), die dorthin zurückleiten
-const ACCOUNT_MSG = {
-  ok: { profil: 'Profil gespeichert.', bild: 'Profilbild gespeichert.', bildweg: 'Profilbild entfernt.', notify: 'Benachrichtigungen gespeichert.', geraet: 'Gerät abgemeldet.' },
-  err: {
-    name: 'Der Anzeigename braucht 2 bis 32 Zeichen, ohne < und >.',
-    taken: 'Diesen Namen benutzt schon jemand anderes.',
-    big: 'Das Bild ist zu groß (höchstens 2 MB).',
-    bild: 'Das ist kein Bild, das hier geht (PNG, JPEG, GIF oder WebP).',
-    quadrat: 'Das Profilbild muss quadratisch sein. Beim Hochladen schneidet die Seite es zu, dafür braucht dein Browser JavaScript.',
-  },
-};
-function renderAccount(req, res, msg, err) {
-  const saves = db.prepare(`SELECT s.app_slug, s.slot, s.updated_at, length(CAST(s.data AS BLOB)) AS size, a.title
-                            FROM game_saves s LEFT JOIN apps a ON a.slug = s.app_slug
-                            WHERE s.user_id = ? ORDER BY a.title, s.app_slug, s.slot`).all(req.user.id);
-  for (const s of saves) {
-    if (Object.hasOwn(GAMES, s.app_slug)) { s.title = GAMES[s.app_slug].title; s.url = `/${s.app_slug}/`; }
-    else if (s.title) s.url = `/apps/${s.app_slug}`;
-  }
-  res.render('account', {
-    title: 'Kontoeinstellungen', msg, err, saves,
-    profile: db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id),
-    profileVis: profiles.PROFILE_VIS, pmFrom: profiles.PM_FROM, gbFrom: profiles.GB_FROM,
-    notifyKinds: notify.kindsFor(req.user), notifyPrefs: notify.prefs(req.user.id), devices: notify.devices(req.user.id),
-  });
-}
-const pick = (map, key) => (typeof key === 'string' && Object.hasOwn(map, key) ? map[key] : null);
-router.get('/account', auth.requireLogin, (req, res) => renderAccount(req, res, pick(ACCOUNT_MSG.ok, req.query.ok), pick(ACCOUNT_MSG.err, req.query.err)));
-router.post('/account/saves/delete', auth.requireLogin, (req, res) => {
-  db.prepare('DELETE FROM game_saves WHERE user_id = ? AND app_slug = ? AND slot = ?')
-    .run(req.user.id, String(req.body.app || ''), String(req.body.slot || ''));
-  renderAccount(req, res, 'Spielstand gelöscht.', null);
-});
-router.post('/account', auth.requireLogin, (req, res) => {
-  const u = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-  const render = (msg, err) => renderAccount(req, res, msg, err);
-  if (!auth.checkPassword(String(req.body.current || ''), u.password_hash)) return render(null, 'Aktuelles Passwort ist falsch.');
-  if (!auth.validPassword(req.body.password)) return render(null, 'Neues Passwort muss mindestens 8 Zeichen haben.');
-  if (req.body.password !== req.body.password2) return render(null, 'Die Passwörter stimmen nicht überein.');
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(auth.hashPassword(req.body.password), u.id);
-  db.prepare('DELETE FROM sessions WHERE user_id = ? AND id != ?').run(u.id, req.cookies.sid);
-  render('Passwort geändert.', null);
 });
 
 module.exports = router;

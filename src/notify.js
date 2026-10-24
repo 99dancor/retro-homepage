@@ -1,13 +1,14 @@
 'use strict';
 // Benachrichtigungen: landen hinter der 🔔 neben der Uhr, auf der Startseite und auf Wunsch als Push auf Handy
-// oder Browser. Was ein Mitglied bekommt, stellt es in den Kontoeinstellungen je Art ein.
+// oder Browser. Was ein Mitglied bekommt, stellt es unter Konto und Passwort → Benachrichtigungen je Art ein.
 const { db, now, getSetting } = require('./db');
 const webpush = require('./webpush');
 
 // Arten: Name in den Einstellungen, Vorgabe für Glocke und Push, nur für Admins?
 const KINDS = {
   friend: { label: '👥 Freundschaftsanfragen', site: true, push: true },
-  pm: { label: '💌 Privatnachrichten', site: true, push: true },
+  pm: { label: '💬 Nachrichten im Messenger (ICU/DSN)', site: true, push: true },
+  invite: { label: '🎲 Einladungen zu Spielen und Lobbys', site: true, push: true },
   board: { label: '💬 Antworten in abonnierten Forenthemen', site: true, push: true },
   highscore: { label: '🏆 Geknackte Rekorde', site: true, push: true },
   pet: { label: '🐾 Deine Pixelpfoten brauchen dich', site: true, push: true },

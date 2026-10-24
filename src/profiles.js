@@ -12,6 +12,13 @@ const profileUrl = username => '/nutzer/' + encodeURIComponent(username);
 const PROFILE_VIS = { public: 'Alle Besucher', members: 'Angemeldete Mitglieder', friends: 'Nur meine Freunde' };
 const PM_FROM = { all: 'Allen Mitgliedern', friends: 'Nur meinen Freunden' };
 const GB_FROM = { all: 'Allen Mitgliedern', friends: 'Nur meinen Freunden', off: 'Niemandem (Freundebuch aus)' };
+// Messenger (Konto und Passwort → Privatsphäre)
+const SEE_FROM = { members: 'Allen Mitgliedern', friends: 'Nur meinen Freunden', nobody: 'Niemandem' };
+const REQUEST_FROM = { all: 'Allen Mitgliedern', fof: 'Freunden meiner Freunde', nobody: 'Niemandem' };
+// Jedes Konto hat eine feste Nummer wie bei ICQ: 10 000 + Mitgliedsnummer, das erste Konto hat 10 001
+const NUMBER_BASE = 10000;
+const number = u => NUMBER_BASE + u.id;
+const fmtNumber = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
 // Anzeigename: 2–32 Zeichen, Leerzeichen zusammengefasst, keine unsichtbaren Steuerzeichen.
 // '' heißt zurück zum Benutzernamen, null ist ungültig.
@@ -30,6 +37,28 @@ function findUser(username) {
   return db.prepare('SELECT * FROM users WHERE username = ?').get(String(username || '')) || null;
 }
 
+// ---------- Ignorieren ----------
+// Wer jemanden ignoriert, bekommt von ihm keine Nachrichten, Anfragen, Einladungen und Freundebuch-Einträge mehr
+// und ist für ihn immer offline. Das gilt in beide Richtungen, damit nichts verrät, wer wen ignoriert.
+function blocked(aId, bId) {
+  if (!aId || !bId) return false;
+  return !!db.prepare('SELECT 1 FROM ignores WHERE (user_id = ? AND other_id = ?) OR (user_id = ? AND other_id = ?)').get(aId, bId, bId, aId);
+}
+const MAX_IGNORES = 200;
+function ignore(meId, otherId, on) {
+  if (!meId || !otherId || meId === otherId) return false;
+  if (!on) return db.prepare('DELETE FROM ignores WHERE user_id = ? AND other_id = ?').run(meId, otherId).changes > 0;
+  if (db.prepare('SELECT COUNT(*) AS n FROM ignores WHERE user_id = ?').get(meId).n >= MAX_IGNORES) return false;
+  db.prepare('INSERT OR IGNORE INTO ignores(user_id, other_id, created_at) VALUES (?, ?, ?)').run(meId, otherId, now());
+  // Freundschaft und offene Anfragen fallen weg
+  db.prepare('DELETE FROM friends WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)').run(meId, otherId, otherId, meId);
+  return true;
+}
+function ignored(userId) {
+  return db.prepare(`SELECT u.id, u.username, u.display_name, u.avatar, i.created_at FROM ignores i JOIN users u ON u.id = i.other_id
+                     WHERE i.user_id = ? ORDER BY i.created_at DESC`).all(userId);
+}
+
 // ---------- Freunde ----------
 // 'self' | 'none' | 'friends' | 'sent' (ich habe angefragt) | 'received' (ich wurde angefragt)
 function friendship(meId, otherId) {
@@ -46,12 +75,20 @@ const FRIEND_MSG = {
   freunde: 'Ihr seid jetzt Freunde.',
   voll: `Du hast schon ${MAX_PENDING} offene Anfragen. Warte, bis jemand antwortet.`,
   gesendet: 'Freundschaftsanfrage geschickt.',
+  nein: 'Dieses Mitglied nimmt gerade keine Anfragen von dir an.',
   abgelehnt: 'Anfrage abgelehnt.',
   zurueck: 'Anfrage zurückgezogen.',
   entfernt: 'Aus deinen Freunden entfernt.',
 };
-// Gibt den Schlüssel einer Meldung aus FRIEND_MSG zurück
-function friendAction(meId, otherId, action) {
+// Darf me other als Freund anfragen? (Konto und Passwort → Privatsphäre)
+function canRequest(meId, other) {
+  if (!meId || !other || meId === other.id || other.disabled || blocked(meId, other.id)) return false;
+  if (other.request_from === 'nobody') return false;
+  if (other.request_from === 'fof') return commonFriends(meId, other.id).length > 0;
+  return true;
+}
+// Gibt den Schlüssel einer Meldung aus FRIEND_MSG zurück. note: kurzer Satz zur Anfrage (bis 200 Zeichen)
+function friendAction(meId, otherId, action, note) {
   const st = friendship(meId, otherId);
   if (st === 'self') return null;
   const accept = () => db.prepare('UPDATE friends SET accepted = 1 WHERE user_id = ? AND friend_id = ?').run(otherId, meId);
@@ -60,10 +97,12 @@ function friendAction(meId, otherId, action) {
     case 'add':
       if (st === 'received') { accept(); return 'freunde'; }
       if (st !== 'none') return null;
+      if (!canRequest(meId, db.prepare('SELECT * FROM users WHERE id = ?').get(otherId))) return 'nein';
       if (db.prepare('SELECT COUNT(*) AS n FROM friends WHERE user_id = ? AND accepted = 0').get(meId).n >= MAX_PENDING) {
         return 'voll';
       }
-      db.prepare('INSERT INTO friends(user_id, friend_id, accepted, created_at) VALUES (?, ?, 0, ?)').run(meId, otherId, now());
+      db.prepare('INSERT INTO friends(user_id, friend_id, accepted, created_at, note) VALUES (?, ?, 0, ?, ?)')
+        .run(meId, otherId, now(), cleanNote(note));
       return 'gesendet';
     case 'accept':
       if (st === 'received') { accept(); return 'freunde'; }
@@ -75,6 +114,7 @@ function friendAction(meId, otherId, action) {
   }
 }
 
+const cleanNote = v => String(v ?? '').replace(/[\p{C}]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) || null;
 const USER_COLS = 'u.id, u.username, u.display_name, u.avatar, u.role';
 function friendsOf(userId) {
   return db.prepare(`SELECT ${USER_COLS} FROM friends f JOIN users u ON u.id = CASE WHEN f.user_id = ? THEN f.friend_id ELSE f.user_id END
@@ -82,7 +122,7 @@ function friendsOf(userId) {
                      ORDER BY COALESCE(u.display_name, u.username) COLLATE NOCASE`).all(userId, userId, userId);
 }
 function requestsTo(userId) {
-  return db.prepare(`SELECT ${USER_COLS}, f.created_at AS asked_at FROM friends f JOIN users u ON u.id = f.user_id
+  return db.prepare(`SELECT ${USER_COLS}, f.created_at AS asked_at, f.note FROM friends f JOIN users u ON u.id = f.user_id
                      WHERE f.friend_id = ? AND f.accepted = 0 AND u.disabled = 0 ORDER BY f.created_at DESC`).all(userId);
 }
 function requestsFrom(userId) {
@@ -90,10 +130,26 @@ function requestsFrom(userId) {
                      WHERE f.user_id = ? AND f.accepted = 0 AND u.disabled = 0 ORDER BY f.created_at DESC`).all(userId);
 }
 
+// Gemeinsame Freunde zweier Konten
+function commonFriends(aId, bId) {
+  const b = new Set(friendsOf(bId).map(f => f.id));
+  return friendsOf(aId).filter(f => b.has(f.id));
+}
+// Seit wann befreundet (Zeitpunkt der Anfrage), null wenn nicht
+function friendsSince(aId, bId) {
+  const r = db.prepare('SELECT created_at FROM friends WHERE accepted = 1 AND ((user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?))').get(aId, bId, bId, aId);
+  return r ? r.created_at : null;
+}
+// Pendingliste: was ich angefragt habe, mit Notiz für die Gegenseite
+function request(fromId, toId) {
+  return db.prepare('SELECT * FROM friends WHERE user_id = ? AND friend_id = ? AND accepted = 0').get(fromId, toId) || null;
+}
+
 // ---------- Wer darf was ----------
 function canViewProfile(viewer, target) {
   if (!target || (target.disabled && !(viewer && viewer.isAdmin))) return false;
   if (viewer && (viewer.isAdmin || viewer.id === target.id)) return true;
+  if (viewer && blocked(viewer.id, target.id)) return false;
   if (target.profile_visibility === 'public') return true;
   if (!viewer) return false;
   if (target.profile_visibility !== 'friends') return true;
@@ -102,6 +158,7 @@ function canViewProfile(viewer, target) {
 // Wer nur Nachrichten von Freunden möchte, kann trotzdem jedem antworten, der ihm geschrieben hat
 function canMessage(sender, target) {
   if (!sender || !target || sender.id === target.id || target.disabled) return false;
+  if (blocked(sender.id, target.id)) return false;
   if (sender.isAdmin || target.pm_from !== 'friends') return true;
   if (friendship(sender.id, target.id) === 'friends') return true;
   return !!db.prepare('SELECT 1 FROM private_messages WHERE from_id = ? AND to_id = ?').get(target.id, sender.id);
@@ -111,6 +168,7 @@ function canMessage(sender, target) {
 const MAX_GB = 2000;
 function canSign(viewer, target) {
   if (!viewer || !canViewProfile(viewer, target) || target.disabled || target.gb_from === 'off') return false;
+  if (blocked(viewer.id, target.id)) return false;
   if (viewer.isAdmin || viewer.id === target.id || target.gb_from !== 'friends') return true;
   return friendship(viewer.id, target.id) === 'friends';
 }
@@ -153,8 +211,10 @@ function thread(meId, otherId, limit = 200) {
 function markRead(meId, otherId) {
   db.prepare('UPDATE private_messages SET read_at = ? WHERE to_id = ? AND from_id = ? AND read_at IS NULL').run(now(), meId, otherId);
 }
-function sendMessage(fromId, toId, body) {
-  return Number(db.prepare('INSERT INTO private_messages(from_id, to_id, body, created_at) VALUES (?, ?, ?, ?)').run(fromId, toId, body, now()).lastInsertRowid);
+// kind: text | nudge (Anstupsen, ohne Text) | invite (Einladung, meta = { icon, what, name, url })
+function sendMessage(fromId, toId, body, kind = 'text', meta = null) {
+  return Number(db.prepare('INSERT INTO private_messages(from_id, to_id, body, created_at, kind, meta) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(fromId, toId, body, now(), kind, meta ? JSON.stringify(meta) : null).lastInsertRowid);
 }
 // Verlauf nur für mich löschen. Haben ihn beide gelöscht, verschwinden die Nachrichten ganz aus der Datenbank.
 function hideConversation(meId, otherId) {
@@ -400,7 +460,8 @@ function removeAvatar(name) {
 }
 
 module.exports = {
-  displayName, profileUrl, PROFILE_VIS, PM_FROM, GB_FROM, MAX_GB, canSign, guestbookOf, signGuestbook, deleteGuestbookEntry, cleanDisplayName, nameTaken, findUser,
+  displayName, profileUrl, PROFILE_VIS, PM_FROM, GB_FROM, SEE_FROM, REQUEST_FROM, number, fmtNumber, NUMBER_BASE, MAX_GB,
+  blocked, ignore, ignored, MAX_IGNORES, canRequest, commonFriends, friendsSince, request, cleanNote, canSign, guestbookOf, signGuestbook, deleteGuestbookEntry, cleanDisplayName, nameTaken, findUser,
   friendship, friendAction, FRIEND_MSG, friendsOf, requestsTo, requestsFrom, canViewProfile, canMessage,
   MAX_PM, unreadCount, conversations, thread, markRead, sendMessage, hideConversation,
   STARTS, recordStats, countStart, ownStats, gameStats,

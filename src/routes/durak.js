@@ -60,7 +60,7 @@ router.post('/tisch/:id', gate, loadTable, auth.rateLimit('dkctl', 300, 60), (re
   res.json({ ok: true });
 });
 
-// Bestenliste: Jeder wählt unter Systemsteuerung → Profil und Statistik, ob er mit Namen, anonym oder gar nicht drinsteht
+// Bestenliste: Jeder wählt unter Konto und Passwort → Statistik, ob er mit Namen, anonym oder gar nicht drinsteht
 router.get('/statistik', gate, (req, res) => {
   const board = us.boardList('durak', dk.leaderboard(), req.user).slice(0, 100).map(u => ({
     id: u.id, name: u.name, user: u.user, avatar: u.avatar, games: u.games, wins: u.wins, duraks: u.duraks,

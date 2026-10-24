@@ -7,7 +7,7 @@ function menu(user) {
   return [['blog', '/blog', '📝 Blog'],
     ['dokumente', '📂 Dokumente', [...(user ? [['eigene-dateien', '/eigene-dateien', '🗂️ Eigene Dateien'], ['notizblock', '/notizblock', '🗒️ Notizblock']] : []), ...(user && user.canUpload ? [['upload', '/files/upload', '📤 Datei hochladen']] : []), ['files', '/files', '📁 Downloads'], ['mods', '/mods', '🧩 Modlisten'], ['links', '/links', '🔗 Links'], ['galerie', '/galerie', '🖼️ Galerie']]],
     ['spiele', '🎮 Spiele und Apps', [['kartenspiele', '/kartenspiele', '🂡 Kartenspiele'], ['quiz', '/quiz', '❓ Quiz'], ['werwolf', '/werwolf', '🐺 Werwolf'], ['minesweeper', '/minesweeper', '💣 Minesweeper'], ['kreuzwortraetsel', '/kreuzwortraetsel', '📰 Kreuzworträtsel'], ['sudoku', '/sudoku', '🔢 Sudoku'], ['paint', '/paint', '🎨 Paint'], ['zufall', '/zufall', '🎲 Zufallsgenerator'], ['musik', '/musik', '🎵 Mediaplayer'], ['apps', '/apps', '🕹️ Andere Games']]],
-    ['haustier', '/haustier/', '🐾 Pixelpfoten'], ['board', '/forum', '💬 Forum'], ['nutzer', '/nutzer', '👥 Mitglieder'], ['guestbook', '/guestbook', '📖 Besucherbuch'], ['contact', '/contact', '✉️ Kontakt']];
+    ['haustier', '/haustier/', '🐾 Pixelpfoten'], ['board', '/forum', '💬 Forum'], ['nutzer', '/messenger', '💬 Messenger'], ['guestbook', '/guestbook', '📖 Besucherbuch'], ['contact', '/contact', '✉️ Kontakt']];
 }
 
 // Abgeschaltete Bereiche (Seitenverwaltung) verschwinden aus Startmenü, Suche und Desktop

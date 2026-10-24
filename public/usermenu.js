@@ -42,19 +42,19 @@
     function item(label, run, cls) { acts.push(run); rows.push('<button type="button" class="menu-item' + (cls ? ' ' + cls : '') + '" data-i="' + (acts.length - 1) + '">' + esc(label) + '</button>'); }
     var head = '<div class="um-head">' + (info.avatar ? '<img class="avatar" src="' + esc(info.avatar) + '" alt="" width="32" height="32">' :
       '<span class="avatar avatar-letter" style="width:32px;height:32px;font-size:18px;background:hsl(' + (info.id * 47 % 360) + ',45%,42%)">' + esc(([].concat(Array.from(info.name))[0] || '?').toUpperCase()) + '</span>') +
-      '<div><b>' + esc(info.name) + '</b><br><small>@' + esc(info.user) + (info.admin ? ' · Admin' : '') + (info.relation === 'friends' ? ' · ⭐ Freund' : '') + '</small></div></div>';
+      '<div>' + (info.status ? '<i class="st st-' + esc(info.status) + '"></i> ' : '') + '<b>' + esc(info.name) + '</b><br><small>@' + esc(info.user) + (info.admin ? ' · Admin' : '') + (info.relation === 'friends' ? ' · ⭐ Freund' : '') + '</small></div></div>';
     if (opts.note) head += '<div class="um-note">' + esc(opts.note) + '</div>';
     if (flash) head += '<div class="um-note um-flash">✔ ' + esc(flash) + '</div>';
     item(info.visible ? '👤 Profil ansehen' : '👤 Profil (nicht sichtbar)', function () { openPage(info.url); });
     if (info.me && info.relation !== 'self') {
-      (FRIEND[info.relation] || []).forEach(function (f) {
+      (FRIEND[info.relation] || []).filter(function (f) { return f.action !== 'add' || info.canRequest; }).forEach(function (f) {
         item(f.label, function () {
           if (f.confirm && !confirm(info.name + ' aus deinen Freunden entfernen?')) return false;
           friend(info, f.action, function (msg) { load(opts.username, opts, x, y, msg); });
           return false;
         });
       });
-      if (info.canMessage) item('💌 Nachricht schreiben', function () { openPage('/nachrichten/' + encodeURIComponent(info.user)); });
+      if (info.canMessage) item('💬 Nachricht schreiben', function () { openPage('/messenger/mit/' + encodeURIComponent(info.user)); });
     }
     var extra = (opts.items || []).filter(Boolean);
     if (extra.length) {

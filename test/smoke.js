@@ -203,10 +203,10 @@ async function main() {
       assert.equal(list.user, 'admin');
       assert.deepEqual(list.slots.map(x => x.slot), ['slot_1']);
 
-      const acc = await admin.req('/account');
+      const acc = await admin.req('/konto');
       assert.match(acc.text_, /Testspiel/);
       const t2 = acc.text_.match(/name="_csrf" value="([a-f0-9]+)"/)[1];
-      assert.equal((await admin.form('/account/saves/delete', { _csrf: t2, app: 'testspiel', slot: 'slot_1' })).status, 200);
+      assert.match((await admin.form('/konto/spielstand/loeschen', { _csrf: t2, app: 'testspiel', slot: 'slot_1' })).headers.get('location'), /reiter=spielstaende&ok=spielstand/);
       assert.equal((await admin.req('/api/saves/testspiel/slot_1')).status, 404, 'gelöscht');
     });
 
@@ -236,7 +236,7 @@ async function main() {
       const put = await admin.req('/api/saves/haustier/main', { method: 'PUT', body: JSON.stringify({ data }), headers: { 'content-type': 'application/json' } });
       assert.equal(put.status, 200);
       assert.equal(JSON.parse((await admin.req('/api/saves/haustier/main')).text_).data, data);
-      assert.match((await admin.req('/account')).text_, /<a href="\/haustier\/">Pixelpfoten<\/a>/);
+      assert.match((await admin.req('/konto')).text_, /<a href="\/haustier\/">Pixelpfoten<\/a>/);
 
       // Eine App namens „Haustier“ bekäme sonst dieselben Spielstände
       const t = await admin.csrf('/admin/apps/new');
@@ -720,12 +720,12 @@ async function main() {
 
     await step('Profile: Anzeigename, Sichtbarkeit, Suche und Links', async () => {
       const { anna, bernd } = members;
-      let tk = await anna.csrf('/account');
+      let tk = await anna.csrf('/konto');
       const save = (b, data) => b.form('/account/profil', { _csrf: tk, profile_visibility: 'members', pm_from: 'all', ...data });
       assert.match((await save(anna, { display_name: 'BERND' })).headers.get('location'), /err=taken/, 'fremder Benutzername');
       assert.match((await save(anna, { display_name: '<b>x</b>' })).headers.get('location'), /err=name/);
       assert.match((await save(anna, { display_name: '  Anna   B. ', about: 'Ich mag Katzen.' })).headers.get('location'), /ok=profil/);
-      const acc = (await anna.req('/account?ok=profil')).text_;
+      const acc = (await anna.req('/konto?ok=profil')).text_;
       assert.match(acc, /Profil gespeichert/);
       assert.match(acc, /name="display_name" maxlength="32" value="Anna B\."/);
 
@@ -733,67 +733,102 @@ async function main() {
       const asGuest = (await guest.req('/nutzer/anna')).text_;
       assert.match(asGuest, /nur angemeldete Mitglieder/);
       assert.doesNotMatch(asGuest, /Katzen/);
-      assert.doesNotMatch((await guest.req('/nutzer')).text_, /\/nutzer\/anna"/);
+      assert.equal((await guest.req('/nutzer')).headers.get('location'), '/messenger/finden', 'frühere Mitgliederliste');
+      assert.doesNotMatch((await guest.req('/messenger/finden')).text_, /\/nutzer\/anna"/);
       const asBernd = (await bernd.req('/nutzer/anna')).text_;
       assert.match(asBernd, /<h1>Anna B\.<\/h1>/);
       assert.match(asBernd, /Ich mag Katzen\./);
-      assert.match((await bernd.req('/nutzer?q=anna')).text_, /href="\/nutzer\/anna"><b>Anna B\.<\/b>/);
+      assert.match((await bernd.req('/messenger/finden?q=anna')).text_, /href="\/nutzer\/anna"><b>Anna B\.<\/b>/);
+      // Suche nach der Nummer (ICU#/DSN): 10 000 + Mitgliedsnummer
+      const nr = (await bernd.req('/nutzer/anna')).text_.match(/# (\d+ \d+)/)[1];
+      assert.match((await bernd.req('/messenger/finden?q=' + encodeURIComponent(nr))).text_, /href="\/nutzer\/anna"><b>Anna B\.<\/b>/);
       assert.equal((await bernd.req('/nutzer/gibtsnicht')).status, 404);
 
       // Öffentlich: auch Gäste sehen es
       assert.match((await save(anna, { display_name: 'Anna B.', about: 'Ich mag Katzen.', profile_visibility: 'public' })).headers.get('location'), /ok=profil/);
       assert.match((await guest.req('/nutzer/anna')).text_, /Ich mag Katzen\./);
-      assert.match((await guest.req('/nutzer')).text_, /\/nutzer\/anna"/);
+      assert.match((await guest.req('/messenger/finden')).text_, /\/nutzer\/anna"/);
 
       // Anzeigename im Besucherbuch, Startmenü und als Link
       tk = await anna.csrf('/guestbook');
       await anna.form('/guestbook', { _csrf: tk, message: 'Hallo von Anna' });
       assert.match((await guest.req('/guestbook')).text_, /href="\/nutzer\/anna" class="userlink">[\s\S]*?Anna B\.<\/a>/);
       const desk = (await anna.req('/', { top: true })).text_;
-      assert.match(desk, /<div class="startmenu"[\s\S]*href="\/nutzer"[\s\S]*href="\/nutzer\/anna">👤 Mein Profil[\s\S]*href="\/nachrichten"/);
+      assert.match(desk, /<div class="startmenu"[\s\S]*href="\/messenger">💬 Messenger[\s\S]*href="\/nutzer\/anna">👤 Mein Profil[\s\S]*href="\/konto">🔑 Konto und Passwort/);
+      assert.match(desk, /id="msgrtray"/);
+      assert.match(desk, /messenger-hub\.js/);
       assert.match(desk, /Anna B\. abmelden/);
-      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /id="pmtray"/);
+      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /id="msgrtray"|messenger-hub\.js/);
     });
 
     await step('Freunde: anfragen, annehmen, nur für Freunde sichtbar', async () => {
       const { anna, bernd } = members;
-      let tk = await anna.csrf('/account');
+      let tk = await anna.csrf('/konto');
       await anna.form('/account/profil', { _csrf: tk, display_name: 'Anna B.', about: 'Ich mag Katzen.', profile_visibility: 'friends', pm_from: 'friends' });
       assert.match((await bernd.req('/nutzer/anna')).text_, /sehen nur Freunde von Anna B\./);
       const friend = async (b, who, action) => { const t = await b.csrf('/nutzer/' + who); return b.form(`/nutzer/${who}/freund`, { _csrf: t, action, back: '/nutzer/' + who }); };
-      assert.match((await friend(bernd, 'anna', 'add')).headers.get('location'), /\/nutzer\/anna\?ok=gesendet/);
+      // Anfrage mit einem Satz dazu; Anna sieht sie im Messenger und auf der Anfrage-Seite
+      const t0 = await bernd.csrf('/messenger/anfrage/anna');
+      assert.match((await bernd.form('/nutzer/anna/freund', { _csrf: t0, action: 'add', note: 'Hi, wir saßen <gestern> am Durak-Tisch', back: '/messenger/anfrage/anna' })).headers.get('location'), /^\/messenger\/anfrage\/anna\?ok=gesendet/);
       assert.match((await bernd.req('/nutzer/anna')).text_, /Anfrage zurückziehen/);
-      const list = (await anna.req('/nutzer')).text_;
-      assert.match(list, /Freundschaftsanfragen[\s\S]*\/nutzer\/bernd/);
+      const kontakte = JSON.parse((await anna.req('/api/messenger/kontakte')).text_);
+      assert.deepEqual(kontakte.requests.map(r => [r.user, r.note]), [['bernd', 'Hi, wir saßen <gestern> am Durak-Tisch']]);
+      assert.deepEqual(JSON.parse((await bernd.req('/api/messenger/kontakte')).text_).sent.map(r => r.user), ['anna'], 'Warten auf Antwort');
+      const anfrage = (await anna.req('/messenger/anfrage/bernd')).text_;
+      assert.match(anfrage, /„Hi, wir saßen &lt;gestern&gt; am Durak-Tisch“/);
+      assert.match(anfrage, /name="action" value="accept"/);
       assert.match((await friend(anna, 'bernd', 'accept')).headers.get('location'), /ok=freunde/);
       const p = (await bernd.req('/nutzer/anna')).text_;
       assert.match(p, /Ich mag Katzen/, 'Freunde sehen das Profil');
       assert.match(p, /⭐ Freund/);
-      assert.match((await anna.req('/nutzer')).text_, /Meine Freunde \(1\)[\s\S]*\/nutzer\/bernd/);
+      assert.deepEqual(JSON.parse((await anna.req('/api/messenger/kontakte')).text_).contacts.map(c => [c.user, c.status]), [['bernd', 'offline']], 'Kontaktliste, ohne Verbindung offline');
       // Gegenseitige Anfrage nimmt an, statt doppelt anzulegen
       assert.match((await friend(anna, 'bernd', 'remove')).headers.get('location'), /ok=entfernt/);
       await friend(anna, 'bernd', 'add');
       assert.match((await friend(bernd, 'anna', 'add')).headers.get('location'), /ok=freunde/);
     });
 
-    await step('Privatnachrichten: schreiben, gelesen, nur von Freunden, löschen', async () => {
+    await step('Messenger: schreiben, gelesen, nur von Freunden, löschen', async () => {
       const { anna, bernd } = members;
       const { DatabaseSync } = require('node:sqlite');
       const sql = new DatabaseSync(path.join(DATA, 'site.db'));
-      const send = async (b, to, body) => { const t = await b.csrf('/account'); return b.form('/nachrichten/' + to, { _csrf: t, body }); };
-      assert.equal((await send(bernd, 'anna', 'Hallo Anna!\nWie geht es dir?')).status, 302, 'Freunde dürfen schreiben');
+      const send = async (b, to, body) => { const t = await b.csrf('/konto'); return b.form('/messenger/mit/' + to, { _csrf: t, body }); };
+      const sent = await send(bernd, 'anna', 'Hallo Anna!\nWie geht es dir?');
+      assert.equal(sent.status, 302, 'Freunde dürfen schreiben');
+      assert.match(sent.headers.get('location'), /^\/messenger\/mit\/anna#n\d+$/);
       assert.equal(JSON.parse((await anna.req('/api/nachrichten')).text_).unread, 1);
-      assert.equal(JSON.parse((await anna.req('/api/nachrichten?von=bernd')).text_).from, 1);
+      assert.equal(JSON.parse((await anna.req('/api/messenger/kontakte')).text_).contacts.find(c => c.user === 'bernd').unread, 1);
       const desk = (await anna.req('/', { top: true })).text_;
-      assert.match(desk, /id="pmtray"[^>]*>💌<span class="pm-count">1</);
-      assert.match(desk, /💌 Nachrichten \(1\)/);
-      assert.match((await anna.req('/nachrichten')).text_, /<tr class="unread">[\s\S]*1 neu[\s\S]*Hallo Anna!/);
-      const conv = (await anna.req('/nachrichten/bernd')).text_;
+      assert.match(desk, /id="msgrtray"[^>]*><i class="st st-offline"><\/i><span class="pm-count">1</);
+      assert.match((await anna.req('/messenger/verlauf')).text_, /<tr class="unread">[\s\S]*1 neu[\s\S]*Hallo Anna!/);
+      const conv = (await anna.req('/messenger/mit/bernd')).text_;
       assert.match(conv, /Hallo Anna!\nWie geht es dir\?/);
+      assert.match(conv, /messenger\.js/);
       assert.equal(JSON.parse((await anna.req('/api/nachrichten')).text_).unread, 0, 'beim Öffnen gelesen');
-      assert.match((await bernd.req('/nachrichten/bernd')).text_, /gibt es nicht/, 'nicht an sich selbst');
-      assert.match((await bernd.req('/nachrichten/anna')).text_, /✔✔ gelesen/);
-      assert.equal((await guest.req('/nachrichten')).status, 302, 'Gäste müssen sich anmelden');
+      assert.match((await bernd.req('/messenger/mit/bernd')).text_, /gibt es nicht/, 'nicht an sich selbst');
+      assert.match((await bernd.req('/messenger/mit/anna')).text_, /✔✔ gelesen/);
+      assert.equal((await guest.req('/messenger/verlauf')).status, 302, 'Gäste müssen sich anmelden');
+      // Frühere Adressen
+      assert.equal((await anna.req('/nachrichten')).headers.get('location'), '/messenger/verlauf');
+      assert.equal((await anna.req('/nachrichten/bernd')).headers.get('location'), '/messenger/mit/bernd');
+
+      // Per fetch (wie das Gesprächsfenster): JSON zurück
+      const tj = await anna.csrf('/konto');
+      const js = await anna.req('/messenger/mit/bernd', { method: 'POST', body: new URLSearchParams({ body: 'Gut, danke!' }), headers: { accept: 'application/json', 'x-csrf-token': tj } });
+      assert.equal(js.status, 200);
+      const msg = JSON.parse(js.text_).message;
+      assert.equal(msg.body, 'Gut, danke!');
+      assert.equal(msg.from, 'anna');
+      assert.equal(msg.kind, 'text');
+      // Anstupsen: höchstens einmal pro Minute
+      const nudge = () => anna.req('/messenger/mit/bernd/anstupsen', { method: 'POST', headers: { accept: 'application/json', 'x-csrf-token': tj } });
+      assert.equal(JSON.parse((await nudge()).text_).message.kind, 'nudge');
+      assert.equal((await nudge()).status, 429);
+      assert.match((await bernd.req('/messenger/mit/anna')).text_, /📳 Anna B\. hat dich angestupst!/);
+      // Einladen geht nur in eine Lobby, in der man selbst sitzt
+      const inv = await anna.req('/messenger/mit/bernd/einladen', { method: 'POST', body: new URLSearchParams({ url: '/kartenspiele/tisch/gibtsnicht' }), headers: { accept: 'application/json', 'x-csrf-token': tj } });
+      assert.equal(inv.status, 400);
+      assert.deepEqual(JSON.parse((await anna.req('/api/messenger/einladen')).text_).lobbies, []);
 
       // Anna will nur Nachrichten von Freunden: nach dem Entfernen darf Bernd nicht mehr schreiben …
       let t = await anna.csrf('/nutzer/bernd');
@@ -808,14 +843,103 @@ async function main() {
       assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM private_messages').get().n, 2);
 
       // Verlauf löschen: erst nur für Anna, nach Bernd ganz weg
-      t = await anna.csrf('/nachrichten/bernd');
-      await anna.form('/nachrichten/bernd/loeschen', { _csrf: t });
-      assert.match((await anna.req('/nachrichten')).text_, /Noch keine Nachrichten/);
-      assert.match((await bernd.req('/nachrichten')).text_, /Klar!/);
-      t = await bernd.csrf('/nachrichten/anna');
-      await bernd.form('/nachrichten/anna/loeschen', { _csrf: t });
+      t = await anna.csrf('/messenger/mit/bernd');
+      await anna.form('/messenger/mit/bernd/loeschen', { _csrf: t });
+      assert.match((await anna.req('/messenger/verlauf')).text_, /Noch keine Nachrichten/);
+      assert.match((await bernd.req('/messenger/verlauf')).text_, /Klar!/);
+      t = await bernd.csrf('/messenger/mit/anna');
+      await bernd.form('/messenger/mit/anna/loeschen', { _csrf: t });
       assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM private_messages').get().n, 0);
       sql.close();
+    });
+
+    await step('Messenger: Live-Verbindung, Status, Privatsphäre, Ignorieren', async () => {
+      const { anna, bernd } = members;
+      const kontakte = async b => JSON.parse((await b.req('/api/messenger/kontakte')).text_);
+      const tA = await anna.csrf('/konto'), tB = await bernd.csrf('/konto');
+      const post = (b, tk, url, data) => b.req(url, { method: 'POST', body: new URLSearchParams(data), headers: { accept: 'application/json', 'x-csrf-token': tk } });
+      // Wieder Freunde
+      await post(anna, tA, '/nutzer/bernd/freund', { action: 'add' });
+      await post(bernd, tB, '/nutzer/anna/freund', { action: 'add' });
+      assert.equal((await kontakte(anna)).contacts.find(c => c.user === 'bernd').status, 'offline');
+
+      // Bernd öffnet den Desktop: Live-Verbindung, Anna sieht ihn online
+      const ctrl = new AbortController();
+      const res = await fetch(`${BASE}/api/messenger/stream?c=test1`, { headers: { cookie: [...bernd.jar].map(([k, v]) => `${k}=${v}`).join('; '), 'user-agent': UA }, signal: ctrl.signal });
+      assert.match(res.headers.get('content-type'), /text\/event-stream/);
+      const reader = res.body.getReader();
+      let buf = '';
+      const next = async type => {
+        for (;;) {
+          const i = buf.indexOf('\n\n');
+          if (i >= 0) { const ev = buf.slice(0, i); buf = buf.slice(i + 2); const m = ev.match(/^event: (\w+)\ndata: (.*)$/m); if (m && m[1] === type) return JSON.parse(m[2]); continue; }
+          const { value, done } = await reader.read();
+          if (done) throw new Error('Verbindung zu');
+          buf += Buffer.from(value).toString();
+        }
+      };
+      const hallo = await next('hallo');
+      assert.equal(hallo.user, 'bernd');
+      assert.equal(hallo.status, 'online');
+      assert.equal(hallo.conn, 'test1');
+      assert.equal(hallo.prefs.away, 10, 'Vorgaben der Messenger-Einstellungen');
+      assert.equal((await kontakte(anna)).contacts.find(c => c.user === 'bernd').status, 'online');
+      assert.equal((await kontakte(anna)).me.status, 'offline', 'Anna selbst hat keine Verbindung');
+
+      // Nachricht kommt live an
+      await post(anna, tA, '/messenger/mit/bernd', { body: 'Live?' });
+      const live = await next('nachricht');
+      assert.equal(live.body, 'Live?');
+      assert.equal(live.partner, 'anna');
+      assert.equal((await next('ungelesen')).n, 1);
+      // Tippen und Gelesen
+      await post(anna, tA, '/messenger/mit/bernd/tippt', {});
+      assert.equal((await next('tippt')).partner, 'anna');
+
+      // Status: Abwesend mit Statusnachricht; untätig → abwesend
+      const st = JSON.parse((await post(bernd, tB, '/api/messenger/status', { status: 'away', msg: '  Bin  kurz weg  ' })).text_);
+      assert.equal(st.status, 'away');
+      assert.equal(st.msg, 'Bin kurz weg');
+      let b = (await kontakte(anna)).contacts.find(c => c.user === 'bernd');
+      assert.deepEqual([b.status, b.msg], ['away', 'Bin kurz weg']);
+      await post(bernd, tB, '/api/messenger/status', { status: 'online' });
+      await post(bernd, tB, '/api/messenger/aktiv', { c: 'test1', idle: '1' });
+      assert.equal((await kontakte(anna)).contacts.find(c => c.user === 'bernd').status, 'away', 'automatisch abwesend');
+      await post(bernd, tB, '/api/messenger/aktiv', { c: 'test1', idle: '0' });
+      // Unsichtbar: für alle anderen offline
+      await post(bernd, tB, '/api/messenger/status', { status: 'invisible' });
+      b = (await kontakte(anna)).contacts.find(c => c.user === 'bernd');
+      assert.deepEqual([b.status, b.msg], ['offline', '']);
+      await post(bernd, tB, '/api/messenger/status', { status: 'online' });
+
+      // Privatsphäre: Status nur für Freunde (Vorgabe); Fremde sehen offline
+      const asAdmin = JSON.parse((await admin.req('/api/nutzer/bernd')).text_);
+      assert.equal(asAdmin.status, 'offline', 'kein Freund → offline');
+      assert.match(asAdmin.number + '', /^100\d\d$/);
+      let tk = await bernd.csrf('/konto');
+      assert.match((await bernd.form('/konto/privatsphaere', { _csrf: tk, presence_from: 'members', activity_from: 'nobody', invite_from: 'nobody', request_from: 'nobody', profile_visibility: 'members', pm_from: 'all', gb_from: 'all' })).headers.get('location'), /reiter=privatsphaere&ok=privat/);
+      assert.equal(JSON.parse((await admin.req('/api/nutzer/bernd')).text_).status, 'online', 'jetzt für alle Mitglieder');
+      assert.equal(JSON.parse((await admin.req('/api/nutzer/bernd')).text_).canRequest, false, 'keine Anfragen');
+      const kp = (await bernd.req('/konto?reiter=privatsphaere')).text_;
+      assert.match(kp, /name="presence_from"[\s\S]*?value="members" selected/);
+      assert.match(kp, /id="privatsphaere" role="tabpanel"[^>]*>/);
+      assert.doesNotMatch(kp, /id="privatsphaere" role="tabpanel"[^>]* hidden/, 'Reiter aus der Adresse');
+      // Zurück auf die Vorgaben
+      await bernd.form('/konto/privatsphaere', { _csrf: tk, presence_from: 'friends', activity_from: 'friends', invite_from: 'friends', request_from: 'all', show_last_seen: '1', profile_visibility: 'members', pm_from: 'all', gb_from: 'all' });
+
+      // Ignorieren: Freundschaft endet, Schreiben und Anfragen gehen nicht mehr, Status offline
+      tk = await anna.csrf('/konto');
+      assert.match((await anna.form('/messenger/ignorieren', { _csrf: tk, user: 'bernd', on: '1', back: '/konto?reiter=privatsphaere&ok=ignore#privatsphaere' })).headers.get('location'), /ok=ignore/);
+      assert.equal(JSON.parse((await anna.req('/api/nutzer/bernd')).text_).relation, 'none', 'Freundschaft endet');
+      const no = await post(bernd, tB, '/messenger/mit/anna', { body: 'Hallo?' });
+      assert.equal(no.status, 400);
+      assert.equal(JSON.parse((await bernd.req('/api/nutzer/anna')).text_).canRequest, false);
+      assert.match((await anna.req('/konto?reiter=privatsphaere')).text_, /Ignorierte Mitglieder \(1\)[\s\S]*@bernd/);
+      await anna.form('/messenger/ignorieren', { _csrf: tk, user: 'bernd', on: '0' });
+      assert.match((await anna.req('/konto?reiter=privatsphaere')).text_, /Ignorierte Mitglieder \(0\)/);
+      // Wie vor diesem Schritt: keine Freunde, keine Nachrichten
+      ctrl.abort();
+      for (const [b, tk2, who] of [[anna, tA, 'bernd'], [bernd, tB, 'anna']]) await post(b, tk2, `/messenger/mit/${who}/loeschen`, {});
     });
 
     await step('Benachrichtigungen: Freunde, Nachrichten, Forum, Einstellungen, Push', async () => {
@@ -823,7 +947,7 @@ async function main() {
       const api = async b => JSON.parse((await b.req('/api/benachrichtigungen')).text_);
       let j = await api(anna);
       assert.ok(j.items.some(n => /bernd hat deine Freundschaftsanfrage angenommen/.test(n.title)), 'Annahme der Anfrage');
-      const pm = j.items.find(n => n.title === '💌 Nachricht von bernd');
+      const pm = j.items.find(n => n.title === '💬 Nachricht von bernd');
       assert.ok(pm && pm.body === 'Klar!' && pm.read, 'Nachricht, gelesen beim Öffnen des Gesprächs');
       assert.match((await anna.req('/', { top: true })).text_, /id="notifybtn"[\s\S]*?class="notify-count">\d+</);
       assert.doesNotMatch((await guest.req('/', { top: true })).text_, /id="notifybtn"/);
@@ -854,15 +978,15 @@ async function main() {
       assert.match((await guest.req('/')).text_, /👋 Mitmachen[\s\S]*href="\/login"/);
 
       // Einstellungen: Forum aus, dann kommt nichts mehr
-      const acc = (await anna.req('/account')).text_;
+      const acc = (await anna.req('/konto')).text_;
       assert.match(acc, /id="benachrichtigungen"[\s\S]*name="site_board" value="1"[^>]*checked/);
       assert.doesNotMatch(acc, /name="site_admin"/, 'Admin-Hinweise nur für Admins');
-      tk = await anna.csrf('/account');
+      tk = await anna.csrf('/konto');
       const off = { _csrf: tk, site_pm: '1', site_friend: '1', push_pm: '1' };
       assert.match((await anna.form('/account/benachrichtigungen', off)).headers.get('location'), /ok=notify/);
       await reply('Hallo?');
       assert.equal((await api(anna)).unread, 0);
-      assert.doesNotMatch((await anna.req('/account')).text_, /name="site_board" value="1"[^>]*checked/);
+      assert.doesNotMatch((await anna.req('/konto')).text_, /name="site_board" value="1"[^>]*checked/);
 
       // Push: Schlüssel, Service Worker, Manifest; kaputte Abos werden abgelehnt
       assert.match(JSON.parse((await guest.req('/api/push/key')).text_).key, /^[A-Za-z0-9_-]{87}$/);
@@ -870,7 +994,7 @@ async function main() {
       assert.equal(sw.headers.get('service-worker-allowed'), '/');
       assert.match(sw.text_, /showNotification/);
       assert.equal(JSON.parse((await guest.req('/manifest.webmanifest')).text_).display, 'standalone');
-      tk = await anna.csrf('/account');
+      tk = await anna.csrf('/konto');
       const bad = await anna.req('/api/push/abo', { method: 'POST', body: JSON.stringify({ subscription: { endpoint: 'http://evil', keys: {} } }), headers: { 'content-type': 'application/json', 'x-csrf-token': tk } });
       assert.equal(bad.status, 400);
       assert.equal((await guest.req('/api/push/abo', { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } })).status, 403, 'ohne Token');
@@ -886,7 +1010,7 @@ async function main() {
         chunk('tEXt', Buffer.from('Comment\0Aufgenommen in Berlin')), chunk('eXIf', Buffer.from('MM\0*GEHEIM-GPS')),
         chunk('IDAT', zlib.deflateSync(Buffer.from([0, 255, 0, 0]))), chunk('IEND', Buffer.alloc(0))]);
       const fd = new FormData();
-      fd.append('_csrf', await anna.csrf('/account'));
+      fd.append('_csrf', await anna.csrf('/konto'));
       fd.append('avatar', new Blob([png], { type: 'image/png' }), 'ich.png');
       assert.match((await anna.req('/account/avatar', { method: 'POST', body: fd })).headers.get('location'), /ok=bild/);
       const prof = (await anna.req('/nutzer/anna')).text_;
@@ -900,7 +1024,7 @@ async function main() {
 
       // Kein Bild: abgelehnt
       const bad = new FormData();
-      bad.append('_csrf', await anna.csrf('/account'));
+      bad.append('_csrf', await anna.csrf('/konto'));
       bad.append('avatar', new Blob(['<svg onload=alert(1)>'], { type: 'image/png' }), 'x.png');
       assert.match((await anna.req('/account/avatar', { method: 'POST', body: bad })).headers.get('location'), /err=bild/);
 
@@ -910,7 +1034,7 @@ async function main() {
       const jpg = Buffer.concat([Buffer.from([0xff, 0xd8]), seg(0xe0, Buffer.from('JFIF\0\x01\x01\0\0\x01\0\x01\0\0', 'latin1')), seg(0xe1, exif),
         seg(0xfe, Buffer.from('Kommentar')), seg(0xda, Buffer.from([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])), Buffer.from([1, 2, 3, 0xff, 0xd9])]);
       const jfd = new FormData();
-      jfd.append('_csrf', await anna.csrf('/account'));
+      jfd.append('_csrf', await anna.csrf('/konto'));
       jfd.append('avatar', new Blob([jpg], { type: 'image/jpeg' }), 'foto.jpg');
       assert.match((await anna.req('/account/avatar', { method: 'POST', body: jfd })).headers.get('location'), /ok=bild/);
       assert.equal((await guest.req(url)).status, 404, 'altes Bild ist weg');
@@ -950,10 +1074,10 @@ async function main() {
       const p = (await bernd.req('/nutzer/anna')).text_;
       assert.match(p, /sehen nur Freunde/, 'Statistik nur, wenn man das Profil sehen darf');
       assert.doesNotMatch(p, /Rekord/);
-      const t = await anna.csrf('/account');
+      const t = await anna.csrf('/konto');
       await anna.form('/account/profil', { _csrf: t, display_name: 'Anna B.', about: 'Ich mag Katzen.', profile_visibility: 'members', pm_from: 'all' });
       const prof = (await bernd.req('/nutzer/anna')).text_;
-      const card = prof.slice(prof.indexOf('Spielstatistik'));
+      const card = prof.slice(prof.indexOf('id="spiele"'));
       assert.match(card, /Pixelpfoten[\s\S]*Gestartet<\/td><td class="num">1<[\s\S]*Rekord<\/td><td class="num">10<[\s\S]*Siege<\/td><td class="num">3</);
       assert.match(card, /Höchste Stufe<\/td><td class="num">4<[\s\S]*Münzen verdient<\/td><td class="num">42</);
       assert.match(prof, /Forenbeiträge<\/td><td class="num">0</, 'anonyme Beiträge zählen nicht');
@@ -961,29 +1085,29 @@ async function main() {
 
     await step('Freundebuch im Profil: eintragen, Rechte, löschen', async () => {
       const { anna, bernd } = members;
-      let t = await bernd.csrf('/account');
+      let t = await bernd.csrf('/konto');
       assert.equal((await bernd.form('/nutzer/anna/freundebuch', { _csrf: t, body: 'Schönes Profil!\nGruß, Bernd' })).status, 302);
       let prof = (await anna.req('/nutzer/anna')).text_;
       assert.match(prof, /📖 Freundebuch \(1\)[\s\S]*href="\/nutzer\/bernd" class="userlink">[\s\S]*Schönes Profil!\nGruß, Bernd/);
       const id = prof.match(/id="g(\d+)"/)[1];
       assert.doesNotMatch((await guest.req('/nutzer/anna')).text_, /Schönes Profil/, 'nur wer das Profil sieht');
       // Nur Freunde dürfen schreiben: Bernd ist gerade kein Freund
-      t = await anna.csrf('/account');
+      t = await anna.csrf('/konto');
       await anna.form('/account/profil', { _csrf: t, display_name: 'Anna B.', about: 'Ich mag Katzen.', profile_visibility: 'members', pm_from: 'all', gb_from: 'friends' });
       assert.match((await bernd.req('/nutzer/anna')).text_, /nur Freunde von Anna B\. schreiben/);
-      t = await bernd.csrf('/account');
+      t = await bernd.csrf('/konto');
       await bernd.form('/nutzer/anna/freundebuch', { _csrf: t, body: 'Darf ich nicht' });
       assert.doesNotMatch((await anna.req('/nutzer/anna')).text_, /Darf ich nicht/);
       // Fremde dürfen nicht löschen, die Profilinhaberin schon
-      t = await bernd.csrf('/account');
+      t = await bernd.csrf('/konto');
       await bernd.form(`/nutzer/bernd/freundebuch/${id}/loeschen`, { _csrf: t });
       assert.match((await anna.req('/nutzer/anna')).text_, /Schönes Profil/);
-      t = await anna.csrf('/account');
+      t = await anna.csrf('/konto');
       await anna.form(`/nutzer/anna/freundebuch/${id}/loeschen`, { _csrf: t });
       prof = (await anna.req('/nutzer/anna')).text_;
       assert.doesNotMatch(prof, /Schönes Profil/);
       assert.match(prof, /Noch keine Einträge/);
-      t = await anna.csrf('/account');
+      t = await anna.csrf('/konto');
       await anna.form('/account/profil', { _csrf: t, display_name: 'Anna B.', profile_visibility: 'members', pm_from: 'all', gb_from: 'off' });
       assert.doesNotMatch((await bernd.req('/nutzer/anna')).text_, /📖 Freundebuch/, 'ausgeschaltet');
     });
@@ -2237,13 +2361,13 @@ async function main() {
         return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(Buffer.alloc((w * 3 + 1) * h))), chunk('IEND', Buffer.alloc(0))]); };
       const upload = async (w, h) => {
         const fd = new FormData();
-        fd.append('_csrf', await anna.csrf('/account'));
+        fd.append('_csrf', await anna.csrf('/konto'));
         fd.append('avatar', new Blob([png(w, h)], { type: 'image/png' }), 'bild.png');
         return (await anna.req('/account/avatar', { method: 'POST', body: fd })).headers.get('location');
       };
       assert.match(await upload(30, 20), /err=quadrat/);
       assert.match(await upload(20, 20), /ok=bild/);
-      assert.match((await anna.req('/account')).text_, /data-avatar-crop/);
+      assert.match((await anna.req('/konto')).text_, /data-avatar-crop/);
       sql.close();
     });
 

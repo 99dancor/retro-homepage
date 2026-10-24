@@ -78,6 +78,7 @@ app.use((req, res, next) => {
     hitCounter: Number(getSetting('hit_counter', '0')),
     displayName: profiles.displayName,
     profileUrl: profiles.profileUrl,
+    fmtNumber: profiles.fmtNumber,
     unreadPm: req.user ? profiles.unreadCount(req.user.id) : 0,
     unreadNotify: req.user ? notify.unread(req.user.id) : 0,
   });
@@ -142,6 +143,8 @@ app.use('/einstellungen', settingsRoutes.router);
 app.use('/', deskRoutes.router);
 app.use('/', require('./routes/notify'));
 app.use('/', require('./routes/games'));
+app.use('/', require('./routes/messenger'));
+app.use('/', require('./routes/konto').router);
 app.use('/', profileRoutes.router);
 app.use('/', require('./routes/public'));
 

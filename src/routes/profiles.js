@@ -1,6 +1,6 @@
 'use strict';
-// Mitglieder (Startmenü → 👥 Mitglieder), Profile unter /nutzer/<name>, Freunde, Privatnachrichten,
-// Profil-Einstellungen in „Mein Konto“ und die Schnittstelle für Spielstatistiken.
+// Profile unter /nutzer/<name>, Freundschaften, Freundebuch, Profil-Einstellungen (Konto und Passwort → Profil)
+// und die Schnittstelle für Spielstatistiken. Mitglieder finden und Gespräche laufen im Messenger (src/routes/messenger.js).
 const express = require('express');
 const multer = require('multer');
 const { db, getSetting } = require('../db');
@@ -11,38 +11,16 @@ const paint = require('../paint');
 const notify = require('../notify');
 const us = require('../usersettings');
 const desk = require('../desk');
+const m = require('../messenger');
 
 const router = express.Router();
-const PER_PAGE = 50;
 // Vorschau des eigenen Profils: welche Sichtbarkeiten (von Profil und Links) der jeweilige Betrachter sehen würde
 const PREVIEW = { guest: ['public'], member: ['public', 'members'], friend: ['public', 'members', 'friends'] };
 // Rücksprung nach einem Formular: nur Pfade dieser Seite
 const back = (v, fallback) => (typeof v === 'string' && /^\/(?![/\\])/.test(v) ? v : fallback);
 const notFound = res => res.status(404).render('error', { title: 'Nicht gefunden', message: 'Dieses Mitglied gibt es nicht (mehr).' });
 
-// ---------- Mitglieder ----------
-router.get('/nutzer', (req, res) => {
-  const me = req.user;
-  const q = String(req.query.q || '').trim().slice(0, 50);
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const params = [];
-  let where = 'u.disabled = 0';
-  // Gäste finden nur Profile, die für alle sichtbar sind
-  if (!me) where += " AND u.profile_visibility = 'public'";
-  if (q) { where += ' AND (u.username LIKE ? OR u.display_name LIKE ?)'; params.push('%' + q + '%', '%' + q + '%'); }
-  const total = db.prepare(`SELECT COUNT(*) AS n FROM users u WHERE ${where}`).get(...params).n;
-  const members = db.prepare(`SELECT u.id, u.username, u.display_name, u.avatar, u.role, u.created_at FROM users u WHERE ${where}
-                              ORDER BY COALESCE(u.display_name, u.username) COLLATE NOCASE LIMIT ? OFFSET ?`).all(...params, PER_PAGE, (page - 1) * PER_PAGE);
-  const friends = me ? p.friendsOf(me.id) : [];
-  const friendIds = new Set(friends.map(f => f.id));
-  for (const m of members) m.friend = friendIds.has(m.id);
-  res.render('members', {
-    title: 'Mitglieder', q, page, pages: Math.max(1, Math.ceil(total / PER_PAGE)), total, members, friends,
-    incoming: me ? p.requestsTo(me.id) : [], outgoing: me ? p.requestsFrom(me.id) : [],
-    msg: Object.hasOwn(p.FRIEND_MSG, req.query.ok || '') ? p.FRIEND_MSG[req.query.ok] : null,
-  });
-});
-
+// ---------- Profil ----------
 router.get('/nutzer/:name', (req, res) => {
   const u = p.findUser(req.params.name);
   const me = req.user;
@@ -51,16 +29,24 @@ router.get('/nutzer/:name', (req, res) => {
   // ?ansicht=guest|member|friend: Der Besitzer sieht sein Profil so wie andere (Systemsteuerung → Profil und Statistik)
   const preview = me && me.id === u.id && Object.hasOwn(PREVIEW, req.query.ansicht) ? req.query.ansicht : null;
   const visible = preview ? PREVIEW[preview].includes(u.profile_visibility) : p.canViewProfile(me, u);
-  const data = { title: p.displayName(u), u, relation, visible, preview, canMessage: p.canMessage(me, u), msg: Object.hasOwn(p.FRIEND_MSG, req.query.ok || '') ? p.FRIEND_MSG[req.query.ok] : null };
+  const data = {
+    title: p.displayName(u) + ' – Profil', u, relation, visible, preview, canMessage: p.canMessage(me, u), msg: Object.hasOwn(p.FRIEND_MSG, req.query.ok || '') ? p.FRIEND_MSG[req.query.ok] : null,
+    card: m.card(preview ? null : me, u), canInvite: !preview && m.canInvite(me, u), canRequest: !!me && p.canRequest(me.id, u),
+    ignoring: !!me && !!db.prepare('SELECT 1 FROM ignores WHERE user_id = ? AND other_id = ?').get(me.id, u.id), STATUS: m.STATUS,
+  };
   if (visible) {
     const view = us.profileView(u.id, me, p.gameStats(u.id, me), preview);
     const boardOpen = getSetting('board_enabled') === '1' && (getSetting('board_members_only') !== '1' || me);
     const tv = auth.visibilitySql(me, 'track', 't');
+    const both = me && !preview && me.id !== u.id;
     Object.assign(data, {
       friends: p.friendsOf(u.id),
+      // „Ihr beide“: nur, was beide ohnehin sehen dürfen
+      common: both ? p.commonFriends(me.id, u.id) : [], since: both ? p.friendsSince(me.id, u.id) : null,
+      talked: both ? db.prepare('SELECT COUNT(*) AS n FROM private_messages WHERE (from_id = ? AND to_id = ? AND hidden_from = 0) OR (from_id = ? AND to_id = ? AND hidden_to = 0)').get(me.id, u.id, u.id, me.id).n : 0,
       guestbook: u.gb_from === 'off' ? null : p.guestbookOf(u.id),
       canSign: p.canSign(me, u), maxGb: p.MAX_GB,
-      games: view.games, showcase: view.showcase, site: view.site, siteSettings: view.siteSettings, rel: view.rel,
+      games: view.games, showcase: view.showcase, onSite: view.site, siteSettings: view.siteSettings, rel: view.rel,
       // Internetlinks vom Desktop, die der Betrachter sehen darf; der Besitzer sieht auch private (grau)
       links: db.prepare("SELECT * FROM desk_items WHERE user_id = ? AND kind = 'link' AND deleted_at IS NULL ORDER BY name COLLATE NOCASE LIMIT 50").all(u.id)
         .filter(it => (preview ? PREVIEW[preview].includes(it.visibility) : desk.canSeeDesk(me, it)) && !desk.trashed(it))
@@ -85,13 +71,18 @@ router.get('/nutzer/:name', (req, res) => {
 router.post('/nutzer/:name/freund', auth.requireLogin, auth.rateLimit('friends', 60, 600), (req, res) => {
   const u = p.findUser(req.params.name);
   if (!u || u.disabled) return notFound(res);
-  const msg = p.friendAction(req.user.id, u.id, String(req.body.action || ''));
+  const msg = p.friendAction(req.user.id, u.id, String(req.body.action || ''), req.body.note);
   const me = p.displayName(req.user), key = 'friend:' + req.user.id;
-  if (msg === 'gesendet') notify.send(u.id, 'friend', { key, title: `👥 ${me} möchte mit dir befreundet sein`, body: 'Annehmen oder ablehnen kannst du unter Mitglieder.', url: '/nutzer' });
+  if (msg === 'gesendet') {
+    const note = p.cleanNote(req.body.note);
+    notify.send(u.id, 'friend', { key, title: `👥 ${me} möchte mit dir befreundet sein`, body: note ? '„' + note + '“' : 'Annehmen oder ablehnen kannst du im Messenger.', url: '/messenger/anfrage/' + encodeURIComponent(req.user.username) });
+  }
   else if (msg === 'freunde') {
     notify.readKey(req.user.id, 'friend:' + u.id);
     notify.send(u.id, 'friend', { key, title: `👥 ${me} hat deine Freundschaftsanfrage angenommen`, body: 'Ihr seid jetzt Freunde.', url: p.profileUrl(req.user.username) });
   } else if (msg === 'abgelehnt') notify.readKey(req.user.id, 'friend:' + u.id);
+  // Beide Kontaktlisten zeigen den neuen Stand sofort
+  if (msg && msg !== 'nein' && msg !== 'voll') { m.send(req.user.id, 'kontakte'); m.send(u.id, 'kontakte'); }
   // Das Nutzermenü in Lobbys fragt per fetch und will nur wissen, wie es jetzt steht
   if (req.accepts(['html', 'json']) === 'json') return res.json({ ok: !!msg, msg: msg ? p.FRIEND_MSG[msg] : null, relation: p.friendship(req.user.id, u.id) });
   const to = back(req.body.back, p.profileUrl(u.username));
@@ -107,7 +98,8 @@ router.get('/api/nutzer/:name', (req, res) => {
   res.json({
     id: u.id, user: u.username, name: p.displayName(u), avatar: u.avatar ? '/avatar/' + u.avatar : null, admin: u.role === 'admin',
     url: p.profileUrl(u.username), visible: p.canViewProfile(me, u),
-    relation: me ? p.friendship(me.id, u.id) : 'none', canMessage: p.canMessage(me, u),
+    relation: me ? p.friendship(me.id, u.id) : 'none', canMessage: p.canMessage(me, u), canRequest: !!me && p.canRequest(me.id, u),
+    status: m.statusFor(me, u), number: p.number(u),
     me: me ? { id: me.id, admin: me.isAdmin } : null,
   });
 });
@@ -130,94 +122,62 @@ router.post('/nutzer/:name/freundebuch/:id/loeschen', auth.requireLogin, (req, r
   res.redirect(p.profileUrl(u.username) + '#freundebuch');
 });
 
-// ---------- Privatnachrichten ----------
-router.get('/nachrichten', auth.requireLogin, (req, res) => {
-  if (req.query.an) {
-    const u = p.findUser(String(req.query.an).trim().replace(/^@/, ''));
-    if (u && !u.disabled) return res.redirect('/nachrichten/' + encodeURIComponent(u.username));
-  }
-  res.render('messages', {
-    title: 'Nachrichten', conversations: p.conversations(req.user.id), friends: p.friendsOf(req.user.id),
-    err: req.query.an ? 'Dieses Mitglied gibt es nicht.' : null,
-  });
-});
-
-function loadPartner(req, res, next) {
-  const u = p.findUser(req.params.name);
-  if (!u || u.id === req.user.id || (u.disabled && !req.user.isAdmin)) return notFound(res);
-  req.partner = u;
-  next();
+// ---------- Profil-Einstellungen (Konto und Passwort → Profil und Privatsphäre) ----------
+// Der Dialog speichert per fetch (Antwort JSON), ohne JavaScript leiten die Formulare zurück.
+const accountBack = (res, key, tab = 'profil') => res.redirect(`/konto?reiter=${tab}&${key}#${tab}`);
+const { ERR: ACCOUNT_ERR, OK: ACCOUNT_OK } = require('./konto');
+function accountDone(req, res, key, tab = 'profil') {
+  const [kind, code] = key.split('=');
+  if (req.accepts(['html', 'json']) === 'json') return kind === 'err' ? res.status(400).json({ error: ACCOUNT_ERR[code] || 'Das ging nicht.' }) : res.json({ ok: true, msg: ACCOUNT_OK[code] || '' });
+  accountBack(res, key, tab);
 }
-function renderThread(req, res, err, draft) {
-  const u = req.partner;
-  p.markRead(req.user.id, u.id);
-  notify.readKey(req.user.id, 'pm:' + u.id);
-  res.status(err ? 400 : 200).render('conversation', {
-    title: 'Nachrichten mit ' + p.displayName(u), u, messages: p.thread(req.user.id, u.id),
-    canMessage: p.canMessage(req.user, u), err, draft: draft || '', maxLength: p.MAX_PM,
-  });
-}
-router.get('/nachrichten/:name', auth.requireLogin, loadPartner, (req, res) => renderThread(req, res, null));
-router.post('/nachrichten/:name', auth.requireLogin, auth.rateLimit('pm', 30, 600), loadPartner, (req, res) => {
-  const body = String(req.body.body || '').replace(/\r\n/g, '\n').trim();
-  if (!p.canMessage(req.user, req.partner)) return renderThread(req, res, `${p.displayName(req.partner)} bekommt nur Nachrichten von Freunden.`, body);
-  if (!body) return res.redirect('/nachrichten/' + encodeURIComponent(req.partner.username));
-  if (body.length > p.MAX_PM) return renderThread(req, res, `Höchstens ${p.MAX_PM} Zeichen.`, body);
-  const id = p.sendMessage(req.user.id, req.partner.id, body);
-  notify.send(req.partner.id, 'pm', {
-    key: 'pm:' + req.user.id, title: '💌 Nachricht von ' + p.displayName(req.user),
-    body: body.length > 140 ? body.slice(0, 140) + '…' : body, url: '/nachrichten/' + encodeURIComponent(req.user.username),
-  });
-  res.redirect('/nachrichten/' + encodeURIComponent(req.partner.username) + '#n' + id);
-});
-router.post('/nachrichten/:name/loeschen', auth.requireLogin, loadPartner, (req, res) => {
-  p.hideConversation(req.user.id, req.partner.id);
-  res.redirect('/nachrichten');
-});
-// Der Desktop fragt regelmäßig nach ungelesenen Nachrichten (💌 neben der Uhr)
-router.get('/api/nachrichten', (req, res) => {
-  res.set('Cache-Control', 'no-store');
-  if (!req.user) return res.json({ unread: 0 });
-  const out = { unread: p.unreadCount(req.user.id) };
-  // Ein offenes Gespräch lädt neu, sobald von diesem Partner etwas Neues kommt
-  const from = req.query.von && p.findUser(req.query.von);
-  if (from) out.from = db.prepare('SELECT COUNT(*) AS n FROM private_messages WHERE to_id = ? AND from_id = ? AND read_at IS NULL').get(req.user.id, from.id).n;
-  res.json(out);
-});
-
-// ---------- Profil-Einstellungen (Mein Konto) ----------
-const accountBack = (res, key) => res.redirect('/account?' + key + '#profil');
 router.post('/account/profil', auth.requireLogin, (req, res) => {
   const b = req.body;
   const name = p.cleanDisplayName(b.display_name);
-  if (name === null) return accountBack(res, 'err=name');
-  if (name && name.toLowerCase() !== req.user.username.toLowerCase() && p.nameTaken(name, req.user.id)) return accountBack(res, 'err=taken');
-  db.prepare('UPDATE users SET display_name = ?, about = ?, profile_visibility = ?, pm_from = ?, gb_from = ? WHERE id = ?').run(
+  if (name === null) return accountDone(req, res, 'err=name');
+  if (name && name.toLowerCase() !== req.user.username.toLowerCase() && p.nameTaken(name, req.user.id)) return accountDone(req, res, 'err=taken');
+  db.prepare('UPDATE users SET display_name = ?, about = ? WHERE id = ?').run(
     name && name !== req.user.username ? name : null,
     String(b.about || '').replace(/\r\n/g, '\n').trim().slice(0, 1000) || null,
-    Object.hasOwn(p.PROFILE_VIS, b.profile_visibility) ? b.profile_visibility : 'members',
-    Object.hasOwn(p.PM_FROM, b.pm_from) ? b.pm_from : 'all',
-    Object.hasOwn(p.GB_FROM, b.gb_from) ? b.gb_from : 'all',
     req.user.id);
-  accountBack(res, 'ok=profil');
+  if (typeof b.status_msg === 'string') m.setStatus(req.user.id, undefined, b.status_msg);
+  // Ältere Formulare schicken die Privatsphäre mit
+  if (b.profile_visibility !== undefined) savePrivacy(req.user.id, b);
+  accountDone(req, res, 'ok=profil');
+});
+// Wer darf was (Konto und Passwort → Privatsphäre). Fehlt ein Feld, bleibt es, wie es ist.
+function savePrivacy(userId, b) {
+  const u = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  const val = (k, map) => (Object.hasOwn(map, b[k]) ? b[k] : u[k]);
+  db.prepare(`UPDATE users SET profile_visibility = ?, pm_from = ?, gb_from = ?, presence_from = ?, activity_from = ?, invite_from = ?,
+              request_from = ?, show_last_seen = ? WHERE id = ?`).run(
+    val('profile_visibility', p.PROFILE_VIS), val('pm_from', p.PM_FROM), val('gb_from', p.GB_FROM),
+    val('presence_from', p.SEE_FROM), val('activity_from', p.SEE_FROM), val('invite_from', p.SEE_FROM), val('request_from', p.REQUEST_FROM),
+    b.show_last_seen === undefined ? u.show_last_seen : b.show_last_seen === '1' ? 1 : 0, userId);
+  m.send(userId, 'kontakte');
+  for (const f of p.friendsOf(userId)) m.send(f.id, 'kontakte');
+}
+router.post('/konto/privatsphaere', auth.requireLogin, (req, res) => {
+  savePrivacy(req.user.id, { show_last_seen: '0', ...req.body });
+  accountDone(req, res, 'ok=privat', 'privatsphaere');
 });
 
 const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: p.AVATAR_MAX, files: 1 } }).single('avatar');
 router.post('/account/avatar', auth.requireLogin, auth.rateLimit('avatar', 20, 3600), (req, res, next) => avatarUpload(req, res, err => {
-  if (err) return accountBack(res, err.code === 'LIMIT_FILE_SIZE' ? 'err=big' : 'err=bild');
+  if (err) return accountDone(req, res, err.code === 'LIMIT_FILE_SIZE' ? 'err=big' : 'err=bild');
   next();
 }), auth.csrfCheck, (req, res) => {
-  if (!req.file) return accountBack(res, 'err=bild');
+  if (!req.file) return accountDone(req, res, 'err=bild');
   let name;
-  try { name = p.saveAvatar(req.file.buffer); } catch (e) { return accountBack(res, e.code === 'quadrat' ? 'err=quadrat' : 'err=bild'); }
+  try { name = p.saveAvatar(req.file.buffer); } catch (e) { return accountDone(req, res, e.code === 'quadrat' ? 'err=quadrat' : 'err=bild'); }
   p.removeAvatar(req.user.avatar);
   db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(name, req.user.id);
-  accountBack(res, 'ok=bild');
+  accountDone(req, res, 'ok=bild');
 });
 router.post('/account/avatar/loeschen', auth.requireLogin, (req, res) => {
   p.removeAvatar(req.user.avatar);
   db.prepare('UPDATE users SET avatar = NULL WHERE id = ?').run(req.user.id);
-  accountBack(res, 'ok=bildweg');
+  accountDone(req, res, 'ok=bildweg');
 });
 
 router.get('/avatar/:name', (req, res, next) => {

@@ -164,7 +164,7 @@ function boardOf(viewer, d, limit) {
   const rows = db.prepare(`SELECT c.user_id, c.pet_name, c.species, c.color, c.score, u.username, u.display_name FROM pp_contest c
                            JOIN users u ON u.id = c.user_id WHERE c.day = ? AND u.disabled = 0
                            ORDER BY c.score DESC, c.updated_at ASC LIMIT ?`).all(d, limit);
-  // Bestenliste wie gewählt (Systemsteuerung → Profil und Statistik): „Gar nicht“ fehlt, „Anonym“ ohne Namen, Profil und Tiernamen.
+  // Bestenliste wie gewählt (Konto und Passwort → Statistik): „Gar nicht“ fehlt, „Anonym“ ohne Namen, Profil und Tiernamen.
   // Die Plätze bleiben die echten, so passen sie zum eigenen Platz darunter.
   const modes = require('./usersettings').boardModes('haustier', rows.map(r => r.user_id));
   return rows.map((r, i) => {

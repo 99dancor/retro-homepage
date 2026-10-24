@@ -84,6 +84,15 @@
     anmelden: function (c, t) { chord(c, t, [392, 523, 659, 784], { d: 0.9, type: 'triangle', v: 0.14, step: 0.11 }); },
     // Kartenspiele: Gläser stoßen an
     prost: function (c, t) { [0, 0.07].forEach(function (o, i) { tone(c, t + o, { f: 2350 + i * 410, d: 0.35, v: 0.1 }); tone(c, t + o, { f: 5300 + i * 700, d: 0.12, v: 0.03 }); }); },
+    // Messenger (ICU/DSN): eigene Klänge, keine Originale. „klassisch“ wählt public/messenger-hub.js je nach Design.
+    'msgr-icu': function (c, t) { tone(c, t, { f: 620, to: 520, d: 0.16, type: 'triangle', v: 0.26 }); tone(c, t + 0.17, { f: 470, to: 700, d: 0.24, type: 'triangle', v: 0.26 }); },
+    'msgr-dsn': function (c, t) { tone(c, t, { f: 1175, d: 0.35, v: 0.2 }); tone(c, t + 0.14, { f: 880, d: 0.55, v: 0.2 }); tone(c, t + 0.14, { f: 1760, d: 0.2, v: 0.04 }); },
+    'msgr-pling': function (c, t) { tone(c, t, { f: 1568, d: 0.35, v: 0.2 }); },
+    'msgr-glocke': function (c, t) { [1047, 1319].forEach(function (f, i) { tone(c, t + i * 0.12, { f: f, d: 0.8, v: 0.14 }); tone(c, t + i * 0.12, { f: f * 2.76, d: 0.3, v: 0.03 }); }); },
+    'msgr-tuer': function (c, t) { tone(c, t, { f: 180, to: 320, d: 0.35, type: 'sawtooth', a: 0.05, v: 0.05 }); noise(c, t + 0.33, { d: 0.06, f: 900, q: 2, v: 0.35 }); noise(c, t + 0.45, { d: 0.06, f: 900, q: 2, v: 0.3 }); },
+    'msgr-summen': function (c, t) { tone(c, t, { f: 110, d: 0.5, type: 'sawtooth', a: 0.01, v: 0.12 }); tone(c, t, { f: 113, d: 0.5, type: 'square', a: 0.01, v: 0.05 }); },
+    'msgr-online-icu': function (c, t) { chord(c, t, [784, 1047], { d: 0.3, type: 'triangle', v: 0.15, step: 0.08 }); },
+    'msgr-online-dsn': function (c, t) { chord(c, t, [659, 988, 1319], { d: 0.45, v: 0.12, step: 0.1 }); },
   };
 
   function play(name) {

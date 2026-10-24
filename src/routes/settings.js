@@ -1,6 +1,6 @@
 'use strict';
-// Systemsteuerung für alle (Startmenü → Systemsteuerung): Anzeige, Desktop, Profil und Statistik, Speicherplatz und
-// Verweise auf Konto, Benachrichtigungen, Sounds und Datenschutz. Die Verwaltung der Seite heißt „Seitenverwaltung“ (/admin).
+// Systemsteuerung für alle (Startmenü → Systemsteuerung): Anzeige, Desktop, Speicherplatz und
+// Verweise auf Konto und Passwort, Sounds und Datenschutz. Die Verwaltung der Seite heißt „Seitenverwaltung“ (/admin).
 const express = require('express');
 const { getSetting } = require('../db');
 const auth = require('../auth');
@@ -49,15 +49,9 @@ router.post('/desktop', auth.requireLogin, (req, res) => {
   res.redirect('/einstellungen/desktop?ok');
 });
 
-// ---------- Profil und Statistik ----------
-router.get('/statistik', auth.requireLogin, (req, res) => {
-  const s = us.get(req.user.id, 'stats');
-  const games = profiles.gameStats(req.user.id, req.user);
-  // Spiele mit Bestenliste auch dann, wenn noch nichts gespielt wurde: Man soll vorher wählen können, anonym zu bleiben
-  for (const [slug, title] of Object.entries(us.BOARD_GAMES)) if (!games.some(g => g.slug === slug)) games.push({ slug, title, stats: [], last: 0, url: '' });
-  const order = us.orderGames(games, s);
-  res.render('settings', { title: 'Profil und Statistik', page: 'statistik', s, games: order, SEE: us.SEE, BOARD: us.BOARD, SITE: us.SITE, BOARD_GAMES: us.BOARD_GAMES, saved: 'ok' in req.query });
-});
+// ---------- Statistik (Konto und Passwort → Statistik) ----------
+// Die Einstellungen stehen seit dem Messenger unter Konto und Passwort → Statistik; gespeichert wird weiter hier
+router.get('/statistik', (req, res) => res.redirect(301, '/konto?reiter=statistik#statistik'));
 router.post('/statistik', auth.requireLogin, (req, res) => {
   const b = req.body, all = profiles.gameStats(req.user.id, req.user);
   const slugs = new Set([...all.map(g => g.slug), ...Object.keys(us.BOARD_GAMES)]);
@@ -75,7 +69,8 @@ router.post('/statistik', auth.requireLogin, (req, res) => {
   const site = {};
   for (const k of Object.keys(us.SITE)) site[k] = asArray(b.site).includes(k);
   us.set(req.user.id, 'stats', { games, showcase, auto: b.auto === '1', site });
-  res.redirect('/einstellungen/statistik?ok');
+  if (req.accepts(['html', 'json']) === 'json') return res.json({ ok: true });
+  res.redirect('/konto?reiter=statistik&ok=stats#statistik');
 });
 
 // ---------- Speicherplatz ----------

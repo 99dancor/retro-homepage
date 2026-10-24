@@ -61,7 +61,7 @@ module.exports = function cardGameRouter(cg) {
     res.json({ ok: true });
   });
 
-  // Bestenliste: Jeder wählt unter Systemsteuerung → Profil und Statistik, ob er mit Namen, anonym oder gar nicht drinsteht
+  // Bestenliste: Jeder wählt unter Konto und Passwort → Statistik, ob er mit Namen, anonym oder gar nicht drinsteht
   router.get('/statistik', gate, (req, res) => {
     const board = us.boardList(cg.id, cg.leaderboard(), req.user).slice(0, 100).map(u => ({
       id: u.id, name: u.name, user: u.user, avatar: u.avatar, games: u.games, wins: u.wins, bonus: u.bonus, best: u.best, rounds: u.rounds, top: u.top, low: u.low,

@@ -59,20 +59,6 @@
     ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
   });
 
-  // Gespräch mit Privatnachrichten: ans Ende scrollen, Strg+Enter sendet, Neues lädt nach (solange nichts getippt ist)
-  var chat = document.getElementById('chat');
-  if (chat) {
-    chat.scrollTop = chat.scrollHeight;
-    var box = document.querySelector('.chat-form textarea');
-    if (box) box.addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); box.form.requestSubmit(); } });
-    var partner = location.pathname.split('/')[2];
-    setInterval(function () {
-      if (document.hidden || (box && box.value.trim())) return;
-      fetch('/api/nachrichten?von=' + partner, { credentials: 'same-origin' }).then(function (r) { return r.json(); })
-        .then(function (j) { if (j.from) location.reload(); }).catch(function () {});
-    }, 15000);
-  }
-
   // Bereich einer Adresse: erster Pfadteil, "" für die Startseite. Jeder Bereich hat höchstens ein Fenster;
   // eigene Seiten und das Hochladen bekommen jeweils ein eigenes.
   function section(path) { return path.split(/[?#]/)[0].split('/')[1] || ''; }
@@ -84,12 +70,14 @@
     if (p[1] === 'notizblock' && p[2]) return 'notizblock/' + p[2];
     if (p[1] === 'ansehen') return 'ansehen/' + p[2] + '/' + p[3];
     if (p[1] === 'ordner') return 'ordner/' + p[2];
+    // Messenger: Kontaktliste, jedes Gespräch, Suche und Verlauf in eigenen Fenstern
+    if (p[1] === 'messenger' && p[2]) return 'messenger/' + p[2] + (p[3] ? '/' + p[3] : '');
     return p[1] || '';
   }
   // Nur echte Seiten öffnen Fenster, keine Downloads, Bilder oder Spieldateien (Benutzernamen dürfen Punkte enthalten)
   function isPage(u) {
     return !/^\/(files\/dl|media|static|uploads|api)\//.test(u.pathname) && !/^\/apps\/[^/]+\/play\//.test(u.pathname) &&
-      (!/\.[a-z0-9]{1,5}$/i.test(u.pathname) || /^\/(nutzer|nachrichten)\//.test(u.pathname));
+      (!/\.[a-z0-9]{1,5}$/i.test(u.pathname) || /^\/(nutzer|nachrichten|messenger)\//.test(u.pathname));
   }
 
   // ---------- Inhalt eines Fensters ----------
@@ -127,8 +115,8 @@
   var deskEl = document.getElementById('desk'), tasks = document.getElementById('tasks');
   var siteTitle = body.dataset.title, me = body.dataset.user;
   var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
-    contact: '✉️', changelog: '📋', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵', zufall: '🎲', kartenspiele: '🂡', blackjack: '🃏', poker: '♠️', durak: '🎴', uno: '🟥', flip7: '7️⃣', pilli: '🌶️', quiz: '❓', werwolf: '🐺', minesweeper: '💣', kreuzwortraetsel: '📰', sudoku: '🔢',
-    nutzer: '👥', nachrichten: '💌', paint: '🎨', galerie: '🖼️', admin: '⚙️', 'eigene-dateien': '🗂️', einstellungen: '🛠️', notizblock: '🗒️', suche: '🔍',
+    contact: '✉️', changelog: '📋', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', konto: '🔑', messenger: '💬', musik: '🎵', zufall: '🎲', kartenspiele: '🂡', blackjack: '🃏', poker: '♠️', durak: '🎴', uno: '🟥', flip7: '7️⃣', pilli: '🌶️', quiz: '❓', werwolf: '🐺', minesweeper: '💣', kreuzwortraetsel: '📰', sudoku: '🔢',
+    nutzer: '👤', paint: '🎨', galerie: '🖼️', admin: '⚙️', 'eigene-dateien': '🗂️', einstellungen: '🛠️', notizblock: '🗒️', suche: '🔍',
     ordner: '📁', ansehen: '🖼️', benachrichtigungen: '🔔' };
   var mobile = window.matchMedia('(max-width: 760px)');
   var wins = [], zTop = 10, active = null, reloading = false;
@@ -189,9 +177,16 @@
     w.title = title || siteTitle;
     var icon = ICONS[section(w.url)] || '💾';
     w.el.querySelector('.ttl').textContent = w.title;
-    w.el.querySelector('.icon').textContent = icon;
     w.el.querySelector('iframe').title = w.title;
-    w.task.textContent = icon + ' ' + w.title;
+    // Der Messenger hat sein eigenes Symbol (Blume bei ICU, Männchen bei DSN), siehe .st-logo in retro.css
+    if (section(w.url) === 'messenger') {
+      w.el.querySelector('.icon').innerHTML = '<i class="st st-logo"></i>';
+      w.task.innerHTML = '<i class="st st-logo"></i> ';
+      w.task.appendChild(document.createTextNode(w.title));
+    } else {
+      w.el.querySelector('.icon').textContent = icon;
+      w.task.textContent = icon + ' ' + w.title;
+    }
     w.task.title = w.title;
   }
 
@@ -234,7 +229,6 @@
     }
     doc.addEventListener('pointerdown', function () { closeMenu(); if (active !== w) focus(w); });
     watchStatus(w, doc);
-    if (section(w.url) === 'nachrichten') pollUnread();
     if (active === w) syncTop();
     save();
   }
@@ -313,18 +307,26 @@
   }
 
   // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Mediaplayer brauchen etwas mehr Platz
-  var SIZES = { haustier: [1000, 720], musik: [1080, 700], zufall: [760, 620], kartenspiele: [1080, 760], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], werwolf: [1000, 720], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], sudoku: [720, 640], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640], admin: [1100, 740], 'eigene-dateien': [900, 620],
+  var SIZES = { haustier: [1000, 720], musik: [1080, 700], zufall: [760, 620], kartenspiele: [1080, 760], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], werwolf: [1000, 720], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], sudoku: [720, 640], konto: [700, 620], paint: [1000, 700], galerie: [900, 640], admin: [1100, 740], 'eigene-dateien': [900, 620],
     einstellungen: [860, 640], notizblock: [660, 500], suche: [760, 580], ansehen: [800, 600], ordner: [820, 580] };
   // Vergrößerte Fensterinhalte (🖥️ → Größe der Oberfläche mit „Fensterinhalte mitskalieren“) brauchen größere Fenster
   function contentZoom() {
     var root = document.documentElement;
     return root.classList.contains('zoomed') && root.classList.contains('zoom-all') ? parseFloat(getComputedStyle(root).getPropertyValue('--zoom')) || 1 : 1;
   }
+  // Messenger: schmale Kontaktliste, Gespräche wie ein Chatfenster
+  var MSGR = { messenger: [270, 600], 'messenger/mit': [540, 480], 'messenger/finden': [760, 580], 'messenger/verlauf': [660, 520], 'messenger/anfrage': [540, 340] };
+  function sizeFor(url) {
+    var k = winKey(url).split('/').slice(0, 2).join('/');
+    return MSGR[k] || SIZES[section(url)] || [820, 580];
+  }
   function place(el, s, url) {
-    var n = wins.length % 8, size = SIZES[section(url)] || [820, 580], z = contentZoom();
+    var n = wins.length % 8, size = sizeFor(url), z = contentZoom();
     var w = s && s.w || Math.min(Math.round(size[0] * z), deskEl.clientWidth - 40), h = s && s.h || Math.min(Math.round(size[1] * z), deskEl.clientHeight - 40);
     el.style.width = w + 'px'; el.style.height = h + 'px';
-    el.style.left = (s ? s.x : Math.max(0, Math.min(30 + n * 28, deskEl.clientWidth - w))) + 'px';
+    // Die Kontaktliste steht wie bei ICQ am rechten Rand
+    var right = !s && winKey(url) === 'messenger';
+    el.style.left = (s ? s.x : right ? Math.max(0, deskEl.clientWidth - w - 16) : Math.max(0, Math.min(30 + n * 28, deskEl.clientWidth - w))) + 'px';
     el.style.top = (s ? s.y : Math.max(0, Math.min(28 + n * 28, deskEl.clientHeight - h))) + 'px';
     if (s && s.max) el.classList.add('max');
     if (s && s.min) el.classList.add('min');
@@ -385,6 +387,8 @@
   function isAuthWin(w) { var k = winKey(w.url); return k === 'login' || k === 'register'; }
   window.RetroDesk = {
     open: open,
+    // Adresse des vordersten Fensters (der Messenger fragt, ob ein Gespräch gerade offen ist)
+    activeUrl: function () { return active && !active.el.classList.contains('min') ? active.url : null; },
     // Ein Fenster passt sich seinem Inhalt an (Minesweeper je nach Spielfeld), außer es ist maximiert oder auf dem Handy.
     // Mit scalable lässt es sich trotzdem an der Ecke aufziehen, der Inhalt skaliert dann mit.
     fit: function (win, width, height, opts) {
@@ -436,27 +440,6 @@
     closeMenu();
     open(a.getAttribute('href'), false);
   });
-
-  // 💌 neben der Uhr: ungelesene Privatnachrichten. Der Desktop fragt jede Minute nach und wenn ein Fenster lädt.
-  var pmTray = document.getElementById('pmtray'), pmMenu = document.getElementById('pm-menu'), pmCount = pmTray ? Number(pmTray.textContent.replace(/\D/g, '')) || 0 : 0;
-  function showUnread(n) {
-    if (!pmTray) return;
-    if (n > pmCount) sound('hinweis');
-    pmCount = n;
-    pmTray.hidden = !n;
-    pmTray.querySelector('.pm-count').textContent = n;
-    pmTray.title = n + ' ungelesene Nachrichten';
-    if (pmMenu) pmMenu.textContent = '💌 Nachrichten' + (n ? ' (' + n + ')' : '');
-  }
-  function pollUnread() {
-    if (!pmTray) return;
-    fetch('/api/nachrichten', { credentials: 'same-origin' }).then(function (r) { return r.json(); })
-      .then(function (j) { showUnread(j.unread || 0); }).catch(function () {});
-  }
-  if (pmTray) {
-    pmTray.addEventListener('click', function (e) { e.preventDefault(); open(pmTray.getAttribute('href'), false); });
-    setInterval(function () { if (!document.hidden) pollUnread(); }, 60000);
-  }
 
   // Erstes Fenster kommt vom Server, gespeicherte Fenster wiederherstellen
   var first = deskEl.querySelector('.dwin');

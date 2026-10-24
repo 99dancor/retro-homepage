@@ -1,4 +1,4 @@
-// Kontoeinstellungen: Push-Benachrichtigungen auf diesem Gerät ein- und ausschalten.
+// Konto und Passwort → Benachrichtigungen: Push-Benachrichtigungen auf diesem Gerät ein- und ausschalten.
 // Der Service Worker (/sw.js) zeigt sie an; die Seite schickt sie über den Push-Dienst des Browsers.
 (function () {
   'use strict';

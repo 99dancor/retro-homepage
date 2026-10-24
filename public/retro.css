@@ -763,12 +763,20 @@ html.scheme-nacht .neg, html.scheme-kontrast .neg { color: #ff8a8a; }
 .bj-name:hover { background: rgba(255,255,255,.2); }
 .bj-chips { text-shadow: 1px 1px #000; }
 .bj-felt .pos { color: #9cff9c; } .bj-felt .neg { color: #ff9c9c; }
-.bj-chip { display: inline-flex; width: calc(var(--c) * .64); height: calc(var(--c) * .64); min-width: 0; padding: 0; border-radius: 50%; align-items: center; justify-content: center; vertical-align: middle;
-  font: bold calc(var(--c) * .23) var(--font); color: #fff; border: 3px dashed #fff; box-shadow: 0 0 0 1px #000, 1px 2px 0 rgba(0,0,0,.4); background: #1565c0; }
-button.bj-chip { width: clamp(36px, calc(var(--c) * .7), 60px); height: clamp(36px, calc(var(--c) * .7), 60px); font-size: clamp(11px, calc(var(--c) * .2), 17px); }
-button.bj-chip:active { transform: translateY(1px); box-shadow: 0 0 0 1px #000; }
-.bj-chip.c5 { background: #c62828; } .bj-chip.c10 { background: #1565c0; } .bj-chip.c25 { background: #2e7d32; } .bj-chip.c50 { background: #ef6c00; }
-.bj-chip.c100 { background: #222; } .bj-chip.c500 { background: #6a1b9a; } .bj-chip.c1000 { background: #b8860b; }
+/* Chips: rund mit weißen Kantenmarken und Innenring wie ein Casino-Chip; die Farbe steht in --chip */
+.bj-chip { --chip: #1565c0; --d: calc(var(--c, 56px) * .64); display: inline-flex; flex: none; box-sizing: border-box; width: var(--d); height: var(--d); aspect-ratio: 1; min-width: 0; padding: 0;
+  border-radius: 50%; align-items: center; justify-content: center; vertical-align: middle; font: bold calc(var(--d) * .3) / 1 var(--font); color: #fff; letter-spacing: -.03em;
+  text-shadow: 0 1px 1px rgba(0,0,0,.65); border: 0;
+  background: radial-gradient(circle closest-side, var(--chip) 0 63%, rgba(255,255,255,.9) 64% 68%, var(--chip) 69% 77%, transparent 78%),
+    repeating-conic-gradient(from 7.5deg, rgba(255,255,255,.95) 0 15deg, var(--chip) 15deg 45deg);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), inset 0 -2px 3px rgba(0,0,0,.3), 0 2px 3px rgba(0,0,0,.45); }
+button.bj-chip, .ks-dock button.bj-chip { --d: 44px; width: var(--d); height: var(--d); padding: 0; min-width: 0; font-size: 13px; transition: transform .12s ease-out, box-shadow .12s; }
+button.bj-chip:hover:not(:disabled) { transform: translateY(-3px); box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), inset 0 -2px 3px rgba(0,0,0,.3), 0 5px 6px rgba(0,0,0,.4); }
+button.bj-chip:active:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 0 0 1px rgba(0,0,0,.4), 0 1px 1px rgba(0,0,0,.5); }
+button.bj-chip:focus-visible { outline: 2px solid #ffd700; outline-offset: 2px; }
+.bj-chip.c5 { --chip: #c62828; } .bj-chip.c10 { --chip: #1565c0; } .bj-chip.c25 { --chip: #2e7d32; } .bj-chip.c50 { --chip: #ef6c00; }
+.bj-chip.c100 { --chip: #222; } .bj-chip.c500 { --chip: #6a1b9a; } .bj-chip.c1000 { --chip: #b8860b; }
+@media (prefers-reduced-motion: reduce) { button.bj-chip { transition: none; } }
 .bj-controls { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .bj-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
 .bj button:disabled { opacity: .5; cursor: default; }
@@ -817,7 +825,7 @@ button.bj-chip:active { transform: translateY(1px); box-shadow: 0 0 0 1px #000; 
 .pk-act { min-height: 1.2em; font-size: .9em; opacity: .9; text-shadow: 1px 1px #000; }
 .pk-best { font-size: .85em; background: #000; color: #ff0; padding: 0 6px; border-radius: 9px; }
 .pk-bet { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; text-shadow: 1px 1px #000; font-weight: bold; }
-.pk-bet .bj-chip { width: calc(var(--c) * .5); height: calc(var(--c) * .5); font-size: calc(var(--c) * .17); border-width: 2px; }
+.pk-bet .bj-chip { --d: calc(var(--c) * .5); }
 .pk-button { position: absolute; transform: translate(-50%, -50%); width: calc(var(--c) * .45); height: calc(var(--c) * .45); min-width: 18px; min-height: 18px; border-radius: 50%;
   background: #fff; color: #000; font: bold calc(var(--c) * .25) var(--font); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px #000, 1px 2px 0 rgba(0,0,0,.4); }
 .pk-button.inline { position: static; transform: none; width: 18px; height: 18px; font-size: 11px; vertical-align: middle; }

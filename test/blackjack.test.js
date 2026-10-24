@@ -133,6 +133,46 @@ test('Runde: gewinnen, Blackjack zahlt 3 zu 2, Dealerkarte bleibt verdeckt', asy
   bj.remove(t);
 });
 
+test('Gleicher Wert ist unentschieden: Einsatz zurück, auch Blackjack gegen Blackjack', async () => {
+  const u = user('hanna');
+  const t = bj.create(u, { name: 'Gleich' });
+  bj.control(t, u, { action: 'sit' });
+  const s = seat(t, u);
+  // Spieler 10 + 8, Dealer 10 + 8
+  rig(t, ['10♠', '10♥', '8♣', '8♦']);
+  bj.control(t, u, { action: 'bet', amount: 100 });
+  assert.equal(bj.control(t, u, { action: 'confirm' }), null);
+  await wait(t, 'playing');
+  bj.control(t, u, { action: 'stand' });
+  await wait(t, 'result');
+  assert.equal(s.hands[0].result, 'push');
+  assert.equal(s.chips, 1000);
+
+  await wait(t, 'betting');
+  // Spieler 10 + 6 zieht 4 auf 20, Dealer 10 + 6 zieht 4 auf 20
+  rig(t, ['10♠', '10♥', '6♣', '6♦', '4♠', '4♥']);
+  bj.control(t, u, { action: 'bet', amount: 50 });
+  bj.control(t, u, { action: 'confirm' });
+  await wait(t, 'playing');
+  bj.control(t, u, { action: 'hit' });
+  bj.control(t, u, { action: 'stand' });
+  await wait(t, 'result');
+  assert.equal(s.hands[0].result, 'push', '20 gegen 20 nach dem Ziehen');
+  assert.equal(s.chips, 1000);
+
+  await wait(t, 'betting');
+  // Beide haben Blackjack: der Dealer schaut nach, die Runde ist sofort vorbei
+  rig(t, ['A♠', 'A♥', 'K♣', 'Q♦']);
+  bj.control(t, u, { action: 'bet', amount: 100 });
+  bj.control(t, u, { action: 'confirm' });
+  await wait(t, 'result');
+  assert.equal(s.hands[0].result, 'push');
+  assert.equal(s.chips, 1000);
+  const tot = bj.userTotals(u.id);
+  assert.deepEqual([tot.balance, tot.hands, tot.pushes, tot.losses], [0, 3, 3, 0]);
+  bj.remove(t);
+});
+
 test('Verdoppeln, Teilen und Überkaufen', async () => {
   const u = user('dora');
   const t = bj.create(u, { name: 'Züge' });

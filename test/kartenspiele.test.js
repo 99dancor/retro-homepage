@@ -267,6 +267,13 @@ test('Runde schmeißen: alle bekommen das Getränk, bezahlt wird für alle', () 
   assert.match(t.log[0], /Anna schmeißt eine Runde Bier/);
   const m = ks.meta(s);
   for (const u of [anna, bernd, carla]) assert.deepEqual([m.deco[u.id].drink.id, m.deco[u.id].drink.from], ['bier', 'Anna']);
+  // Wer danach sein eigenes Getränk hinstellt (oder kauft), hat wieder seins; bei den anderen bleibt die Runde stehen
+  assert.equal(ks.equip(bernd, 'kaffee'), null);
+  assert.equal(ks.meta(s).deco[bernd.id].drink.id, 'kaffee');
+  assert.equal(ks.meta(s).deco[bernd.id].drink.from, undefined);
+  assert.equal(ks.buy(carla, 'saft'), null);
+  assert.equal(ks.meta(s).deco[carla.id].drink.id, 'saft');
+  assert.equal(ks.meta(s).deco[anna.id].drink.from, 'Anna');
   leave();
   ks.close(s);
 });

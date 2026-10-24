@@ -212,10 +212,12 @@ function announce(s) { send(tableOf(s), 'salon', meta(s)); }
 function buy(user, item) {
   const s = seatedAt(user.id), t = s && tableOf(s);
   const seat = t && GAMES[s.game].money ? t.seats.find(x => x && x.userId === user.id) : null;
+  const price = kasse.price(item);
   const err = kasse.buy(user.id, item, seat ? seat.chips : undefined);
   if (err) return err;
   // Der Einkauf ist kein Verlust am Tisch: Mitgebrachtes sinkt mit, die Bilanz der Sitzung bleibt
-  if (seat) { const price = kasse.price(item); seat.chips -= price; seat.bought -= price; engine(s.game).broadcast(t); }
+  if (seat) { seat.chips -= price; seat.bought -= price; engine(s.game).broadcast(t); }
+  if (kasse.SHOP[item].kind === 'drink') ownDrink(s, user.id);
   if (s) announce(s);
   return null;
 }
@@ -223,9 +225,12 @@ function equip(user, item, kind) {
   const err = kasse.equip(user.id, item, kind);
   if (err) return err;
   const s = seatedAt(user.id);
+  if ((item ? kasse.SHOP[item].kind : kind) === 'drink') ownDrink(s, user.id);
   if (s) announce(s);
   return null;
 }
+// Wer selbst ein Getränk hinstellt oder wegräumt, stellt damit das aus einer geschmissenen Runde weg
+function ownDrink(s, userId) { if (s && s.rounds) delete s.rounds[userId]; }
 
 // Schnell spielen: an den vollsten Tisch mit freiem Platz im gewünschten Spiel (oder irgendeinem), sonst einen aufmachen.
 // Wer schon sitzt, kommt an seinen Tisch zurück.

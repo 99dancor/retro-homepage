@@ -251,6 +251,9 @@
   }
   function item(id) { return shop && shop.items.filter(function (x) { return x.id === id; })[0]; }
   function placed(kind) { return shop ? shop[kind] : null; }
+  // Steht gerade das Getränk aus einer geschmissenen Runde da? Dann ist das eigene nur im Schrank, bis man es wieder hinstellt.
+  function roundDrink() { var d = shop && shop.deco && shop.deco.drink; return d && d.from ? d : null; }
+  function standing(x) { return placed(x.kind) === x.id && !(x.kind === 'drink' && roundDrink()); }
   function shortTitle(x) { return x.title.split(' für ')[0]; }
   function stars(r) { return r === 2 ? '★★' : r === 1 ? '★' : ''; }
   function shopIcon(x) {
@@ -262,7 +265,7 @@
   }
   function priceHtml(x) { return x.price ? (x.was ? '<s>' + euro(x.was) + '</s> ' : '') + euro(x.price) : 'gratis'; }
   function tile(x) {
-    var on = placed(x.kind) === x.id;
+    var on = standing(x);
     return '<button type="button" class="ks-ic' + (x.id === shopSel ? ' sel' : '') + (x.owned ? ' own' : '') + (x.was ? ' deal' : '') + '" data-item="' + x.id + '" title="' + esc(x.title) + '">' +
       '<span class="i">' + shopIcon(x) + '</span>' + (on ? '<span class="ov" title="Steht an deinem Platz">✔</span>' : '') + (x.rarity ? '<span class="rar" title="' + (x.rarity === 2 ? 'legendär' : 'selten') + '">' + stars(x.rarity) + '</span>' : '') +
       '<span class="n">' + esc(shortTitle(x)) + '</span><span class="p">' + (x.owned && x.price ? 'gehört dir' : priceHtml(x)) + '</span></button>';
@@ -290,8 +293,8 @@
     var x = sel && item(sel), k = shop.kasse;
     if (!x) return '<b>Dein Platz</b><small>So sehen dich die anderen am Tisch. Klick auf ein Teil, um es anzuprobieren.</small>' +
       '<small>' + (k.atTable ? 'Dein Geld liegt am Tisch „' + esc(k.atTable) + '“, bezahlt wird dort mit deinen Chips.' : 'Bezahlt wird mit Spielgeld aus der Kasse.') + ' Gekauftes behältst du; es zählt nicht als Verlust.</small>';
-    var on = placed(x.kind) === x.id, look = x.kind === 'wood' || x.kind === 'felt' || x.kind === 'back';
-    var what = x.kind === 'drink' ? 'Steht rechts neben deinem Platz auf dem Holz. Klick am Tisch auf dein Glas, um anzustoßen.'
+    var on = standing(x), look = x.kind === 'wood' || x.kind === 'felt' || x.kind === 'back';
+    var what = x.kind === 'drink' ? (roundDrink() ? 'Gerade steht bei dir die Runde von ' + esc(roundDrink().from) + '. Stellst du das hier hin, kommt es an ihre Stelle.' : 'Steht rechts neben deinem Platz auf dem Holz. Klick am Tisch auf dein Glas, um anzustoßen.')
       : x.kind === 'coaster' ? 'Liegt unter deinem Getränk.'
         : x.pet ? 'Hier sitzt dein Pixelpfoten-Tier mit am Tisch, und alle können es streicheln.' + (shop.pet ? '' : ' Hol dir erst ein Tier bei Pixelpfoten.')
           : x.kind === 'charm' ? 'Liegt links neben deinem Platz auf dem Holz.' : 'Für deine eigenen Spieltische, wählbar unter 🎨 Gestalten.';
@@ -324,8 +327,15 @@
   }
   function mineHtml() {
     var mineItems = shop.items.filter(function (x) { return x.owned && x.price; });
+    var r = roundDrink();
     var at = ['drink', 'coaster', 'charm'].map(function (k) {
       var x = item(placed(k));
+      // Aus einer Runde: das eigene Getränk mit einem Klick zurückstellen (oder die Runde wegräumen, wenn man keins hat)
+      if (k === 'drink' && r) {
+        return '<tr><td>Getränk</td><td>' + r.icon + ' ' + esc(r.title) + '<br><small>Runde von ' + esc(r.from) + '</small></td><td class="num">' +
+          (x ? '<button type="button" class="small" data-shop="equip" data-item="' + x.id + '" title="' + esc(x.title) + ' wieder hinstellen">' + x.icon + ' Eigenes hinstellen</button>'
+            : '<button type="button" class="small" data-shop="equip" data-item="" data-kind="drink">Wegräumen</button>') + '</td></tr>';
+      }
       return '<tr><td>' + KIND_NAMES[k].replace(' und Snacks', '') + '</td><td>' + (x ? (x.kind === 'coaster' ? '' : x.icon + ' ') + esc(x.title) : '<i>nichts</i>') + '</td><td class="num">' +
         (x ? '<button type="button" class="small" data-shop="equip" data-item="" data-kind="' + k + '">Wegräumen</button>' : '') + '</td></tr>';
     }).join('');

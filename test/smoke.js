@@ -1683,6 +1683,51 @@ async function main() {
       assert.match(r.text_, /Eröffnung/);
     });
 
+    await step('Startseite: Titel der Seite, Kurzfassung des letzten Updates, Schnellstart', async () => {
+      const cl = require('../src/changelog');
+      // Kurzfassung: oberster Eintrag, Markdown raus, „z. B.“ beendet keinen Satz, Punkte ohne Stichwort nehmen ihren Anfang
+      const sample = cl.parse('# Changelog\n\n## 1.2.2027 – Neues *Spiel* und [mehr](/x)\n\n- **Erstens:** Das geht z. B. so. Danach mehr.\n'
+        + '- **Zweitens**: Text\n  weiter\n* Ohne Stichwort einfach los. Rest.\n\n## 1.1.2027 – Alt\n\n- **Alt:** nicht dabei\n');
+      assert.deepEqual(sample, { date: '1.2.2027', title: 'Neues Spiel und mehr', items: [
+        { label: 'Erstens', text: 'Das geht z. B. so.' }, { label: 'Zweitens', text: 'Text weiter' },
+        { label: 'Ohne Stichwort einfach los', text: 'Ohne Stichwort einfach los.' }] });
+      assert.deepEqual(cl.parse('## Ohne Datum\n\n- **Punkt:** Text'), { date: '', title: 'Ohne Datum', items: [{ label: 'Punkt', text: 'Text' }] });
+      assert.equal(cl.parse('Noch nichts'), null);
+
+      // Auf der Startseite: der oberste Eintrag aus CHANGELOG.md, höchstens acht Stichworte, Link zum Changelog
+      const u = cl.latest();
+      assert.equal(u.date, fs.readFileSync(path.join(__dirname, '..', 'CHANGELOG.md'), 'utf8').match(/^## (\S+)/m)[1]);
+      assert.ok(u.title && u.items.length, 'Titel und Punkte gelesen');
+      const html = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&#34;').replace(/'/g, '&#39;');
+      const home = (await guest.req('/')).text_;
+      const box = home.slice(home.indexOf('🆕 Neu auf der Seite'), home.indexOf('</fieldset>', home.indexOf('🆕 Neu auf der Seite')));
+      assert.ok(box.includes('Update vom ' + u.date), 'Datum');
+      assert.ok(box.includes('<b>' + html(u.title) + '</b>'), 'Titel');
+      assert.ok(box.includes('>' + html(u.items[0].label) + '</li>'), 'erstes Stichwort');
+      assert.equal((box.match(/<li class="tag"/g) || []).length, Math.min(8, u.items.length));
+      if (u.items.length > 8) assert.ok(box.includes(`und ${u.items.length - 8} weitere`));
+      assert.match(box, /href="\/changelog">📋 Alles im Changelog/);
+      // Kopf mit Titel der Seite, Statusleiste für den Fensterrand
+      assert.match(home, /<header class="home-hero">[\s\S]*<h1>Meine Seite<\/h1>/);
+      assert.match(home, /class="statusbar home-status"><span>👤 Du bist als Gast hier/);
+      assert.match((await members.anna.req('/')).text_, /class="statusbar home-status"><span>👤 Angemeldet als /);
+
+      // Schnellstart: die Programme aus dem Startmenü, Ausgeblendetes fehlt auch hier
+      const apps = h => [...h.slice(h.indexOf('<nav class="home-apps'), h.indexOf('</nav>', h.indexOf('<nav class="home-apps'))).matchAll(/class="home-app" href="([^"]+)"/g)].map(m => m[1]);
+      assert.deepEqual(apps(home), ['/kartenspiele', '/haustier/', '/paint', '/musik', '/minesweeper', '/kreuzwortraetsel', '/sudoku', '/quiz', '/werwolf', '/forum']);
+      const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'), { timeout: 5000 });
+      const before = sql.prepare("SELECT value FROM settings WHERE key = 'nav_hidden'").get().value;
+      sql.prepare("UPDATE settings SET value = 'paint,board' WHERE key = 'nav_hidden'").run();
+      try {
+        const hidden = (await guest.req('/')).text_;
+        assert.deepEqual(apps(hidden), ['/kartenspiele', '/haustier/', '/musik', '/minesweeper', '/kreuzwortraetsel', '/sudoku', '/quiz', '/werwolf']);
+        assert.doesNotMatch(hidden, /💬 Neu im Forum/);
+      } finally {
+        sql.prepare("UPDATE settings SET value = ? WHERE key = 'nav_hidden'").run(before);
+        sql.close();
+      }
+    });
+
     await step('Datenschutzseite im Startmenü zeigt echten Code und Bilder', async () => {
       const home = (await guest.req('/', { top: true })).text_;
       assert.match(home, /<div class="startmenu"[\s\S]*href="\/changelog"[\s\S]*href="\/datenschutz"/);

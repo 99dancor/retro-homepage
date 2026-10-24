@@ -84,7 +84,11 @@ function room(viewer, username) {
   if (!allowed(viewer, host, s)) return null;
   return {
     host: { user: host.username, name: nameOf(host), url: profiles.profileUrl(host.username) },
-    room: s.room, pets: petsOf(s), live: isLive(host.id), book: book(host.id, 8),
+    room: s.room, live: isLive(host.id), book: book(host.id, 8),
+    // Wer gerade auf dem Desktop seines Besitzers unterwegs ist, ist nicht im Zimmer
+    pets: petsOf(s).filter(p => !s.desk.out[p.id]), away: s.pets.filter(p => s.desk.out[p.id]).map(p => p.name),
+    // Einrichtung im Zimmer (nur ansehen)
+    place: Object.entries(s.place).filter(([, p]) => p.at === 'room').map(([id, p]) => ({ id, x: p.x, y: p.y })),
   };
 }
 

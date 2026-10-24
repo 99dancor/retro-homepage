@@ -1,5 +1,12 @@
 # Changelog
 
+## 24.10.2026 – Pixelpfoten auf dem Desktop
+
+- **Tiere auf dem Desktop:** Pixelpfoten hat jetzt Rolltore. Offen klettern die Tiere aus dem Fenster, laufen über Fenster und Taskleiste, jagen die Maus, lassen sich werfen und spielen ab und zu einen harmlosen Streich (Glocke, Ton leiser, Startmenü, Fensterknopf). Jeder Streich lässt sich abschalten. 🐾 neben der Uhr ruft sie heim, beim Schließen des Fensters kommen alle zurück.
+- **Einrichten:** Möbel, Betten, Näpfe und Bilder aus dem Shop oder als Belohnung stehen im Zimmer oder auf dem Desktop, auch wenn das Spiel zu ist.
+- **Benachrichtigungen von Pixelpfoten:** gebündelt in einer Nachricht, nachts still, morgens ein kurzer Gruß, wie die Nacht war.
+- **Behoben:** Desktop-Verknüpfungen mit Bild-Symbol (Messenger, Kartenspiele) waren kleiner als die anderen und nach rechts verschoben.
+
 ## 24.10.2026 – Bugfixes für Desktop und Messenger
 
 - **Dialoge:** „Abbrechen“ schließt jetzt jeden Dialog, z. B. „Website verlassen?“ und „Verknüpfung erstellen“. Bisher blieb der Dialog offen und alles dahinter ließ sich nicht mehr anklicken, bis man ihn mit × schloss.

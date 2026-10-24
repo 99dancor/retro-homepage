@@ -79,6 +79,33 @@ export function decide(me, others, rng = Math.random) {
   return { type: 'sit', ms: 2500 + rng() * 3000 };
 }
 
+// Schlafplätze verteilen: Jedes schlafende Tier bekommt einen eigenen Platz, auf dem seine Art schlafen darf,
+// und behält ihn, solange er frei ist. Ohne freien Platz legt es sich mit festem Abstand neben das erste Bett.
+//   sleepers: [{ key, species, bed }] (bed: bisheriger Platz)    spots: [{ id, x, d, sleep: true | [Arten] }]
+// Gibt Map key -> Platz (ein Eintrag aus spots oder { id: null, x, d }) oder null (kein Bett im Zimmer) zurück.
+export function assignBeds(sleepers, spots, gap = 0.17) {
+  const out = new Map(), used = new Set();
+  const fits = (p, species) => p.sleep === true || (Array.isArray(p.sleep) && p.sleep.includes(species));
+  for (const z of sleepers) {
+    const p = spots.find((s) => s.id === z.bed && !used.has(s.id) && fits(s, z.species));
+    if (p) { used.add(p.id); out.set(z.key, p); }
+  }
+  let extra = 0;
+  for (const z of sleepers) {
+    if (out.has(z.key)) continue;
+    const p = spots.find((s) => !used.has(s.id) && fits(s, z.species));
+    if (p) { used.add(p.id); out.set(z.key, p); continue; }
+    const base = spots.find((s) => s.sleep === true) || spots[0];
+    if (!base) { out.set(z.key, null); continue; }
+    extra++;
+    const side = extra % 2 ? 1 : -1, k = Math.ceil(extra / 2);
+    let x = base.x + side * k * gap;
+    if (x < 0.06 || x > 0.94) x = base.x - side * k * gap;
+    out.set(z.key, { id: null, x: clamp01(x, 0.06, 0.94), d: base.d });
+  }
+  return out;
+}
+
 // Platz neben einem anderen Tier (links oder rechts davon, je nachdem, wo mehr Platz ist)
 export function besides(other, gap = 0.2) {
   const side = other.x > 0.5 ? -1 : 1;

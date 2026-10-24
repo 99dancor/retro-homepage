@@ -3,6 +3,7 @@
 import { dayKey } from './state.js';
 import { ITEMS, ITEM_LIST, isDurable, owned, usableBy } from './items.js';
 import { level, maxLevel, usableItems, walkItem } from './pets.js';
+import { canPlace, MAX_ROOM, MAX_DESK } from './furniture.js';
 
 // Münzen pro Aktion; Aktionen bringen höchstens DAILY_CAP Münzen am Tag, damit Dauerklicken nichts bringt
 export const ACTION_COINS = { pet: 1, cuddle: 3, feed: 2, water: 1, sleep: 2, play: 3, brush: 2, bath: 3, walk: 5 };
@@ -81,6 +82,7 @@ export function track(state, event, { itemId = null, now = Date.now() } = {}) {
     if (task.done) continue;
     if (taskProgress(state, task) >= TASK_INFO[task.id].goal) {
       task.done = true;
+      state.tasksDone = (state.tasksDone || 0) + 1;
       addCoins(state, TASK_INFO[task.id].reward);
       done.push(TASK_INFO[task.id]);
     }
@@ -147,6 +149,8 @@ export function available(state, item, now = Date.now()) {
     return { ok: false, reason: r.months.length === 1 && r.months[0] === 12 ? 'Nur im Dezember' : 'Nur im Frühling' };
   }
   if (r.owns && !state.pets.some((p) => p.species === r.owns)) return { ok: false, reason: 'Kommt mit dem Drachen' };
+  if (r.trophy && !(state.trophies && state.trophies.length)) return { ok: false, reason: 'Für einen Pokal im Tageswettbewerb' };
+  if (r.tasks && (state.tasksDone || 0) < r.tasks) return { ok: false, reason: `Nach ${r.tasks} Tagesaufgaben (${state.tasksDone || 0} geschafft)` };
   return { ok: true };
 }
 
@@ -202,6 +206,52 @@ export function setRoom(state, id) {
   if (!ITEMS[id] || ITEMS[id].cat !== 'room' || !owned(state, id)) return false;
   state.room = id;
   return true;
+}
+
+// ---------- Einrichtung ----------
+// Jedes Teil steht an genau einem Ort. Ein Teil umstellen geht immer, neu aufstellen nur bis zur Höchstzahl.
+export const placedCount = (state, at) => Object.values(state.place || {}).filter((p) => p.at === at).length;
+
+export function placeItem(state, id, at, x, y) {
+  if (!canPlace(id, at) || !owned(state, id)) return { ok: false, reason: 'Das lässt sich hier nicht aufstellen.' };
+  state.place ||= {};
+  const cur = state.place[id];
+  const max = at === 'room' ? MAX_ROOM : MAX_DESK;
+  if ((!cur || cur.at !== at) && placedCount(state, at) >= max) {
+    return { ok: false, reason: at === 'room' ? `Im Zimmer stehen schon ${max} Sachen.` : `Auf dem Desktop stehen schon ${max} Sachen.` };
+  }
+  const unit = (v) => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0.5));
+  state.place[id] = { at, x: unit(x), y: unit(y) };
+  return { ok: true, moved: !!cur && cur.at !== at };
+}
+
+// Zurück ins Fach
+export function unplace(state, id) {
+  if (!state.place || !state.place[id]) return false;
+  delete state.place[id];
+  return true;
+}
+
+// Futter in den Napf schütten: 1 Futter macht den Napf voll
+export function pourFood(state, itemId) {
+  const item = ITEMS[itemId];
+  if (!state.place || !state.place.furn_bowl_food) return { ok: false, reason: 'Stell zuerst einen Futternapf auf.' };
+  if (!item || item.cat !== 'food' || !(state.inventory[itemId] > 0)) return { ok: false, reason: 'Davon hast du nichts mehr.' };
+  if (!(item.effect && item.effect.food > 0)) return { ok: false, reason: `${item.name} gehört nicht in den Napf.` };
+  const b = state.bowls.food;
+  if (b && b.left > 0.5) return { ok: false, reason: 'Der Napf ist noch voll.' };
+  state.inventory[itemId] -= 1;
+  if (state.inventory[itemId] <= 0) delete state.inventory[itemId];
+  state.bowls.food = { item: itemId, left: 1 };
+  return { ok: true, text: `${item.name} ist im Napf. Wer Hunger hat, bedient sich.` };
+}
+
+// Wasser kostet nichts
+export function fillWater(state) {
+  if (!state.place || !state.place.furn_bowl_water) return { ok: false, reason: 'Stell zuerst einen Wassernapf auf.' };
+  if (state.bowls.water > 0.95) return { ok: false, reason: 'Der Wassernapf ist schon voll.' };
+  state.bowls.water = 1;
+  return { ok: true, text: 'Frisches Wasser ist im Napf.' };
 }
 
 // ---------- Tägliche Fragen zum eigenen Wohlbefinden ----------

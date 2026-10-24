@@ -43,22 +43,24 @@ function savePrefs(userId, body) {
 
 // Neue Benachrichtigung. Mit key fasst sie eine ungelesene gleiche zusammen (z. B. mehrere Nachrichten
 // derselben Person) und zählt mit. once: nichts tun, wenn es diesen key schon einmal gab (gelesen oder nicht).
-function send(userId, kind, { key = null, title, body = '', url = '/', once = false }) {
-  if (!userId || !Object.hasOwn(KINDS, kind)) return;
+// at: Zeitpunkt in Sekunden (nur für Tests und Nachrechnungen, sonst jetzt). Gibt true zurück, wenn etwas ankam.
+function send(userId, kind, { key = null, title, body = '', url = '/', once = false, at = null }) {
+  if (!userId || !Object.hasOwn(KINDS, kind)) return false;
   const user = db.prepare('SELECT id, role, disabled FROM users WHERE id = ?').get(userId);
-  if (!user || user.disabled || (KINDS[kind].admin && user.role !== 'admin')) return;
-  if (once && key && db.prepare('SELECT 1 FROM notifications WHERE user_id = ? AND key = ?').get(userId, key)) return;
+  if (!user || user.disabled || (KINDS[kind].admin && user.role !== 'admin')) return false;
+  if (once && key && db.prepare('SELECT 1 FROM notifications WHERE user_id = ? AND key = ?').get(userId, key)) return false;
   const p = prefs(userId)[kind];
   if (p.site) {
-    const t = now();
+    const t = at || now();
     const open = key && db.prepare('SELECT id, count FROM notifications WHERE user_id = ? AND key = ? AND read_at IS NULL').get(userId, key);
     if (open) db.prepare('UPDATE notifications SET title = ?, body = ?, url = ?, count = count + 1, created_at = ? WHERE id = ?').run(title, body, url, t, open.id);
     else db.prepare('INSERT INTO notifications(user_id, kind, key, title, body, url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(userId, kind, key, title, body, url, t);
   } else if (once && key) {
     // Auch ohne Anzeige merken, dass es sie gab, damit Push nicht jedes Mal neu kommt
-    db.prepare('INSERT INTO notifications(user_id, kind, key, title, body, url, created_at, read_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(userId, kind, key, title, body, url, now(), now());
+    db.prepare('INSERT INTO notifications(user_id, kind, key, title, body, url, created_at, read_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(userId, kind, key, title, body, url, at || now(), at || now());
   }
   if (p.push) pushTo(userId, { title, body, url, tag: key || kind });
+  return p.site || p.push;
 }
 function toAdmins(title, body, url, key = null) {
   for (const a of db.prepare("SELECT id FROM users WHERE role = 'admin' AND disabled = 0").all()) send(a.id, 'admin', { title, body, url, key });

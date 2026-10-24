@@ -2,19 +2,21 @@
 // Aufbau wie bei den Kartenspielen: oben die Werkzeugleiste, links die Spielfläche (Zimmer, Ausflug, Besuchen)
 // mit ihrer Leiste darunter, rechts das Seitenfach (Tier, Shop, Aufgaben …), unten die Statusleiste, die das
 // Desktop-Fenster der Homepage in seinen Rahmen übernimmt.
-import { createStore } from './storage.js';
+import { createStore, KEYS, safeLocal } from './storage.js';
 import { registerVisit, dayKey, newState } from './state.js';
 import {
   SPECIES, STATS, ACTIONS, CUDDLE_LOVE, CUDDLE_LEVEL, SLOT_LEVEL, tickAll, tickPet, tickOpts, mood, canDo, doAction,
   adopt, activePet, isUnlocked, unlockText, petSlots, nextSlotHint, cleanName, level, levelProgress,
-  usableItems, walkLabel, walkGear,
+  usableItems, walkLabel, walkGear, bowlMeal, HUNGRY,
 } from './pets.js';
 import { ITEMS, ITEM_LIST, usableBy, isFav, isDurable, owned } from './items.js';
+import { PRANKS, deskOptions } from './deskphys.js';
 import {
   ensureDaily, track, taskProgress, TASK_INFO, actionCoins, addCoins, loginBonus, streakMilestones, levelReward,
   accountBonus, available, relevant, dealOfDay, priceOf, canBuy, buy, wear, setRoom, LOGIN_BONUS, DAILY_CAP, ACCOUNT_BONUS,
-  CHECKIN_QUESTIONS, checkIn, checkinDone,
+  CHECKIN_QUESTIONS, checkIn, checkinDone, placeItem, unplace, pourFood, fillWater, placedCount,
 } from './economy.js';
+import { FURN, MAX_ROOM, MAX_DESK, canPlace, furnSvg } from './furniture.js';
 import { petSvg, roomSvg } from './art.js';
 import { iconSvg, ICON_OF } from './icons.js';
 import { play as sfx, actionSound, muted, toggleMuted } from './sound.js';
@@ -83,7 +85,9 @@ const NEED_ACT = { love: 'pet', food: 'feed', water: 'water', fun: 'play', rest:
 const NEED_KEYS = ['food', 'water', 'love', 'fun', 'rest'];
 const SKILL_ICON = { speed: 'speed', jump: 'jump', nose: 'nose' };
 const TO_PLACE = { park: 'in den Park', forest: 'in den Wald', beach: 'an den Strand', mountains: 'in die Berge' };
-const SHOP_TABS = [['food', 'Futter'], ['toy', 'Spielzeug'], ['care', 'Pflege'], ['acc', 'Anziehen'], ['room', 'Räume']];
+const SHOP_TABS = [['food', 'Futter'], ['toy', 'Spielzeug'], ['care', 'Pflege'], ['acc', 'Anziehen'], ['room', 'Räume'], ['furn', 'Einrichtung']];
+const SMALL = ['hamster', 'rat', 'axolotl'];
+const HAND_LOVE = 2;        // Aus der Hand gefüttert: etwas mehr Zuneigung als aus dem Napf
 
 let state = newState();
 let view = 'room';        // Spielfläche: 'room' | 'adopt' | 'trip' | 'visit'
@@ -97,6 +101,8 @@ let bubble = null;        // Meldung oben im Zimmer: { text, until }
 let logLine = null;       // Meldung in der Statusleiste: { text, until }
 let checkinLater = 0;     // bis dahin fragt das Tier nicht nach deinem Tag
 let started = false;      // Begrüßung vorbei: ab jetzt dürfen Hinweise und Fragen kommen
+let homeTab = 'room';     // Einrichten im Fach: 'room' (Zimmer) | 'desk' (Desktop)
+let placedNow = null;     // gerade aufgestelltes Teil (beim Einrichten markiert)
 const lastAction = {};    // Abklingzeit je Tier und Aktion
 
 // Besuch bei einem anderen Mitglied: { host: { user, name, url }, data: Zimmer vom Server, bring: eigenes Tier oder null }
@@ -141,7 +147,7 @@ function roster() {
     seen.add(visit.host.user);
     const mine = state.pets.find((p) => p.id === visit.bring);
     if (mine) own(mine);
-  } else state.pets.forEach(own);
+  } else state.pets.filter((p) => !isOut(p.id)).forEach(own);
   if (store.user) seen.add(store.user);
   for (const m of live.members.values()) remote(m);
   return list;
@@ -160,9 +166,17 @@ const lowestNeed = (pet) => NEED_KEYS.reduce((a, b) => (pet.stats[b] < pet.stats
 const scene = createScene({
   roster,
   active: () => (visit ? visit.bring : activePet(state) && activePet(state).id),
-  bed: () => !visit && owned(state, 'care_bed'),
-  chest: () => toyIds().length > 0,
   openChest: (r) => openMenu(null, playItems(), { x: r.left, y: r.top, up: true, head: 'Spielzeugkiste' }),
+  props: () => (visit ? (visit.data.place || []) : roomProps()),
+  tapProp: (id, r) => tapProp(id, r),
+  placed: (id, x, y) => { const res = placeItem(state, id, 'room', x, y); if (res.ok) { placedNow = id; store.save(state); render(); } },
+  unplace: (id) => takeBack(id),
+  bowlWant: (e) => (e.kind === 'own' && !visit ? bowlWant(e.pet) : null),
+  eat: (e, kind) => eatAtBowl(e.pet.id, kind),
+  gates: () => gateState(),
+  gateSet: (side, v) => setGate(side, v),
+  mayLeave: (e) => mayLeave(e.pet),
+  leave: (e, side, at) => leavePet(e.pet.id, side, at),
   remoteToys: () => [...live.members.values()].filter((m) => m.toy && m.user !== store.user).map((m) => ({ key: m.sid, ...m.toy })),
   thought: (e) => (e.kind === 'own' && !visit ? thought(e.pet) : null),
   need: (e, k) => {
@@ -198,6 +212,231 @@ function foreign(e, kind, itemId) {
   return { ok: true, factor: 1 };
 }
 
+// ---------- Einrichtung im Zimmer, Näpfe ----------
+const bowlLevel = (id) => (id === 'furn_bowl_food' ? (state.bowls.food ? state.bowls.food.left : 0) : id === 'furn_bowl_water' ? state.bowls.water : undefined);
+function propTitle(id) {
+  const it = ITEMS[id];
+  if (id === 'furn_chest') return 'Spielzeugkiste: Spielzeug herausholen';
+  if (id === 'furn_bowl_food') {
+    const b = state.bowls.food;
+    return b ? `Futternapf: ${ITEMS[b.item].name}, ${Math.round(b.left * 100)} % voll. Antippen zum Nachfüllen.` : 'Futternapf: leer. Antippen und Futter hineinschütten.';
+  }
+  if (id === 'furn_bowl_water') return `Wassernapf: ${Math.round(state.bowls.water * 100)} % voll. Antippen füllt ihn.`;
+  if (FURN[id].station) return `${it.name}: antippen, dann spielt ein Tier damit`;
+  if (FURN[id].sleep) return `${it.name}: Schlafplatz`;
+  return it.name;
+}
+function roomProps() {
+  return Object.entries(state.place).filter(([, p]) => p.at === 'room').map(([id, p]) => ({
+    id, x: p.x, y: p.y, open: id === 'furn_chest' && !!scene.toy, level: bowlLevel(id), title: propTitle(id),
+  }));
+}
+
+function tapProp(id, r) {
+  if (id === 'furn_bowl_food') return openMenu(null, pourItems(), { x: r.left, y: r.top, up: true, head: 'Futternapf füllen' });
+  if (id === 'furn_bowl_water') return fill();
+  log(propTitle(id), 4000);
+}
+function fill() {
+  const r = fillWater(state);
+  if (!r.ok) { sfx('nein'); log(r.reason, 4000); return r; }
+  sfx('trinken'); store.save(state); render(); say(r.text, 3500);
+  return r;
+}
+function pour(id) {
+  const r = pourFood(state, id);
+  if (!r.ok) { sfx('nein'); log(r.reason, 4000); return r; }
+  sfx('fressen'); store.save(state); render(); say(r.text, 4000);
+  return r;
+}
+// Futter, das in den Napf passt; Lieblingsfutter der meisten Tiere zuerst
+function bowlFoods() {
+  return Object.keys(state.inventory).filter((id) => ITEMS[id] && ITEMS[id].cat === 'food' && state.inventory[id] > 0 && ITEMS[id].effect.food > 0)
+    .sort((a, b) => state.pets.filter((p) => usableBy(ITEMS[b], p.species)).length - state.pets.filter((p) => usableBy(ITEMS[a], p.species)).length
+      || ITEMS[a].price - ITEMS[b].price);
+}
+function pourItems() {
+  const b = state.bowls.food;
+  const items = bowlFoods().map((id) => {
+    const who = state.pets.filter((p) => usableBy(ITEMS[id], p.species)).map((p) => p.name);
+    return { icon: iconSvg(id), label: ITEMS[id].name, sub: `× ${state.inventory[id]}`, title: who.length ? `Für ${who.join(', ')}` : 'Mag keins deiner Tiere', run: () => pour(id) };
+  });
+  if (!items.length) items.push({ label: 'Kein Futter für den Napf', off: true });
+  const head = b ? [{ label: `Im Napf: ${ITEMS[b.item].name}, ${Math.round(b.left * 100)} %`, off: true }, '-'] : [];
+  return [...head, ...items, '-', { icon: '🛒', label: 'Futter kaufen …', run: () => openShop('food') }];
+}
+// Will das Tier an einen Napf im Zimmer? (Vorher als im Takt, damit man es fressen sieht)
+function bowlWant(pet) {
+  if (pet.sleeping) return null;
+  const s = pet.stats, b = state.bowls, at = (id) => state.place[id] && state.place[id].at === 'room';
+  if (at('furn_bowl_water') && b.water > 0 && s.water < HUNGRY + 15) return 'water';
+  if (at('furn_bowl_food') && b.food && b.food.left > 0 && s.food < HUNGRY + 15 && usableBy(ITEMS[b.food.item], pet.species)) return 'food';
+  return null;
+}
+function eatAtBowl(petId, kind) {
+  const pet = state.pets.find((p) => p.id === petId);
+  if (!pet || pet.sleeping) return null;
+  tickPet(pet, Date.now(), tickOpts(state));
+  const got = bowlMeal(pet, { bowls: state.bowls, food: kind === 'food', water: kind === 'water', below: HUNGRY + 15 });
+  const delta = Object.fromEntries(Object.entries(got).filter(([, v]) => v > 0.5).map(([k, v]) => [k, Math.round(v)]));
+  if (!Object.keys(delta).length) return null;
+  sfx(kind === 'water' ? 'trinken' : 'fressen');
+  floaters(pet, delta);
+  store.save(state);
+  render();
+  return { text: `${pet.name} ${kind === 'water' ? 'trinkt aus dem Napf' : 'frisst aus dem Napf'}.`, delta };
+}
+
+// ---------- Käfig: Tore und Tiere auf dem Desktop (public/desk-pets.js) ----------
+let pets = null;          // Desktop-Ebene, sobald verbunden
+let deskBlocked = '';     // warum keine Tiere raus dürfen (z. B. ein anderer Tab zeigt sie schon)
+let deskPending = false;  // Desktop-Ebene lädt noch: Tiere, die draußen sind, bleiben so lange weg
+function deskHost() {
+  try {
+    const w = window.parent;
+    if (w === window || !w.RetroPets || w.matchMedia('(max-width: 760px)').matches) return null;
+    return w.RetroPets;
+  } catch { return null; }
+}
+const deskReady = () => !!pets && !visit;
+const isOut = (id) => !!state.desk.out[id] && (deskPending || !!pets || !!deskBlocked);
+const gateState = () => ({ on: deskReady() && view === 'room', l: state.desk.gates.l, r: state.desk.gates.r });
+const visualOf = (p) => ({
+  id: p.id, name: p.name, species: p.species, color: p.color, acc: p.acc, face: mood(p).face, sleeping: !!p.sleeping,
+  need: thought(p), small: SMALL.includes(p.species), stay: state.desk.stay.includes(p.id),
+});
+function mayLeave(pet) {
+  return deskReady() && !pet.sleeping && !state.desk.stay.includes(pet.id) && !isOut(pet.id) && !$('dlg').open;
+}
+// side: 'l', 'r' oder 'both'; v: 0 zu, 1 halb (nur kleine Tiere), 2 offen
+function setGate(side, v) {
+  for (const sd of side === 'both' ? ['l', 'r'] : [side]) state.desk.gates[sd] = v;
+  sfx('klick');
+  store.save(state);
+  render();
+  const where = side === 'both' ? 'Die Tore sind' : side === 'l' ? 'Das Tor links ist' : 'Das Tor rechts ist';
+  log(v === 2 ? `${where} offen: Deine Tiere können auf den Desktop.` : v === 1 ? `${where} halb offen: Nur kleine Tiere passen durch.` : `${where} zu.`, 5000);
+}
+function leavePet(id, side, at) {
+  const pet = state.pets.find((p) => p.id === id);
+  if (!pet || !pets) return;
+  state.desk.out[id] = { x: 0.5, y: 1 };
+  try { pets.out(visualOf(pet), { side, ...(at || {}) }); } catch { delete state.desk.out[id]; return; }
+  if (state.activePet === id) log(`${pet.name} ist auf den Desktop gelaufen.`, 5000);
+  store.save(state);
+  render();
+}
+// Alle (oder eins) zurück ins Zimmer rufen: Die Desktop-Ebene schickt sie zum Tor und meldet sich mit back()
+function callHome(id = null) {
+  if (!pets) return;
+  try { if (id) pets.call(id); else pets.callAll(); } catch { /* Desktop weg */ }
+}
+// Was die Desktop-Ebene vom Spiel wissen will und ihm meldet
+const deskHooks = {
+  pets: () => state.pets.filter((p) => isOut(p.id)).map(visualOf),
+  gates: () => {
+    const g = view === 'room' && !visit && $('room') ? scene.gateInfo() : null;
+    return g && { ...g, l: state.desk.gates.l, r: state.desk.gates.r };
+  },
+  back(id, side) {
+    if (!state.desk.out[id]) return;
+    delete state.desk.out[id];
+    scene.enter(id, side === 'l' ? 'l' : 'r');
+    store.save(state);
+    render();
+  },
+  where(list) {
+    let moved = false;
+    for (const o of list) if (state.desk.out[o.id]) { state.desk.out[o.id] = { x: +o.x.toFixed(3), y: +o.y.toFixed(3) }; moved = true; }
+    if (moved) store.save(state);
+  },
+  act: (id, kind, extra = {}) => deskAct(id, kind, extra),
+  eat: (id, kind) => eatAtBowl(id, kind),
+  fill: (kind) => (kind === 'water' ? fill() : bowlFoods().length ? pour(bowlFoods()[0]) : { ok: false, reason: 'Kein Futter für den Napf. Schau im Shop vorbei!' }),
+  bowls: () => ({ food: state.bowls.food ? state.bowls.food.left : 0, water: state.bowls.water, item: state.bowls.food && state.bowls.food.item }),
+  moved(id, x, y) {
+    const r = placeItem(state, id, 'desk', x, y);
+    if (r.ok) { store.save(state); render(); }
+    return r;
+  },
+  unplace(id) { unplace(state, id); store.save(state); render(); },
+  prank(id, text) {
+    const pet = state.pets.find((p) => p.id === id);
+    if (pet) { note(text, pet); store.save(state); if (pane === null && view === 'room') render(); }
+  },
+  options: () => showSettings('desk'),
+  furnish: () => openHome('desk'),
+  stopFurnish: () => { if (pane === 'home' && homeTab === 'desk') { pane = null; render(); } },
+  sound: (n) => sfx(n),
+};
+
+// Pflege draußen (Streicheln, Werfen, Spielzeug): gleiche Regeln wie im Zimmer, ohne die Ansicht zu wechseln
+const thrown = {};
+function deskAct(id, kind, { hard = false, toy = null } = {}) {
+  const pet = state.pets.find((p) => p.id === id);
+  if (!pet) return { ok: false };
+  const now = Date.now();
+  tickPet(pet, now, tickOpts(state));
+  if (kind === 'throw') {
+    // Sanft geworfen macht Spaß (höchstens alle 20 s), zu fest ist das Tier kurz beleidigt
+    if (hard) { pet.stats.fun = Math.max(0, pet.stats.fun - 3); store.save(state); return { ok: true, text: `${pet.name} ist kurz beleidigt. Nicht so wild!`, face: 'sad' }; }
+    if (thrown[id] && now - thrown[id] < 20000) return { ok: true, text: '' };
+    thrown[id] = now;
+    pet.stats.fun = Math.min(100, pet.stats.fun + 3);
+    store.save(state);
+    return { ok: true, text: `${pet.name} fand das lustig!`, face: 'happy' };
+  }
+  const action = kind === 'play' ? 'play' : 'pet';
+  const key = id + ':' + action;
+  if (lastAction[key] && now - lastAction[key] < ACTIONS[action].cooldown) return { ok: false };
+  const r = doAction(pet, action, state, now, { itemId: toy });
+  if (!r.ok) return { ok: false, text: r.text };
+  lastAction[key] = now;
+  actionSound(action, pet.species).forEach((n, i) => setTimeout(() => sfx(n), i * 350));
+  const gained = actionCoins(state, action, r.factor);
+  const done = track(state, action, { itemId: r.itemId });
+  store.save(state);
+  render();
+  for (const t of done) setTimeout(() => say(`Aufgabe erledigt: ${t.text} (+${t.reward} Münzen)`, 4500), 600);
+  if (r.levelUp) setTimeout(() => sfx('fanfare'), 700);
+  return { ok: true, text: r.text, delta: r.delta, coins: gained, factor: r.factor, fav: r.fav };
+}
+
+// Kopie der Möbel auf dem Desktop im Browser: So stehen sie auch da, wenn Pixelpfoten zu ist
+const local = safeLocal((() => { try { return window.localStorage; } catch { return null; } })());
+let deskCopy = '', deskU = 2;
+function syncDesk() {
+  const items = Object.entries(state.place).filter(([, p]) => p.at === 'desk').map(([id, p]) => ({ id, x: p.x, y: p.y }));
+  const g = view === 'room' && !visit ? scene.gateInfo() : null;
+  if (g) deskU = g.u;
+  const copy = JSON.stringify({ user: ds.user || '', u: deskU, items, bowls: deskHooks.bowls() });
+  if (copy !== deskCopy && (deskHost() || deskCopy)) {
+    deskCopy = copy;
+    if (items.length) local.set(KEYS.desk, copy); else local.remove(KEYS.desk);
+  }
+  if (!pets) return;
+  try { pets.update({ pets: deskHooks.pets(), items, bowls: deskHooks.bowls() }); } catch { /* Desktop weg */ }
+}
+
+async function connectDesk() {
+  const host = deskHost();
+  if (!host) { state.desk.out = {}; return; }
+  deskPending = true;
+  let api;
+  try { api = await host.load(); } catch (e) { console.error('Desktop-Ebene:', e); deskPending = false; render(); return; }
+  deskPending = false;
+  const r = api.attach(window, deskHooks);
+  if (!r || !r.ok) { deskBlocked = (r && r.reason) || 'Gerade nicht möglich.'; render(); return; }
+  pets = api;
+  for (const [id, at] of Object.entries(state.desk.out)) {
+    const p = state.pets.find((x) => x.id === id);
+    if (p) pets.restore(visualOf(p), at);
+  }
+  syncDesk();
+  render();
+  addEventListener('pagehide', () => { try { pets.detach(window); } catch { /* egal */ } });
+}
+
 const store = createStore({
   savesUrl: config.savesUrl,
   ls: (() => { try { return window.localStorage; } catch { return null; } })(),
@@ -220,6 +459,7 @@ const effectText = (eff = {}, mult = 1) => Object.entries(eff)
   .map(([k, v]) => `${v > 0 ? '+' : ''}${Math.round(v * (v > 0 ? mult : 1))} ${STAT_NAME[k].label}`).join(', ');
 const speciesList = (ids) => ids.map((id) => (SPECIES[id] ? SPECIES[id].name : id)).join(', ');
 const days = (n) => `${n} ${n === 1 ? 'Tag' : 'Tage'}`;
+const listNames = (l) => (l.length < 2 ? l.join('') : l.slice(0, -1).join(', ') + ' und ' + l[l.length - 1]);
 const bar = (v, cls = '', label = '') => `<span class="bar${cls ? ' ' + cls : ''}"${label ? ` role="meter" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(v)}"` : ''}><i style="width:${Math.max(0, Math.min(100, Math.round(v)))}%"></i></span>`;
 
 // Inhalt nur ersetzen, wenn er sich geändert hat: So bleiben Fokus, Bildlauf und laufende Bewegungen erhalten
@@ -331,10 +571,13 @@ function render() {
   if (!state.pets.length) { view = 'adopt'; pane = null; }
   if (view !== 'room') { tryOn = null; if (scene.toy) scene.putAway(); }
   if (pane !== 'shop' || shop.tab !== 'acc') tryOn = null;
+  if (pane === 'home' && (visit || view !== 'room')) pane = null;
   bars();
   drawStage();
   drawPane();
   updateNotice();
+  syncFurnish();
+  syncDesk();
 }
 
 // Werkzeugleiste und Statusleiste
@@ -356,6 +599,12 @@ function bars() {
   const d = ensureDaily(state);
   const open = d.tasks.filter((t) => !t.done).length + (checkinDone(state) ? 0 : 1);
   $('task-count').textContent = open ? `(${open})` : '';
+  const g = $('gates-btn');
+  g.hidden = !pets;
+  g.disabled = !has || !!visit;
+  g.classList.toggle('on', !!pets && (state.desk.gates.l > 0 || state.desk.gates.r > 0));
+  const out = state.pets.filter((p) => isOut(p.id)).length;
+  g.title = out ? `Tore zum Desktop · ${out} draußen` : 'Tore zum Desktop';
   put($('coins'), coins(state.coins));
   $('streak').textContent = `🔥 ${days(state.visits.streak)}`;
   $('status-log').textContent = statusText();
@@ -480,7 +729,7 @@ function visitDock() {
 
 // Spielzeug aus der Kiste, mit dem eines der Tiere spielen kann (beim Besuch: alles, was man hat)
 function toyIds(all = !!visit) {
-  return Object.keys(state.inventory).filter((id) => ITEMS[id] && ITEMS[id].cat === 'toy' && TOYS[id] && state.inventory[id] > 0
+  return Object.keys(state.inventory).filter((id) => ITEMS[id] && ITEMS[id].cat === 'toy' && TOYS[id] && state.inventory[id] > 0 && !state.place[id]
     && (all || state.pets.some((p) => usableBy(ITEMS[id], p.species))));
 }
 
@@ -492,8 +741,15 @@ function feedItems(pet) {
     return { icon: iconSvg(id), label: it.name + (fav ? ' ❤' : ''), sub: `× ${state.inventory[id]}`, title: effectText(it.effect, fav ? 1.5 : 1), run: () => act('feed', id) };
   });
   if (!items.length) items.push({ label: `Kein Futter für ${pet.name}`, off: true });
-  return [...items, '-', { icon: '🛒', label: 'Futter kaufen …', run: () => openShop('food') }];
+  const bowl = [];
+  if (state.place.furn_bowl_food) {
+    const b = state.bowls.food;
+    bowl.push('-', { icon: iconSvg('furn_bowl_food'), label: 'Futternapf füllen …', sub: b ? `${Math.round(b.left * 100)} %` : 'leer', run: () => openMenu(dockAnchor('feed'), pourItems(), { up: true, head: 'Futternapf füllen' }) });
+  }
+  if (state.place.furn_bowl_water) bowl.push(...(bowl.length ? [] : ['-']), { icon: iconSvg('furn_bowl_water'), label: 'Wassernapf füllen', sub: `${Math.round(state.bowls.water * 100)} %`, run: fill });
+  return [...items, ...bowl, '-', { icon: '🛒', label: 'Futter kaufen …', run: () => openShop('food') }];
 }
+const dockAnchor = (menu) => document.querySelector(`#dock [data-menu="${menu}"]`);
 
 function playItems() {
   const pet = activePet(state);
@@ -567,12 +823,41 @@ function greetItems() {
   return STICKERS.map((s) => ({ icon: s, label: `Gruß ${s} dalassen`, run: () => leaveSticker(s) }));
 }
 
+// Tore zum Desktop: beide auf einmal, wer raus darf, alle heimrufen. Einzeln geht es am Griff im Zimmer.
+function gateItems() {
+  const g = state.desk.gates, both = g.l === g.r ? g.l : -1;
+  const set = (v) => () => setGate('both', v);
+  const items = [
+    { icon: '🟩', label: 'Tore öffnen', sub: both === 2 ? '✔' : '', run: set(2) },
+    { icon: '🟨', label: 'Halb öffnen', sub: both === 1 ? '✔' : 'nur kleine Tiere', title: 'Hamster, Ratten und Axolotl passen durch', run: set(1) },
+    { icon: '🟥', label: 'Tore schließen', sub: both === 0 ? '✔' : '', run: set(0) },
+    '-', { label: 'Wer darf raus?', off: true },
+    ...state.pets.map((p) => {
+      const stay = state.desk.stay.includes(p.id);
+      return { icon: SPECIES[p.species].icon, label: p.name, sub: isOut(p.id) ? 'draußen' : stay ? 'bleibt drin' : '✔ darf raus', run: () => toggleStay(p.id) };
+    }),
+  ];
+  const out = state.pets.filter((p) => isOut(p.id));
+  items.push('-', { icon: iconSvg('house'), label: out.length > 1 ? 'Alle heimrufen' : 'Heimrufen', sub: out.length ? `${out.length} draußen` : '', off: !out.length, run: () => callHome() });
+  items.push({ icon: '🖥️', label: 'Desktop einrichten …', run: () => openHome('desk') }, { icon: '⚙️', label: 'Optionen …', run: () => showSettings('desk') });
+  return items;
+}
+function toggleStay(id) {
+  const list = state.desk.stay, i = list.indexOf(id), pet = state.pets.find((p) => p.id === id);
+  if (i >= 0) list.splice(i, 1); else list.push(id);
+  sfx('klick');
+  store.save(state);
+  render();
+  log(i >= 0 ? `${pet.name} darf auf den Desktop.` : `${pet.name} bleibt im Zimmer.`, 4000);
+  if (i < 0 && isOut(id)) callHome(id);
+}
+
 function moreItems() {
   const items = [
     { icon: '📜', label: 'Neuigkeiten', dot: !$('news-dot').hidden, run: showNews },
     { icon: '❔', label: 'Hilfe', run: showHelp },
     { icon: muted() ? '🔇' : '🔊', label: muted() ? 'Ton einschalten' : 'Ton ausschalten', run: () => { toggleMuted(); sfx('pop'); } },
-    '-', { icon: '⚙️', label: 'Einstellungen …', run: showSettings },
+    '-', { icon: '⚙️', label: 'Einstellungen …', run: () => showSettings() },
   ];
   if (store.mode !== 'account') {
     items.push('-', { icon: '👤', label: 'Anmelden …', run: () => openLink(config.loginUrl) });
@@ -607,6 +892,7 @@ function paneHtml() {
   if (!state.pets.length || view === 'adopt') return '';
   if (pane === 'shop') return shopPane();
   if (pane === 'tasks') return tasksPane();
+  if (pane === 'home') return homePane();
   if (view === 'room') return visit ? visitPane() : petPane();
   if (view === 'trip') return tripPane();
   if (view === 'visit') return store.mode === 'account' ? bookPane() : '';
@@ -698,9 +984,11 @@ function shopPick(item) {
   if (item.cat === 'acc' && hasIt) btns.push(`<button type="button"${wearing ? '' : ' class="def"'} data-wear="${item.id}">${wearing ? 'Ablegen' : 'Anziehen'}</button>`);
   else if (item.cat === 'acc') btns.push(`<button type="button" data-try="${item.id}" aria-pressed="${tryOn === item.id}">${tryOn === item.id ? 'Ausziehen' : 'Anprobieren'}</button>`);
   if (item.cat === 'room' && hasIt) btns.push(state.room === item.id ? '<span class="owned">✔ eingerichtet</span>' : `<button type="button" class="def" data-room="${item.id}">Einrichten</button>`);
-  if (item.cat === 'toy' && hasIt && TOYS[item.id]) btns.push(`<button type="button" data-take="${item.id}">Herausholen</button>`);
+  if (item.cat === 'toy' && hasIt && TOYS[item.id] && !state.place[item.id]) btns.push(`<button type="button" data-take="${item.id}">Herausholen</button>`);
+  if (hasIt && FURN[item.id]) btns.push(...placeButtons(item.id));
   let status = '';
-  if (hasIt && item.cat !== 'room') status = `<span class="owned">✔ ${wearing ? `${esc(pet.name)} trägt es` : 'gehört dir'}</span>`;
+  const where = state.place[item.id] ? (state.place[item.id].at === 'room' ? 'steht im Zimmer' : 'steht auf dem Desktop') : '';
+  if (hasIt && item.cat !== 'room') status = `<span class="owned">✔ ${wearing ? `${esc(pet.name)} trägt es` : where || 'gehört dir'}</span>`;
   else if (have) status = `<span class="owned">Vorrat: ${have}</span>`;
   else if (av.ok && !c.ok && !item.notForSale) status = `<small>${esc(c.reason)}</small>`;
   return `<div class="shop-pick"><div class="shop-pic">${pic}</div><div class="shop-info"><b>${esc(item.name)}</b>
@@ -727,6 +1015,98 @@ function shopPane() {
   return paneTabs(SHOP_TABS.map(([id, label]) => tab(`data-stab="${id}"`, label, shop.tab === id)).join(''), 'Shop')
     + `<div class="pane-page" data-page="shop:${shop.tab}">${dealBtn}${item ? shopPick(item) : '<p class="muted">Hier gibt es gerade nichts.</p>'}
       ${filter}<div class="field icons">${icons}</div></div>`;
+}
+
+// Aufstellen, umstellen, ins Fach: dieselben Knöpfe im Shop und beim Einrichten
+function placeButtons(id, only = null) {
+  const p = state.place[id], out = [];
+  const to = (at, label, def) => `<button type="button" class="small${def ? ' def' : ''}" data-placeto="${at}:${id}">${label}</button>`;
+  if (canPlace(id, 'room') && (!only || only === 'room') && !(p && p.at === 'room')) out.push(to('room', p ? 'Ins Zimmer' : 'Aufstellen', !p && only === 'room'));
+  if (canPlace(id, 'desk') && (!only || only === 'desk') && deskReady() && !(p && p.at === 'desk')) out.push(to('desk', p || only !== 'desk' ? 'Auf den Desktop' : 'Aufstellen', !p && only === 'desk'));
+  if (p && id !== 'furn_chest') out.push(`<button type="button" class="small" data-unplace="${id}">Ins Fach</button>`);
+  return out;
+}
+
+// Freier Platz für ein neues Teil: möglichst weit weg von dem, was schon steht
+function freeSpot(id, at) {
+  const f = FURN[id];
+  const taken = Object.entries(state.place).filter(([k, p]) => k !== id && p.at === at && FURN[k] && !!FURN[k].wall === !!f.wall).map(([, p]) => p.x);
+  const xs = [0.5, 0.3, 0.7, 0.16, 0.84, 0.4, 0.6, 0.08, 0.92];
+  const gap = (x) => (taken.length ? Math.min(...taken.map((t) => Math.abs(t - x))) : 1);
+  const x = xs.reduce((b, v) => (gap(v) > gap(b) + 0.01 ? v : b));
+  const y = at === 'desk' ? (f.wall ? 0.55 : 1) : f.wall ? 0.75 : f.flat ? 0.55 : 0.12;
+  return { x, y };
+}
+
+function placeTo(id, at, quiet = false) {
+  const spot = state.place[id] && state.place[id].at === at ? state.place[id] : freeSpot(id, at);
+  const r = placeItem(state, id, at, spot.x, spot.y);
+  if (!r.ok) { if (!quiet) { sfx('nein'); log(r.reason, 5000); } return r; }
+  placedNow = id;
+  // Spielzeug auf dem Desktop liegt nicht mehr in der Kiste
+  if (ITEMS[id].cat === 'toy' && scene.toy === id) scene.putAway();
+  store.save(state);
+  if (!quiet) { sfx('klick'); log(at === 'room' ? `${ITEMS[id].name} steht jetzt im Zimmer. Zieh es an seinen Platz.` : `${ITEMS[id].name} steht jetzt auf dem Desktop.`, 5000); }
+  render();
+  return r;
+}
+function takeBack(id) {
+  if (id === 'furn_chest' || !unplace(state, id)) return;
+  if (placedNow === id) placedNow = null;
+  sfx('klick');
+  store.save(state);
+  render();
+  log(`${ITEMS[id].name} liegt jetzt im Fach.`, 4000);
+}
+
+// ---------- Einrichten im Fach: Zimmer und Desktop ----------
+function openHome(tab = homeTab) {
+  closeMenu();
+  if (visit) endVisit();
+  if (view !== 'room') { abortTrip(); view = 'room'; }
+  homeTab = tab === 'desk' && deskReady() ? 'desk' : 'room';
+  pane = 'home';
+  render();
+}
+
+function homePane() {
+  const at = homeTab;
+  const desk = deskReady();
+  const ids = Object.keys(FURN).filter((id) => canPlace(id, at) && ITEMS[id] && owned(state, id));
+  const here = ids.filter((id) => state.place[id] && state.place[id].at === at);
+  const max = at === 'room' ? MAX_ROOM : MAX_DESK;
+  const row = (id) => {
+    const p = state.place[id];
+    const where = !p ? 'im Fach' : p.at === 'room' ? 'im Zimmer' : 'auf dem Desktop';
+    return `<li class="${p && p.at === at ? 'on' : ''}${placedNow === id ? ' sel' : ''}">${FURN[id].toy ? iconSvg(id, 'pxi furn-ico') : furnSvg(id, 'pxi furn-ico')}<span><b>${esc(ITEMS[id].name)}</b><small>${where}</small></span>
+      <span class="row">${placeButtons(id, at).join('')}</span></li>`;
+  };
+  const sorted = [...here, ...ids.filter((id) => !here.includes(id))];
+  const missing = ITEM_LIST.filter((i) => i.cat === 'furn' && !owned(state, i.id) && !i.notForSale).length;
+  const tip = at === 'room'
+    ? 'Zieh die Sachen im Zimmer an ihren Platz. Mit × wandern sie zurück ins Fach.'
+    : 'Zieh die Sachen auf dem Desktop an ihren Platz. Regale rasten an der Wand ein, alles andere steht auf der Taskleiste.';
+  const tabs = tab('data-htab="room"', '🏠 Zimmer', at === 'room')
+    + (desk ? tab('data-htab="desk"', '🖥️ Desktop', at === 'desk') : '');
+  return paneTabs(tabs, 'Einrichten') + `<div class="pane-page" data-page="home:${at}">
+    <p class="hint">${tip}</p>
+    <small class="muted">${here.length} von ${max} Plätzen belegt.</small>
+    ${ids.length ? `<ul class="home-list field">${sorted.map(row).join('')}</ul>` : '<p class="muted">Noch nichts zum Aufstellen.</p>'}
+    ${missing ? `<button type="button" class="small" data-gotoshop="furn:">🛒 Mehr Einrichtung im Shop (${missing})</button>` : ''}
+    ${!desk ? `<small class="muted">${deskBlocked ? esc(deskBlocked) : 'Auf den Desktop geht es nur am Computer, wenn Pixelpfoten als Fenster auf dem Desktop offen ist.'}</small>` : ''}
+    <div class="row end"><button type="button" class="def" data-close>Fertig</button></div></div>`;
+}
+
+// Beim Einrichten lassen sich die Teile im Zimmer (oder auf dem Desktop) ziehen
+let furnishKey = '';
+function syncFurnish() {
+  const room = pane === 'home' && homeTab === 'room' && view === 'room' && !visit;
+  const desk = pane === 'home' && homeTab === 'desk' && !!pets;
+  const key = `${room}|${desk}|${placedNow}`;
+  if (key === furnishKey) return;
+  furnishKey = key;
+  if (room || scene.furnishing) scene.furnish(room, placedNow);
+  if (pets) try { pets.furnish(desk, placedNow); } catch { /* Desktop weg */ }
 }
 
 // ---------- Aufgaben im Fach ----------
@@ -768,6 +1148,7 @@ function visitPane() {
   return paneTabs(tab('', `🏘️ Bei ${esc(visit.host.name)}`, true)) + `<div class="pane-page" data-page="visit:${esc(visit.host.user)}">
     <p class="hint">${hm ? '🟢 Gerade auch hier, ihr seht euch live.' : 'Gerade nicht online. Was du tust, sieht sie oder er beim nächsten Mal.'}
       <a href="${esc(visit.host.url)}" target="_top">Profil</a></p>
+    ${visit.data.away && visit.data.away.length ? `<p class="hint">🖥️ ${esc(listNames(visit.data.away))} ${visit.data.away.length > 1 ? 'sind' : 'ist'} gerade draußen auf dem Desktop unterwegs.</p>` : ''}
     <fieldset class="groupbox"><legend>Tiere</legend><ul class="host-pets">${pets}</ul>
       <small class="muted">Streich über ein Tier zum Streicheln oder spiel mit ihm mit deinem Spielzeug.</small></fieldset>
     <fieldset class="groupbox"><legend>Besuchsbuch</legend>${bookHtml(visit.data.book, 'Du bist heute der erste Besuch.')}</fieldset></div>`;
@@ -1191,6 +1572,12 @@ async function act(action, itemId = null) {
   const r = doAction(pet, action, state, Date.now(), { itemId });
   if (!r.ok) { sfx('nein'); tell(pet.id, r.text, 3500); return; }
   lastAction[key] = now;
+  if (action === 'feed' || action === 'water') {
+    // Aus der Hand ist es persönlicher als aus dem Napf
+    const before = pet.stats.love;
+    pet.stats.love = Math.min(100, pet.stats.love + HAND_LOVE);
+    if (pet.stats.love > before) r.delta = { ...r.delta, love: (r.delta.love || 0) + Math.round(pet.stats.love - before) };
+  }
   await finish(pet, action, r);
 }
 
@@ -1244,7 +1631,10 @@ async function doBuy(id) {
   if (item.cat === 'acc' && tryOn === id) { wear(state, activePet(state), id); tryOn = null; }
   store.save(state);
   render();
-  const where = item.cat === 'acc' ? (activePet(state).acc[item.slot] === id ? ` ${activePet(state).name} trägt es schon.` : ' Mit „Anziehen“ legst du es an.')
+  // Einrichtung kommt gleich ins Zimmer, solange dort Platz ist
+  const placed = item.cat === 'furn' && canPlace(id, 'room') && placeTo(id, 'room', true).ok;
+  const where = placed ? ' Es steht schon im Zimmer.' : item.cat === 'furn' ? ' Unter „Einrichten“ stellst du es auf.'
+    : item.cat === 'acc' ? (activePet(state).acc[item.slot] === id ? ` ${activePet(state).name} trägt es schon.` : ' Mit „Anziehen“ legst du es an.')
     : item.cat === 'room' ? ' Der Raum ist schon eingerichtet.' : item.cat === 'toy' ? ' Es liegt jetzt in der Spielzeugkiste.'
       : id === 'extra_slot' ? ' Du kannst jetzt ein weiteres Tier adoptieren.' : '';
   say(`Gekauft: ${item.name}.${where}`, 4000);
@@ -1348,6 +1738,12 @@ function showHelp() {
      <li><b>Streicheln</b> geht auch, indem du mit der Maus oder dem Finger über ein Tier streichst.</li>
      <li><b>Spielen:</b> Hol ein Spielzeug aus der <b>Spielzeugkiste</b> im Zimmer. Bälle wirfst du, indem du sie ziehst und loslässt,
        Federangel und Laserpointer folgen deiner Maus, Seifenblasen pustest du mit einem Tipp ins Zimmer. Jedes Tier, das gerade Lust hat, macht mit.</li>
+     <li><b>Einrichten:</b> Möbel, Betten und Bilder aus dem Shop oder als Belohnung stellst du unter Einrichten auf und ziehst sie an ihren Platz.
+       Müde Tiere legen sich von selbst in ein freies Bett. In den <b>Futternapf</b> schüttest du Futter, den <b>Wassernapf</b> füllst du mit einem Klick,
+       und wer Hunger oder Durst hat, bedient sich.</li>
+     <li><b>Raus auf den Desktop:</b> Im Desktop-Fenster öffnest du unter <b>Tore</b> die Rolltore links und rechts. Dann klettern deine Tiere
+       über Strickleitern hinaus, laufen über Fenster und Taskleiste, jagen die Maus und spielen mit allem, was dort steht. Du kannst sie
+       hochheben und werfen (nicht zu doll). Mit 🐾 neben der Uhr rufst du sie heim, beim Schließen des Fensters kommen alle von selbst zurück.</li>
      <li><b>Ausflüge:</b> Unter Ausflug läuft dein Tier durch Park, Wald, Strand oder Berge. Tippe oder drück die Leertaste zum Springen,
        sammle Leckerli, Münzen und Schnüffelstellen ein. Dabei werden <b>Tempo, Sprungkraft und Spürnase</b> besser. Im <b>Tageswettbewerb</b> laufen alle dieselbe Strecke um die Wette.</li>
      <li>Jede Pflege bringt <b>Zuneigung</b>. Ab Stufe ${CUDDLE_LEVEL} und ${CUDDLE_LOVE} Liebe könnt ihr <b>kuscheln</b>,
@@ -1362,14 +1758,38 @@ function showHelp() {
     : 'Als Gast wird dein Spielstand nur in diesem Browser gespeichert. Mit einem Konto ist er dauerhaft gesichert und auf allen Geräten verfügbar.'}</p>`);
 }
 
-async function showSettings() {
+// Was die Tiere draußen anstellen dürfen: gilt nur für dieses Gerät
+const deskOpts = () => { try { return deskOptions(JSON.parse(local.get(KEYS.deskOpts) || 'null')); } catch { return deskOptions(null); } };
+function deskSettingsHtml() {
+  const o = deskOpts();
+  const box = (name, label, on, hint = '') => `<label class="check"><input type="checkbox" name="${name}"${on ? ' checked' : ''}> ${esc(label)}${hint ? ` <small class="muted">${esc(hint)}</small>` : ''}</label>`;
+  return `<fieldset class="groupbox"><legend>🖥️ Draußen auf dem Desktop</legend>
+    ${box('o:mouse', 'Tiere jagen den Mauszeiger', o.mouse)}
+    ${box('o:sound', 'Geräusche der Tiere', o.sound)}
+    <p><small>Streiche (höchstens einer pro Stunde, nur wenn du eine Weile nichts tust):</small></p>
+    ${PRANKS.map((p) => box('p:' + p.id, p.label, o.pranks[p.id], p.hint)).join('')}
+    <p><small class="muted">Gilt nur für dieses Gerät. Bei „Bewegung reduzieren“ im System gibt es keine Streiche.</small></p></fieldset>`;
+}
+function readDeskSettings() {
+  const o = deskOpts();
+  for (const el of $('dlg-body').querySelectorAll('input[type=checkbox]')) {
+    const [k, id] = el.name.split(':');
+    if (k === 'o') o[id] = el.checked; else if (k === 'p') o.pranks[id] = el.checked;
+  }
+  local.set(KEYS.deskOpts, JSON.stringify(o));
+  if (pets) try { pets.options(o); } catch { /* Desktop weg */ }
+}
+
+async function showSettings(focus = '') {
   const where = store.mode === 'account' ? `im Konto <b>${esc(store.user)}</b>` : 'nur in diesem Browser (Gast)';
+  const desk = !!deskHost();
   const r = await dialog('Einstellungen',
-    `<fieldset class="groupbox"><legend>Spielstand</legend>
+    `${desk && focus === 'desk' ? deskSettingsHtml() : ''}<fieldset class="groupbox"><legend>Spielstand</legend>
       <p>Gespeichert ${where}.<br>Angefangen am ${fmtDate(state.createdAt)}.<br>
       Besuchstage: ${state.visits.total} · beste Serie: ${state.visits.best}<br>
-      Insgesamt verdient: ${coins(state.earned || 0)}</p></fieldset>`,
-    [{ label: 'Spielstand zurücksetzen …', value: 'reset', danger: true }, { label: 'Schließen', value: 'close', def: true }]);
+      Insgesamt verdient: ${coins(state.earned || 0)}</p></fieldset>${desk && focus !== 'desk' ? deskSettingsHtml() : ''}`,
+    [{ label: 'Spielstand zurücksetzen …', value: 'reset', danger: true }, { label: 'OK', value: 'close', def: true }]);
+  if (desk) readDeskSettings();
   if (r !== 'reset') return;
   const sure = await dialog('Spielstand zurücksetzen',
     '<p>⚠️ Dein ganzer Fortschritt geht verloren, auch deine Tiere und Münzen. Das kann nicht rückgängig gemacht werden.</p>',
@@ -1400,6 +1820,7 @@ function wire() {
     const b = e.target.closest('button');
     if (!b || b.disabled) return;
     if (b.dataset.menu === 'more') return toggleMenu(b, moreItems);
+    if (b.dataset.menu === 'gates') return toggleMenu(b, gateItems, { head: 'Tore zum Desktop' });
     if (!state.pets.length) return;
     sfx('klick');
     if (b.dataset.view) {
@@ -1413,6 +1834,7 @@ function wire() {
       if (v === 'trip') loadContest();
       return render();
     }
+    if (b.dataset.pane === 'home' && pane !== 'home') return openHome();
     if (b.dataset.pane) {
       const p = b.dataset.pane;
       if (pane === p) pane = null;
@@ -1431,7 +1853,7 @@ function wire() {
     if (d.menu) {
       const pet = activePet(state);
       const build = { feed: () => feedItems(pet), play: playItems, care: () => careItems(pet), bring: bringItems, gift: giftItems, greet: greetItems }[d.menu];
-      if (build) toggleMenu(t, build, { up: true });
+      if (build) toggleMenu(t, build, { up: true, head: d.menu === 'feed' ? `${pet.name} aus der Hand füttern` : '' });
       return;
     }
     if (d.gotoshop) { const [c, id] = d.gotoshop.split(':'); return openShop(c, id); }
@@ -1474,7 +1896,7 @@ function wire() {
       const pet = activePet(state);
       return openShop('acc', ['head', 'neck', 'back'].map((s) => pet.acc[s]).find(Boolean) || null);
     }
-    if ('close' in d) { pane = null; return render(); }
+    if ('close' in d) { pane = null; placedNow = null; return render(); }
     if (d.stab) { shop.tab = d.stab; shop.pick = null; tryOn = null; sfx('klick'); return render(); }
     if (d.pick) { if (d.tabOf) shop.tab = d.tabOf; shop.pick = d.pick; if (tryOn && tryOn !== d.pick) tryOn = null; return render(); }
     if (d.buy) return doBuy(d.buy);
@@ -1489,9 +1911,12 @@ function wire() {
     }
     if (d.room) { setRoom(state, d.room); store.save(state); sfx('klick'); return render(); }
     if (d.take) return takeToy(d.take);
+    if (d.placeto) { const [at, id] = d.placeto.split(':'); return placeTo(id, at); }
+    if (d.unplace) return takeBack(d.unplace);
+    if (d.htab) { homeTab = d.htab; placedNow = null; sfx('klick'); return render(); }
     if ('checkin' in d) return runCheckin();
     if (d.ttab) { tripTab = d.ttab; if (tripTab === 'contest' && !contest) loadContest(); return render(); }
-    if (d.gotoshop) { const [c, id] = d.gotoshop.split(':'); return openShop(c, id); }
+    if (d.gotoshop) { const [c, id] = d.gotoshop.split(':'); return openShop(c, id || null); }
   });
   side.addEventListener('change', (e) => {
     const t = e.target;
@@ -1515,6 +1940,16 @@ function wire() {
     if (def) { e.preventDefault(); def.click(); }
   });
 
+}
+
+// ---------- Aussehen wie der Desktop: Windows 98 oder XP (🖥️ → Darstellung) ----------
+function followTheme() {
+  let src = null;
+  try { if (window.parent !== window) src = window.parent.document.documentElement; } catch { src = null; }
+  if (!src) return;
+  const copy = () => { for (const c of ['theme-xp', 'xp-oliv', 'xp-silber', 'scheme-nacht']) document.documentElement.classList.toggle(c, src.classList.contains(c)); };
+  copy();
+  new MutationObserver(copy).observe(src, { attributes: true, attributeFilter: ['class'] });
 }
 
 // ---------- Ablauf ----------
@@ -1550,6 +1985,7 @@ function claimAccountBonus() {
 }
 
 async function start() {
+  followTheme();
   wire();
   const r = await store.load();
   state = r.state;
@@ -1577,6 +2013,7 @@ async function start() {
     if (lines.length) msgs.push(['Besuch war da!', lines.map((l) => `<p>${iconSvg('paw')} ${esc(l)}</p>`).join('')]);
   }
   render();
+  connectDesk();
   markNews();
   await showAll(msgs);
   started = true;
@@ -1600,6 +2037,13 @@ async function start() {
     if (view === 'room' && state.pets.length && !$('dlg').open) { render(); askCheckin(); }
   }, 60000);
   setInterval(() => { if (store.dirty) store.flush(); }, 30000);
+  // Ist das Fenster minimiert, kommt ab und zu ein Tier über seinen Knopf in der Taskleiste heraus
+  setInterval(() => {
+    if (!pets || visit || !pets.minimized() || Math.random() > 0.35) return;
+    const g = state.desk.gates;
+    const can = state.pets.filter((p) => mayLeave(p) && (Math.max(g.l, g.r) === 2 || (Math.max(g.l, g.r) === 1 && SMALL.includes(p.species))));
+    if (can.length) leavePet(pick(can).id, 'task');
+  }, 60000);
   // Live-Zimmer: Stand der eigenen Tiere an die anderen Anwesenden
   setInterval(() => { if (view === 'room' && live.connected && live.members.size) live.send(scene.snapshot()); }, 200);
 }

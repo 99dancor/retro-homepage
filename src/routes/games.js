@@ -8,6 +8,7 @@ const path = require('node:path');
 const express = require('express');
 const GAMES = require('../games');
 const profiles = require('../profiles');
+const petwatch = require('../petwatch');
 
 const router = express.Router();
 const attr = v => String(v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -28,6 +29,8 @@ for (const [slug, game] of Object.entries(GAMES)) {
     fs.readFile(path.join(dir, 'index.html'), 'utf8', (err, html) => {
       if (err) return next(err);
       profiles.countStart(req.user, slug);   // für die Spielstatistik im Profil
+      // Wer Pixelpfoten öffnet, sieht seine Tiere: offene Erinnerungen an sie sind damit gelesen
+      if (slug === 'haustier' && req.user) petwatch.seen(req.user.id);
       const l = res.locals;
       const data = {
         class: 'embed',

@@ -9,13 +9,13 @@
        if (Array.isArray(b)) { %>
     <div class="sub"><button type="button" class="menu-item sub-toggle" aria-expanded="false"><%= a %></button><div class="submenu"><% menu(b) %></div></div>
   <% } else { %>
-    <a href="<%= a %>" draggable="true"><%= b %></a>
+    <a href="<%= a %>"><%= b %></a>
   <% } } }
      menu(entries); %>
   <% for (const p of navPages) { if (p.slug === 'regeln') continue; %><a href="/p/<%= p.slug %>">📄 <%= p.title %></a><% } %>
   <hr>
-  <a href="/einstellungen" draggable="true">🛠️ Systemsteuerung</a>
-  <% if (user && user.isAdmin) { %><a href="/admin" draggable="true">⚙️ Seitenverwaltung</a><% } %>
+  <a href="/einstellungen">🛠️ Systemsteuerung</a>
+  <% if (user && user.isAdmin) { %><a href="/admin">⚙️ Seitenverwaltung</a><% } %>
   <%# Info: Regeln, Changelog und Datenschutz unten im Startmenü %>
   <div class="sub"><button type="button" class="menu-item sub-toggle" aria-expanded="false">ℹ️ Info</button><div class="submenu">
     <% if (rulesPage) { %><a href="/p/regeln">📜 Regeln</a><% } %>

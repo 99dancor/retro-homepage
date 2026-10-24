@@ -260,6 +260,7 @@ router.get('/datenschutz', (req, res) => {
     title: 'Datenschutz',
     snippets: privacy.snippets(),
     repo: privacy.REPO,
+    deskLimits: require('../desk').limits(),
     retentionDays: Number(getSetting('analytics_retention_days', '365')) || 365,
     mailOn: !!(getSetting('notify_email') && getSetting('smtp_host')),
   });

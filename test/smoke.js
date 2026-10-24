@@ -1705,7 +1705,8 @@ async function main() {
       assert.match(home, /<div class="tray">\s*<button[^>]*id="displaybtn"[\s\S]*id="clock"/);
       const panel = home.slice(home.indexOf('id="displaypanel"'));
       for (const re of [/data-tab="hintergrund"/, /name="bg" value="bild"/, /type="file" name="bild"/, /name="desktop"/, /data-scheme="nacht"/,
-        /data-preset="Matrix"/, /name="titleFrom"/, /<option value="comic">/, /<option value="sehr-gross">/, /name="marquee" value="aus"/,
+        /data-preset="Matrix"/, /name="titleFrom"/, /<option value="comic">/, /name="design"/, /<option value="xp">/, /name="xp"/,
+        /type="range" name="scale" min="75" max="200" step="5"/, /name="scaleAll"/, /name="marquee" value="aus"/,
         /name="widgets"/, /name="css"/, /data-act="apply"/]) assert.match(panel, re);
       const data = JSON.parse(home.match(/<script type="application\/json" id="darstellung-daten">([^<]*)<\/script>/)[1]);
       assert.equal(data.presets.Matrix.desktop, '#001100');
@@ -1714,9 +1715,13 @@ async function main() {
         const page = (await (opts ? guest.req(url, opts) : admin.req(url))).text_;
         assert.match(page, /<head>[\s\S]*<script src="\/static\/display\.js\?v=\w+"><\/script>[\s\S]*<\/head>/, url);
       }
-      // Die Systemsteuerung ist ein Fenster auf dem Desktop, Taskleiste mit 🖥️ inklusive
+      // Gäste können die Darstellung nicht am Konto speichern
+      assert.doesNotMatch(panel, /name="sync"/);
+      // Die Seitenverwaltung ist ein Fenster auf dem Desktop, Taskleiste mit 🖥️ inklusive
       const shell = (await admin.req('/admin', { top: true })).text_;
-      assert.match(shell, /id="displaybtn"/, 'auch in der Systemsteuerung');
+      assert.match(shell, /id="displaybtn"/, 'auch in der Seitenverwaltung');
+      assert.match(shell, /<title>Seitenverwaltung/);
+      assert.match(shell.slice(shell.indexOf('id="displaypanel"')), /name="sync"/, 'mit Konto: auf allen Geräten');
       assert.match(shell, /<iframe src="\/admin"/);
       const js = await guest.req('/static/display.js');
       assert.equal(js.status, 200);
@@ -2000,19 +2005,178 @@ async function main() {
       const home = (await anna.req('/', { top: true })).text_;
       assert.match(home, /📂 Dokumente<\/button><div class="submenu">\s*<a href="\/eigene-dateien">/);
       assert.match(home, /ℹ️ Info<\/button><div class="submenu">[\s\S]*href="\/changelog"[\s\S]*href="\/datenschutz"/);
-      const page = (await admin.req('/eigene-dateien')).text_;
-      assert.match(page, /value="Nur für Freunde"/);
-      assert.match(page, /<option value="friends" selected>Nur Freunde<\/option>/);
+      // Explorer: Bibliothek Downloads mit Name und Sichtbarkeit
+      assert.match((await admin.req('/eigene-dateien')).text_, /href="\/eigene-dateien\?bib=datei"/);
+      const page = (await admin.req('/eigene-dateien?bib=datei')).text_;
+      assert.match(page, new RegExp('data-ref="datei:' + f.id + '"[^>]*data-name="Nur für Freunde"[^]*?<option value="friends" selected>'));
       // Fremde Einträge gibt es in den eigenen Dateien nicht
       const t2 = bernd.jar.get('csrf');
       assert.equal((await bernd.form('/eigene-dateien/datei/' + f.id + '/loeschen', { _csrf: t2 })).status, 404);
-      const t3 = await admin.csrf('/eigene-dateien');
+      const t3 = await admin.csrf('/eigene-dateien?bib=datei');
       assert.equal((await admin.form('/eigene-dateien/datei/' + f.id, { _csrf: t3, title: 'Für alle', visibility: 'members' })).status, 302);
       assert.equal(sql.prepare('SELECT visibility FROM files WHERE id = ?').get(f.id).visibility, 'members');
       assert.match((await bernd.req('/files')).text_, /Für alle/);
+      // Löschen legt in den Papierkorb: privat, zurückholbar, erst dort endgültig weg
       assert.equal((await admin.form('/eigene-dateien/datei/' + f.id + '/loeschen', { _csrf: t3 })).status, 302);
+      assert.equal(sql.prepare('SELECT visibility FROM files WHERE id = ?').get(f.id).visibility, 'private');
+      assert.doesNotMatch((await bernd.req('/files')).text_, /Für alle/, 'im Papierkorb sieht es niemand');
+      assert.match((await admin.req('/eigene-dateien?ordner=papierkorb')).text_, /Für alle/);
+      const api = (method, url, body) => admin.req(url, { method, headers: { 'Content-Type': 'application/json', 'x-csrf-token': admin.jar.get('csrf') }, body: JSON.stringify(body) });
+      assert.equal((await api('POST', '/api/desktop/wiederherstellen', { refs: ['datei:' + f.id] })).status, 200);
+      assert.equal(sql.prepare('SELECT visibility FROM files WHERE id = ?').get(f.id).visibility, 'members', 'Sichtbarkeit kommt zurück');
+      assert.equal((await admin.form('/eigene-dateien/datei/' + f.id + '/loeschen', { _csrf: t3 })).status, 302);
+      assert.equal((await api('POST', '/api/desktop/endgueltig', { refs: ['datei:' + f.id] })).status, 200);
       assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM files WHERE id = ?').get(f.id).n, 0);
       assert.equal((await guest.req('/eigene-dateien')).status, 302, 'nur mit Konto');
+      sql.close();
+    });
+
+    await step('Desktop 2.0: Ordner, Textdokumente, Links, Papierkorb, Freigabe, Suche, Lobbys', async () => {
+      const { anna, bernd } = members;
+      const { DatabaseSync } = require('node:sqlite');
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
+      const uid = name => sql.prepare('SELECT id FROM users WHERE username = ?').get(name).id;
+      sql.prepare('DELETE FROM friends WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)').run(uid('anna'), uid('bernd'), uid('bernd'), uid('anna'));
+      const api = (b, url, data) => b.req(url, { method: 'POST', body: JSON.stringify(data), headers: { 'content-type': 'application/json', 'x-csrf-token': b.jar.get('csrf') } });
+      const json = async r => ({ status: r.status, ...JSON.parse(r.text_) });
+
+      // Gäste: nur Standardsymbole, readme.txt mit dem Absatz für Gäste
+      const g = JSON.parse((await guest.req('/api/desktop')).text_);
+      assert.equal(g.me, null);
+      assert.ok(g.items.some(i => i.ref === 'readme') && g.items.every(i => i.sys), 'nur Standardsymbole');
+      assert.ok(!g.items.some(i => i.ref === 'papierkorb'), 'Papierkorb nur mit Konto');
+      assert.match((await guest.req('/notizblock/readme')).text_, /OHNE KONTO/);
+      assert.ok([401, 403].includes((await api(guest, '/api/desktop/neu', { kind: 'folder' })).status), 'nur mit Konto');
+
+      // Anlegen: Ordner, Textdokument, Internetlink (nur http/https), Verknüpfung (nur hier)
+      const folder = (await json(await api(anna, '/api/desktop/neu', { kind: 'folder', name: 'Urlaub' }))).item;
+      const text = (await json(await api(anna, '/api/desktop/neu', { kind: 'text', name: 'Einkaufsliste', body: 'Milch' }))).item;
+      assert.equal(text.vis, 'private', 'neu ist privat');
+      assert.equal((await api(anna, '/api/desktop/neu', { kind: 'link', target: 'javascript:alert(1)' })).status, 400);
+      assert.equal((await api(anna, '/api/desktop/neu', { kind: 'shortcut', target: 'https://example.org/' })).status, 400, 'Verknüpfung nur auf diese Seite');
+      const link = (await json(await api(anna, '/api/desktop/neu', { kind: 'link', target: 'https://example.org/', name: 'Beispiel', visibility: 'public' }))).item;
+      assert.equal((await api(anna, '/api/desktop/neu', { kind: 'text', name: 'a/b' })).status, 400, 'keine Schrägstriche im Namen');
+      const big = 'x'.repeat(Number(sql.prepare("SELECT value FROM settings WHERE key = 'desk_text_chars'").get().value) + 1);
+      assert.equal((await api(anna, '/api/notizblock/' + text.id, { body: big })).status, 400, 'Zeichengrenze');
+      assert.equal((await api(anna, '/api/notizblock/' + text.id, { body: 'Milch\nBrot' })).status, 200);
+
+      // Privat: andere sehen das Textdokument nicht, auch nicht über die Suche
+      assert.notEqual((await bernd.req('/notizblock/' + text.id)).status, 200);
+      assert.match((await anna.req('/notizblock/' + text.id)).text_, /Milch\nBrot/);
+      const find = async (b, q) => JSON.parse((await b.req('/api/suche?q=' + encodeURIComponent(q))).text_);
+      assert.ok(JSON.stringify(await find(anna, 'Einkauf')).includes('Einkaufsliste'));
+      assert.ok(!JSON.stringify(await find(bernd, 'Einkauf')).includes('Einkaufsliste'));
+      assert.ok(!JSON.stringify(await find(guest, 'Einkauf')).includes('Einkaufsliste'));
+      assert.ok(JSON.stringify(await find(guest, 'Systemst')).includes('/einstellungen'), 'Programme findet jeder');
+
+      // Ins Ordner schieben, Ordner in den Papierkorb: Inhalt kommt mit und wieder zurück
+      assert.equal((await api(anna, '/api/desktop/verschieben', { refs: [text.ref], folder: folder.id })).status, 200);
+      assert.equal(sql.prepare('SELECT parent_id FROM desk_items WHERE id = ?').get(text.id).parent_id, folder.id);
+      await api(anna, '/api/desktop/loeschen', { refs: [folder.ref] });
+      let d = JSON.parse((await anna.req('/api/desktop')).text_);
+      assert.ok(!d.items.some(i => i.ref === folder.ref) && d.trash === 1, 'Ordner im Papierkorb');
+      assert.match((await anna.req('/notizblock/' + text.id)).text_, /Liegt im Papierkorb/, 'Inhalt ist mit weg');
+      await api(anna, '/api/desktop/wiederherstellen', { refs: [folder.ref] });
+      assert.doesNotMatch((await anna.req('/notizblock/' + text.id)).text_, /Liegt im Papierkorb/, 'und wieder da');
+
+      // Freigabe: Der Link zeigt nur, was der Betrachter ohnehin sehen darf
+      const share = (await json(await api(anna, '/api/desktop/freigabe/' + folder.id, { vis: 'public' }))).item.share;
+      assert.ok(share && share.token.length >= 12);
+      assert.match((await guest.req('/ordner/' + share.token)).text_, /Urlaub/);
+      assert.doesNotMatch((await guest.req('/ordner/' + share.token)).text_, /Einkaufsliste/, 'privates Dokument bleibt privat');
+      await api(anna, '/api/desktop/' + text.id, { visibility: 'members' });
+      assert.match((await bernd.req('/ordner/' + share.token)).text_, /Einkaufsliste/);
+      assert.doesNotMatch((await guest.req('/ordner/' + share.token)).text_, /Einkaufsliste/);
+      await api(anna, '/api/desktop/freigabe/' + folder.id, { vis: '' });
+      assert.equal((await guest.req('/ordner/' + share.token)).status, 404, 'Freigabe beendet');
+
+      // Standardsymbole ausblenden und zurückholen, Plätze merken
+      await api(anna, '/api/desktop/loeschen', { refs: ['readme'] });
+      d = JSON.parse((await anna.req('/api/desktop')).text_);
+      assert.ok(!d.items.some(i => i.ref === 'readme') && d.hidden.includes('readme'));
+      await api(anna, '/api/desktop/einstellungen', { show: ['readme'] });
+      await api(anna, '/api/desktop/platz', { list: [{ ref: link.ref, x: 3, y: 2 }, { ref: 'readme', x: 4, y: 0 }] });
+      d = JSON.parse((await anna.req('/api/desktop')).text_);
+      const at = ref => d.items.find(i => i.ref === ref);
+      assert.deepEqual([at(link.ref).x, at(link.ref).y, at('readme').x, at('readme').y], [3, 2, 4, 0]);
+
+      // Profil: öffentlicher Link steht drin, ohne Referrer; Vorschau als Gast nur für den Besitzer
+      const prof = (await bernd.req('/nutzer/anna')).text_;
+      assert.match(prof, /href="https:\/\/example\.org\/" target="_blank" rel="noopener noreferrer nofollow"/);
+      assert.doesNotMatch((await bernd.req('/nutzer/anna?ansicht=guest')).text_, /So sieht/);
+      assert.match((await anna.req('/nutzer/anna?ansicht=member')).text_, /So sieht <b>ein angemeldetes Mitglied<\/b>/);
+
+      // Offene Lobbys nur mit Konto, Seitenverwaltung schaltet Widget und Suche ab
+      assert.equal((await guest.req('/api/lobbys')).status, 401);
+      assert.ok(Array.isArray(JSON.parse((await anna.req('/api/lobbys')).text_).lobbies));
+      sql.prepare("UPDATE settings SET value = '0' WHERE key IN ('lobby_widget', 'search_enabled')").run();
+      assert.equal((await anna.req('/api/suche?q=Einkauf')).status, 404);
+      const shell = (await anna.req('/', { top: true })).text_;
+      assert.doesNotMatch(shell, /id="lobbywidget"/);
+      assert.doesNotMatch(shell, /id="tbsearch"/);
+      sql.prepare("UPDATE settings SET value = '1' WHERE key IN ('lobby_widget', 'search_enabled')").run();
+      assert.match((await anna.req('/', { top: true })).text_, /id="tbsearch"/);
+
+      // Darstellung am Konto: nur mit Haken, ohne Größe der Oberfläche
+      const r = await json(await api(anna, '/api/einstellungen/darstellung', { display: { design: 'xp', xp: 'oliv', scale: 150, t: 5 } }));
+      assert.equal(r.display.design, 'xp');
+      assert.equal(r.display.scale, undefined, 'Größe bleibt im Browser');
+      assert.match((await anna.req('/', { top: true })).text_, /id="darstellung-konto">\{[^<]*"xp":"oliv"/);
+      await api(anna, '/api/einstellungen/darstellung', { display: null });
+      assert.doesNotMatch((await anna.req('/', { top: true })).text_, /"xp":"oliv"/);
+      sql.close();
+    });
+
+    await step('Seitenverwaltung → Desktop: readme.txt, Symbole, Grenzen, Freigaben; Profilbild quadratisch', async () => {
+      const { anna } = members;
+      const { DatabaseSync } = require('node:sqlite');
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'));
+      const setting = k => sql.prepare('SELECT value FROM settings WHERE key = ?').get(k).value;
+      assert.equal((await anna.req('/admin/desktop')).status, 403);
+      const page = (await admin.req('/admin/desktop')).text_;
+      assert.match(page, /name="desk_readme"/);
+      assert.match(page, /Beispiel/, 'öffentlicher Link von anna steht in der Liste');
+      const t = await admin.csrf('/admin/desktop');
+      const v = Number(setting('desk_readme_version'));
+      const ICONS = ['eigene-dateien', 'papierkorb', 'readme', 'board', 'kartenspiele', 'musik', 'paint'].map(k => ['icons', k]);
+      assert.equal((await admin.form('/admin/desktop', { _csrf: t, desk_readme: 'Hallo {zeichen} {tage}', readme_bump: '1', icons: 'readme',
+        desk_text_chars: '500', desk_text_max: '10', desk_folders_max: '10', desk_links_max: '10', desk_trash_days: '7', user_quota_mb: '100', lobby_widget: '1', search_enabled: '1' })).status, 302);
+      assert.equal(Number(setting('desk_readme_version')), v + 1);
+      assert.equal(setting('desk_defaults'), 'readme');
+      const d = JSON.parse((await anna.req('/api/desktop')).text_);
+      assert.ok(d.items.find(i => i.ref === 'readme').isNew, 'neue Fassung: wieder NEU');
+      assert.match((await anna.req('/notizblock/readme')).text_, /Hallo 500 7/);
+      assert.ok(!d.items.some(i => i.ref === 'papierkorb'), 'nur noch readme.txt als Standardsymbol');
+      // Grenzen werden geklemmt
+      await admin.form('/admin/desktop', [['_csrf', t], ['desk_text_chars', '5'], ['desk_trash_days', '9999'], ['lobby_widget', '1'], ['search_enabled', '1'], ...ICONS]);
+      assert.equal(setting('desk_text_chars'), '100');
+      assert.equal(setting('desk_trash_days'), '365');
+      await admin.form('/admin/desktop', [['_csrf', t], ['desk_text_chars', '10000'], ['desk_trash_days', '30'], ['user_quota_mb', '2048'],
+        ['desk_readme', require('../src/readme').DEFAULT], ['lobby_widget', '1'], ['search_enabled', '1'], ...ICONS]);
+      assert.equal(setting('desk_defaults'), 'eigene-dateien,papierkorb,readme,board,kartenspiele,musik,paint');
+      // Freigabe zurücknehmen: der Link wird privat
+      const id = sql.prepare("SELECT id FROM desk_items WHERE name = 'Beispiel'").get().id;
+      assert.equal((await admin.form('/admin/desktop/freigabe/' + id, { _csrf: t })).status, 302);
+      assert.equal(sql.prepare('SELECT visibility FROM desk_items WHERE id = ?').get(id).visibility, 'private');
+      // Grunddesign der Seite
+      await admin.form('/admin/design', { _csrf: t, theme_design: 'xp-silber' });
+      assert.match((await guest.req('/', { top: true })).text_, /<html lang="de" data-design="xp-silber">/);
+      await admin.form('/admin/design', { _csrf: t, theme_design: '98' });
+      // Profilbild: Querformat lehnt der Server ab, quadratisch geht
+      const zlib = require('node:zlib');
+      const crc = buf => { let c, r = ~0; for (const b of buf) { c = (r ^ b) & 0xff; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; r = (r >>> 8) ^ c; } return ~r >>> 0; };
+      const chunk = (type, data) => { const h = Buffer.alloc(8); h.writeUInt32BE(data.length); h.write(type, 4, 'latin1'); const c = Buffer.alloc(4); c.writeUInt32BE(crc(Buffer.concat([h.subarray(4), data]))); return Buffer.concat([h, data, c]); };
+      const png = (w, h) => { const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
+        return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(Buffer.alloc((w * 3 + 1) * h))), chunk('IEND', Buffer.alloc(0))]); };
+      const upload = async (w, h) => {
+        const fd = new FormData();
+        fd.append('_csrf', await anna.csrf('/account'));
+        fd.append('avatar', new Blob([png(w, h)], { type: 'image/png' }), 'bild.png');
+        return (await anna.req('/account/avatar', { method: 'POST', body: fd })).headers.get('location');
+      };
+      assert.match(await upload(30, 20), /err=quadrat/);
+      assert.match(await upload(20, 20), /ok=bild/);
+      assert.match((await anna.req('/account')).text_, /data-avatar-crop/);
       sql.close();
     });
 

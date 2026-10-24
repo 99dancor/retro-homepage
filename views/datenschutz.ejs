@@ -66,7 +66,8 @@
 <p>Diese Dinge bleiben auf deinem Gerät und werden nicht an den Server geschickt. Du löschst sie, indem du die Websitedaten im Browser löschst.</p>
 <ul>
   <li>Welche Fenster offen sind und wo sie liegen (bis du den Tab schließt).</li>
-  <li>Deine Darstellung über den 🖥️-Knopf neben der Uhr: Farben, Schrift, Hintergrund, Lauftext und eigenes CSS. Auch ein eigenes Hintergrundbild bleibt im Browser und wird nicht hochgeladen.</li>
+  <li>Deine Darstellung über den 🖥️-Knopf neben der Uhr: Windows 98 oder XP, Farben, Schrift, Hintergrund, Lauftext, eigenes CSS und die Größe der Oberfläche. Ein eigenes Hintergrundbild und die Größe bleiben immer im Browser und werden nicht hochgeladen. Mit Konto kannst du die Darstellung zusätzlich <a href="#darstellung">am Konto speichern</a>.</li>
+  <li>Desktop ohne Konto: wohin du Symbole geschoben hast und wie sie sortiert sind. Mit Konto: ob das Widget „Offene Lobbys“ zugeklappt ist.</li>
   <li>Die gewählte Ansicht im Texteditor.</li>
   <li>Pixelpfoten: ohne Konto der ganze Spielstand, mit Konto eine Kopie, damit bei Verbindungsproblemen nichts verloren geht.</li>
   <li>Paint: deine Palette, eigene Farben, welche Leisten du siehst und die Einstellungen der Werkzeuge. Was du malst, bleibt im Browser, bis du es speicherst. „Als Hintergrund“ legt das Bild als eigenes Hintergrundbild der Darstellung ab, ebenfalls nur im Browser.</li>
@@ -80,6 +81,7 @@
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('desk', '<code>sessionStorage</code> vergisst alles, sobald der Tab geschlossen wird.') %>
+  <%- code('deskGuest', 'Ohne Konto merkt sich der Browser die Plätze der Symbole unter <code>desk-pos</code> und die Sortierung unter <code>desk-arrange</code>.') %>
   <%- code('quizGuest', 'Name, Bild und Farbe für das Quiz liegen unter <code>quiz-gast</code> im Browser.') %>
   <%- code('wwGuest', 'Name und Bild für Werwolf liegen unter <code>werwolf-gast</code> im Browser.') %>
   <%- code('display', 'Unter diesen beiden Namen liegen deine Darstellung und ein eigenes Hintergrundbild im <code>localStorage</code> des Browsers.') %>
@@ -114,7 +116,9 @@
 <ul>
   <li><b>Profil:</b> Anzeigename, Profilbild und „Über mich“ (die letzten Spalten der <a href="#konto">Nutzertabelle</a>, dort auch wer dir schreiben darf) trägst du freiwillig unter <a href="/account#profil">Kontoeinstellungen</a> ein. Anzeigename und Profilbild stehen an deinen Beiträgen und in Lobbys, auch für Gäste, wo diese mitlesen. Anonyme Forenbeiträge bleiben anonym: Sie bekommen weder Namen noch Bild und zählen im Profil nicht mit.</li>
   <li><b>Wer dein Profil sieht,</b> bestimmst du: alle Besucher, nur angemeldete Mitglieder (Standard) oder nur deine Freunde. Das Profil zeigt, seit wann du dabei bist, deine Freunde, deine Spielstatistik, wie viele Forenbeiträge, Besucherbuch-Einträge und Musiktitel von dir sichtbar sind, und deine letzten Forenbeiträge. Den letzten Login zeigt es nicht. Gäste finden unter Mitglieder nur Profile, die für alle sichtbar sind.</li>
-  <li><b>Profilbild:</b> Versteckte Angaben im Bild (EXIF mit Aufnahmeort und Kamera, Textfelder) entfernt die Seite beim Hochladen. Nur die Drehung eines Fotos bleibt. Das Bild kann jeder abrufen, der die Adresse kennt. Ein neues Bild ersetzt das alte, „Entfernen“ löscht die Datei.</li>
+  <li><b>Profilbild:</b> Den quadratischen Ausschnitt wählst du vor dem Hochladen; das Zuschneiden passiert in deinem Browser, hochgeladen werden nur die 256 × 256 Pixel des Ausschnitts (GIFs unverändert). Versteckte Angaben im Bild (EXIF mit Aufnahmeort und Kamera, Textfelder) entfernt die Seite beim Hochladen. Nur die Drehung eines Fotos bleibt. Das Bild kann jeder abrufen, der die Adresse kennt. Ein neues Bild ersetzt das alte, „Entfernen“ löscht die Datei.</li>
+  <li id="statistik"><b>Spielstatistik und Bestenlisten:</b> Unter <a href="/einstellungen/statistik">Systemsteuerung → Profil und Statistik</a> bestimmst du pro Spiel, wer die Werte in deinem Profil sieht, blendest einzelne Werte aus, wählst bis zu vier für die Vitrine und legst fest, ob du in Bestenlisten mit Namen, anonym oder gar nicht stehst. Ebenso, welche Angaben unter „Auf der Seite“ erscheinen. Gespeichert wird das am Konto (<code>user_settings</code>, siehe <a href="#desktop">Desktop</a>). Ausgeblendetes zählt weiter, es wird nur nicht gezeigt. Anonym heißt: ohne Namen, Bild und Link zum Profil; meldet die Seite jemandem, dass du seinen Rekord geknackt hast, steht dort „Jemand“. Wer sein Profil vor jemandem verbirgt, steht für diesen auch in Bestenlisten nur anonym.</li>
+  <li><b>Links im Profil:</b> Internetverknüpfungen von deinem Desktop, die nicht auf „Nur ich“ stehen, zeigt dein Profil allen, die sie sehen dürfen. Ein Klick öffnet die fremde Seite ohne Angabe, von wo man kam.</li>
   <li><b>Freunde:</b> Gespeichert werden, wer wen angefragt hat, ob angenommen wurde, und wann. Wer auf deinem Profil ist, sieht deine Freunde. Entfernen oder Ablehnen löscht den Eintrag ganz.</li>
   <li><b>Freundebuch im Profil:</b> Gespeichert werden, auf wessen Profil, wer, Text und Zeit. Lesen kann es jeder, der das Profil sehen darf. Unter Kontoeinstellungen stellst du ein, wer sich eintragen darf (alle Mitglieder, nur Freunde oder niemand). Löschen können Verfasser, Profilinhaber und Admin.</li>
   <li><b>Privatnachrichten:</b> Absender, Empfänger, Text, Zeit und wann sie gelesen wurde. Der Absender sieht „gelesen“. Die Seite zeigt Nachrichten nur euch beiden, auch dem Admin nicht. Sie liegen aber unverschlüsselt in der Datenbank auf dem Server, wer diesen betreibt, könnte sie also lesen. Schick deshalb keine Passwörter oder ähnliches. „Verlauf löschen“ versteckt das Gespräch für dich; haben es beide gelöscht, verschwindet es ganz aus der Datenbank.</li>
@@ -125,10 +129,41 @@
   <%- code('profileVis', 'Diese Regel entscheidet, wer dein Profil sehen darf. Admin und du selbst sehen es immer.') %>
   <%- code('profileCounts', 'Die Zahlen im Profil zählen nur Beiträge mit Namen.') %>
   <%- code('avatarStrip', 'Beim Hochladen eines Profilbilds fallen die Blöcke mit versteckten Angaben weg.') %>
+  <%- code('avatarCrop', 'Der Ausschnitt entsteht im Browser auf einer Zeichenfläche von 256 × 256 Pixeln, nur diese wird hochgeladen.') %>
+  <%- code('boardList', 'So entsteht jede Bestenliste: „Gar nicht“ fällt raus, „Anonym“ verliert Namen, Konto, Bild und Nummer.') %>
+  <%- code('recordName', 'Die Nachricht über einen geknackten Rekord nennt nur, wer mit Namen in der Bestenliste steht.') %>
+  <%- code('profileLinks', 'Links im Profil öffnen die fremde Seite ohne Referrer.') %>
   <%- code('friends', 'Eine Freundschaft ist eine Zeile: wer angefragt hat, wer angefragt wurde, angenommen oder nicht, und wann.') %>
   <%- code('profileGuestbook', 'Ein Eintrag im Freundebuch eines Profils: für wen, von wem, Text und Zeit.') %>
   <%- code('pms', 'Diese Spalten speichert die Seite zu jeder Privatnachricht.') %>
   <%- code('pmDelete', 'Verlauf löschen: erst für dich verstecken, und wenn beide gelöscht haben, endgültig weg.') %>
+</details>
+
+<h2 id="desktop">🖥️ Desktop, eigene Dateien und Suche</h2>
+<ul>
+  <li><b>Ordner, Textdokumente, Verknüpfungen und Internetlinks</b> auf deinem Desktop speichert die Seite mit Name, Ziel, Symbol, Inhalt (bei Textdokumenten), Sichtbarkeit, Platz auf dem Desktop, Ordner und Zeitpunkten. Neues ist erst einmal nur für dich sichtbar („Nur ich“), auch der Admin sieht es nicht. Textdokumente dürfen höchstens <%= deskLimits.chars.toLocaleString('de-DE') %> Zeichen haben und zählen zu deinem Speicher.</li>
+  <li><b>Eigene Dateien:</b> Was du schon hochgeladen hast (Downloads, Musik, Paint-Bilder, Bilder in Beiträgen, Quizze), kannst du in Ordner einsortieren. Gespeichert wird dabei nur, was in welchem Ordner liegt. Wer einen Eintrag sehen darf, ändert sich dadurch nicht.</li>
+  <li><b>Papierkorb:</b> Gelöschtes liegt erst dort, ist für andere nicht mehr sichtbar und lässt sich zurückholen. Nach <%= deskLimits.trashDays %> Tagen löscht die Seite es endgültig, mit „Papierkorb leeren“ sofort.</li>
+  <li><b>Ordner freigeben:</b> Ein freigegebener Ordner bekommt einen zufälligen Link. Wer ihn öffnet, sieht darin nur, was er ohnehin sehen dürfte; Verknüpfungen bleiben immer privat. „Freigabe beenden“ macht den Link ungültig.</li>
+  <li><b>Internetlinks</b> öffnen die fremde Seite in einem neuen Tab, ohne dass sie erfährt, von wo du kamst. Was diese Seite dann speichert, liegt nicht in unserer Hand.</li>
+  <li><b>Einstellungen am Konto</b> (<code>user_settings</code>): ob du die readme.txt gelesen hast, ausgeblendete und verschobene Standardsymbole, Sortierung, ob Lobby-Widget und Suchleiste an sind, deine Wahl zu <a href="#statistik">Statistik und Bestenlisten</a> und, falls gewählt, die Darstellung.</li>
+  <li id="darstellung"><b>Darstellung am Konto:</b> Nur wenn du unter 🖥️ „Auf allen meinen Geräten“ ankreuzt, schickt der Desktop deine Darstellung an den Server, damit sie auf deinen anderen Geräten gleich aussieht. Die Größe der Oberfläche und ein eigenes Hintergrundbild bleiben trotzdem nur im Browser. Nimmst du den Haken heraus, löscht die Seite die Kopie am Konto.</li>
+  <li><b>Suche:</b> Was du ins Suchfeld tippst, geht an den Server, der damit nur durchsucht, was du auch öffnen darfst. Suchbegriffe werden weder gespeichert noch protokolliert, auch nicht in der Besucherstatistik.</li>
+  <li><b>Offene Lobbys:</b> Das Widget fragt alle 15 Sekunden nach, solange es zu sehen ist. Es zeigt nur Lobbys, die du ohnehin finden würdest, und speichert nichts.</li>
+  <li>Der Admin sieht unter Seitenverwaltung → Desktop, wie viel Speicher jemand belegt, und eine Liste der Ordner, Textdokumente und Links, die Mitglieder für andere sichtbar gemacht haben. Diese kann er privat stellen oder in den Papierkorb legen. Was auf „Nur ich“ steht, erscheint dort nicht.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('deskItems', 'Diese Spalten speichert die Seite zu jedem Ordner, Textdokument, jeder Verknüpfung und jedem Link.') %>
+  <%- code('folderItems', 'Die Zuordnung eigener Dateien zu Ordnern: nur Art, Nummer, Ordner, Platz und Papierkorb.') %>
+  <%- code('deskSee', 'Wer einen Desktop-Eintrag sehen darf. Ordner nie, außer über einen Freigabe-Link.') %>
+  <%- code('deskText', 'Die Grenze für Textdokumente prüft der Server.') %>
+  <%- code('deskShare', 'Was ein Freigabe-Link erlaubt: nicht mehr als die gewählte Freigabe.') %>
+  <%- code('deskTrash', 'Alle paar Stunden wird gelöscht, was länger im Papierkorb liegt.') %>
+  <%- code('externalLink', 'Fremde Seiten öffnen sich ohne Verbindung zurück und ohne Referrer.') %>
+  <%- code('userSettings', 'Alle Einstellungen eines Kontos stehen in einer Zeile. Mit dem Konto verschwindet sie.') %>
+  <%- code('displaySync', 'Nur dieser Teil des Desktops schickt die Darstellung an den Server, und nur mit Haken bei „Auf allen meinen Geräten“; ohne Haken schickt er <code>null</code>, das löscht die Kopie.') %>
+  <%- code('displayAccount', 'Größe der Oberfläche und der Haken selbst gehen nicht mit, das eigene Bild ist gar nicht erst in der Darstellung.') %>
+  <%- code('search', 'Die Suche antwortet nur und schreibt nichts in die Datenbank. Als Antwort im JSON-Format zählt sie auch nicht als Seitenaufruf.') %>
 </details>
 
 <h2 id="schreiben">✍️ Was du schreibst oder hochlädst</h2>
@@ -376,7 +411,7 @@
 <h2 id="fragen">🗑 Löschen und Fragen</h2>
 <ul>
   <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
-  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Entwürfe, Benachrichtigungen, Push-Geräte, Kasse und Einkäufe der Kartenspiele, Blackjack- und Poker-Sitzungen, Durak-Ergebnisse, Ergebnisse aus UNO, Flip 7 und Pilli Pilli, Minesweeper-Spiele, Kreuzworträtsel- und Sudoku-Stände, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Werwolf-Ergebnisse, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) und alle Einträge in deinem und von dir in fremden Profil-Freundebüchern. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Entwürfe, Benachrichtigungen, Push-Geräte, Kasse und Einkäufe der Kartenspiele, Blackjack- und Poker-Sitzungen, Durak-Ergebnisse, Ergebnisse aus UNO, Flip 7 und Pilli Pilli, Minesweeper-Spiele, Kreuzworträtsel- und Sudoku-Stände, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Werwolf-Ergebnisse, Profilbild, Freundschaften, Privatnachrichten (auch die Kopie bei deinen Gesprächspartnern) alle Einträge in deinem und von dir in fremden Profil-Freundebüchern, deine Ordner, Textdokumente, Verknüpfungen und Links vom Desktop und deine Einstellungen am Konto. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
   <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
 </ul>
 <p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>

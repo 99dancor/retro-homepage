@@ -21,7 +21,7 @@
   <% if (marquee) { %><marquee scrollamount="4"><%= marquee %></marquee><% } %>
   <%# Symbole: public/desk.js legt sie aus den Daten unten aufs Raster %>
   <div class="desk-icons" id="deskicons" role="listbox" aria-label="Desktop" aria-multiselectable="true" tabindex="0"></div>
-  <% if (user) { %>
+  <% if (user && typeof desk !== 'undefined' && desk.lobbyAllowed) { %>
   <div class="window desk-widget lobby-widget" id="lobbywidget" hidden>
     <div class="titlebar"><span class="ttl">🎲 Offene Lobbys <span data-n></span></span><button type="button" class="tb-btn" data-lw="min" title="Minimieren" aria-expanded="true" aria-controls="lobbybody">_</button></div>
     <div class="body" id="lobbybody">

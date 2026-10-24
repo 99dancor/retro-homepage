@@ -62,7 +62,7 @@
       return '<span class="bj-card' + (red ? ' red' : '') + '" style="--i:' + i + '" title="' + esc(c.r + c.s) + '"><span class="r">' + esc(c.r) + '<br>' + c.s + '</span><span class="s">' + c.s + '</span></span>';
     }
     function cards(list) { return '<span class="bj-cards">' + list.map(card).join('') + '</span>'; }
-    var RESULT = { win: 'Gewonnen', blackjack: 'Blackjack!', push: 'Unentschieden', lose: 'Verloren', bust: 'Überkauft' };
+    var RESULT = { win: 'Gewonnen', blackjack: 'Blackjack!', push: '🤝 Unentschieden', lose: 'Verloren', bust: 'Überkauft' };
     function totalBadge(h) {
       if (h.result) return '<span class="bj-badge ' + h.result + '">' + RESULT[h.result] + (h.result === 'bust' ? ' (' + h.total + ')' : h.result === 'blackjack' ? '' : ' · ' + h.total) + '</span>';
       if (h.cards.length === 2 && h.total === 21 && !h.split) return '<span class="bj-badge blackjack">Blackjack</span>';
@@ -268,6 +268,7 @@
       }
       if (s.phase === 'dealer') return '<span>Der Dealer ist dran …</span>';
       if (s.phase === 'playing') return '<span>' + (inHand(seat) ? 'Warten, bis du dran bist …' : 'Du bist in dieser Runde nicht dabei.') + '</span>';
+      if (s.phase === 'result' && s.manual) return '<div class="bj-row"><span>Die Runde ist vorbei.</span>' + K.start('Nächste Runde', 'die nächste Runde') + '</div>';
       return '<span>' + (s.phase === 'result' ? 'Gleich geht es mit der nächsten Runde weiter.' : 'Warten …') + '</span>';
     }
     function val(c) { return c.r === 'A' ? 11 : ['J', 'Q', 'K'].indexOf(c.r) >= 0 ? 10 : Number(c.r); }
@@ -354,7 +355,7 @@
         '<li>Hast du weniger als <b>' + euro(r.rebuyBelow) + '</b>, kannst du zwischen zwei Händen für ' + euro(r.buyin) + ' nachkaufen, so oft du willst.</li>' +
         '<li><b>Bilanz</b> der Kasse = Kontostand minus alles eingekaufte Geld, für alle Kartenspiele zusammen. Beispiel: 1.000 € Start, dreimal nachgekauft, 500 € übrig: 500 − 4.000 = <b class="neg">−3.500 €</b>. Was du beim Blackjack gewonnen oder verloren hast, zählt die Statistik hier extra; beides steht in deinem Profil.</li>' +
         '<li>' + r.decks + ' Decks, neu gemischt, wenn nur noch ein Viertel übrig ist. Der Dealer ' + (r.h17 ? 'zieht auf Soft 17' : 'steht auf allen 17') + '.</li>' +
-        '<li>Blackjack (Ass + Zehnerkarte als erste zwei Karten) zahlt <b>3 zu 2</b>, ein normaler Gewinn 1 zu 1, Gleichstand gibt den Einsatz zurück.</li>' +
+        '<li>Blackjack (Ass + Zehnerkarte als erste zwei Karten) zahlt <b>3 zu 2</b>, ein normaler Gewinn 1 zu 1. <b>Gleicher Wert ist unentschieden</b> (auch Blackjack gegen Blackjack): Du bekommst deinen Einsatz zurück. Nur ein Blackjack schlägt eine 21 aus mehr als zwei Karten.</li>' +
         '<li><b>Verdoppeln</b> mit den ersten zwei Karten: doppelter Einsatz, genau eine Karte. <b>Teilen</b> einmal bei zwei gleichwertigen Karten; geteilte Asse bekommen nur noch je eine Karte.</li>' +
         '<li>Hat der Dealer Blackjack, ist die Runde sofort vorbei. Versicherung gibt es nicht.</li>' +
         '<li>Bedenkzeit pro Zug: ' + r.turn + ' Sekunden, danach hältst du automatisch. Wer das Fenster länger als anderthalb Minuten zu hat, steht nach der Runde auf.</li>' +

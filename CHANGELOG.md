@@ -1,5 +1,19 @@
 # Changelog
 
+## 24.10.2026 – Kartenspiele: moderner Tisch, Kartenfluss und UNO-Hausregeln
+
+- **Moderner Tisch:** Karten mit weichem Schatten und klarer Schrift, runde Bilder mit Namensschildern aus dunklem Glas, Abzeichen als Pillen, ein schmaler Bedenkzeit-Balken, der von Grün nach Rot läuft, und Filz mit feinem Gewebe und Licht von oben. Werkzeugleiste, Fach und Fensterrahmen bleiben im Desktop-Look (98 oder XP).
+- **Kartenfluss:** Karten gleiten vom Stapel zu den Plätzen, aus der Hand auf den Tisch und zurück, verdeckte drehen sich beim Aufdecken um. Mitspieler sehen die Bewegung auch. Bei „Bewegung reduzieren“ springt alles wie bisher.
+- **UNO-Hausregeln:** Der Gastgeber stellt in den Tisch-Einstellungen ein, ob man „Zieh vier“ anzweifeln darf, ob man nach dem Ziehen aussetzt, ob Weiterleiten erlaubt ist (Zieh zwei auf Zieh zwei, Zieh vier auf Zieh zwei, der Nächste zieht alles), ob man zieht, bis es passt, und ob Legepflicht gilt. Abweichungen von den offiziellen Regeln stehen am Tisch. Der UNO-Knopf ist jetzt groß, rot und pulsiert, wenn du ihn drücken solltest.
+- **Eigene Oberflächen:** UNO bekommt einen leuchtenden Ring in der aktuellen Farbe mit Richtungspfeilen um den Ablagestapel. Flip 7 zeigt an jedem Platz die Kartenreihe, sieben Lämpchen für verschiedene Zahlen, einen Balken zum Ziel und Stempel wie „Eingefroren“ oder „FLIP 7!“. Bei Pilli Pilli werden die Karten mit der Zahl schärfer, der Stich liegt vor den Plätzen und Ansage gegen Stiche steht als Punkte am Platz.
+- **Gastgeber startet:** Die nächste Runde beginnt erst, wenn der Gastgeber auf „▶ Nächste Runde“ klickt; alle anderen sehen, auf wen sie warten. Unter 🎨 Gestalten lässt sich das auf „von selbst“ umstellen.
+- **Spiel und Plätze jederzeit:** Die Zahl der Plätze ändert der Gastgeber auch nach dem Erstellen, nie auf weniger, als Leute sitzen. Das Spiel lässt sich auch mitten in einer Runde wechseln: Nach einer Rückfrage wird die Runde abgebrochen, zählt nicht, und alle Einsätze gehen zurück.
+- **Eigene Ansicht:** Unter 🖼️ Ansicht wählt jeder für sich den Hintergrund um den Tisch (Lounge, Parkett, Casino-Teppich, Fliesen, Nachthimmel oder wie der eigene Desktop) und den Tischrand aus den eigenen Hölzern. Die anderen sehen weiter ihre eigene Wahl.
+- **Karten im Code:** Ein neuer Bereich im Kartenspiele-Fenster zeigt mit echten Ausschnitten aus dem Code, wie jedes Spiel sein Deck baut, mit `crypto.randomInt` mischt und fremde Karten gar nicht erst an deinen Browser schickt.
+- **Blackjack:** Bei gleichem Wert steht jetzt deutlich „🤝 Unentschieden“ am Platz, der Einsatz kommt zurück. Ein Blackjack aus zwei Karten schlägt weiter eine 21 des Dealers aus drei oder mehr Karten.
+- **Kleinigkeiten:** 100er- und 500er-Chips sind kreisrund. Nach einer spendierten Runde kann wieder jeder sein eigenes Getränk abstellen. Beim Poker erscheint „Geben“ sofort, wenn sich der zweite Spieler setzt.
+- **Startseite:** Oben steht eine Kurzfassung des letzten Updates mit Link zum Changelog, dazu ein Schnellstart mit großen Symbolen für die Programme. Beiträge, Forum und Downloads stehen links, Besucherbuch und „Für dich“ rechts, am Handy untereinander.
+
 ## 24.10.2026 – Desktop 2.0: eigener Desktop, Windows XP, Systemsteuerung für alle
 
 - **Eigener Desktop:** Jedes Mitglied richtet seinen Desktop selbst ein. Rechtsklick auf eine freie Stelle → Neu → Ordner, Textdokument, Verknüpfung (zu einer Seite hier, z. B. Forenthema, Modliste, Profil) oder Internetverknüpfung. Programme lassen sich aus dem Startmenü auf den Desktop ziehen. Symbole liegen auf einem Raster, frei verschiebbar oder sortiert nach Name bzw. Art; Rahmen aufziehen markiert mehrere, F2 benennt um, Entf löscht. Gäste können die Symbole verschieben, das merkt sich ihr Browser. Am Handy: lange drücken statt Rechtsklick.

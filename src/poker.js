@@ -231,7 +231,7 @@ function state(t, viewerId) {
       session: { hands: s.stats.hands, wins: s.stats.wins },
     }),
     turn: t.turn && { seat: t.turn.seat, left: Math.max(0, t.turn.deadline - Date.now()) },
-    results: t.results, viewers: viewers(t), log: t.log.slice(0, 20),
+    results: t.results, viewers: viewers(t), log: t.log.slice(0, 20), manual: !!t.manual,
     rules: { buyin: cfg.buyin, rebuyBelow: cfg.rebuyBelow, turn: cfg.turn }, blinds: BLINDS, now: Date.now(), version: t.version,
   };
   // Was der Betrachter gerade tun kann
@@ -313,9 +313,10 @@ function stand(t, seat) {
 }
 
 // ---------- Ablauf einer Hand ----------
-// Zwischen zwei Händen: sobald zwei mit Chips dasitzen, geht es los
+// Zwischen zwei Händen: sobald zwei mit Chips dasitzen, geht es los. Startet der Gastgeber (t.manual, vom Spieltisch),
+// gibt erst sein Klick auf „Geben“ die nächste Hand.
 function maybeStart(t) {
-  if (t.phase !== 'waiting') return;
+  if (t.phase !== 'waiting' || t.manual) return;
   if (ready(t).length >= 2) { if (!t.timer) later(t, START_MS, () => startHand(t)); }
   else stopTimer(t);
 }
@@ -512,8 +513,22 @@ function newHand(t) {
     if (s.leaving || gone) stand(t, s);
   }
   stopTimer(t);
-  if (ready(t).length >= 2) startHand(t);
+  if (ready(t).length >= 2 && !t.manual) startHand(t);
   else { for (const s of seated(t)) Object.assign(s, emptyHand()); t.board = []; t.results = []; }
+}
+// Der Gastgeber gibt die nächste Hand (auch schon, während das Ergebnis der letzten noch zu sehen ist)
+function start(t) {
+  if (playing(t)) return 'Die Hand läuft schon.';
+  if (t.phase === 'showdown') newHand(t);
+  if (ready(t).length < 2) return 'Es braucht mindestens zwei Spieler mit Chips.';
+  stopTimer(t);
+  startHand(t);
+  return null;
+}
+// Nach einem Wechsel der Einstellung „Nächste Runde“
+function wake(t) {
+  if (t.phase !== 'waiting') return;
+  if (t.manual) stopTimer(t); else maybeStart(t);
 }
 
 // ---------- Aktionen vom Browser ----------
@@ -544,6 +559,7 @@ function control(t, user, b) {
       if (playing(t) && 'sb' in b && Number(b.sb) !== t.sb) return 'Die Blinds lassen sich nur zwischen zwei Händen ändern.';
       applySettings(t, b);
       return null;
+    case 'start': return isHost(t, user) ? start(t) : 'Nur der Gastgeber gibt die nächste Hand.';
     default: return 'Unbekannte Aktion.';
   }
 }
@@ -576,7 +592,8 @@ function remove(t) {
   stopTimer(t);
   // Was in der laufenden Hand gesetzt ist, geht zurück, dann wird jede Sitzung abgeschlossen
   for (const s of seated(t)) {
-    if (playing(t) && s.inHand) s.chips += s.total;
+    // Eine abgebrochene Hand zählt nicht mit
+    if (playing(t) && s.inHand) { s.chips += s.total; s.stats.hands--; }
     Object.assign(s, emptyHand());
     saveSession(s, true);
   }
@@ -599,7 +616,7 @@ function cleanup(force = false) {
 setInterval(cleanup, 30e3).unref();
 
 module.exports = {
-  config, create, get, list, state, control, join, remove, broadcast, isHost, tableOf, euro,
+  config, create, get, list, state, control, join, remove, broadcast, isHost, tableOf, wake, euro,
   userTotals, recentSessions, leaderboard, resetStats, best, score5, compare, newDeck, pots,
   BLINDS, HANDS, MAX_SEATS,
   _tables: tables,

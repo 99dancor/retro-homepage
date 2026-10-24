@@ -52,6 +52,9 @@ test('UNO: Deck, Punkte und Bedienen', () => {
   const d = uno.newDeck();
   assert.equal(d.length, 108);
   assert.equal(new Set(d.map(c => c.k)).size, 108);
+  // Namen für den Browser: Farbe und Wert, die zweite gleiche Karte mit Nummer
+  assert.equal(new Set(d.map(c => c.id)).size, 108);
+  assert.deepEqual(['r0', 'r5', 'r5-2', 'gD2-2', 'wW', 'wW4-4'].map(id => d.filter(c => c.id === id).length), [1, 1, 1, 1, 1, 1]);
   assert.equal(d.filter(c => c.v === 'W4').length, 4);
   assert.equal(d.filter(c => c.c === 'r' && c.v === '0').length, 1);
   assert.equal(d.filter(c => c.c === 'b' && c.v === '7').length, 2);
@@ -72,7 +75,7 @@ test('UNO: Aussetzen, Richtungswechsel, Zieh zwei und Farbwahl', () => {
   t.seats[0].hand = [U('r', 'S', 900), U('r', '1', 901), U('b', '1', 902)];
   t.seats[1].hand = [U('y', '3', 910), U('y', '4', 911)];
   t.seats[2].hand = [U('r', 'D2', 920), U('g', '2', 921), U('w', 'W', 922)];
-  g.pile = [U('r', '5', 999)]; g.color = 'r'; g.cur = 0; g.dir = 1; g.challenge = null; g.choosing = false; g.drew = null;
+  g.pile = [U('r', '5', 999)]; g.color = 'r'; g.cur = 0; g.dir = 1; g.pend = null; g.choosing = false; g.drew = null;
   no(uno, t, us[1], { action: 'play', card: 910 }, /nicht dran/);
   no(uno, t, us[0], { action: 'play', card: 902 }, /passt nicht/);
   ok(uno, t, us[0], { action: 'play', card: 900 });
@@ -99,11 +102,11 @@ test('UNO: Zieh vier anzweifeln', () => {
   const set = () => {
     t.seats[0].hand = [U('w', 'W4', 900), U('r', '1', 901), U('b', '2', 902)];
     t.seats[1].hand = [U('y', '3', 910), U('y', '4', 911)];
-    g.pile = [U('r', '5', 999)]; g.color = 'r'; g.cur = 0; g.dir = 1; g.challenge = null; g.choosing = false; g.drew = null;
+    g.pile = [U('r', '5', 999)]; g.color = 'r'; g.cur = 0; g.dir = 1; g.pend = null; g.choosing = false; g.drew = null;
   };
   set();
   ok(uno, t, us[0], { action: 'play', card: 900, color: 'y' });
-  assert.deepEqual(g.challenge && [g.challenge.from, g.challenge.to], [0, 1]);
+  assert.deepEqual(g.pend && [g.pend.from, g.pend.to, g.pend.doubt], [0, 1, true]);
   no(uno, t, us[1], { action: 'play', card: 910 }, /nicht dran/);
   ok(uno, t, us[1], { action: 'challenge' });
   assert.equal(t.seats[0].hand.length, 6, 'Anna hatte Rot und zieht vier');
@@ -124,7 +127,7 @@ test('UNO: Rundenende zählt die Punkte, Spiel endet an der Grenze', () => {
   const g = t.g;
   t.seats[0].hand = [U('r', '1', 900), U('r', '2', 901)];
   t.seats[1].hand = [U('w', 'W', 910), U('y', 'S', 911), U('b', '9', 912)];
-  g.pile = [U('r', '5', 999)]; g.color = 'r'; g.cur = 0; g.dir = 1; g.challenge = null; g.choosing = false; g.drew = null;
+  g.pile = [U('r', '5', 999)]; g.color = 'r'; g.cur = 0; g.dir = 1; g.pend = null; g.choosing = false; g.drew = null;
   ok(uno, t, us[0], { action: 'uno' });
   ok(uno, t, us[0], { action: 'play', card: 900 });
   assert.equal(g.catchable, -1, 'UNO gerufen');
@@ -137,7 +140,7 @@ test('UNO: Rundenende zählt die Punkte, Spiel endet an der Grenze', () => {
   assert.equal(g.round, 2);
   t.seats[0].hand = [U('r', '3', 920)];
   t.seats[1].hand = [U('w', 'W4', 930)];
-  g.pile = [U('r', '5', 998)]; g.color = 'r'; g.cur = 0; g.challenge = null; g.choosing = false; g.drew = null;
+  g.pile = [U('r', '5', 998)]; g.color = 'r'; g.cur = 0; g.pend = null; g.choosing = false; g.drew = null;
   ok(uno, t, us[0], { action: 'play', card: 920 });
   assert.equal(t.phase, 'result');
   assert.deepEqual(t.result.winners, ['Anna']);
@@ -185,6 +188,248 @@ test('UNO: Aufstehen mitten im Spiel', () => {
   assert.deepEqual(last.map(r => r.quit).sort(), [0, 1, 1]);
   assert.equal(last.find(r => !r.quit).won, 1, 'wer bleibt, gewinnt');
   uno.remove(t);
+});
+
+// ---------- UNO: Hausregeln ----------
+// Tisch mit Hausregeln; set(hände, oberste Karte, Stapel von oben) legt alles fest, Platz 0 ist dran
+function unoTable(names, opts = {}) {
+  const { t, us } = table(uno, names, { target: 0, ...opts });
+  const g = t.g;
+  uno.stopTimer(t);
+  const set = (hands, topCard = U('r', '5', 999), deck = null) => {
+    hands.forEach((h, i) => { t.seats[i].hand = h; t.seats[i].said = false; });
+    g.pile = [topCard]; g.color = topCard.c; g.cur = 0; g.dir = 1; g.pend = null; g.choosing = false; g.drew = null; g.catchable = -1; g.reveal = null;
+    if (deck) g.deck = deck.slice().reverse();
+  };
+  const opt = i => uno.state(t, us[i].id).options;
+  return { t, us, g, set, opt, hand: i => t.seats[i].hand.length };
+}
+
+test('UNO: Hausregeln sind offiziell voreingestellt und gelten pro Tisch', () => {
+  const [anna, bernd] = [user('Anna'), user('Bernd')];
+  const t = uno.create(anna, { name: 'Regeln' });
+  assert.deepEqual(t.opts, { target: 500, challenge: true, skipDraw: true, stack: false, drawUntil: false, mustPlay: false });
+  assert.equal(uno.list(anna).find(x => x.id === t.id).rules, 'bis 500 Punkte');
+  ok(uno, t, anna, { action: 'settings', stack: true, challenge: false, drawUntil: 'true' });
+  assert.equal(t.opts.stack, true);
+  assert.equal(t.opts.challenge, false);
+  assert.equal(t.opts.drawUntil, true);
+  // Nur die Punkte ändern lässt die Hausregeln stehen
+  ok(uno, t, anna, { action: 'settings', target: 200 });
+  assert.equal(t.opts.stack, true);
+  assert.equal(uno.list(anna).find(x => x.id === t.id).rules, 'bis 200 Punkte · ohne Anzweifeln · Weiterleiten · Ziehen, bis es passt');
+  ok(uno, t, anna, { action: 'settings', stack: false, challenge: 'false', mustPlay: 1, skipDraw: false });
+  assert.deepEqual(t.opts, { target: 200, challenge: false, skipDraw: false, stack: false, drawUntil: true, mustPlay: true });
+  no(uno, t, bernd, { action: 'settings', stack: true }, /Gastgeber/);
+  // Neue Tische fangen wieder offiziell an, mitgegebene Regeln gelten sofort
+  const u = uno.create(anna, { name: 'Andere', stack: true });
+  assert.equal(u.opts.stack, true);
+  assert.equal(u.opts.challenge, true);
+  uno.remove(t); uno.remove(u);
+});
+
+test('UNO: Zieh vier anzweifeln an und aus', () => {
+  // An (offiziell): Bernd entscheidet
+  let x = unoTable(['Anna', 'Bernd', 'Clara']);
+  x.set([[U('w', 'W4', 900), U('b', '2', 901)], [U('y', '3', 910)], [U('g', '7', 920)]]);
+  ok(uno, x.t, x.us[0], { action: 'play', card: 900, color: 'y' });
+  assert.equal(x.opt(1).challenge, true);
+  assert.equal(x.opt(1).take, true);
+  assert.equal(x.hand(1), 1, 'noch nichts gezogen');
+  assert.equal(x.t.turn.kind, 'challenge');
+  ok(uno, x.t, x.us[1], { action: 'accept' });
+  assert.equal(x.hand(1), 5);
+  assert.equal(x.g.cur, 2, 'Bernd setzt aus');
+  uno.remove(x.t);
+  // Aus: Bernd zieht sofort vier und setzt aus
+  x = unoTable(['Anna', 'Bernd', 'Clara'], { challenge: false });
+  x.set([[U('w', 'W4', 900), U('r', '1', 901)], [U('y', '3', 910)], [U('g', '7', 920)]]);
+  ok(uno, x.t, x.us[0], { action: 'play', card: 900, color: 'y' });
+  assert.equal(x.g.pend, null);
+  assert.equal(x.hand(1), 5);
+  assert.equal(x.g.cur, 2);
+  no(uno, x.t, x.us[1], { action: 'challenge' }, /nichts ziehen/);
+  assert.equal(uno.state(x.t, x.us[1].id).uno.house.join(), 'ohne Anzweifeln');
+  uno.remove(x.t);
+});
+
+test('UNO: Aussetzen nach dem Ziehen an und aus', () => {
+  const hands = () => [[U('r', 'D2', 900), U('w', 'W4', 901), U('b', '2', 902)], [U('y', '3', 910), U('r', '7', 911)], [U('g', '7', 920), U('g', '8', 921)]];
+  // An (offiziell): wer zieht, setzt aus
+  let x = unoTable(['Anna', 'Bernd', 'Clara']);
+  x.set(hands());
+  ok(uno, x.t, x.us[0], { action: 'play', card: 900 });
+  assert.equal(x.hand(1), 4);
+  assert.equal(x.g.cur, 2);
+  uno.remove(x.t);
+  // Aus: Bernd zieht zwei und ist dann selbst dran
+  x = unoTable(['Anna', 'Bernd', 'Clara'], { skipDraw: false });
+  x.set(hands());
+  ok(uno, x.t, x.us[0], { action: 'play', card: 900 });
+  assert.equal(x.hand(1), 4);
+  assert.equal(x.g.cur, 1);
+  ok(uno, x.t, x.us[1], { action: 'play', card: 911 });
+  assert.equal(x.g.cur, 2);
+  // Zieh vier hinnehmen: vier ziehen, dann dran
+  x.set(hands());
+  ok(uno, x.t, x.us[0], { action: 'play', card: 901, color: 'g' });
+  ok(uno, x.t, x.us[1], { action: 'accept' });
+  assert.equal(x.hand(1), 6);
+  assert.equal(x.g.cur, 1);
+  // Zu Unrecht angezweifelt (Anna hatte kein Rot): sechs ziehen, dann dran
+  x.set([[U('w', 'W4', 901), U('b', '2', 902)], [U('y', '3', 910)], [U('g', '7', 920)]]);
+  ok(uno, x.t, x.us[0], { action: 'play', card: 901, color: 'g' });
+  ok(uno, x.t, x.us[1], { action: 'challenge' });
+  assert.equal(x.hand(1), 7);
+  assert.equal(x.g.cur, 1);
+  uno.remove(x.t);
+});
+
+test('UNO: Weiterleiten an und aus', () => {
+  const hands = () => [
+    [U('r', 'D2', 900), U('w', 'W4', 901), U('g', 'D2', 902), U('b', '1', 903)],
+    [U('b', 'D2', 910), U('y', '3', 911), U('w', 'W4', 912)],
+    [U('w', 'W4', 920), U('g', 'D2', 921), U('g', '8', 922)],
+  ];
+  // Aus (offiziell): Zieh zwei wirkt sofort, ein Zieh zwei hilft nicht
+  let x = unoTable(['Anna', 'Bernd', 'Clara']);
+  x.set(hands());
+  ok(uno, x.t, x.us[0], { action: 'play', card: 900 });
+  assert.equal(x.g.pend, null);
+  assert.equal(x.hand(1), 5);
+  assert.equal(x.g.cur, 2);
+  x.set(hands());
+  ok(uno, x.t, x.us[0], { action: 'play', card: 901, color: 'y' });
+  assert.deepEqual(x.opt(1).play, [], 'ohne Weiterleiten nur ziehen oder anzweifeln');
+  no(uno, x.t, x.us[1], { action: 'play', card: 912, color: 'r' }, /nicht dran/);
+  uno.remove(x.t);
+
+  // An: +2 auf +2, dann +4 auf +2, aber kein +2 auf +4
+  x = unoTable(['Anna', 'Bernd', 'Clara'], { stack: true });
+  x.set(hands());
+  ok(uno, x.t, x.us[0], { action: 'play', card: 900 });
+  assert.deepEqual(x.g.pend && [x.g.pend.n, x.g.pend.to, x.g.pend.doubt], [2, 1, false]);
+  assert.equal(x.hand(1), 3, 'Bernd hat noch nichts gezogen');
+  assert.equal(x.t.turn.kind, 'take');
+  let o = x.opt(1);
+  assert.equal(o.take, true);
+  assert.equal(o.challenge, false);
+  assert.deepEqual(o.play.sort(), [910, 912]);
+  assert.equal(o.draw, false);
+  no(uno, x.t, x.us[1], { action: 'play', card: 911 }, /Weiterleiten geht nur/);
+  no(uno, x.t, x.us[1], { action: 'challenge' }, /nur ein Zieh vier/);
+  ok(uno, x.t, x.us[1], { action: 'play', card: 910 });
+  assert.deepEqual([x.g.pend.n, x.g.pend.to], [4, 2]);
+  ok(uno, x.t, x.us[2], { action: 'play', card: 920, color: 'g' });
+  assert.deepEqual([x.g.pend.n, x.g.pend.v, x.g.pend.to, x.g.pend.doubt], [8, 'W4', 0, false]);
+  o = x.opt(0);
+  assert.deepEqual(o.play, [901], 'auf Zieh vier passt kein Zieh zwei');
+  assert.equal(o.challenge, false, 'weitergeleitete Zieh vier kann man nicht anzweifeln');
+  no(uno, x.t, x.us[0], { action: 'play', card: 902 }, /nur mit Zieh vier/);
+  no(uno, x.t, x.us[0], { action: 'challenge' }, /nicht anzweifeln/);
+  // „Ziehen“ heißt hier: alle Strafkarten nehmen
+  ok(uno, x.t, x.us[0], { action: 'draw' });
+  assert.equal(x.hand(0), 3 + 8);
+  assert.equal(x.g.pend, null);
+  assert.equal(x.g.cur, 1, 'Anna setzt aus');
+
+  // Ein Zieh vier als erstes: anzweifeln oder weiterleiten
+  x.set(hands());
+  ok(uno, x.t, x.us[0], { action: 'play', card: 901, color: 'y' });
+  o = x.opt(1);
+  assert.equal(o.challenge, true);
+  assert.deepEqual(o.play, [912]);
+  ok(uno, x.t, x.us[1], { action: 'play', card: 912, color: 'b' });
+  assert.deepEqual([x.g.pend.n, x.g.pend.to, x.g.pend.doubt], [8, 2, false]);
+  ok(uno, x.t, x.us[2], { action: 'accept' });
+  assert.equal(x.hand(2), 3 + 8);
+
+  // Mit der letzten Karte weitergeleitet: der Nächste zieht alles, die Runde ist vorbei
+  x.set([[U('r', 'D2', 900), U('b', '1', 903)], [U('b', 'D2', 910)], [U('g', '8', 922)]]);
+  x.t.seats[1].said = true;
+  ok(uno, x.t, x.us[0], { action: 'play', card: 900 });
+  ok(uno, x.t, x.us[1], { action: 'play', card: 910 });
+  assert.ok(x.g.over);
+  assert.equal(x.hand(2), 1 + 4);
+  assert.equal(x.t.phase, 'result');
+  uno.remove(x.t);
+});
+
+test('UNO: Ziehen, bis es passt an und aus', () => {
+  const deck = () => [U('g', '2', 800), U('g', '1', 801), U('r', '9', 802), U('b', '4', 803)];
+  // Aus (offiziell): eine Karte, sie passt nicht, der Nächste ist dran
+  let x = unoTable(['Anna', 'Bernd']);
+  x.set([[U('y', '3', 900), U('b', '4', 901)], [U('y', '5', 910)]], U('r', '5', 999), deck());
+  ok(uno, x.t, x.us[0], { action: 'draw' });
+  assert.equal(x.hand(0), 3);
+  assert.equal(x.g.cur, 1);
+  uno.remove(x.t);
+  // An: so lange ziehen, bis Rot 9 kommt; die darf sie legen oder behalten
+  x = unoTable(['Anna', 'Bernd'], { drawUntil: true });
+  x.set([[U('y', '3', 900), U('b', '4', 901)], [U('y', '5', 910)]], U('r', '5', 999), deck());
+  ok(uno, x.t, x.us[0], { action: 'draw' });
+  assert.equal(x.hand(0), 5);
+  assert.equal(x.g.drew, 802);
+  assert.equal(x.g.cur, 0);
+  assert.deepEqual(x.opt(0).play, [802]);
+  assert.equal(x.opt(0).keep, true);
+  ok(uno, x.t, x.us[0], { action: 'play', card: 802 });
+  assert.equal(x.g.cur, 1);
+  // Kein Stapel mehr und nichts zum Mischen: Ziehen hört auf
+  x.set([[U('y', '3', 900)], [U('y', '5', 910)]], U('r', '5', 999), []);
+  ok(uno, x.t, x.us[0], { action: 'draw' });
+  assert.equal(x.hand(0), 1);
+  assert.equal(x.g.cur, 1);
+  uno.remove(x.t);
+});
+
+test('UNO: Legepflicht an und aus', () => {
+  // Aus (offiziell): ziehen geht auch, wenn etwas passt
+  let x = unoTable(['Anna', 'Bernd']);
+  x.set([[U('r', '1', 900), U('y', '3', 901)], [U('y', '5', 910)]], U('r', '5', 999), [U('g', '2', 800)]);
+  assert.equal(x.opt(0).draw, true);
+  ok(uno, x.t, x.us[0], { action: 'draw' });
+  assert.equal(x.hand(0), 3);
+  uno.remove(x.t);
+  // An: wer legen kann, muss legen, auch die gezogene Karte
+  x = unoTable(['Anna', 'Bernd'], { mustPlay: true });
+  x.set([[U('r', '1', 900), U('y', '3', 901)], [U('y', '5', 910)]], U('r', '5', 999), [U('r', '9', 800)]);
+  assert.equal(x.opt(0).draw, false);
+  no(uno, x.t, x.us[0], { action: 'draw' }, /Legepflicht/);
+  x.set([[U('y', '3', 901), U('b', '4', 902)], [U('y', '5', 910)]], U('r', '5', 999), [U('r', '9', 800)]);
+  assert.equal(x.opt(0).draw, true);
+  ok(uno, x.t, x.us[0], { action: 'draw' });
+  assert.equal(x.opt(0).keep, false);
+  no(uno, x.t, x.us[0], { action: 'keep' }, /Legepflicht/);
+  ok(uno, x.t, x.us[0], { action: 'play', card: 800 });
+  uno.remove(x.t);
+});
+
+test('UNO: Zufällige Spiele mit Hausregeln verlieren keine Karte', () => {
+  for (let n = 0; n < 24; n++) {
+    const names = ['A', 'B', 'C', 'D', 'E'].slice(0, 2 + (n % 4));
+    const opts = Object.fromEntries(uno.HOUSE.map(([k]) => [k, Math.random() < 0.5]));
+    if (n < 4) Object.assign(opts, { stack: true, skipDraw: n % 2 === 0, challenge: n < 2 });
+    const { t, us } = table(uno, names, { target: 100, ...opts });
+    let steps = 0;
+    while (t.phase === 'playing') {
+      assert.ok(++steps < 30000, 'Spiel endet');
+      if (!t.g.over) assert.equal(unoCards(t), 108);
+      if (t.turn.seat < 0 || Math.random() < 0.03) { fire(t); continue; }
+      const u = userAt(t, us, t.turn.seat);
+      const o = uno.state(t, u.id).options;
+      if (o.uno && Math.random() < 0.7) ok(uno, t, u, { action: 'uno' });
+      if (o.take) {
+        if (o.play.length && Math.random() < 0.6) ok(uno, t, u, { action: 'play', card: pick(o.play), color: pick(uno.COLORS) });
+        else ok(uno, t, u, { action: o.challenge && Math.random() < 0.5 ? 'challenge' : 'accept' });
+      } else if (o.color) ok(uno, t, u, { action: 'color', color: pick(uno.COLORS) });
+      else if (o.play.length && (Math.random() < 0.85 || (!o.draw && !o.keep))) ok(uno, t, u, { action: 'play', card: pick(o.play), color: pick(uno.COLORS) });
+      else if (o.draw) ok(uno, t, u, { action: 'draw' });
+      else ok(uno, t, u, { action: 'keep' });
+    }
+    assert.equal(t.result.winners.length, 1);
+    uno.remove(t);
+  }
 });
 
 // ---------- Flip 7 ----------

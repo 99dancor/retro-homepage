@@ -210,7 +210,8 @@
         '<div class="pk-hole">' + (s.cards.length ? cards(s.cards) : '') + (s.best && !s.folded ? '<div class="pk-best">' + esc(s.best) + '</div>' : '') + '</div>' +
         K.plaque({ p: s, host: st.hostId === s.id, turn: turn, left: turnLeft(st), total: rules().turn * 1000, tags: tags, line: euro(s.chips), note: note }) + '</div>';
       if (s.bet) {
-        var b = spot(slot, st.seatCount, .55);
+        // Oben und unten liegen die Karten zwischen Platz und Mitte, dort rückt der Einsatz weiter nach innen
+        var b = spot(slot, st.seatCount, .55 - .2 * Math.abs(Math.sin(Math.PI / 2 + slot * 2 * Math.PI / st.seatCount)));
         html += '<div class="pk-bet" style="left:' + b.x.toFixed(1) + '%;top:' + b.y.toFixed(1) + '%">' + chip(s.bet) + ' ' + euro(s.bet) + '</div>';
       }
       return html;
@@ -229,7 +230,7 @@
       var center = '<div class="pk-center"><div class="pk-board">' + (s.board.length ? cards(s.board) : '') + '</div>' +
         (s.pot ? '<div class="pk-pot">Pot <b>' + euro(s.pot) + '</b></div>' : '') +
         (s.phase === 'showdown' ? s.results.map(function (r) { return '<div class="pk-result">🏆 ' + esc(r.winners.join(' und ')) + (r.winners.length > 1 ? ' teilen ' : ' gewinnt ') + esc(r.pot === 'Pot' ? '' : r.pot + ' ') + euro(r.amount) + (r.hand ? ' · ' + esc(r.hand) : '') + '</div>'; }).join('') : '') +
-        (s.phase === 'waiting' ? '<div class="pk-result">' + (s.seats.filter(Boolean).length < 2 ? 'Wartet auf einen zweiten Spieler …' : 'Gleich wird gegeben …') + '</div>' : '') + '</div>';
+        (s.phase === 'waiting' ? '<div class="pk-result">' + (s.seats.filter(Boolean).length < 2 ? 'Wartet auf einen zweiten Spieler …' : s.manual ? '👑 ' + esc(s.host) + ' gibt die nächste Hand.' : 'Gleich wird gegeben …') + '</div>' : '') + '</div>';
       $('pk-felt').innerHTML = '<div class="bj-motto pk-motto">TEXAS HOLD\'EM · BLINDS ' + s.sb + ' / ' + s.bb + '</div>' + center + seats;
       renderBar(s, seat);
       renderSide(s, seat);
@@ -259,7 +260,9 @@
     // Die Leiste mit den Zügen wird nur neu gebaut, wenn sich dafür etwas ändert, damit der Regler beim Ziehen nicht springt
     function renderBar(s, seat) {
       var o = s.options;
-      var sig = JSON.stringify([!!seat, seat && seat.inHand, seat && seat.chips, s.phase, o, s.pot, s.hand, s.street]);
+      // Startet der Gastgeber, gibt sein Klick die nächste Hand (auch schon, während das Ergebnis noch zu sehen ist)
+      var deal = s.manual && s.phase !== 'playing' && s.seats.filter(function (x) { return x && x.chips > 0 && !x.sittingOut && !x.leaving; }).length >= 2;
+      var sig = JSON.stringify([!!seat, seat && seat.inHand, seat && seat.chips, s.phase, o, s.pot, s.hand, s.street, s.manual, s.hostId, s.host, deal, s.seats.some(function (x) { return !x; })]);
       if (sig === tab.barSig) return;
       tab.barSig = sig;
       var bar = $('pk-bar'), html;
@@ -267,8 +270,8 @@
       else if (!o) {
         var t = s.turn && s.seats[s.turn.seat];
         html = s.phase === 'playing' ? (seat.inHand && !seat.folded ? (t ? esc(t.name) + ' ist dran …' : 'Karten werden aufgedeckt …') : 'Du bist in dieser Hand nicht dabei.') :
-          s.phase === 'showdown' ? 'Hand ' + s.hand + ' ist vorbei. Gleich kommt die nächste.' : seat.chips ? 'Warten auf die nächste Hand …' : 'Du hast keine Chips mehr.';
-        html = '<span>' + html + '</span>';
+          s.phase === 'showdown' ? 'Hand ' + s.hand + ' ist vorbei.' + (s.manual ? '' : ' Gleich kommt die nächste.') : seat.chips ? (deal ? 'Zwischen zwei Händen.' : 'Warten auf die nächste Hand …') : 'Du hast keine Chips mehr.';
+        html = '<div class="bj-row"><span>' + html + '</span>' + (deal ? K.start(s.phase === 'showdown' ? 'Nächste Hand' : 'Geben', 'die nächste Hand') : '') + '</div>';
       } else {
         var pot = s.pot, raise = Math.max(o.minTo, Math.min(o.maxTo, tab.raise || o.minTo));
         var quick = function (label, to) { to = Math.max(o.minTo, Math.min(o.maxTo, Math.floor(to))); return '<button type="button" class="small" data-to="' + to + '">' + label + '</button>'; };

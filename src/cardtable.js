@@ -10,6 +10,8 @@
 //   rules.seatView(t, s)           Zusatzfelder pro Platz (Kartenzahl, Punkte …)
 //   rules.options(t, b)            Regeln des Tisches (nur zwischen zwei Spielen)
 // Ein Spiel endet mit finish(t, rows): eine Zeile pro Mitspieler, auch für die, die aufgestanden sind.
+// Steht t.manual (Spieltisch mit „Nächste Runde: der Gastgeber“), startet nur der Gastgeber ein Spiel („start“), „Bereit“
+// ist dann ein Zeichen an ihn; auch die Pause am Ende einer Runde (pause mit kind 'round') wartet auf seinen Klick.
 const crypto = require('node:crypto');
 const { db, now, getSetting } = require('./db');
 
@@ -107,8 +109,8 @@ function createGame(rules) {
         i, id: s.userId, name: s.name, user: s.username, inGame: s.inGame, ready: s.ready, away: !online(t, s.userId), leaving: s.leaving,
         session: { games: s.stats.games, wins: s.stats.wins }, ...(s.inGame && rules.seatView ? rules.seatView(t, s) : {}),
       }),
-      turn: t.turn && { kind: t.turn.kind, seat: t.turn.seat, left: Math.max(0, t.turn.deadline - Date.now()) },
-      result: t.result, viewers: viewers(t), log: t.log.slice(0, 30), rules: config(), now: Date.now(), version: t.version,
+      turn: t.turn && { kind: t.turn.kind, seat: t.turn.seat, left: Math.max(0, t.turn.deadline - Date.now()), hold: !!t.turn.hold },
+      result: t.result, viewers: viewers(t), log: t.log.slice(0, 30), rules: config(), now: Date.now(), version: t.version, manual: !!t.manual,
     };
     if (playing(t)) rules.view(t, me && me.inGame ? me : null, out);
     return out;
@@ -136,10 +138,26 @@ function createGame(rules) {
     t.turn = { kind, seat: i, deadline: Date.now() + n * 1000, fn, secs };
     later(t, n * 1000, fn);
   }
-  // Kurze Pause, in der niemand dran ist (z. B. Rundenende zeigen)
+  // Kurze Pause, in der niemand dran ist (z. B. Rundenende zeigen). Das Ende einer Runde hält der Gastgeber an, wenn er startet.
   function pause(t, kind, ms, fn) {
+    if (kind === 'round' && t.manual) { clearTimeout(t.timer); t.timer = null; t.turn = { kind, seat: -1, deadline: Date.now(), fn, hold: true }; return; }
     t.turn = { kind, seat: -1, deadline: Date.now() + ms, fn };
     later(t, ms, fn);
+  }
+  // Der Gastgeber startet: das nächste Spiel oder, wenn das Rundenende auf ihn wartet, die nächste Runde
+  function start(t) {
+    if (t.turn && t.turn.hold) { const fn = t.turn.fn; stopTimer(t); fn(); return null; }
+    if (playing(t)) return 'Das Spiel läuft schon.';
+    if (seated(t).length < minSeats) return `Es braucht mindestens ${minSeats} Spieler.`;
+    stopTimer(t);
+    startGame(t, true);
+    return null;
+  }
+  // Nach einem Wechsel der Einstellung: automatisch geht es weiter, sobald alle bereit sind bzw. die Pause um ist
+  function wake(t) {
+    if (t.manual) { if (!playing(t)) stopTimer(t); return; }
+    if (t.turn && t.turn.hold) pause(t, 'next', 1500, t.turn.fn);
+    else maybeStart(t);
   }
 
   // ---------- Platz nehmen, Bereit, Aufstehen ----------
@@ -178,14 +196,14 @@ function createGame(rules) {
   }
 
   function maybeStart(t) {
-    if (playing(t)) return;
+    if (playing(t) || t.manual) return;
     const s = seated(t);
     if (s.length >= minSeats && s.every(x => x.ready)) { if (!t.timer) later(t, START_MS, () => startGame(t)); }
     else stopTimer(t);
   }
-  function startGame(t) {
+  function startGame(t, force = false) {
     const players = seated(t);
-    if (players.length < minSeats || !players.every(s => s.ready)) return;
+    if (players.length < minSeats || (!force && !players.every(s => s.ready))) return;
     t.game++;
     t.phase = 'playing';
     t.result = null;
@@ -235,6 +253,7 @@ function createGame(rules) {
         if (!isHost(t, user)) return 'Nur der Gastgeber ändert die Einstellungen.';
         applySettings(t, b);
         return null;
+      case 'start': return isHost(t, user) ? start(t) : 'Nur der Gastgeber startet die Runde.';
     }
     if (!seat) return 'Du sitzt nicht am Tisch.';
     if (!playing(t) || !seat.inGame) return 'Du spielst gerade nicht mit.';
@@ -289,7 +308,7 @@ function createGame(rules) {
 
   return {
     id: GAME, prefix, title: rules.title, info: rules.info, maxSeats, minSeats,
-    config, create, get, list, state, control, join, remove, broadcast, isHost, tableOf,
+    config, create, get, list, state, control, join, remove, broadcast, isHost, tableOf, wake,
     userTotals: userId => userTotals(GAME, userId), recentGames: (userId, n) => recentGames(GAME, userId, n),
     leaderboard: () => leaderboard(GAME), resetStats: userId => resetStats(GAME, userId),
     // für die Regeln

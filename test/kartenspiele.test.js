@@ -57,9 +57,115 @@ test('Spieltisch: Lobby, Spiel wählen, Plätze bleiben beim Wechsel', () => {
   clearTimeout(t.timer); t.timer = null;
   require('../src/durak')._startGame(t);
   assert.equal(t.phase, 'playing');
-  assert.match(String(ks.switchGame(s, anna, 'uno')), /Runde/);
+  assert.equal(ks.switchGame(s, anna, 'uno'), ks.BUSY);
+  // Mit Rückfrage geht es doch: die Runde wird abgebrochen und zählt nicht
+  assert.equal(ks.switchGame(s, anna, 'uno', true), null);
+  assert.equal(s.game, 'uno');
+  assert.deepEqual(seats(s), [anna.id, bernd.id]);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM dk_results WHERE user_id IN (?, ?)').get(anna.id, bernd.id).n, 0);
+  assert.match(ks.tableOf(s).log[0], /abgebrochen\. Sie zählt nicht\./);
   ks.close(s);
   assert.equal(ks.get(s.id), null);
+});
+
+test('Nächste Runde: der Gastgeber startet, „Bereit“ ist nur ein Zeichen', async () => {
+  const [anna, bernd] = ['Anna', 'Bernd'].map(user);
+  const { table: s } = ks.create(anna, { game: 'durak' });
+  assert.equal(ks.meta(s).next, 'host');
+  ok(s, anna, { action: 'sit' });
+  ok(s, bernd, { action: 'sit' });
+  ok(s, anna, { action: 'ready' });
+  ok(s, bernd, { action: 'ready' });
+  const t = ks.tableOf(s);
+  assert.equal(t.timer, null, 'alle bereit, aber gegeben wird erst auf Klick');
+  assert.match(String(ks.control(s, bernd, { action: 'start' })), /Gastgeber/);
+  ok(s, anna, { action: 'start' });
+  assert.equal(t.phase, 'playing');
+
+  // UNO: auch die nächste Runde innerhalb eines Spiels wartet auf den Gastgeber
+  assert.equal(ks.switchGame(s, anna, 'uno', true), null);
+  const u = ks.tableOf(s);
+  ok(s, anna, { action: 'start' });
+  assert.equal(u.phase, 'playing');
+  const T = ks.engine('uno');
+  let ran = 0;
+  T.pause(u, 'round', 10, () => { ran++; });
+  await new Promise(r => setTimeout(r, 40));
+  assert.equal(ran, 0);
+  assert.equal(T.state(u, anna.id).turn.hold, true);
+  ok(s, anna, { action: 'start' });
+  assert.equal(ran, 1);
+
+  // Blackjack: das Ergebnis bleibt stehen, bis der Gastgeber die nächste Runde aufmacht
+  assert.equal(ks.switchGame(s, anna, 'blackjack', true), null);
+  const b = ks.tableOf(s);
+  b.phase = 'result';
+  assert.match(String(ks.control(s, bernd, { action: 'start' })), /Gastgeber/);
+  ok(s, anna, { action: 'start' });
+  assert.equal(b.phase, 'betting');
+
+  // Poker: zwei mit Chips am Tisch, aber gegeben wird erst auf Klick
+  assert.equal(ks.switchGame(s, anna, 'poker'), null);
+  const p = ks.tableOf(s);
+  assert.equal(p.timer, null);
+  assert.equal(p.phase, 'waiting');
+  ok(s, anna, { action: 'start' });
+  assert.equal(p.phase, 'playing');
+  assert.equal(ks.switchGame(s, anna, 'blackjack', true), null);
+
+  // Umstellen auf automatisch
+  assert.equal(ks.settings(s, anna, { next: 'auto' }), null);
+  assert.equal(ks.tableOf(s).manual, false);
+  assert.equal(ks.meta(s).next, 'auto');
+  ks.close(s);
+});
+
+test('Plätze nachträglich ändern: nie weniger als Leute sitzen, wer hinten sitzt, rückt auf', () => {
+  const [anna, bernd, carla] = ['Anna', 'Bernd', 'Carla'].map(user);
+  const { table: s } = ks.create(anna, { seats: 6 });
+  ok(s, anna, { action: 'sit', seat: 0 });
+  ok(s, bernd, { action: 'sit', seat: 5 });
+  assert.match(String(ks.settings(s, bernd, { seats: 3 })), /Gastgeber/);
+  assert.equal(ks.settings(s, anna, { seats: 3 }), null);
+  const t = ks.tableOf(s);
+  assert.equal(t.seatCount, 3);
+  assert.deepEqual(seats(s), [anna.id, bernd.id]);
+  assert.ok(t.seats.indexOf(t.seats.find(x => x && x.userId === bernd.id)) < 3);
+  assert.match(String(ks.settings(s, anna, { seats: 1 })), /sitzen 2 Leute/);
+  ok(s, carla, { action: 'sit' });
+  assert.equal(ks.settings(s, anna, { seats: 8 }), null);
+  assert.equal(ks.meta(s).seats, 8);
+  // Das Spiel setzt die Grenzen: Durak geht mit höchstens 6
+  assert.equal(ks.switchGame(s, anna, 'durak'), null);
+  assert.equal(ks.tableOf(s).seatCount, 6);
+  assert.match(String(ks.settings(s, anna, { seats: 7 })), /2 bis 6/);
+  // Auch über die Einstellungen des Spiels
+  ok(s, anna, { action: 'settings', seats: 4 });
+  assert.equal(ks.tableOf(s).seatCount, 4);
+  ks.close(s);
+});
+
+test('Spiel wechseln mitten in der Hand: Einsätze gehen zurück in die Kasse', async () => {
+  setSetting('ks_buyin', '1000');
+  const [anna] = ['Anna'].map(user);
+  const { table: s } = ks.create(anna, { game: 'blackjack' });
+  ok(s, anna, { action: 'sit' });
+  const t = ks.tableOf(s);
+  // Spieler 10 + 6, Dealer 10 + 7: niemand hat Blackjack, Anna ist dran
+  const c = x => ({ r: x.slice(0, -1), s: x.slice(-1) });
+  t.shoe = [...Array(150).fill(c('2♣')), ...['10♠', '10♥', '6♣', '7♦'].map(c).reverse()];
+  ok(s, anna, { action: 'bet', amount: 100 });
+  ok(s, anna, { action: 'confirm' });
+  for (let i = 0; i < 100 && t.phase !== 'playing'; i++) await new Promise(r => setTimeout(r, 20));
+  assert.equal(t.phase, 'playing');
+  assert.equal(t.seats[0].chips, 900);
+  assert.equal(ks.switchGame(s, anna, 'poker'), ks.BUSY);
+  assert.equal(ks.switchGame(s, anna, 'poker', true), null);
+  assert.equal(kasse.wallet(anna.id).balance, 1000);
+  assert.equal(ks.tableOf(s).seats[0].chips, 1000);
+  assert.equal(bj.userTotals(anna.id).hands, 0, 'die abgebrochene Hand zählt nicht');
+  assert.match(ks.tableOf(s).log[0], /alle Einsätze sind zurück/);
+  ks.close(s);
 });
 
 test('Spieltisch: nur an einem Tisch sitzen, Grenzen der Spiele', () => {
@@ -267,6 +373,13 @@ test('Runde schmeißen: alle bekommen das Getränk, bezahlt wird für alle', () 
   assert.match(t.log[0], /Anna schmeißt eine Runde Bier/);
   const m = ks.meta(s);
   for (const u of [anna, bernd, carla]) assert.deepEqual([m.deco[u.id].drink.id, m.deco[u.id].drink.from], ['bier', 'Anna']);
+  // Wer danach sein eigenes Getränk hinstellt (oder kauft), hat wieder seins; bei den anderen bleibt die Runde stehen
+  assert.equal(ks.equip(bernd, 'kaffee'), null);
+  assert.equal(ks.meta(s).deco[bernd.id].drink.id, 'kaffee');
+  assert.equal(ks.meta(s).deco[bernd.id].drink.from, undefined);
+  assert.equal(ks.buy(carla, 'saft'), null);
+  assert.equal(ks.meta(s).deco[carla.id].drink.id, 'saft');
+  assert.equal(ks.meta(s).deco[anna.id].drink.from, 'Anna');
   leave();
   ks.close(s);
 });

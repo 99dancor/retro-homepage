@@ -1210,6 +1210,11 @@ async function main() {
       assert.doesNotMatch(page, /kartenspiele\.js/, 'Gäste bekommen kein Spiel');
       assert.match((await anna.req('/kartenspiele')).text_, /usermenu\.js[\s\S]*blackjack\.js[\s\S]*poker\.js[\s\S]*durak\.js[\s\S]*cardtable\.js[\s\S]*uno\.js[\s\S]*flip7\.js[\s\S]*pilli\.js[\s\S]*kartenspiele\.js/);
       assert.equal((await api(guest, '/kartenspiele/tische', undefined, 'GET')).status, 401);
+      // Karten im Code: jeder Ausschnitt wird in seiner Datei gefunden
+      const code = (await api(anna, '/kartenspiele/code', undefined, 'GET')).json.snippets;
+      assert.ok(Object.keys(code).length >= 10);
+      for (const [name, c] of Object.entries(code)) assert.ok(!c.missing && c.code, `Ausschnitt ${name} (${c.file}) fehlt`);
+      assert.match(code.shuffle.code, /crypto\.randomInt/);
 
       const k = await api(anna, '/kartenspiele/kasse', undefined, 'GET');
       assert.deepEqual([k.json.kasse.balance, k.json.kasse.net, k.json.kasse.buyins], [1000, 0, 1]);
@@ -1221,7 +1226,13 @@ async function main() {
       const list = await api(bernd, '/kartenspiele/tische', undefined, 'GET');
       assert.deepEqual(list.json.tables.map(t => [t.name, t.game, t.seats]), [['Freitagsrunde', 'blackjack', 3]]);
       const meta = await api(bernd, `/kartenspiele/tisch/${cardTable}`, undefined, 'GET');
-      assert.deepEqual([meta.json.game, meta.json.felt, meta.json.back, meta.json.money], ['blackjack', 'blau', 'gold', true]);
+      assert.deepEqual([meta.json.game, meta.json.felt, meta.json.back, meta.json.money, meta.json.next], ['blackjack', 'blau', 'gold', true, 'host']);
+      // Eigene Ansicht: Hintergrund frei, Holz nur, wenn man es hat
+      assert.match((await api(bernd, '/kartenspiele/ansicht', { floor: 'parkett', wood: 'ebenholz' })).json.error, /erst im Shop/);
+      const v = await api(bernd, '/kartenspiele/ansicht', { floor: 'parkett', wood: 'eiche' });
+      assert.deepEqual(v.json.view, { floor: 'parkett', wood: 'eiche' });
+      assert.deepEqual((await api(bernd, '/kartenspiele/ansicht', { floor: '<b>', wood: '' })).json.view, { floor: 'lounge', wood: '' });
+      assert.equal((await api(bernd, '/kartenspiele/tische', undefined, 'GET')).json.view.floor, 'lounge');
     });
 
 
@@ -1290,12 +1301,17 @@ async function main() {
       assert.equal(mine.chips, wallet, 'Chips aus der Kasse');
       assert.equal(his.chips, 1000);
       assert.match(st.log.join(' '), /hat Poker gewählt/);
+      // Die nächste Hand gibt der Gastgeber
+      assert.equal(st.manual, true);
+      assert.equal((await at(bernd, { action: 'start' })).status, 400, 'nur der Gastgeber gibt');
+      assert.equal((await at(anna, { action: 'start' })).status, 200);
       while (st.phase !== 'playing') st = await p.state();
       assert.ok(st.seats.find(x => x && x.user === 'anna').cards[0].r, 'eigene Karten sichtbar');
       assert.deepEqual(st.seats.find(x => x && x.user === 'bernd').cards, [null, null], 'fremde Karten nicht');
       assert.equal(st.pot, 15);
-      // Mitten in der Hand wird nicht gewechselt
-      assert.match((await at(anna, { action: 'game', game: 'durak' })).json.error, /Runde/);
+      // Mitten in der Hand fragt das Fenster erst nach (409), gewechselt wird nur mit abort
+      const busy = await at(anna, { action: 'game', game: 'durak' });
+      assert.deepEqual([busy.status, busy.json.busy], [409, true]);
       const who = st.seats[st.turn.seat].user === 'anna' ? anna : bernd;
       assert.equal((await at(who === anna ? bernd : anna, { action: 'fold' })).status, 400, 'nicht dran');
       assert.equal((await at(who, { action: 'fold' })).status, 200);
@@ -1322,6 +1338,7 @@ async function main() {
         assert.deepEqual(st.seats.filter(Boolean).map(x => x.user).sort(), ['anna', 'bernd'], game + ': alle sitzen noch');
         if (game === 'uno') assert.equal((await at(anna, { action: 'settings', target: 100 })).status, 200);
         for (const m of [anna, bernd]) assert.equal((await at(m, { action: 'ready' })).status, 200);
+        assert.equal((await at(anna, { action: 'start' })).status, 200, game + ': der Gastgeber startet');
         while (st.phase !== 'playing') st = await live.state();
         if (hand) {
           assert.equal(st.hand.length, hand, game + ': eigene Karten');
@@ -1346,6 +1363,11 @@ async function main() {
       assert.match((await at(anna, { action: 'ready' })).json.error, /wählt der Gastgeber/);
       assert.equal((await at(anna, { action: 'design', felt: 'rot', back: 'karo', name: 'Samstagsrunde' })).status, 200);
       assert.deepEqual((await api(bernd, '/kartenspiele/tische', undefined, 'GET')).json.tables.map(t => [t.name, t.game]), [['Samstagsrunde', 'lobby']]);
+      // Plätze und wer die nächste Runde startet, auch nach dem Aufmachen
+      assert.equal((await at(anna, { action: 'design', seats: 6, next: 'auto' })).status, 200);
+      const re = await api(bernd, `/kartenspiele/tisch/${cardTable}`, undefined, 'GET');
+      assert.deepEqual([re.json.seats, re.json.next], [6, 'auto']);
+      assert.match((await at(anna, { action: 'design', seats: 1 })).json.error, /weniger Plätze gehen nicht/);
       // Shop: Bernd kauft einen Saft, der steht dann an seinem Platz; Holzränder nur, wenn gekauft
       const sh = await api(bernd, '/kartenspiele/shop', undefined, 'GET');
       assert.ok(sh.json.items.some(x => x.id === 'korb' && !x.owned));
@@ -1681,6 +1703,51 @@ async function main() {
       const r = await guest.req('/changelog');
       assert.equal(r.status, 200);
       assert.match(r.text_, /Eröffnung/);
+    });
+
+    await step('Startseite: Titel der Seite, Kurzfassung des letzten Updates, Schnellstart', async () => {
+      const cl = require('../src/changelog');
+      // Kurzfassung: oberster Eintrag, Markdown raus, „z. B.“ beendet keinen Satz, Punkte ohne Stichwort nehmen ihren Anfang
+      const sample = cl.parse('# Changelog\n\n## 1.2.2027 – Neues *Spiel* und [mehr](/x)\n\n- **Erstens:** Das geht z. B. so. Danach mehr.\n'
+        + '- **Zweitens**: Text\n  weiter\n* Ohne Stichwort einfach los. Rest.\n\n## 1.1.2027 – Alt\n\n- **Alt:** nicht dabei\n');
+      assert.deepEqual(sample, { date: '1.2.2027', title: 'Neues Spiel und mehr', items: [
+        { label: 'Erstens', text: 'Das geht z. B. so.' }, { label: 'Zweitens', text: 'Text weiter' },
+        { label: 'Ohne Stichwort einfach los', text: 'Ohne Stichwort einfach los.' }] });
+      assert.deepEqual(cl.parse('## Ohne Datum\n\n- **Punkt:** Text'), { date: '', title: 'Ohne Datum', items: [{ label: 'Punkt', text: 'Text' }] });
+      assert.equal(cl.parse('Noch nichts'), null);
+
+      // Auf der Startseite: der oberste Eintrag aus CHANGELOG.md, höchstens acht Stichworte, Link zum Changelog
+      const u = cl.latest();
+      assert.equal(u.date, fs.readFileSync(path.join(__dirname, '..', 'CHANGELOG.md'), 'utf8').match(/^## (\S+)/m)[1]);
+      assert.ok(u.title && u.items.length, 'Titel und Punkte gelesen');
+      const html = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&#34;').replace(/'/g, '&#39;');
+      const home = (await guest.req('/')).text_;
+      const box = home.slice(home.indexOf('🆕 Neu auf der Seite'), home.indexOf('</fieldset>', home.indexOf('🆕 Neu auf der Seite')));
+      assert.ok(box.includes('Update vom ' + u.date), 'Datum');
+      assert.ok(box.includes('<b>' + html(u.title) + '</b>'), 'Titel');
+      assert.ok(box.includes('>' + html(u.items[0].label) + '</li>'), 'erstes Stichwort');
+      assert.equal((box.match(/<li class="tag"/g) || []).length, Math.min(8, u.items.length));
+      if (u.items.length > 8) assert.ok(box.includes(`und ${u.items.length - 8} weitere`));
+      assert.match(box, /href="\/changelog">📋 Alles im Changelog/);
+      // Kopf mit Titel der Seite, Statusleiste für den Fensterrand
+      assert.match(home, /<header class="home-hero">[\s\S]*<h1>Meine Seite<\/h1>/);
+      assert.match(home, /class="statusbar home-status"><span>👤 Du bist als Gast hier/);
+      assert.match((await members.anna.req('/')).text_, /class="statusbar home-status"><span>👤 Angemeldet als /);
+
+      // Schnellstart: die Programme aus dem Startmenü, Ausgeblendetes fehlt auch hier
+      const apps = h => [...h.slice(h.indexOf('<nav class="home-apps'), h.indexOf('</nav>', h.indexOf('<nav class="home-apps'))).matchAll(/class="home-app" href="([^"]+)"/g)].map(m => m[1]);
+      assert.deepEqual(apps(home), ['/kartenspiele', '/haustier/', '/paint', '/musik', '/minesweeper', '/kreuzwortraetsel', '/sudoku', '/quiz', '/werwolf', '/forum']);
+      const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'), { timeout: 5000 });
+      const before = sql.prepare("SELECT value FROM settings WHERE key = 'nav_hidden'").get().value;
+      sql.prepare("UPDATE settings SET value = 'paint,board' WHERE key = 'nav_hidden'").run();
+      try {
+        const hidden = (await guest.req('/')).text_;
+        assert.deepEqual(apps(hidden), ['/kartenspiele', '/haustier/', '/musik', '/minesweeper', '/kreuzwortraetsel', '/sudoku', '/quiz', '/werwolf']);
+        assert.doesNotMatch(hidden, /💬 Neu im Forum/);
+      } finally {
+        sql.prepare("UPDATE settings SET value = ? WHERE key = 'nav_hidden'").run(before);
+        sql.close();
+      }
     });
 
     await step('Datenschutzseite im Startmenü zeigt echten Code und Bilder', async () => {

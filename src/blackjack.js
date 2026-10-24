@@ -183,7 +183,7 @@ function state(t) {
     betLeft: t.betDeadline ? Math.max(0, t.betDeadline - Date.now()) : 0,
     viewers: viewers(t), log: t.log.slice(0, 20), shoeLeft: t.shoe.length,
     rules: { buyin: cfg.buyin, rebuyBelow: cfg.rebuyBelow, decks: cfg.decks, h17: cfg.h17, turn: cfg.turn },
-    minBets: MIN_BETS, maxBets: MAX_BETS, now: Date.now(), version: t.version,
+    minBets: MIN_BETS, maxBets: MAX_BETS, now: Date.now(), version: t.version, manual: !!t.manual,
   };
 }
 
@@ -404,7 +404,19 @@ function settle(t) {
     parts.push(`${s.name} ${net > 0 ? '+' : ''}${euro(net)}`);
   }
   log(t, `Runde ${t.round}: Dealer ${d > 21 ? 'überkauft (' + d + ')' : dealerBj ? 'Blackjack' : d}. ${parts.join(', ')}`);
-  later(t, RESULT_MS, () => newRound(t));
+  // Startet der Gastgeber (t.manual, vom Spieltisch), bleibt das Ergebnis stehen, bis er die nächste Runde aufmacht
+  if (!t.manual) later(t, RESULT_MS, () => newRound(t));
+}
+function start(t) {
+  if (t.phase !== 'result') return t.phase === 'betting' ? 'Die Runde läuft schon: Erst setzen alle, dann wird gegeben.' : 'Die Runde läuft schon.';
+  clearTimeout(t.timer); t.timer = null;
+  newRound(t);
+  return null;
+}
+// Nach einem Wechsel der Einstellung „Nächste Runde“
+function wake(t) {
+  if (t.phase !== 'result') return;
+  if (t.manual) { clearTimeout(t.timer); t.timer = null; } else if (!t.timer) later(t, RESULT_MS, () => newRound(t));
 }
 
 function newRound(t) {
@@ -444,6 +456,7 @@ function control(t, user, b) {
       for (const s of seated(t)) if (s.bet && (s.bet < t.minBet || s.bet > t.maxBet)) { s.bet = 0; s.ready = false; }
       if (t.phase === 'betting') maybeDeal(t);
       return null;
+    case 'start': return isHost(t, user) ? start(t) : 'Nur der Gastgeber macht die nächste Runde auf.';
     default: return 'Unbekannte Aktion.';
   }
 }
@@ -500,7 +513,7 @@ function cleanup(force = false) {
 setInterval(cleanup, 30e3).unref();
 
 module.exports = {
-  config, create, get, list, state, control, join, remove, broadcast, isHost, tableOf, euro,
+  config, create, get, list, state, control, join, remove, broadcast, isHost, tableOf, wake, euro,
   userTotals, recentSessions, leaderboard, resetStats, total, isBlackjack, newShoe,
   MIN_BETS, MAX_BETS, MAX_SEATS,
   _tables: tables,

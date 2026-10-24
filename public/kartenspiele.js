@@ -15,6 +15,8 @@
   var main = $('ks-main'), statusEl = $('ks-status'), meEl = $('ks-me'), dlg = $('ks-dlg'), gameEl = $('ks-game');
   var Sound = window.RetroSound || { play: function () {} };
   var view = 'tische', tables = [], tablesSig = '', mine = null, me = null, kasse = null, board = null, current = null, shop = null, owned = [];
+  // Eigene Ansicht am Tisch (Hintergrund, Tischrand statt dem des Gastgebers), am Konto gespeichert
+  var myView = { floor: 'lounge', wood: '' };
   var DEFAULT = { felt: 'gruen', back: 'klassisch', wood: 'eiche' };
   // Wie die Spiele ihr Fenster erwarten: Kürzel der Element-Ids und Klassen (die Spiele bauen aufeinander auf)
   var LOOK = { blackjack: ['bj', 'bj'], poker: ['pk', 'bj pk'], durak: ['dk', 'bj pk dk'] };
@@ -38,7 +40,7 @@
     if (body !== undefined) { opts.headers['content-type'] = 'application/json'; opts.body = JSON.stringify(body); }
     return fetch(url, opts).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) {
-        if (!r.ok) throw new Error(j.error || 'Fehler ' + r.status);
+        if (!r.ok) { var e = new Error(j.error || 'Fehler ' + r.status); e.data = j; throw e; }
         return j;
       });
     });
@@ -83,6 +85,7 @@
     if (v === 'tische') loadTables();
     if (v === 'kasse') loadKasse();
     if (v === 'shop') loadShop();
+    if (v === 'code') loadCode();
   }
   root.querySelector('.bj-nav').addEventListener('click', function (e) {
     var a = e.target.closest('[data-view]');
@@ -94,6 +97,7 @@
     if (view === 'tische') renderTables();
     else if (view === 'kasse') renderKasse();
     else if (view === 'shop') paintShop();
+    else if (view === 'code') renderCode();
     else renderGames();
   }
   function renderMe() {
@@ -106,7 +110,7 @@
   function loadTables() {
     return req('GET', '/kartenspiele/tische').then(function (j) {
       var sig = JSON.stringify([j.tables, j.mine]);
-      tables = j.tables; mine = j.mine; me = j.me; kasse = j.kasse; owned = j.owned || owned;
+      tables = j.tables; mine = j.mine; me = j.me; kasse = j.kasse; owned = j.owned || owned; myView = j.view || myView;
       renderMe();
       if (view === 'tische' && !current && sig !== tablesSig) renderTables();
       tablesSig = sig;
@@ -164,16 +168,25 @@
     return '<div class="' + lookCls(felt, back, wood) + '" id="ks-preview"><div class="bj-felt"><span class="bj-card back"></span><span class="bj-card back"></span><span class="bj-card red"><span class="r">A</span><span class="s">♥</span></span></div>' +
       '<small>So sieht der Tisch für alle aus.</small></div>';
   }
+  function seatChoices(o) {
+    var g = game(o.game), min = Math.max(g.min || 1, o.seated || 0), h = '';
+    for (var n = min; n <= (g.max || 8); n++) h += '<option value="' + n + '"' + (n === o.seats ? ' selected' : '') + '>' + n + '</option>';
+    return h;
+  }
   function designForm(o) {
     return '<label>Name:<input type="text" name="name" class="w100" maxlength="60" value="' + esc(o.name) + '"></label>' +
+      '<div class="row"><label>Plätze:<select name="seats" class="w100">' + seatChoices(o) + '</select></label>' +
+      '<label>Nächste Runde startet:<select name="next" class="w100"><option value="host"' + (o.next !== 'auto' ? ' selected' : '') + '>👑 der Gastgeber per Klick</option>' +
+      '<option value="auto"' + (o.next === 'auto' ? ' selected' : '') + '>von selbst, wenn alle bereit sind</option></select></label></div>' +
       '<div class="row"><label>Filz:<select name="felt" class="w100" data-look="felt">' + lookOptions('felt', o.felt) + '</select></label>' +
       '<label>Kartenrücken:<select name="back" class="w100" data-look="back">' + lookOptions('back', o.back) + '</select></label></div>' +
       '<label>Holzrand:<select name="wood" class="w100" data-look="wood">' + lookOptions('wood', o.wood || DEFAULT.wood) + '</select></label>' +
       preview(o.felt, o.back, o.wood || DEFAULT.wood) +
       '<label class="inline"><input type="checkbox" name="hidden"' + (o.hidden ? ' checked' : '') + '> Nicht in der Liste zeigen (nur mit Link)</label>' +
-      '<p><small>Mehr Holz, Filz und Kartenrücken gibt es im 🛒 Shop unter „Tisch“. Das Spiel wählst du oben in der Leiste.</small></p>';
+      '<p><small>Weniger Plätze gehen nicht, als Leute sitzen; wer auf einem wegfallenden Platz sitzt, rückt nach vorn. Mehr Holz, Filz und Kartenrücken gibt es im 🛒 Shop unter „Tisch“. Das Spiel wählst du oben in der Leiste.</small></p>';
   }
   dlg.addEventListener('change', function (e) {
+    if (e.target.dataset.myview && $('ks-viewprev')) { $('ks-viewprev').outerHTML = viewPreview(field('floor'), field('wood')); return; }
     if (!e.target.dataset.look) return;
     var p = $('ks-preview');
     if (p) p.className = lookCls(field('felt'), field('back'), field('wood'));
@@ -207,17 +220,66 @@
       '<p><small>Wer anonym bleiben möchte oder sein Profil vor dir verbirgt, steht hier ohne Namen. Wie du selbst drinstehst, stellst du in der <a href="/einstellungen/statistik">Systemsteuerung</a> ein.</small></p></div>';
   }
 
+  // Karten im Code: echte Ausschnitte vom Server (GET /kartenspiele/code), die Erklärungen stehen hier
+  var code = null;
+  function loadCode() {
+    if (code) return;
+    req('GET', '/kartenspiele/code').then(function (j) { code = j.snippets; if (view === 'code' && !current) renderCode(); }).catch(oops);
+  }
+  var CODE = [
+    ['Eine Karte ist ein kleines Objekt', [
+      ['suits', 'Eine französische Karte hat eine Farbe <code>s</code> (♠ ♥ ♦ ♣) und einen Rang <code>r</code>. Das Herz-Ass ist also einfach <code>{ r: \'A\', s: \'♥\' }</code>.'],
+      ['shoe', 'Blackjack legt mehrere Decks zu einem Schlitten zusammen (normal 6 × 52 = 312 Karten) und mischt ihn einmal ganz durch. Ist nur noch ein Viertel übrig, kommt ein neuer.'],
+      ['poker', 'Poker nimmt ein Deck mit 52 Karten. Das Ass steht hier am Ende der Ränge und ist die höchste Karte.'],
+      ['durak', 'Durak spielt mit 36 Karten, also nur 6 bis Ass. Die unterste Karte des Stapels zeigt den Trumpf.'],
+    ]],
+    ['Gemischt wird auf dem Server, mit echtem Zufall', [
+      ['shuffle', 'Alle Spiele mischen nach Fisher-Yates: von hinten nach vorn tauscht jede Karte mit einer zufälligen Karte davor (oder mit sich selbst). So ist jede Reihenfolge gleich wahrscheinlich. <code>crypto.randomInt</code> holt den Zufall vom Betriebssystem und nicht aus <code>Math.random</code>, man kann die nächste Karte also nicht aus früheren ausrechnen. Dein Browser mischt nie mit.'],
+    ]],
+    ['Eigene Decks für UNO, Flip 7 und Pilli Pilli', [
+      ['uno', '108 Karten: je Farbe eine 0, zwei von 1 bis 9 und je zwei Aussetzen, Richtungswechsel und Zieh zwei, dazu je vier Farbwahl und Zieh vier. <code>k</code> gibt jeder Karte eine eigene Nummer, damit sich zwei gleiche Karten unterscheiden lassen.'],
+      ['flip7', 'Von jeder Zahl gibt es so viele Karten, wie sie zählt: eine 1, zwei 2en, … zwölf 12en. Dazu eine 0, sechs Bonuskarten und je drei von jeder Aktion.'],
+      ['pilli', '55 Zahlenkarten von 1 bis 55 und ein Joker. Jede Zahl gibt es nur einmal, deshalb reicht die Zahl selbst als Nummer.'],
+    ]],
+    ['Was du nicht sehen darfst, kommt gar nicht erst an', [
+      ['broadcast', 'Nach jedem Zug baut der Server für jeden am Tisch einen eigenen Stand und schickt ihn über die Live-Verbindung.'],
+      ['shown', 'Beim Poker sieht jeder nur seine eigenen Karten, bis aufgedeckt wird …'],
+      ['pokerCards', '… fremde Karten werden durch <code>null</code> ersetzt, bevor der Stand den Server verlässt. Dein Browser bekommt sie also nie, auch nicht in den Entwicklerwerkzeugen.'],
+      ['hole', 'Die verdeckte Karte des Dealers beim Blackjack ist bis zum Aufdecken ebenfalls <code>null</code>.'],
+      ['seatView', 'Bei UNO, Flip 7 und Pilli Pilli erfahren die anderen nur, wie viele Karten du auf der Hand hast.'],
+    ]],
+    ['Wie aus den Daten Karten werden', [
+      ['face', 'Im Browser wird aus <code>{ r, s }</code> eine Karte aus HTML und CSS, ganz ohne Bilder. Aus <code>null</code> wird die Rückseite.'],
+      ['flow', 'Für den Kartenfluss merkt sich das Fenster nach jedem Neuzeichnen, wo jede Karte liegt: offene nach ihrem Namen (zum Beispiel A♥), verdeckte nach ihrem Platz. Liegt eine Karte danach woanders, gleitet sie hin; eine neue kommt vom Stapel.'],
+    ]],
+  ];
+  function snippetHtml(c, note) {
+    if (!c) return '';
+    if (c.missing) return '<p class="msg err">Ausschnitt aus ' + esc(c.file) + ' nicht gefunden.</p>';
+    return '<figure class="code-snippet"><figcaption><a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.file) + ', Zeile ' + c.from + (c.to > c.from ? '–' + c.to : '') + '</a></figcaption>' +
+      '<pre>' + c.code.split('\n').map(function (l, k) { return '<span class="ln">' + (c.from + k) + '</span>' + esc(l); }).join('\n') + '</pre><p>' + note + '</p></figure>';
+  }
+  function renderCode() {
+    main.innerHTML = '<div class="bj-pad ks-code"><h2>🔍 Karten im Code</h2><p>So bauen, mischen und verstecken die Spiele ihre Karten. Die Ausschnitte kommen direkt aus den Dateien auf dem Server; ein Klick auf den Dateinamen öffnet die Stelle auf GitHub.</p>' +
+      (code ? CODE.map(function (sec) {
+        return '<h3>' + esc(sec[0]) + '</h3>' + sec[1].map(function (x) { return snippetHtml(code[x[0]], x[1]); }).join('');
+      }).join('') : '<p class="bj-empty">Lädt …</p>') + '</div>';
+  }
+
   // Bestenlisten und Regeln: das Spiel ohne Tisch aufbauen
   function renderGames() {
     main.innerHTML = '<div class="bj-pad"><h2>📊 Bestenlisten und Regeln</h2><p>Jedes Spiel hat seine eigene Bestenliste und Statistik; deine Zahlen stehen auch in deinem <a href="/nutzer/' + encodeURIComponent(me ? me.user : '') + '">Profil</a>.</p>' +
       '<div class="ks-games">' + playable().map(function (g) {
         return '<button type="button" data-stats="' + g.id + '">' + g.icon + ' ' + esc(g.title) + '</button>';
       }).join('') + '</div>' +
-      '<h3>So funktionieren die Spieltische</h3><ul class="bj-rules"><li>Am Spieltisch wählt der Gastgeber (👑) das Spiel und wechselt es zwischen zwei Runden, ohne dass jemand aufstehen muss.</li>' +
+      '<h3>So funktionieren die Spieltische</h3><ul class="bj-rules"><li>Am Spieltisch wählt der Gastgeber (👑) das Spiel und wechselt es, ohne dass jemand aufstehen muss. Mitten in einer Runde fragt das Fenster vorher nach: Die Runde wird abgebrochen, zählt nicht, und alle Einsätze gehen zurück.</li>' +
+      '<li>Die nächste Runde startet der Gastgeber per Klick. Unter 🎨 Gestalten kann er das auf „von selbst“ stellen und dort auch die Zahl der Plätze ändern.</li>' +
       '<li>„⚡ Schnell spielen“ setzt dich an den vollsten Tisch mit freiem Platz, „➕ Neuer Spieltisch“ macht sofort einen auf. Name, Holz, Filz und Kartenrücken stellt der Gastgeber am Tisch unter 🎨 Gestalten ein.</li>' +
       '<li>Versteckte Tische siehst nur du und wer den Link hat. Leere Tische schließen nach 10 Minuten. Du kannst nur an einem Tisch gleichzeitig sitzen.</li>' +
       '<li>Am Tisch: ☰ Mehr zeigt, wer sitzt, den ganzen Verlauf und deine Zahlen. Mit 😀 ▾ schickst du eine Reaktion, ein Klick auf dein Glas stößt an, ein Klick auf ein Tier streichelt es.</li>' +
-      '<li>Im 🛒 Shop kaufst du mit Spielgeld Getränke, Untersetzer, Glücksbringer, ein Plätzchen für dein Pixelpfoten-Tier und Neues für deine Tische, oder du schmeißt eine Runde für alle. Jede Woche ist ein Teil im Angebot.</li></ul></div>';
+      '<li>Im 🛒 Shop kaufst du mit Spielgeld Getränke, Untersetzer, Glücksbringer, ein Plätzchen für dein Pixelpfoten-Tier und Neues für deine Tische, oder du schmeißt eine Runde für alle. Jede Woche ist ein Teil im Angebot.</li>' +
+      '<li>Hintergrund und Tischrand stellt jeder für sich unter 🖼️ Ansicht ein; die anderen sehen weiter ihre eigene Wahl.</li></ul>' +
+      '<p>Wie die Karten gebaut, gemischt und verdeckt gehalten werden, zeigt <a href="#code" data-view="code">🔍 Karten im Code</a>.</p></div>';
   }
 
   main.addEventListener('click', function (e) {
@@ -228,6 +290,7 @@
     if (b.dataset.watch) { enter(b.dataset.watch, false); return; }
     if (b.dataset.quick) { quick(b.dataset.quick); return; }
     if (b.dataset.stats) { mount(b.dataset.stats, null, false, 'statistik'); return; }
+    if (b.dataset.view) { e.preventDefault(); show(b.dataset.view); return; }
     if (b.dataset.user) { if (window.RetroUserMenu) window.RetroUserMenu.open(e, b.dataset.user, {}); return; }
     var a = b.dataset.act;
     if (a === 'create') createTable();
@@ -251,6 +314,9 @@
   }
   function item(id) { return shop && shop.items.filter(function (x) { return x.id === id; })[0]; }
   function placed(kind) { return shop ? shop[kind] : null; }
+  // Steht gerade das Getränk aus einer geschmissenen Runde da? Dann ist das eigene nur im Schrank, bis man es wieder hinstellt.
+  function roundDrink() { var d = shop && shop.deco && shop.deco.drink; return d && d.from ? d : null; }
+  function standing(x) { return placed(x.kind) === x.id && !(x.kind === 'drink' && roundDrink()); }
   function shortTitle(x) { return x.title.split(' für ')[0]; }
   function stars(r) { return r === 2 ? '★★' : r === 1 ? '★' : ''; }
   function shopIcon(x) {
@@ -262,7 +328,7 @@
   }
   function priceHtml(x) { return x.price ? (x.was ? '<s>' + euro(x.was) + '</s> ' : '') + euro(x.price) : 'gratis'; }
   function tile(x) {
-    var on = placed(x.kind) === x.id;
+    var on = standing(x);
     return '<button type="button" class="ks-ic' + (x.id === shopSel ? ' sel' : '') + (x.owned ? ' own' : '') + (x.was ? ' deal' : '') + '" data-item="' + x.id + '" title="' + esc(x.title) + '">' +
       '<span class="i">' + shopIcon(x) + '</span>' + (on ? '<span class="ov" title="Steht an deinem Platz">✔</span>' : '') + (x.rarity ? '<span class="rar" title="' + (x.rarity === 2 ? 'legendär' : 'selten') + '">' + stars(x.rarity) + '</span>' : '') +
       '<span class="n">' + esc(shortTitle(x)) + '</span><span class="p">' + (x.owned && x.price ? 'gehört dir' : priceHtml(x)) + '</span></button>';
@@ -290,8 +356,8 @@
     var x = sel && item(sel), k = shop.kasse;
     if (!x) return '<b>Dein Platz</b><small>So sehen dich die anderen am Tisch. Klick auf ein Teil, um es anzuprobieren.</small>' +
       '<small>' + (k.atTable ? 'Dein Geld liegt am Tisch „' + esc(k.atTable) + '“, bezahlt wird dort mit deinen Chips.' : 'Bezahlt wird mit Spielgeld aus der Kasse.') + ' Gekauftes behältst du; es zählt nicht als Verlust.</small>';
-    var on = placed(x.kind) === x.id, look = x.kind === 'wood' || x.kind === 'felt' || x.kind === 'back';
-    var what = x.kind === 'drink' ? 'Steht rechts neben deinem Platz auf dem Holz. Klick am Tisch auf dein Glas, um anzustoßen.'
+    var on = standing(x), look = x.kind === 'wood' || x.kind === 'felt' || x.kind === 'back';
+    var what = x.kind === 'drink' ? (roundDrink() ? 'Gerade steht bei dir die Runde von ' + esc(roundDrink().from) + '. Stellst du das hier hin, kommt es an ihre Stelle.' : 'Steht rechts neben deinem Platz auf dem Holz. Klick am Tisch auf dein Glas, um anzustoßen.')
       : x.kind === 'coaster' ? 'Liegt unter deinem Getränk.'
         : x.pet ? 'Hier sitzt dein Pixelpfoten-Tier mit am Tisch, und alle können es streicheln.' + (shop.pet ? '' : ' Hol dir erst ein Tier bei Pixelpfoten.')
           : x.kind === 'charm' ? 'Liegt links neben deinem Platz auf dem Holz.' : 'Für deine eigenen Spieltische, wählbar unter 🎨 Gestalten.';
@@ -324,8 +390,15 @@
   }
   function mineHtml() {
     var mineItems = shop.items.filter(function (x) { return x.owned && x.price; });
+    var r = roundDrink();
     var at = ['drink', 'coaster', 'charm'].map(function (k) {
       var x = item(placed(k));
+      // Aus einer Runde: das eigene Getränk mit einem Klick zurückstellen (oder die Runde wegräumen, wenn man keins hat)
+      if (k === 'drink' && r) {
+        return '<tr><td>Getränk</td><td>' + r.icon + ' ' + esc(r.title) + '<br><small>Runde von ' + esc(r.from) + '</small></td><td class="num">' +
+          (x ? '<button type="button" class="small" data-shop="equip" data-item="' + x.id + '" title="' + esc(x.title) + ' wieder hinstellen">' + x.icon + ' Eigenes hinstellen</button>'
+            : '<button type="button" class="small" data-shop="equip" data-item="" data-kind="drink">Wegräumen</button>') + '</td></tr>';
+      }
       return '<tr><td>' + KIND_NAMES[k].replace(' und Snacks', '') + '</td><td>' + (x ? (x.kind === 'coaster' ? '' : x.icon + ' ') + esc(x.title) : '<i>nichts</i>') + '</td><td class="num">' +
         (x ? '<button type="button" class="small" data-shop="equip" data-item="" data-kind="' + k + '">Wegräumen</button>' : '') + '</td></tr>';
     }).join('');
@@ -415,7 +488,7 @@
       switched: function () { enter(meta.id, false); },
       salon: function (m) { if (current && current.meta && current.meta.id === m.id) design(m); },
       link: function () { return location.origin + '/kartenspiele?tisch=' + encodeURIComponent(meta.id); },
-      plaque: plaque, free: freeSeat, info: info, side: side, fx: fx,
+      plaque: plaque, free: freeSeat, info: info, side: side, fx: fx, start: startHtml,
     };
     var start = window.KartenSpiele && window.KartenSpiele[id];
     if (!start) { show('tische'); status('Dieses Spiel lässt sich gerade nicht laden.'); return; }
@@ -438,18 +511,20 @@
   function design(m) {
     current.meta = m;
     var el = current.el, g = game(m.game), host = isHost();
-    ['felt', 'back', 'wood'].forEach(function (kind) {
-      LOOKS[kind].forEach(function (x) { el.classList.toggle('ks-' + kind + '-' + x.id, x.id === (m[kind] || DEFAULT[kind])); });
+    var mineLook = { wood: myWood() || m.wood || DEFAULT.wood, floor: myView.floor || 'lounge' };
+    ['felt', 'back', 'wood', 'floor'].forEach(function (kind) {
+      LOOKS[kind].forEach(function (x) { el.classList.toggle('ks-' + kind + '-' + x.id, x.id === (mineLook[kind] || m[kind] || DEFAULT[kind])); });
     });
     el.classList.add('ks-tisch');
     $('ks-bar').innerHTML = '<button type="button" class="ks-tb" data-ks="back" title="Zur Tischliste; dein Platz bleibt frei für dich">◀ <span>Tische</span></button><span class="ks-tsep"></span>' +
       '<b class="ks-tname" title="' + esc(m.name) + '">' + (m.hidden ? '🔒 ' : '') + esc(m.name) + '</b>' +
-      (host ? '<select id="ks-pick" title="Gewechselt wird zwischen zwei Runden; alle bleiben sitzen.">' + GAMES.map(function (x) {
+      (host ? '<select id="ks-pick" title="Spiel wechseln; alle bleiben sitzen. Mitten in einer Runde fragt das Fenster vorher nach.">' + GAMES.map(function (x) {
         return '<option value="' + x.id + '"' + (x.id === m.game ? ' selected' : '') + '>' + x.icon + ' ' + esc(x.id === 'lobby' ? 'Kein Spiel (Lobby)' : x.title) + '</option>';
       }).join('') + '</select>' : '<span class="ks-gname" title="👑 ' + esc(m.host) + ' wählt das Spiel">' + g.icon + ' ' + esc(m.game === 'lobby' ? 'Noch kein Spiel' : g.title) + '</span>') +
       '<span class="ks-info" id="ks-info">' + current.info + '</span><span class="ks-faces" id="ks-faces">' + current.faces + '</span><span class="spacer"></span>' +
       '<button type="button" class="ks-tb" data-ks="shop" title="Getränke, Glücksbringer und mehr; du bleibst sitzen">🛒 <span>Shop</span></button>' +
-      (host ? '<button type="button" class="ks-tb" data-ks="design" title="Name, Holz, Filz und Kartenrücken">🎨 <span>Gestalten</span></button>' : '') +
+      (host ? '<button type="button" class="ks-tb" data-ks="design" title="Name, Plätze, Start der Runden, Holz, Filz und Kartenrücken">🎨 <span>Gestalten</span></button>' : '') +
+      '<button type="button" class="ks-tb" data-ks="view" title="Hintergrund und Tischrand, nur für dich">🖼️ <span>Ansicht</span></button>' +
       '<button type="button" class="ks-tb" data-act="link" title="Link zu diesem Tisch">🔗 <span>Einladen</span></button><span class="ks-tsep"></span>' +
       '<button type="button" class="ks-tb" data-ks="pane" title="Wer am Tisch sitzt, Verlauf und deine Zahlen">☰ <span>Mehr</span></button>';
     pressed();
@@ -470,11 +545,19 @@
     if (e.target.id !== 'ks-pick' || !current || !current.meta) return;
     switchGame(e.target.value);
   });
-  function switchGame(to) {
+  // Mitten in einer Runde fragt das Fenster erst nach: Die Runde wird abgebrochen, Einsätze gehen zurück, sie zählt nicht
+  function switchGame(to, abort) {
     var m = current.meta;
-    req('POST', '/kartenspiele/tisch/' + encodeURIComponent(m.id), { action: 'game', game: to }).catch(function (err) {
-      if ($('ks-pick')) $('ks-pick').value = m.game;
-      oopsAtTable(err);
+    function undo() { if ($('ks-pick')) $('ks-pick').value = m.game; }
+    req('POST', '/kartenspiele/tisch/' + encodeURIComponent(m.id), { action: 'game', game: to, abort: !!abort }).catch(function (err) {
+      undo();
+      if (!err.data || !err.data.busy || abort) { oopsAtTable(err); return; }
+      var g = game(to), was = game(m.game);
+      dialog('🔀 Spiel wechseln', '<p>Gerade läuft noch eine Runde ' + esc(was.title) + '. Wechselst du jetzt zu <b>' + g.icon + ' ' + esc(g.title) + '</b>, wird sie <b>abgebrochen</b>.</p>' +
+        '<p>' + (was.money ? 'Alle Einsätze der Runde gehen zurück. ' : '') + 'Die Runde zählt für niemanden in der Statistik. Alle bleiben sitzen.</p>',
+        [{ label: '<b>Abbrechen und wechseln</b>', value: 'ok', danger: true }, { label: 'Weiterspielen', value: 'cancel' }]).then(function (r) {
+        if (r === 'ok' && current && current.meta && current.meta.id === m.id) switchGame(to, true);
+      });
     });
   }
   gameEl.addEventListener('click', function (e) {
@@ -502,12 +585,40 @@
     else if (k === 'emote') toggleEmotes(b);
     else if (k === 'rules' || k === 'stats') { var a = current.el.querySelector('.bj-nav [data-view=' + (k === 'rules' ? 'regeln' : 'statistik') + ']'); if (a) a.click(); }
     else if (k === 'design') designTable();
+    else if (k === 'start') tableAct({ action: 'start' });
+    else if (k === 'view') viewTable();
   });
   function designTable() {
     var m = current.meta;
     dialog('🎨 Tisch gestalten', designForm(m), [{ label: 'Speichern', value: 'ok' }, { label: 'Abbrechen', value: 'cancel' }]).then(function (r) {
       if (r !== 'ok') return;
-      req('POST', '/kartenspiele/tisch/' + encodeURIComponent(m.id), { action: 'design', name: field('name'), felt: field('felt'), back: field('back'), wood: field('wood'), hidden: field('hidden') }).catch(oopsAtTable);
+      req('POST', '/kartenspiele/tisch/' + encodeURIComponent(m.id), { action: 'design', name: field('name'), seats: Number(field('seats')), next: field('next'), felt: field('felt'), back: field('back'), wood: field('wood'), hidden: field('hidden') }).catch(oopsAtTable);
+    });
+  }
+  // Eigene Ansicht: Hintergrund und Tischrand nur für mich; die anderen sehen den Tisch weiter so, wie ihn der Gastgeber gestaltet hat
+  function myWood() { return myView.wood && (owned.indexOf(myView.wood) >= 0 || LOOKS.wood.some(function (x) { return x.id === myView.wood && !x.price; })) ? myView.wood : ''; }
+  function viewPreview(floor, wood) {
+    var m = current.meta;
+    return '<div class="ks-preview ks-floorview ks-tisch ks-felt-' + esc(m.felt || DEFAULT.felt) + ' ks-back-' + esc(m.back || DEFAULT.back) + ' ks-wood-' + esc(wood || m.wood || DEFAULT.wood) + ' ks-floor-' + esc(floor) + '" id="ks-viewprev">' +
+      '<div class="bj-felt"><span class="bj-card back"></span><span class="bj-card red"><span class="r">A</span><span class="s">♥</span></span></div><small>Nur du siehst den Tisch so.</small></div>';
+  }
+  function viewTable() {
+    var m = current.meta, hostWood = LOOKS.wood.filter(function (x) { return x.id === (m.wood || DEFAULT.wood); })[0];
+    var woods = '<option value="">Wie der Gastgeber (' + esc(hostWood ? hostWood.title : m.wood) + ')</option>' + LOOKS.wood.map(function (x) {
+      var has = owned.indexOf(x.id) >= 0 || !x.price;
+      return '<option value="' + x.id + '"' + (x.id === myWood() ? ' selected' : '') + (has ? '' : ' disabled') + '>' + esc(x.title) + (has ? '' : ' (erst im 🛒 Shop kaufen)') + '</option>';
+    }).join('');
+    var floors = LOOKS.floor.map(function (x) { return '<option value="' + x.id + '"' + (x.id === myView.floor ? ' selected' : '') + '>' + esc(x.title) + '</option>'; }).join('');
+    dialog('🖼️ Meine Ansicht', '<p>Hintergrund und Tischrand stellst du hier <b>nur für dich</b> ein. Die anderen sehen den Tisch weiter so, wie der Gastgeber ihn gestaltet hat. Das gilt an jedem Spieltisch.</p>' +
+      '<div class="row"><label>Hintergrund:<select name="floor" class="w100" data-myview="1">' + floors + '</select></label>' +
+      '<label>Tischrand:<select name="wood" class="w100" data-myview="1">' + woods + '</select></label></div>' + viewPreview(myView.floor, myWood()),
+      [{ label: 'Speichern', value: 'ok' }, { label: 'Abbrechen', value: 'cancel' }]).then(function (r) {
+      if (r !== 'ok') return;
+      req('POST', '/kartenspiele/ansicht', { floor: field('floor'), wood: field('wood') }).then(function (j) {
+        myView = j.view;
+        if (current && current.meta) design(current.meta);
+        statusAtTable('Deine Ansicht ist gespeichert.');
+      }).catch(oopsAtTable);
     });
   }
   function tableAct(body) {
@@ -537,6 +648,13 @@
       (tags ? '<span class="ks-tags">' + tags + '</span>' : '') + '</span>' +
       '<button type="button" class="bj-name ks-plate" data-user="' + esc(p.user) + '" data-uid="' + p.id + '"><b>' + esc(p.name) + (p.away ? ' 💤' : '') + (p.leaving ? ' 🚪' : '') + '</b>' +
       (o.line ? '<small>' + o.line + '</small>' : '') + '</button>' + prog + (o.note ? '<span class="ks-note">' + o.note + '</span>' : '') + '</div>';
+  }
+  // Startet der Gastgeber die nächste Runde: für ihn der Knopf, für alle anderen, auf wen sie warten
+  function startHtml(label, what) {
+    var m = current && current.meta;
+    if (!m) return '';
+    if (isHost()) return '<button type="button" class="def ks-go" data-ks="start">▶ ' + esc(label) + '</button>';
+    return '<span class="ks-wait">👑 ' + esc(m.host) + ' startet ' + esc(what || 'die nächste Runde') + '.</span>';
   }
   // Freier Platz: ein Klick setzt dich hin (wer schon sitzt, sieht nur, dass er frei ist)
   function freeSeat(i, canSit) {
@@ -656,7 +774,7 @@
       var a = d[f.dataset.uid], img = f.querySelector('.ks-ava'), src = a && a.avatar;
       if (img && src && img.getAttribute('src') !== src) img.outerHTML = avatarHtml(src, '');
     });
-    if (!felt) return;
+    if (!felt) { flowLast = null; return; }
     if (sizer && sizer.felt !== felt) { sizer.disconnect(); sizer = null; }
     if (!sizer && window.ResizeObserver) { sizer = new ResizeObserver(function () { decorate(); }); sizer.felt = felt; sizer.observe(felt); }
     var W = felt.clientWidth, H = felt.clientHeight;
@@ -709,6 +827,83 @@
       if (a.charm) html += '<span class="ks-at" style="left:' + left.x.toFixed(1) + 'px;top:' + left.y.toFixed(1) + 'px">' + charmHtml(a.charm, a.pet, uid) + '</span>';
     });
     if (layer.innerHTML !== html) layer.innerHTML = html;
+    flow(felt, W, H);
+  }
+
+  // ---------- Kartenfluss: Karten gleiten über den Tisch ----------
+  // Die Spiele zeichnen ihren Tisch bei jedem Stand neu. Nach jedem Neuzeichnen merkt sich das Fenster, wo welche Karte liegt
+  // (offene Karten nach ihrem title und der wievielten gleichen, verdeckte nach Platz und Nummer). Liegt eine Karte jetzt woanders,
+  // gleitet sie von der alten Stelle hin; ist sie neu, kommt sie vom Stapel ([data-pile=deck]) oder von dort, wo gerade eine
+  // verdeckte Karte verschwunden ist (z. B. aus der Hand eines Mitspielers); wird eine verdeckte an derselben Stelle offen, dreht
+  // sie sich um. Bei „Bewegung reduzieren“ springt alles wie bisher.
+  var flowLast = null, flowSize = '', flowEnd = window.WeakMap ? new WeakMap() : null;
+  var still = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  function flowOwner(el) {
+    var o = el.closest('[data-pile], .pk-seat, .bj-seat, .bj-dealer, .ks-dock, .pk-board, .pk-center');
+    if (!o) return '?';
+    if (o.dataset.pile) return 'pile-' + o.dataset.pile;
+    var f = o.querySelector('.ks-face[data-uid]');
+    return f ? 'p' + f.dataset.uid : o.className.split(' ')[0];
+  }
+  function flowRect(el) {
+    var e = flowEnd && flowEnd.get(el);
+    if (e && el.getAnimations && el.getAnimations().length) return e;
+    var r = el.getBoundingClientRect();
+    return { x: r.left, y: r.top, w: r.width, h: r.height };
+  }
+  function flow(felt, W, H) {
+    var scope = current.el.querySelector('.bj-table') || felt;
+    var size = W + 'x' + H + ':' + scope.clientWidth + 'x' + scope.clientHeight;
+    var now = new Map(), counts = {};
+    scope.querySelectorAll('.bj-card').forEach(function (el) {
+      if (el.closest('.ks-layer, .ks-fx')) return;
+      var back = el.classList.contains('back');
+      var id = back ? 'b:' + flowOwner(el) : 'f:' + (el.title || el.textContent.replace(/\s+/g, ''));
+      counts[id] = (counts[id] || 0) + 1;
+      now.set(id + '#' + counts[id], { el: el, r: flowRect(el), back: back });
+    });
+    var last = flowLast, sameSize = size === flowSize;
+    flowLast = now; flowSize = size;
+    // Ohne Vorher (gerade aufgebaut) oder nach einer Größenänderung wird nur gemerkt
+    if (!last || !sameSize || still.matches || !document.body.animate) return;
+    var gone = [];
+    last.forEach(function (o, k) { if (!now.has(k)) gone.push(o); });
+    var deck = scope.querySelector('[data-pile=deck], .dk-stock'), dr = deck && deck.getBoundingClientRect();
+    var fr = felt.getBoundingClientRect();
+    var from0 = dr ? { x: dr.left + dr.width / 2, y: dr.top + dr.height / 2 } : { x: fr.left + fr.width / 2, y: fr.top + fr.height * 0.12 };
+    var fresh = 0;
+    now.forEach(function (n, k) {
+      var o = last.get(k), r = n.r, cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+      if (o) {
+        var dx = o.x + o.w / 2 - cx, dy = o.y + o.h / 2 - cy;
+        if (Math.abs(dx) + Math.abs(dy) < 3) return;
+        glide(n.el, r, [{ transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + (o.w / r.w || 1) + ')' }, { transform: 'none' }], 0);
+        return;
+      }
+      // Neu: von einer verschwundenen Karte (zuerst verdeckte, die nächste) oder vom Stapel
+      var best = null, bd = Infinity;
+      gone.forEach(function (g) {
+        if (g.used) return;
+        var d = Math.hypot(g.x + g.w / 2 - cx, g.y + g.h / 2 - cy) + (g.back ? 0 : 2000);
+        if (d < bd) { bd = d; best = g; }
+      });
+      if (best && (best.back || !n.back)) {
+        best.used = true;
+        var ox = best.x + best.w / 2 - cx, oy = best.y + best.h / 2 - cy;
+        if (Math.hypot(ox, oy) < 12 && best.back && !n.back) {
+          // An derselben Stelle aufgedeckt: umdrehen
+          glide(n.el, r, [{ transform: 'perspective(400px) rotateY(90deg)' }, { transform: 'none' }], fresh++ * 70);
+          return;
+        }
+        glide(n.el, r, [{ transform: 'translate(' + ox + 'px,' + oy + 'px) scale(' + (best.w / r.w || 1) + ')' }, { transform: 'none' }], fresh++ * 70);
+        return;
+      }
+      glide(n.el, r, [{ transform: 'translate(' + (from0.x - cx) + 'px,' + (from0.y - cy) + 'px) scale(.6) rotate(-8deg)', opacity: 0 }, { opacity: 1, offset: .3 }, { transform: 'none', opacity: 1 }], fresh++ * 70);
+    });
+  }
+  function glide(el, r, frames, delay) {
+    if (flowEnd) flowEnd.set(el, r);
+    el.animate(frames, { duration: 420, delay: Math.min(delay, 700), easing: 'cubic-bezier(.2,.75,.25,1)', fill: 'backwards' });
   }
   function watch() {
     unwatch();
@@ -825,7 +1020,7 @@
     if (want) enter(want, false);
     else if (statsFor && game(statsFor).id) mount(statsFor, null, false, 'statistik');
     else if (mine) enter(mine, false);
-    else if (hash === 'kasse' || hash === 'shop' || hash === 'statistik') show(hash);
+    else if (hash === 'kasse' || hash === 'shop' || hash === 'statistik' || hash === 'code') show(hash);
   });
   show('tische');
 })();

@@ -9,6 +9,7 @@ const kasse = require('../kasse');
 const profiles = require('../profiles');
 const us = require('../usersettings');
 const auth = require('../auth');
+const privacy = require('../privacy');
 
 const router = express.Router();
 const fail = (res, status, error) => res.status(status).json({ error });
@@ -42,7 +43,13 @@ router.get('/tische', gate, (req, res) => {
   const mine = ks.seatedAt(req.user.id);
   const friends = new Set(profiles.friendsOf(req.user.id).map(u => u.id));
   const tables = ks.list(req.user).map(t => ({ ...t, friends: t.faces.filter(f => f && friends.has(f.id)).map(f => f.name) }));
-  res.json({ tables, mine: mine ? mine.id : null, games: ks.games(), kasse: wallet(req.user), owned: owned(req.user), me: { id: req.user.id, name: req.user.name, user: req.user.username, admin: req.user.isAdmin } });
+  res.json({ tables, mine: mine ? mine.id : null, games: ks.games(), kasse: wallet(req.user), owned: owned(req.user), view: us.get(req.user.id, 'cards'), me: { id: req.user.id, name: req.user.name, user: req.user.username, admin: req.user.isAdmin } });
+});
+// Eigene Ansicht am Tisch: Hintergrund und Tischrand nur für einen selbst. Holz nur, wenn man es hat (oder es nichts kostet).
+router.post('/ansicht', gate, auth.rateLimit('ksview', 60, 600), (req, res) => {
+  const b = req.body || {}, wood = String(b.wood || '');
+  if (wood && (!ks.WOODS.includes(wood) || !kasse.owns(req.user.id, wood))) return fail(res, 400, 'Diesen Tischrand musst du erst im Shop kaufen.');
+  res.json({ view: us.set(req.user.id, 'cards', { floor: b.floor, wood }) });
 });
 router.post('/tische', gate, auth.rateLimit('kstable', 20, 600), (req, res) => {
   const b = req.body || {};
@@ -94,6 +101,31 @@ router.post('/shop', gate, auth.rateLimit('ksshop', 60, 600), (req, res) => {
   res.json(shop(req.user));
 });
 
+// Karten im Code: wie die Spiele ihre Karten bauen, mischen und verdeckt halten. Die Ausschnitte kommen aus den Dateien
+// selbst (privacy.collect), die Erklärungen dazu schreibt das Fenster (public/kartenspiele.js, renderCode).
+const CODE = {
+  suits: ['src/blackjack.js', "const SUITS = ['♠'", 2],
+  shoe: ['src/blackjack.js', 'function newShoe(decks) {', 6],
+  poker: ['src/poker.js', 'function newDeck() {', 6],
+  durak: ['src/durak.js', 'function newDeck() {', 6],
+  shuffle: ['src/cardtable.js', 'function shuffle(a) {', 4],
+  uno: ['src/uno.js', '// c: Farbe (r/y/g/b, w = schwarz)', 11],
+  flip7: ['src/flip7.js', '// t: n Zahl, m Bonus, a Aktion', 10],
+  pilli: ['src/pilli.js', '// v: Wert, j: Joker', 6],
+  hole: ['src/blackjack.js', 'const dealer = t.holeHidden', 1],
+  shown: ['src/poker.js', 'const shown = s => s.userId === viewerId', 1],
+  pokerCards: ['src/poker.js', 'cards: s.inHand ? (shown(s)', 1],
+  seatView: ['src/uno.js', 'function seatView(t, s) {', 3],
+  broadcast: ['src/cardtable.js', 'function broadcast(t) {', 8],
+  face: ['public/blackjack.js', 'function card(c, i) {', 5],
+  flow: ['public/kartenspiele.js', "scope.querySelectorAll('.bj-card').forEach(function (el) {", 7],
+};
+let code = null;
+router.get('/code', gate, (req, res) => {
+  code ||= privacy.collect(CODE);
+  res.json({ snippets: code, repo: privacy.REPO });
+});
+
 router.get('/tisch/:id', gate, loadTable, (req, res) => {
   if (req.salon.game !== 'lobby') profiles.countStart(req.user, req.salon.game);
   res.json(ks.meta(req.salon));
@@ -127,9 +159,11 @@ router.post('/tisch/:id', gate, loadTable, auth.rateLimit('ksctl', 300, 60), (re
     err = ks.fx(s, req.user, b);
     return err ? fail(res, 400, err) : res.json({ ok: true });
   }
-  if (b.action === 'game') err = ks.switchGame(s, req.user, String(b.game || ''));
+  if (b.action === 'game') err = ks.switchGame(s, req.user, String(b.game || ''), b.abort === true);
   else if (b.action === 'design') err = ks.settings(s, req.user, b);
   else err = ks.control(s, req.user, b);
+  // Mitten in einer Runde fragt das Fenster erst nach und schickt dann abort mit
+  if (err === ks.BUSY) return res.status(409).json({ error: err, busy: true });
   if (err) return fail(res, 400, err);
   const t = ks.tableOf(s);
   if (t) ks.engine(s.game).broadcast(t);

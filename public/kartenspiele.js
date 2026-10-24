@@ -722,7 +722,7 @@
       var a = d[f.dataset.uid], img = f.querySelector('.ks-ava'), src = a && a.avatar;
       if (img && src && img.getAttribute('src') !== src) img.outerHTML = avatarHtml(src, '');
     });
-    if (!felt) return;
+    if (!felt) { flowLast = null; return; }
     if (sizer && sizer.felt !== felt) { sizer.disconnect(); sizer = null; }
     if (!sizer && window.ResizeObserver) { sizer = new ResizeObserver(function () { decorate(); }); sizer.felt = felt; sizer.observe(felt); }
     var W = felt.clientWidth, H = felt.clientHeight;
@@ -775,6 +775,83 @@
       if (a.charm) html += '<span class="ks-at" style="left:' + left.x.toFixed(1) + 'px;top:' + left.y.toFixed(1) + 'px">' + charmHtml(a.charm, a.pet, uid) + '</span>';
     });
     if (layer.innerHTML !== html) layer.innerHTML = html;
+    flow(felt, W, H);
+  }
+
+  // ---------- Kartenfluss: Karten gleiten über den Tisch ----------
+  // Die Spiele zeichnen ihren Tisch bei jedem Stand neu. Nach jedem Neuzeichnen merkt sich das Fenster, wo welche Karte liegt
+  // (offene Karten nach ihrem title und der wievielten gleichen, verdeckte nach Platz und Nummer). Liegt eine Karte jetzt woanders,
+  // gleitet sie von der alten Stelle hin; ist sie neu, kommt sie vom Stapel ([data-pile=deck]) oder von dort, wo gerade eine
+  // verdeckte Karte verschwunden ist (z. B. aus der Hand eines Mitspielers); wird eine verdeckte an derselben Stelle offen, dreht
+  // sie sich um. Bei „Bewegung reduzieren“ springt alles wie bisher.
+  var flowLast = null, flowSize = '', flowEnd = window.WeakMap ? new WeakMap() : null;
+  var still = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  function flowOwner(el) {
+    var o = el.closest('[data-pile], .pk-seat, .bj-seat, .bj-dealer, .ks-dock, .pk-board, .pk-center');
+    if (!o) return '?';
+    if (o.dataset.pile) return 'pile-' + o.dataset.pile;
+    var f = o.querySelector('.ks-face[data-uid]');
+    return f ? 'p' + f.dataset.uid : o.className.split(' ')[0];
+  }
+  function flowRect(el) {
+    var e = flowEnd && flowEnd.get(el);
+    if (e && el.getAnimations && el.getAnimations().length) return e;
+    var r = el.getBoundingClientRect();
+    return { x: r.left, y: r.top, w: r.width, h: r.height };
+  }
+  function flow(felt, W, H) {
+    var scope = current.el.querySelector('.bj-table') || felt;
+    var size = W + 'x' + H + ':' + scope.clientWidth + 'x' + scope.clientHeight;
+    var now = new Map(), counts = {};
+    scope.querySelectorAll('.bj-card').forEach(function (el) {
+      if (el.closest('.ks-layer, .ks-fx')) return;
+      var back = el.classList.contains('back');
+      var id = back ? 'b:' + flowOwner(el) : 'f:' + (el.title || el.textContent.replace(/\s+/g, ''));
+      counts[id] = (counts[id] || 0) + 1;
+      now.set(id + '#' + counts[id], { el: el, r: flowRect(el), back: back });
+    });
+    var last = flowLast, sameSize = size === flowSize;
+    flowLast = now; flowSize = size;
+    // Ohne Vorher (gerade aufgebaut) oder nach einer Größenänderung wird nur gemerkt
+    if (!last || !sameSize || still.matches || !document.body.animate) return;
+    var gone = [];
+    last.forEach(function (o, k) { if (!now.has(k)) gone.push(o); });
+    var deck = scope.querySelector('[data-pile=deck], .dk-stock'), dr = deck && deck.getBoundingClientRect();
+    var fr = felt.getBoundingClientRect();
+    var from0 = dr ? { x: dr.left + dr.width / 2, y: dr.top + dr.height / 2 } : { x: fr.left + fr.width / 2, y: fr.top + fr.height * 0.12 };
+    var fresh = 0;
+    now.forEach(function (n, k) {
+      var o = last.get(k), r = n.r, cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+      if (o) {
+        var dx = o.x + o.w / 2 - cx, dy = o.y + o.h / 2 - cy;
+        if (Math.abs(dx) + Math.abs(dy) < 3) return;
+        glide(n.el, r, [{ transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + (o.w / r.w || 1) + ')' }, { transform: 'none' }], 0);
+        return;
+      }
+      // Neu: von einer verschwundenen Karte (zuerst verdeckte, die nächste) oder vom Stapel
+      var best = null, bd = Infinity;
+      gone.forEach(function (g) {
+        if (g.used) return;
+        var d = Math.hypot(g.x + g.w / 2 - cx, g.y + g.h / 2 - cy) + (g.back ? 0 : 2000);
+        if (d < bd) { bd = d; best = g; }
+      });
+      if (best && (best.back || !n.back)) {
+        best.used = true;
+        var ox = best.x + best.w / 2 - cx, oy = best.y + best.h / 2 - cy;
+        if (Math.hypot(ox, oy) < 12 && best.back && !n.back) {
+          // An derselben Stelle aufgedeckt: umdrehen
+          glide(n.el, r, [{ transform: 'perspective(400px) rotateY(90deg)' }, { transform: 'none' }], fresh++ * 70);
+          return;
+        }
+        glide(n.el, r, [{ transform: 'translate(' + ox + 'px,' + oy + 'px) scale(' + (best.w / r.w || 1) + ')' }, { transform: 'none' }], fresh++ * 70);
+        return;
+      }
+      glide(n.el, r, [{ transform: 'translate(' + (from0.x - cx) + 'px,' + (from0.y - cy) + 'px) scale(.6) rotate(-8deg)', opacity: 0 }, { opacity: 1, offset: .3 }, { transform: 'none', opacity: 1 }], fresh++ * 70);
+    });
+  }
+  function glide(el, r, frames, delay) {
+    if (flowEnd) flowEnd.set(el, r);
+    el.animate(frames, { duration: 420, delay: Math.min(delay, 700), easing: 'cubic-bezier(.2,.75,.25,1)', fill: 'backwards' });
   }
   function watch() {
     unwatch();

@@ -1,4 +1,4 @@
-// Admin-Helfer: Adresse kopieren, Upload-Fortschritt, Diagramm-Hover. Der Texteditor steckt in editor.js.
+// Admin-Helfer: Adresse kopieren, Upload-Fortschritt, readme.txt zurücksetzen, Diagramm-Hover. Der Texteditor steckt in editor.js.
 (function () {
   'use strict';
   // ---------- Adresse kopieren ----------
@@ -28,6 +28,14 @@
       form.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
       xhr.send(new FormData(form));
     });
+  });
+
+  // ---------- Desktop: ursprüngliche readme.txt einsetzen ----------
+  var readmeReset = document.querySelector('[data-readme-reset]');
+  if (readmeReset) readmeReset.addEventListener('click', function () {
+    var ta = document.querySelector('[name=desk_readme]');
+    if (ta.value.trim() && !confirm('Die jetzige readme.txt durch die ursprüngliche Fassung ersetzen? Erst mit „Speichern“ gilt es.')) return;
+    ta.value = JSON.parse(document.getElementById('readme-default').textContent);
   });
 
   // ---------- Diagramme: Fadenkreuz + Tooltip (Maus und Tastatur) ----------

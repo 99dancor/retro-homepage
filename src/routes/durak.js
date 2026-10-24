@@ -4,7 +4,7 @@
 const express = require('express');
 const { getSetting } = require('../db');
 const dk = require('../durak');
-const profiles = require('../profiles');
+const us = require('../usersettings');
 
 const router = express.Router();
 const on = () => getSetting('dk_enabled', '1') === '1';
@@ -60,10 +60,10 @@ router.post('/tisch/:id', gate, loadTable, auth.rateLimit('dkctl', 300, 60), (re
   res.json({ ok: true });
 });
 
-// Bestenliste: nur wer sein Profil dem Betrachter zeigt, erscheint mit Namen
+// Bestenliste: Jeder wählt unter Systemsteuerung → Profil und Statistik, ob er mit Namen, anonym oder gar nicht drinsteht
 router.get('/statistik', gate, (req, res) => {
-  const board = dk.leaderboard().filter(u => profiles.canViewProfile(req.user, u)).slice(0, 100).map(u => ({
-    id: u.id, name: profiles.displayName(u), user: u.username, avatar: u.avatar, games: u.games, wins: u.wins, duraks: u.duraks,
+  const board = us.boardList('durak', dk.leaderboard(), req.user).slice(0, 100).map(u => ({
+    id: u.id, name: u.name, user: u.user, avatar: u.avatar, games: u.games, wins: u.wins, duraks: u.duraks,
   }));
   res.json({
     board,

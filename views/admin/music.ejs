@@ -1,6 +1,6 @@
 <%- include('../partials/head') %>
 <p>🎵 <b><%= tracks.length %></b> Titel · <%= fmtSize(tracks.reduce((n, t) => n + t.size, 0)) %> · <%= playlists %> Playlists der Mitglieder ·
-  <a href="/musik" target="_blank">Zum Player</a> · Wer hochladen darf und wie viel, stellst du unter <a href="/admin/settings">Einstellungen</a> ein (Mitglieder: je <%= quotaMb %> MB).</p>
+  <a href="/musik" target="_blank">Zum Player</a> · Wer hochladen darf, stellst du unter <a href="/admin/settings">Einstellungen</a> ein. Musik zählt zum Speicher jedes Mitglieds (<a href="/admin/desktop">Desktop</a>: je <%= quotaMb %> MB für alles zusammen).</p>
 <fieldset class="groupbox"><legend>📤 Musik und Videos hochladen</legend>
 <form method="post" action="/admin/musik/upload" enctype="multipart/form-data">
   <input type="hidden" name="_csrf" value="<%= csrf %>">

@@ -1,8 +1,11 @@
 <%- include('partials/head') %>
 <h1>📤 Datei hochladen</h1>
-<% if (msg) { %><div class="msg">✔ <%= msg %> <a href="/files">Zu den Downloads</a></div><% } %>
+<% if (msg) { %><div class="msg">✔ <%= msg %> <a href="/files">Zu den Downloads</a><% if (typeof folder !== 'undefined' && folder) { %> · <a href="/eigene-dateien?ordner=<%= folder.id %>">Zum Ordner „<%= folder.name %>“</a><% } %></div><% } %>
+<% if (typeof err !== 'undefined' && err) { %><div class="msg err">⚠ <%= err %></div><% } %>
 <form method="post" action="/files/upload" enctype="multipart/form-data">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <% if (typeof folder !== 'undefined' && folder) { %><input type="hidden" name="ordner" value="<%= folder.id %>"><p>📁 Landet im Ordner <b><%= folder.name %></b>.</p><% } %>
+  <% if (typeof space !== 'undefined' && space && space.limit) { %><p class="muted"><small>Dein Speicher: <%= fmtSize(space.used) %> von <%= fmtSize(space.limit) %> belegt.</small></p><% } %>
   <label>Datei(en)<%= maxMb ? " (max. " + maxMb + " MB)" : "" %>:<input type="file" name="files" multiple required></label>
   <div class="row">
     <label>Titel (optional):<input type="text" name="title" class="w100"></label>
@@ -11,7 +14,8 @@
   </div>
   <label>Beschreibung:<textarea name="description" style="min-height:60px"></textarea></label>
   <label>Wer darf die Datei sehen?
-    <select name="visibility"><option value="members">Alle angemeldeten Nutzer</option><option value="public">Alle (öffentlich)</option><option value="friends">Nur meine Freunde</option><option value="private">Nur ich und der Admin</option></select>
+    <% const vis = folder ? 'private' : 'members'; %>
+    <select name="visibility"><% for (const [k, l] of [['members', 'Alle angemeldeten Nutzer'], ['public', 'Alle (öffentlich)'], ['friends', 'Nur meine Freunde'], ['private', 'Nur ich und der Admin']]) { %><option value="<%= k %>"<%= k === vis ? ' selected' : '' %>><%= l %></option><% } %></select>
   </label>
   <div class="actions"><button>Hochladen</button></div>
 </form>

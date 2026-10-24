@@ -605,6 +605,44 @@ CREATE TABLE IF NOT EXISTS ww_results (
   ended_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ww_user ON ww_results(user_id, ended_at);
+-- Desktop 2.0: Einstellungen eines Mitglieds als JSON (Darstellung auf allen Geräten, Desktop, Profil-Statistik und Bestenlisten)
+CREATE TABLE IF NOT EXISTS user_settings (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  data TEXT NOT NULL DEFAULT '{}',
+  updated_at INTEGER NOT NULL
+);
+-- Eigene Ordner, Textdokumente, Verknüpfungen und Internetlinks. parent_id leer = liegt direkt auf dem Desktop.
+CREATE TABLE IF NOT EXISTS desk_items (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,                   -- folder | text | shortcut | link
+  parent_id INTEGER REFERENCES desk_items(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  target TEXT,                          -- Verknüpfung: Adresse auf dieser Seite; Internetlink: http(s)-Adresse
+  icon TEXT,                            -- Emoji, leer = passend zur Art
+  body TEXT,                            -- Inhalt eines Textdokuments
+  visibility TEXT NOT NULL DEFAULT 'private',  -- Textdokumente und Links: public | members | friends | private
+  share TEXT UNIQUE,                    -- Ordner-Freigabe: zufällige Kennung im Link
+  share_vis TEXT,                       -- für wen die Freigabe gilt: friends | members | public
+  pos_x INTEGER, pos_y INTEGER,         -- Platz auf dem Desktop-Raster
+  deleted_at INTEGER,                   -- im Papierkorb seit
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS di_user ON desk_items(user_id, parent_id);
+-- Wohin eigene Dateien aus den Bibliotheken (Downloads, Mediaplayer, Paint …) einsortiert sind. Keine Zeile = nur in der Bibliothek.
+-- folder_id: 0 = Desktop, sonst ein Ordner aus desk_items, -1 = im Papierkorb und vorher unsortiert
+CREATE TABLE IF NOT EXISTS folder_items (
+  kind TEXT NOT NULL,                   -- datei | titel | playlist | bild | quiz | medien
+  item_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  folder_id INTEGER NOT NULL DEFAULT 0,
+  pos_x INTEGER, pos_y INTEGER,
+  trashed_at INTEGER,                   -- selbst in den Papierkorb gelegt (liegt der Ordner drin, zählt der Ordner)
+  prev TEXT,                            -- Sichtbarkeit vor dem Papierkorb, kommt beim Wiederherstellen zurück
+  PRIMARY KEY (kind, item_id)
+);
+CREATE INDEX IF NOT EXISTS fi_folder ON folder_items(user_id, folder_id);
 CREATE INDEX IF NOT EXISTS qz_user ON quizzes(user_id, updated_at);
 CREATE INDEX IF NOT EXISTS qr_user ON quiz_results(user_id);
 CREATE INDEX IF NOT EXISTS qr_game ON quiz_results(game_id);
@@ -705,7 +743,6 @@ const DEFAULT_SETTINGS = {
   board_enabled: '1',
   board_members_only: '0',      // Forum nur für angemeldete Nutzer lesbar
   music_upload: 'members',      // Musik hochladen: members (alle Mitglieder) | upload (nur mit Upload-Recht) | admin
-  music_quota_mb: '500',        // Speicher für Musik pro Mitglied (Admin unbegrenzt)
   lobby_enabled: '1',           // Musik-Lobbys zum gemeinsamen Hören
   youtube_enabled: '1',         // YouTube-Lieder in Lobbys
   ks_buyin: '1000',             // Kartenspiele-Kasse: Startgeld und jeder Nachkauf
@@ -729,12 +766,23 @@ const DEFAULT_SETTINGS = {
   paint_enabled: '1',           // Paint im Startmenü
   paint_guests: '1',            // Gäste dürfen malen und herunterladen (Speichern nur mit Konto)
   paint_save: 'members',        // Bilder speichern: members | upload (nur mit Upload-Recht) | admin
-  paint_quota_mb: '50',         // Speicher für Bilder pro Mitglied (Admin unbegrenzt)
   paint_max_w: '2000',          // größte Leinwand in Pixeln
   paint_max_h: '2000',
   paint_gallery: '1',           // Galerie mit öffentlichen Bildern
   paint_moderation: '0',        // öffentliche Bilder erst nach Freigabe durch den Admin zeigen
   paint_lobbies: '1',           // gemeinsam malen in Lobbys (nur Mitglieder)
+  // Desktop 2.0 (src/desk.js)
+  user_quota_mb: '2048',        // Speicher pro Mitglied für alles zusammen: Downloads, Mediaplayer, Paint, Bilder, Textdokumente (Admin unbegrenzt, 0 = ohne Grenze)
+  desk_text_chars: '10000',     // Zeichen pro Textdokument
+  desk_text_max: '100',         // Textdokumente pro Mitglied
+  desk_folders_max: '200',      // Ordner pro Mitglied
+  desk_links_max: '100',        // Verknüpfungen und Internetlinks pro Mitglied
+  desk_trash_days: '30',        // so lange bleibt etwas im Papierkorb
+  desk_defaults: 'eigene-dateien,papierkorb,readme,board,kartenspiele,musik,paint',  // Symbole, die jeder auf dem Desktop hat
+  desk_readme_version: '1',     // steigt bei jeder Änderung der readme.txt, dann erscheint sie bei allen wieder
+  lobby_widget: '1',            // Widget „Offene Lobbys“ auf dem Desktop
+  search_enabled: '1',          // Suche in der Taskleiste
+  theme_design: '98',           // Design, das Gäste und Mitglieder ohne eigene Wahl sehen: 98 oder xp (Farbschema xp-oliv, xp-silber)
   notify_email: '',
   smtp_host: '',
   smtp_port: '587',
@@ -752,9 +800,14 @@ for (const k of ['home_md', 'theme_marquee']) {
 for (const k of ['buyin', 'rebuy_below']) {
   if (getSetting('ks_' + k) === null && getSetting('bj_' + k) !== null) setSetting('ks_' + k, getSetting('bj_' + k));
 }
+// Seit Desktop 2.0 gibt es einen Speicher für alles: mindestens so groß wie Musik und Paint vorher zusammen
+if (getSetting('user_quota_mb') === null && (getSetting('music_quota_mb') !== null || getSetting('paint_quota_mb') !== null)) {
+  setSetting('user_quota_mb', Math.max(2048, Number(getSetting('music_quota_mb', '500')) + Number(getSetting('paint_quota_mb', '50'))));
+}
 for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {
   if (getSetting(k) === null) setSetting(k, v);
 }
+if (getSetting('desk_readme') === null) setSetting('desk_readme', require('./readme').DEFAULT);
 if (getSetting('secret') === null) setSetting('secret', crypto.randomBytes(32).toString('hex'));
 
 function tx(fn) {

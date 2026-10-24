@@ -1,0 +1,90 @@
+<%- include('../partials/head') %>
+<p><small>Hier stellst du ein, was jeder auf seinem Desktop vorfindet und wie viel Platz Mitglieder haben. Was sich jeder selbst einrichtet (Symbole verschieben, eigene Ordner, Design), steht in der <a href="/einstellungen">Systemsteuerung</a>.</small></p>
+<form method="post" action="/admin/desktop">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox" id="readme"><legend>📄 readme.txt</legend>
+    <p style="margin-top:0"><small>Liegt auf jedem Desktop und erklärt die Funktionen. <code>{zeichen}</code> und <code>{tage}</code> ersetzt die Seite durch die Grenzen unten. Gäste bekommen am Ende einen Absatz „Ohne Konto“ dazu.</small></p>
+    <textarea name="desk_readme" class="code" style="min-height:320px" maxlength="20000" spellcheck="false"><%= s.desk_readme %></textarea>
+    <label class="inline"><input type="checkbox" name="readme_bump" value="1"> Neue Fassung: bei allen wieder mit <b>NEU</b> zeigen, auch wer sie gelöscht hat</label>
+    <div class="actions" style="margin-top:4px">
+      <button type="button" data-readme-reset>↩️ Ursprüngliche Fassung einsetzen</button>
+      <a class="btn" href="/notizblock/readme" target="_blank">Ansehen</a>
+      <small>Fassung <%= s.desk_readme_version %></small>
+    </div>
+    <script type="application/json" id="readme-default"><%- JSON.stringify(readmeDefault).replace(/</g, '\\u003c') %></script>
+  </fieldset>
+  <fieldset class="groupbox" id="symbole"><legend>🖥️ Symbole für alle</legend>
+    <p style="margin-top:0"><small>Diese Symbole liegen auf jedem Desktop. Mitglieder können sie ausblenden und unter Systemsteuerung → Desktop zurückholen. Eigene Dateien und Papierkorb sehen nur Angemeldete; Programme, die im Menü ausgeschaltet sind, erscheinen auch hier nicht.</small></p>
+    <div class="icon-checks">
+      <% for (const [k, label] of icons) { %>
+        <label class="inline"><input type="checkbox" name="icons" value="<%= k %>" <%= on.includes(k) ? 'checked' : '' %>> <%= label %></label>
+      <% } %>
+    </div>
+  </fieldset>
+  <fieldset class="groupbox" id="grenzen"><legend>📏 Grenzen pro Mitglied</legend>
+    <div class="row">
+      <label>Speicher für alles zusammen (MB, 0 = ohne Grenze):<input type="number" name="user_quota_mb" value="<%= s.user_quota_mb %>" min="0" max="1048576"></label>
+      <label>Tage im Papierkorb (1–365):<input type="number" name="desk_trash_days" value="<%= s.desk_trash_days %>" min="1" max="365"></label>
+    </div>
+    <div class="row">
+      <label>Zeichen pro Textdokument:<input type="number" name="desk_text_chars" value="<%= s.desk_text_chars %>" min="100" max="100000"></label>
+      <label>Textdokumente:<input type="number" name="desk_text_max" value="<%= s.desk_text_max %>" min="0" max="10000"></label>
+      <label>Ordner:<input type="number" name="desk_folders_max" value="<%= s.desk_folders_max %>" min="0" max="10000"></label>
+      <label>Verknüpfungen und Links:<input type="number" name="desk_links_max" value="<%= s.desk_links_max %>" min="0" max="10000"></label>
+    </div>
+    <small>Zum Speicher zählen Downloads und eigene Uploads, Mediaplayer, Paint-Bilder, Bilder in Beiträgen und Textdokumente. Für dich als Admin gilt keine Grenze. Was im Papierkorb liegt, zählt mit, bis er geleert ist.</small>
+  </fieldset>
+  <fieldset class="groupbox" id="extras"><legend>✨ Extras</legend>
+    <label class="inline"><input type="checkbox" name="lobby_widget" value="1" <%= s.lobby_widget === '1' ? 'checked' : '' %>> Widget „Offene Lobbys“ für Angemeldete (jeder kann es für sich ausblenden)</label><br>
+    <label class="inline"><input type="checkbox" name="search_enabled" value="1" <%= s.search_enabled === '1' ? 'checked' : '' %>> Suchfeld in der Taskleiste</label>
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button></div>
+</form>
+
+<fieldset class="groupbox" id="speicher"><legend>💽 Wer belegt wie viel</legend>
+  <% if (!usage.length) { %><p><small>Noch hat niemand etwas gespeichert.</small></p><% } else { %>
+  <table class="list">
+    <tr><th>Mitglied</th><th style="text-align:right">Belegt</th><th>Anteil</th></tr>
+    <% const lim = Number(s.user_quota_mb) * 1048576; for (const u of usage) { const pct = lim && !u.is_admin ? Math.min(100, Math.round(u.used / lim * 100)) : null; %>
+      <tr>
+        <td><a href="/admin/users/<%= u.id %>"><%= u.display_name || u.username %></a><%= u.is_admin ? ' (Admin)' : '' %></td>
+        <td style="text-align:right"><%= fmtSize(u.used) %></td>
+        <td><% if (pct !== null) { %><span class="space-bar" style="display:inline-block;width:120px;vertical-align:middle"><i style="width:<%= pct %>%"></i></span> <%= pct %> %<% } else { %><small>ohne Grenze</small><% } %></td>
+      </tr>
+    <% } %>
+  </table>
+  <% } %>
+</fieldset>
+
+<fieldset class="groupbox" id="freigaben"><legend>👥 Was Mitglieder zeigen</legend>
+  <p style="margin-top:0"><small>Freigegebene Ordner sowie Textdokumente und Internetlinks, die nicht auf „Nur ich“ stehen. „Privat stellen“ nimmt die Freigabe zurück; „Entfernen“ legt es zusätzlich in den Papierkorb des Mitglieds.</small></p>
+  <% if (!shared.length) { %><p><small>Gerade zeigt niemand etwas her.</small></p><% } else { %>
+  <table class="list">
+    <tr><th>Was</th><th>Von</th><th>Für</th><th>Geändert</th><th></th></tr>
+    <% for (const it of shared) { %>
+      <tr>
+        <td><%= it.kind === 'folder' ? '📁' : it.kind === 'text' ? '📄' : '🌐' %>
+          <% if (it.kind === 'folder') { %><a href="/ordner/<%= it.share %>" target="_blank"><%= it.name %></a>
+          <% } else if (it.kind === 'text') { %><a href="/notizblock/<%= it.id %>" target="_blank"><%= it.name %></a>
+          <% } else { %><%= it.name %> <small>(<%= it.target %>)</small><% } %></td>
+        <td><%= it.display_name || it.username %></td>
+        <td><%= visLabel[it.kind === 'folder' ? it.share_vis : it.visibility] || '' %></td>
+        <td><%= fmtDate(it.updated_at) %></td>
+        <td style="white-space:nowrap">
+          <form method="post" action="/admin/desktop/freigabe/<%= it.id %>" class="inline">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <button>🔒 Privat stellen</button>
+          </form>
+          <form method="post" action="/admin/desktop/freigabe/<%= it.id %>" class="inline" data-confirm="„<%= it.name %>“ privat stellen und in den Papierkorb von <%= it.display_name || it.username %> legen?">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <input type="hidden" name="remove" value="1">
+            <button>🗑️ Entfernen</button>
+          </form>
+        </td>
+      </tr>
+    <% } %>
+  </table>
+  <% } %>
+</fieldset>
+<script src="<%= asset('admin.js') %>"></script>
+<%- include('../partials/foot') %>

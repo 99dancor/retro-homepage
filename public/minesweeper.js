@@ -325,7 +325,9 @@
     if (desk && desk.fit) desk.fit(window, Math.round(W * scale), menubar.offsetHeight + Math.round(H * scale), { scalable: true });
   }
   function layout() {
-    var aw = document.documentElement.clientWidth, ah = document.documentElement.clientHeight - menubar.offsetHeight;
+    // Mit vergrößerter Oberfläche (🖥️) ist auch das Fenster größer: in Pixeln der Seite rechnen
+    var z = parseFloat(getComputedStyle(document.body).zoom) || 1;
+    var aw = document.documentElement.clientWidth / z, ah = document.documentElement.clientHeight / z - menubar.offsetHeight;
     var s = Math.min(aw / W, ah / H);
     scale = Math.min(6, Math.max(0.5, Math.floor(s * 20 + 0.001) / 20));
     canvas.style.width = Math.round(W * scale) + 'px'; canvas.style.height = Math.round(H * scale) + 'px';

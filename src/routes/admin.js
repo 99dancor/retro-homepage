@@ -14,8 +14,10 @@ const music = require('../music');
 const paint = require('../paint');
 const paintRoutes = require('./paint');
 const paintLobby = require('../paintlobby');
-const { deleteTrack } = require('./music');
 const drafts = require('./drafts');
+const desk = require('../desk');
+const quota = require('../quota');
+const programs = require('../programs');
 
 const router = express.Router();
 // UNO, Flip 7, Pilli Pilli (src/cardtable.js): Modul, Name, Schalter-Präfix
@@ -188,7 +190,7 @@ router.post('/files/:id/delete', (req, res) => {
 // ---------- Musik ----------
 // Hier lädt der Admin seine Sammlung hoch und vergibt Sichtbarkeit (auch Gruppen) für alle Titel, auch die der Mitglieder.
 router.get('/musik', (req, res) => res.render('admin/music', {
-  title: 'Mediaplayer', quotaMb: getSetting('music_quota_mb', '500'),
+  title: 'Mediaplayer', quotaMb: getSetting('user_quota_mb', '2048'),
   tracks: db.prepare('SELECT t.*, u.username, u.role FROM tracks t LEFT JOIN users u ON u.id = t.uploader_id ORDER BY t.created_at DESC').all(),
   playlists: db.prepare('SELECT COUNT(*) AS n FROM playlists').get().n,
 }));
@@ -220,14 +222,14 @@ router.post('/musik/:id', (req, res) => {
 });
 router.post('/musik/:id/delete', (req, res) => {
   const t = db.prepare('SELECT * FROM tracks WHERE id = ?').get(Number(req.params.id));
-  if (t) deleteTrack(t);
+  if (t) music.deleteTrack(t);
   res.redirect('/admin/musik');
 });
 
 // ---------- Paint ----------
 const PAINT_FLAGS = ['paint_enabled', 'paint_guests', 'paint_gallery', 'paint_moderation', 'paint_lobbies'];
 router.get('/paint', (req, res) => {
-  const s = Object.fromEntries([...PAINT_FLAGS, 'paint_save', 'paint_quota_mb', 'paint_max_w', 'paint_max_h'].map(k => [k, getSetting(k, '')]));
+  const s = Object.fromEntries([...PAINT_FLAGS, 'paint_save', 'paint_max_w', 'paint_max_h'].map(k => [k, getSetting(k, '')]));
   const stats = db.prepare(`SELECT COUNT(*) AS n, COUNT(DISTINCT owner_id) AS users, COALESCE(SUM(size), 0) AS bytes,
                             COALESCE(SUM(visibility = 'public' AND approved = 0), 0) AS pending FROM artworks`).get();
   const lobbies = [...paintLobby._lobbies.values()].map(l => ({ ...paintLobby.state(l), owner: l.owner.name }));
@@ -238,7 +240,6 @@ router.post('/paint', (req, res) => {
   for (const k of PAINT_FLAGS) setSetting(k, b[k] === '1' ? '1' : '0');
   setSetting('paint_save', ['members', 'upload', 'admin'].includes(b.paint_save) ? b.paint_save : 'members');
   const n = (v, d, min, max) => String(Math.max(min, Math.min(max, Math.round(Number(v)) || d)));
-  setSetting('paint_quota_mb', n(b.paint_quota_mb, 50, 1, 100000));
   setSetting('paint_max_w', n(b.paint_max_w, 2000, 16, 4000));
   setSetting('paint_max_h', n(b.paint_max_h, 2000, 16, 4000));
   res.redirect('/admin/paint?ok=1');
@@ -543,9 +544,11 @@ router.post('/apps/:id/delete', (req, res) => {
 const THEME_KEYS = ['theme_bg_color', 'theme_bg_image', 'theme_bg_mode', 'theme_window_color', 'theme_title_from', 'theme_title_to',
   'theme_text_color', 'theme_link_color', 'theme_font', 'theme_marquee', 'theme_custom_css'];
 const { PRESETS: THEME_PRESETS, FONTS } = require('../themes');
+// Grunddesign für alle, die unter 🖥️ nichts Eigenes gewählt haben (siehe public/display.js)
+const THEME_DESIGNS = { 98: 'Windows 98', xp: 'Windows XP (Blau)', 'xp-oliv': 'Windows XP (Olivgrün)', 'xp-silber': 'Windows XP (Silber)' };
 router.get('/design', (req, res) => {
-  const s = Object.fromEntries([...THEME_KEYS, 'theme_show_counter'].map(k => [k, getSetting(k, '')]));
-  res.render('admin/design', { title: 'Design', s, presets: THEME_PRESETS, fonts: FONTS, media: db.prepare("SELECT * FROM media ORDER BY created_at DESC").all() });
+  const s = Object.fromEntries([...THEME_KEYS, 'theme_show_counter', 'theme_design'].map(k => [k, getSetting(k, '')]));
+  res.render('admin/design', { title: 'Design', s, designs: THEME_DESIGNS, presets: THEME_PRESETS, fonts: FONTS, media: db.prepare("SELECT * FROM media ORDER BY created_at DESC").all() });
 });
 router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, res) => {
   const b = req.body;
@@ -554,13 +557,52 @@ router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, 
     return res.redirect('/admin/design?ok=1');
   }
   for (const k of THEME_KEYS) if (k in b) setSetting(k, String(b[k]).slice(0, 20000));
+  if (THEME_DESIGNS[b.theme_design]) setSetting('theme_design', b.theme_design);
   setSetting('theme_show_counter', b.theme_show_counter ? '1' : '0');
   if (req.file) setSetting('theme_bg_image', up.saveMedia([req.file], req.user.id)[0].url);
   res.redirect('/admin/design?ok=1');
 });
 
+// ---------- Desktop für alle ----------
+// readme.txt, Standardsymbole, Grenzen, Speicher pro Mitglied, Extras und was Mitglieder öffentlich zeigen
+const DESK_NUMS = { desk_text_chars: [100, 100000], desk_text_max: [0, 10000], desk_folders_max: [0, 10000], desk_links_max: [0, 10000],
+  desk_trash_days: [1, 365], user_quota_mb: [0, 1048576] };
+const DESK_SYS = [['eigene-dateien', '🗂️ Eigene Dateien'], ['papierkorb', '🗑️ Papierkorb'], ['readme', '📄 readme.txt']];
+const deskPrograms = () => programs.flat({ canUpload: true }).filter(p => !DESK_SYS.some(([k]) => k === p.key));
+router.get('/desktop', (req, res) => {
+  const s = Object.fromEntries([...Object.keys(DESK_NUMS), 'desk_readme', 'desk_readme_version', 'desk_defaults', 'lobby_widget', 'search_enabled']
+    .map(k => [k, getSetting(k, '')]));
+  const icons = [...DESK_SYS, ...deskPrograms().map(p => [p.key, p.icon + ' ' + p.name])];
+  const usage = db.prepare("SELECT id, username, display_name, role = 'admin' AS is_admin FROM users WHERE disabled = 0").all()
+    .map(u => ({ ...u, used: quota.usedBytes(u.id) })).filter(u => u.used > 0).sort((a, b) => b.used - a.used).slice(0, 25);
+  res.render('admin/desktop', { title: 'Desktop', s, icons, on: s.desk_defaults.split(','), usage, shared: desk.publicList(),
+    visLabel: desk.VIS_LABEL, readmeDefault: require('../readme').DEFAULT });
+});
+router.post('/desktop', (req, res) => {
+  const b = req.body;
+  for (const [k, [min, max]] of Object.entries(DESK_NUMS)) {
+    const n = Math.round(Number(b[k]));
+    if (k in b && Number.isFinite(n)) setSetting(k, String(Math.min(max, Math.max(min, n))));
+  }
+  const known = new Set([...DESK_SYS, ...deskPrograms()].map(i => i[0] || i.key));
+  setSetting('desk_defaults', asArray(b.icons).filter(k => known.has(k)).join(','));
+  setSetting('lobby_widget', b.lobby_widget ? '1' : '0');
+  setSetting('search_enabled', b.search_enabled ? '1' : '0');
+  if (typeof b.desk_readme === 'string') {
+    const text = b.desk_readme.replace(/\r\n?/g, '\n').slice(0, 20000);
+    // Neue Fassung: Alle sehen die readme.txt wieder mit NEU, auch wer sie gelöscht hat
+    if (b.readme_bump && text !== getSetting('desk_readme')) setSetting('desk_readme_version', String((Number(getSetting('desk_readme_version', '1')) || 1) + 1));
+    setSetting('desk_readme', text);
+  }
+  res.redirect('/admin/desktop?ok=1');
+});
+router.post('/desktop/freigabe/:id', (req, res) => {
+  desk.moderate(req.params.id, req.body.remove === '1');
+  res.redirect('/admin/desktop?ok=1#freigaben');
+});
+
 // ---------- Einstellungen ----------
-const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days', 'music_quota_mb',
+const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days',
   'ks_buyin', 'ks_rebuy_below', 'bj_decks', 'bj_turn', 'pk_turn', 'dk_turn', 'uno_turn', 'f7_turn', 'pp_turn', 'cw_words'];
 const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure', 'lobby_enabled', 'youtube_enabled', 'bj_enabled', 'bj_h17', 'pk_enabled', 'dk_enabled', 'uno_enabled', 'f7_enabled', 'pp_enabled'];
 const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Andere Games', haustier: 'Pixelpfoten', musik: 'Mediaplayer', zufall: 'Zufallsgenerator', kartenspiele: 'Kartenspiele', quiz: 'Quiz', werwolf: 'Werwolf', minesweeper: 'Minesweeper', kreuzwortraetsel: 'Kreuzworträtsel', sudoku: 'Sudoku', paint: 'Paint', galerie: 'Galerie', board: 'Forum', nutzer: 'Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };

@@ -352,14 +352,14 @@
         var num = function (n) { return n.toLocaleString('de-DE'); };
         h += b.length ? '<table class="list"><thead><tr><th>#</th><th>Spieler</th><th class="num">Gewinn/Verlust</th><th class="num">Hände</th><th class="num">Gewonnen</th><th class="num">Größter Gewinn</th><th>Bestes Blatt</th></tr></thead><tbody>' +
           b.map(function (u, i) {
-            return '<tr' + (u.id === ME ? ' class="bj-me-row"' : '') + '><td>' + (['🥇', '🥈', '🥉'][i] || i + 1) + '</td><td><button type="button" class="bj-link" data-user="' + esc(u.user) + '" data-uid="' + u.id + '">' + esc(u.name) + '</button></td>' +
+            return '<tr' + (u.id === ME ? ' class="bj-me-row"' : '') + '><td>' + (['🥇', '🥈', '🥉'][i] || i + 1) + '</td><td>' + (u.user ? '<button type="button" class="bj-link" data-user="' + esc(u.user) + '" data-uid="' + u.id + '">' + esc(u.name) + '</button>' : '<i class="anon-name">' + esc(u.name) + '</i>') + '</td>' +
               '<td class="num ' + cls(u.balance) + '"><b>' + euro(u.balance, true) + '</b></td><td class="num">' + num(u.hands) + '</td>' +
               '<td class="num">' + (u.hands ? Math.round(u.wins / u.hands * 100) : 0) + ' %</td><td class="num">' + euro(u.bestWin, true) + '</td><td>' + (u.bestHand >= 0 ? HANDS[u.bestHand] : '–') + '</td></tr>';
           }).join('') + '</tbody></table><fieldset class="groupbox"><legend>Rekorde</legend><div class="row">' +
             rec('bestWin', '💰 Größter Gewinn', function (n) { return euro(n); }) + rec('bestHand', '🃏 Bestes Blatt', function (n) { return HANDS[n]; }) +
             rec('showdowns', '👀 Meiste Showdowns', num) + '</div></fieldset>'
           : '<p class="bj-empty">Noch hat niemand gespielt.</p>';
-        h += '<p><small>Sortiert nach dem, was jemand beim Poker gewonnen oder verloren hat. Kontostand und Gesamtbilanz stehen in der Kasse. Es erscheint nur, wessen Profil du sehen darfst.</small></p>';
+        h += '<p><small>Sortiert nach dem, was jemand beim Poker gewonnen oder verloren hat. Kontostand und Gesamtbilanz stehen in der Kasse. Wer anonym bleiben möchte oder sein Profil vor dir verbirgt, steht hier ohne Namen.</small></p>';
       } else {
         var m = stats.me;
         h += '<div class="bj-kpis">' +

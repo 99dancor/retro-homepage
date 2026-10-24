@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-design="<%= siteDesign %>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <% const isAdmin = path.startsWith('/admin') && typeof counts !== 'undefined'; %>
-<title><%= isAdmin ? 'Systemsteuerung – ' : '' %><%= title ? title + ' – ' : '' %><%= site.title %></title>
+<title><%= isAdmin ? 'Seitenverwaltung – ' : '' %><%= title ? title + ' – ' : '' %><%= site.title %></title>
 <link rel="stylesheet" href="<%= asset('retro.css') %>">
 <link rel="stylesheet" href="/theme.css">
 <link rel="icon" href="<%= asset('favicon.svg') %>">
@@ -16,7 +16,7 @@
 <body class="embed" data-user="<%= user ? user.id : '' %>">
 <div class="body">
 <% } else if (embed) { %>
-<%# Systemsteuerung als Fenster auf dem Desktop: Menüleiste oben, Inhalt darunter %>
+<%# Seitenverwaltung als Fenster auf dem Desktop: Menüleiste oben, Inhalt darunter %>
 <body class="embed admin" data-user="<%= user.id %>">
 <%- include('admin-nav') %>
 <div class="body admin-body">
@@ -26,7 +26,7 @@
 <div class="window wide">
   <div class="titlebar">
     <span class="icon">💾</span>
-    <span class="ttl">Systemsteuerung – <%= site.title %><%= title ? ' – ' + title : '' %></span>
+    <span class="ttl">Seitenverwaltung – <%= site.title %><%= title ? ' – ' + title : '' %></span>
     <a class="tb-btn" href="/" title="Zur Website" aria-hidden="true">_</a><a class="tb-btn" href="#" aria-hidden="true">□</a><a class="tb-btn" href="/" title="Zur Website" aria-hidden="true">×</a>
   </div>
   <%- include('admin-nav') %>

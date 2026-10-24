@@ -6,9 +6,9 @@
 <fieldset class="groupbox" id="profil"><legend>Profil</legend>
 <div class="avatar-edit">
   <%- include('partials/avatar', { u: profile, size: 64 }) %>
-  <form method="post" action="/account/avatar" enctype="multipart/form-data">
+  <form method="post" action="/account/avatar" enctype="multipart/form-data" data-avatar-crop>
     <input type="hidden" name="_csrf" value="<%= csrf %>">
-    <label>Profilbild (PNG, JPEG, GIF oder WebP, höchstens 2 MB):<input type="file" name="avatar" accept="image/png,image/jpeg,image/gif,image/webp" required></label>
+    <label>Profilbild (PNG, JPEG, GIF oder WebP, höchstens 2 MB). Danach wählst du einen quadratischen Ausschnitt:<input type="file" name="avatar" accept="image/png,image/jpeg,image/gif,image/webp" required></label>
     <div class="actions"><button class="small">📷 Hochladen</button><% if (profile.avatar) { %><button class="small danger" form="avatar-del">Entfernen</button><% } %></div>
   </form>
 </div>
@@ -60,7 +60,7 @@
 <% } %>
 <script src="<%= asset('push.js') %>"></script>
 </fieldset>
-<fieldset class="groupbox"><legend>Passwort ändern</legend>
+<fieldset class="groupbox" id="passwort"><legend>Passwort ändern</legend>
 <form method="post" action="/account">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <label>Aktuelles Passwort:<input type="password" name="current" autocomplete="current-password" required></label>
@@ -69,7 +69,7 @@
   <div class="actions"><button>Ändern</button></div>
 </form>
 </fieldset>
-<fieldset class="groupbox"><legend>Meine Spielstände</legend>
+<fieldset class="groupbox" id="spielstaende"><legend>Meine Spielstände</legend>
 <% if (!saves.length) { %>
 <p>Noch keine Spielstände. <% if (!navHidden.includes('haustier')) { %><a href="/haustier/">Pixelpfoten</a> und die <% } else { %>Die <% } %>Browser-Spiele unter <a href="/apps">Andere Games</a> speichern hier, solange du angemeldet bist.</p>
 <% } else { %>
@@ -89,6 +89,8 @@
   <% } %>
 </table>
 <% } %>
-<p><small class="muted">Spielstatistiken stehen in deinem <a href="<%= profileUrl(user.username) %>">Profil</a>.</small></p>
+<p><small class="muted">Spielstatistiken stehen in deinem <a href="<%= profileUrl(user.username) %>">Profil</a>. Wer sie sieht und ob du in Bestenlisten stehst, stellst du unter <a href="/einstellungen/statistik">Systemsteuerung → Profil und Statistik</a> ein.</small></p>
 </fieldset>
+<script src="<%= asset('winui.js') %>"></script>
+<script src="<%= asset('avatar-crop.js') %>"></script>
 <%- include('partials/foot') %>

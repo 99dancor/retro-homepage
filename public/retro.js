@@ -80,6 +80,10 @@
     var p = path.split(/[?#]/)[0].split('/');
     if (p[1] === 'p') return 'p/' + p[2];
     if (p[1] === 'files' && p[2] === 'upload') return 'upload';
+    // Jedes Textdokument, jede angesehene Datei und jeder freigegebene Ordner bekommt ein eigenes Fenster
+    if (p[1] === 'notizblock' && p[2]) return 'notizblock/' + p[2];
+    if (p[1] === 'ansehen') return 'ansehen/' + p[2] + '/' + p[3];
+    if (p[1] === 'ordner') return 'ordner/' + p[2];
     return p[1] || '';
   }
   // Nur echte Seiten öffnen Fenster, keine Downloads, Bilder oder Spieldateien (Benutzernamen dürfen Punkte enthalten)
@@ -101,7 +105,7 @@
       var a = e.target.closest && e.target.closest('a[href]');
       if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || a.hasAttribute('download')) return;
       var u = new URL(a.href, location.href);
-      // „Ansehen“ in der Systemsteuerung (target=_blank) öffnet ein Fenster auf dem Desktop statt eines neuen Tabs
+      // „Ansehen“ in der Seitenverwaltung (target=_blank) öffnet ein Fenster auf dem Desktop statt eines neuen Tabs
       if (a.target && !(a.target === '_blank' && u.origin === location.origin && isPage(u))) return;
       if (u.origin !== location.origin) { a.target = '_blank'; a.rel = 'noopener'; return; }
       // Links in einen anderen Bereich öffnen dessen Fenster, statt dieses umzuleiten
@@ -109,6 +113,10 @@
         e.preventDefault();
         desk.open(u.pathname + u.search + u.hash, true);
       }
+    });
+    // Strg+K springt auch aus einem Fenster heraus in die Suche der Taskleiste
+    document.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k' && desk.focusSearch && desk.focusSearch()) e.preventDefault();
     });
     return;
   }
@@ -120,7 +128,8 @@
   var siteTitle = body.dataset.title, me = body.dataset.user;
   var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
     contact: '✉️', changelog: '📋', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', musik: '🎵', zufall: '🎲', kartenspiele: '🂡', blackjack: '🃏', poker: '♠️', durak: '🎴', uno: '🟥', flip7: '7️⃣', pilli: '🌶️', quiz: '❓', werwolf: '🐺', minesweeper: '💣', kreuzwortraetsel: '📰', sudoku: '🔢',
-    nutzer: '👥', nachrichten: '💌', paint: '🎨', galerie: '🖼️', admin: '⚙️', 'eigene-dateien': '🗂️' };
+    nutzer: '👥', nachrichten: '💌', paint: '🎨', galerie: '🖼️', admin: '⚙️', 'eigene-dateien': '🗂️', einstellungen: '🛠️', notizblock: '🗒️', suche: '🔍',
+    ordner: '📁', ansehen: '🖼️', benachrichtigungen: '🔔' };
   var mobile = window.matchMedia('(max-width: 760px)');
   var wins = [], zTop = 10, active = null, reloading = false;
   var template = deskEl.querySelector('.dwin').cloneNode(true);
@@ -303,10 +312,16 @@
   }
 
   // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Mediaplayer brauchen etwas mehr Platz
-  var SIZES = { haustier: [1000, 720], musik: [1080, 700], zufall: [760, 620], kartenspiele: [1080, 760], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], werwolf: [1000, 720], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], sudoku: [720, 640], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640], admin: [1100, 740], 'eigene-dateien': [900, 620] };
+  var SIZES = { haustier: [1000, 720], musik: [1080, 700], zufall: [760, 620], kartenspiele: [1080, 760], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], werwolf: [1000, 720], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], sudoku: [720, 640], nachrichten: [640, 620], paint: [1000, 700], galerie: [900, 640], admin: [1100, 740], 'eigene-dateien': [900, 620],
+    einstellungen: [860, 640], notizblock: [660, 500], suche: [760, 580], ansehen: [800, 600], ordner: [820, 580] };
+  // Vergrößerte Fensterinhalte (🖥️ → Größe der Oberfläche mit „Fensterinhalte mitskalieren“) brauchen größere Fenster
+  function contentZoom() {
+    var root = document.documentElement;
+    return root.classList.contains('zoomed') && root.classList.contains('zoom-all') ? parseFloat(getComputedStyle(root).getPropertyValue('--zoom')) || 1 : 1;
+  }
   function place(el, s, url) {
-    var n = wins.length % 8, size = SIZES[section(url)] || [820, 580];
-    var w = s && s.w || Math.min(size[0], deskEl.clientWidth - 40), h = s && s.h || Math.min(size[1], deskEl.clientHeight - 40);
+    var n = wins.length % 8, size = SIZES[section(url)] || [820, 580], z = contentZoom();
+    var w = s && s.w || Math.min(Math.round(size[0] * z), deskEl.clientWidth - 40), h = s && s.h || Math.min(Math.round(size[1] * z), deskEl.clientHeight - 40);
     el.style.width = w + 'px'; el.style.height = h + 'px';
     el.style.left = (s ? s.x : Math.max(0, Math.min(30 + n * 28, deskEl.clientWidth - w))) + 'px';
     el.style.top = (s ? s.y : Math.max(0, Math.min(28 + n * 28, deskEl.clientHeight - h))) + 'px';
@@ -377,7 +392,10 @@
       w.el.classList.add('fitted');
       w.el.classList.toggle('scalable', !!(opts && opts.scalable));
       if (mobile.matches || w.el.classList.contains('max')) return;
-      sizeTo(w, width, height);
+      // Ist der Inhalt vergrößert, ist er auf dem Bildschirm entsprechend größer
+      var z = 1;
+      try { z = parseFloat(getComputedStyle(w.iframe.contentDocument.body).zoom) || 1; } catch (e) { /* fremde Seite */ }
+      sizeTo(w, Math.round(width * z), Math.round(height * z));
       save();
     },
     // Mini-Player: Das Fenster wird zur Leiste und merkt sich die Größe davor, mit on = false kommt sie wieder

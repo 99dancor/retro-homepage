@@ -1,0 +1,22 @@
+<%- include('partials/head') %>
+<%# Datei ansehen (Eigene Dateien, Suche, Verknüpfungen): Bilder, Videos und Musik zeigt der Browser, sonst Herunterladen (src/routes/desk.js) %>
+<div class="viewer">
+  <div class="viewer-stage sunken">
+    <% if (show && /^image\//.test(mime)) { %><img src="<%= show %>" alt="<%= name %>">
+    <% } else if (show && /^video\//.test(mime)) { %><video src="<%= show %>" controls preload="metadata"></video>
+    <% } else if (show && /^audio\//.test(mime)) { %><div class="viewer-icon">🎵</div><audio src="<%= show %>" controls preload="metadata"></audio>
+    <% } else { %><div class="viewer-icon"><%= icon %></div><p>Diese Datei zeigt der Browser nicht selbst an.</p><% } %>
+  </div>
+  <fieldset class="groupbox"><legend><%= icon %> <%= name %></legend>
+    <table class="kv">
+      <tr><td>Datei:</td><td><%= file %></td></tr>
+      <tr><td>Größe:</td><td><%= fmtSize(size) %></td></tr>
+      <tr><td>Hochgeladen:</td><td><%= fmtDate(date, true) %><% if (by) { %> von <a href="<%= by.url %>"><%= by.name %></a><% } %></td></tr>
+      <% if (mine) { %><tr><td>Sichtbar für:</td><td><%= vis %></td></tr><% } %>
+    </table>
+    <% if (description) { %><p class="viewer-desc"><%= description %></p><% } %>
+    <div class="actions"><a class="btn" href="<%= download %>" download>💾 Herunterladen</a><% if (show) { %><a class="btn" href="<%= show %>" target="_blank" rel="noopener">↗ Im neuen Tab</a><% } %><% if (mine) { %><a class="btn" href="/eigene-dateien">🗂️ Eigene Dateien</a><% } %></div>
+  </fieldset>
+</div>
+<div class="statusbar"><span><%= file %></span><span class="fixed"><%= fmtSize(size) %></span></div>
+<%- include('partials/foot') %>

@@ -22,7 +22,7 @@ const lobby = createGame({
   start() {}, act() { return undefined; }, drop() {}, view() {},
 });
 
-// Spiele am Spieltisch: Plätze [mindestens, höchstens], Schalter in der Systemsteuerung, Geld aus der Kasse?
+// Spiele am Spieltisch: Plätze [mindestens, höchstens], Schalter in der Seitenverwaltung, Geld aus der Kasse?
 const GAMES = {
   lobby: { title: 'Noch kein Spiel', icon: '🂠', seats: [1, 8], engine: lobby },
   blackjack: { title: 'Blackjack', icon: '🃏', seats: [1, 5], flag: 'bj_enabled', money: true, load: () => require('./blackjack') },

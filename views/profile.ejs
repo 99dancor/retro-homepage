@@ -1,6 +1,17 @@
 <%- include('partials/head') %>
-<% const me = user && user.id === u.id; const num = v => Number(v).toLocaleString('de-DE', { maximumFractionDigits: 2 }); %>
+<% const own = user && user.id === u.id, me = own && !preview; const num = v => Number(v).toLocaleString('de-DE', { maximumFractionDigits: 2 }); %>
+<% const asWho = { guest: 'ein Gast', member: 'ein angemeldetes Mitglied', friend: 'ein Freund' }; %>
 <% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+<% if (own) { %>
+  <div class="msg profile-preview">
+    <% if (preview) { %>👁️ So sieht <b><%= asWho[preview] %></b> dein Profil.<% } else { %>👁️ Du siehst alles, auch Ausgeblendetes (grau). Ansehen als:<% } %>
+    <% for (const [k, l] of [['guest', 'Gast'], ['member', 'Mitglied'], ['friend', 'Freund']]) { %>
+      <a class="btn small<%= preview === k ? ' active' : '' %>" href="<%= profileUrl(u.username) %>?ansicht=<%= k %>"><%= l %></a>
+    <% } %>
+    <% if (preview) { %><a class="btn small" href="<%= profileUrl(u.username) %>">Zurück</a><% } %>
+    <a class="btn small" href="/einstellungen/statistik">📊 Einstellen</a>
+  </div>
+<% } %>
 <div class="profile-head">
   <%- include('partials/avatar', { u, size: 96 }) %>
   <div>
@@ -11,11 +22,12 @@
       <% if (u.disabled) { %> <span class="badge gray">gesperrt</span><% } %></p>
     <% if (visible) { %><p><small>Mitglied seit <%= fmtDate(u.created_at) %></small></p><% } %>
     <div class="actions">
-      <% if (me) { %><a class="btn small" href="/account#profil">✏️ Profil bearbeiten</a>
+      <% if (preview) { %>
+      <% } else if (me) { %><a class="btn small" href="/account#profil">✏️ Profil bearbeiten</a>
       <% } else if (user) { %>
         <% if (canMessage) { %><a class="btn small" href="/nachrichten/<%= encodeURIComponent(u.username) %>">💌 Nachricht schreiben</a><% } %>
         <%- include('partials/friend-button', { target: u, relation, back: profileUrl(u.username) }) %>
-        <% if (user.isAdmin) { %><a class="btn small" href="/admin/users/<%= u.id %>">⚙️ In der Systemsteuerung</a><% } %>
+        <% if (user.isAdmin) { %><a class="btn small" href="/admin/users/<%= u.id %>">⚙️ In der Seitenverwaltung</a><% } %>
       <% } else { %><small><a href="/login?next=<%= encodeURIComponent(profileUrl(u.username)) %>">Anmelden</a>, um Freunde hinzuzufügen und Nachrichten zu schreiben.</small><% } %>
     </div>
   </div>
@@ -26,14 +38,21 @@
   <% if (me && u.profile_visibility !== 'public') { %><p><small class="muted">🔒 Sichtbar für: <%= u.profile_visibility === 'friends' ? 'nur deine Freunde' : 'angemeldete Mitglieder' %> (änderbar unter <a href="/account#profil">Kontoeinstellungen</a>)</small></p><% } %>
   <% if (u.about) { %><fieldset class="groupbox"><legend>Über mich</legend><p class="about"><%= u.about %></p></fieldset><% } %>
 
+  <% if (showcase.length) { %>
+  <div class="showcase" aria-label="Vitrine">
+    <% for (const v of showcase) { %>
+      <a class="panel" href="<%= v.url %>"><small><%= v.title %></small><b class="<%= v.cls || '' %>"><%= v.text || num(v.value) %></b><small><%= v.key %></small></a>
+    <% } %>
+  </div>
+  <% } %>
   <fieldset class="groupbox"><legend>🎮 Spielstatistik</legend>
   <% if (!games.length) { %><p class="muted"><%= me ? 'Noch nichts gespielt. Mit Konto zählen' : 'Noch keine Spiele. Mit Konto zählen' %> <a href="/apps">Andere Games</a><% if (!navHidden.includes('haustier')) { %> und <a href="/haustier/">Pixelpfoten</a><% } %> hier mit.</p>
   <% } else { %>
     <div class="game-stats">
     <% for (const g of games) { %>
-      <div class="panel game-card">
-        <div class="game-title"><a href="<%= g.url %>"><b><%= g.title %></b></a><small class="muted">zuletzt <%= fmtDate(g.last) %></small></div>
-        <table class="kv"><% for (const s of g.stats) { %><tr><td><%= s.key %></td><td class="num<%= s.cls ? ' ' + s.cls : '' %>"><%= s.text || num(s.value) %></td></tr><% } %></table>
+      <div class="panel game-card<%= g.hiddenGame ? ' hidden-game' : '' %>">
+        <div class="game-title"><a href="<%= g.url %>"><b><%= g.title %></b></a><small class="muted"><%= rel === 'self' && g.see !== 'profil' ? '🔒 ' + { private: 'nur du', friends: 'nur Freunde', members: 'nur Angemeldete' }[g.see] + ' · ' : '' %>zuletzt <%= fmtDate(g.last) %></small></div>
+        <table class="kv"><% for (const s of g.stats) { %><tr<%- s.hidden ? ' class="hidden-val"' : '' %>><td><%= s.key %></td><td class="num<%= s.cls ? ' ' + s.cls : '' %>"><%= s.text || num(s.value) %></td></tr><% } %></table>
       </div>
     <% } %>
     </div>
@@ -54,22 +73,38 @@
   </fieldset>
   <% } %>
 
+  <%# Was hier steht, wählt jeder unter Systemsteuerung → Profil und Statistik; der Besitzer sieht Abgewähltes grau %>
+  <% const off = k => (rel === 'self' && !siteSettings[k] ? ' class="hidden-val"' : ''); %>
+  <% const rows = [boardOpen && site.posts && 'posts', guestbookEnabled && site.guestbook && 'guestbook', site.tracks && 'tracks', site.friends && 'friends'].filter(Boolean); %>
+  <% if (rows.length || (site.recent && recent.length)) { %>
   <fieldset class="groupbox"><legend>📊 Auf der Seite</legend>
+    <% if (rows.length) { %>
     <table class="kv">
-      <% if (boardOpen) { %><tr><td>Forenbeiträge</td><td class="num"><%= num(counts.posts) %></td></tr><tr><td>Forenthemen</td><td class="num"><%= num(counts.topics) %></td></tr><% } %>
-      <% if (guestbookEnabled) { %><tr><td>Einträge im Besucherbuch</td><td class="num"><%= num(counts.guestbook) %></td></tr><% } %>
-      <tr><td>Hochgeladene Musik</td><td class="num"><%= num(counts.tracks) %></td></tr>
-      <tr><td>Freunde</td><td class="num"><%= num(friends.length) %></td></tr>
+      <% if (rows.includes('posts')) { %><tr<%- off('posts') %>><td>Forenbeiträge</td><td class="num"><%= num(counts.posts) %></td></tr><tr<%- off('posts') %>><td>Forenthemen</td><td class="num"><%= num(counts.topics) %></td></tr><% } %>
+      <% if (rows.includes('guestbook')) { %><tr<%- off('guestbook') %>><td>Einträge im Besucherbuch</td><td class="num"><%= num(counts.guestbook) %></td></tr><% } %>
+      <% if (rows.includes('tracks')) { %><tr<%- off('tracks') %>><td>Hochgeladene Musik</td><td class="num"><%= num(counts.tracks) %></td></tr><% } %>
+      <% if (rows.includes('friends')) { %><tr<%- off('friends') %>><td>Freunde</td><td class="num"><%= num(friends.length) %></td></tr><% } %>
     </table>
-    <% if (recent.length) { %>
-      <p><b>Zuletzt im Forum:</b></p>
+    <% } %>
+    <% if (site.recent && recent.length) { %>
+      <p<%- off('recent') %>><b>Zuletzt im Forum:</b></p>
       <ul><% for (const r of recent) { %><li><a href="/forum/t/<%= r.topic_id %>#b<%= r.id %>"><%= r.title %></a> <small class="muted"><%= fmtDate(r.created_at, true) %></small></li><% } %></ul>
     <% } %>
   </fieldset>
+  <% } %>
+
+  <% if (links.length) { %>
+  <fieldset class="groupbox" id="links"><legend>🌐 Links</legend>
+    <ul class="profile-links">
+      <% for (const l of links) { %><li<%- l.private ? ' class="hidden-val"' : '' %>><a href="<%= l.url %>" target="_blank" rel="noopener noreferrer nofollow"><%= l.icon %> <%= l.name %></a> <small class="muted"><%= l.host %></small></li><% } %>
+    </ul>
+    <% if (rel === 'self') { %><p><small class="muted">Internetverknüpfungen von deinem Desktop. Wer sie sieht, stellst du am Link unter Eigenschaften ein.</small></p><% } %>
+  </fieldset>
+  <% } %>
 
   <% if (guestbook) { %>
   <fieldset class="groupbox" id="freundebuch"><legend>📖 Freundebuch (<%= guestbook.length %><%= guestbook.length === 50 ? '+' : '' %>)</legend>
-  <% if (canSign) { %>
+  <% if (canSign && !preview) { %>
   <form method="post" action="<%= profileUrl(u.username) %>/freundebuch">
     <input type="hidden" name="_csrf" value="<%= csrf %>">
     <label>Schreib <%= me ? 'etwas in dein eigenes' : displayName(u) + ' etwas ins' %> Freundebuch:<textarea name="body" maxlength="<%= maxGb %>" required style="min-height:50px"></textarea></label>
@@ -91,11 +126,13 @@
   </fieldset>
   <% } %>
 
-  <fieldset class="groupbox"><legend>⭐ Freunde (<%= friends.length %>)</legend>
+  <% if (site.friends) { %>
+  <fieldset class="groupbox"<%- off('friends') %>><legend>⭐ Freunde (<%= friends.length %>)</legend>
   <% if (!friends.length) { %><p class="muted">Noch keine Freunde.</p><% } else { %>
     <ul class="people grid"><% for (const f of friends) { %><li><a href="<%= profileUrl(f.username) %>"><%- include('partials/avatar', { u: f, size: 32 }) %> <%= displayName(f) %></a></li><% } %></ul>
   <% } %>
   </fieldset>
+  <% } %>
 <% } %>
 <p><a href="/nutzer">« Alle Mitglieder</a></p>
 <%- include('partials/foot') %>

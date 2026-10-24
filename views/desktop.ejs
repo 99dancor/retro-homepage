@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-design="<%= siteDesign %>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,12 +11,25 @@
 <link rel="apple-touch-icon" href="<%= asset('icon.png') %>">
 <meta name="theme-color" content="#000080">
 <script type="application/json" id="darstellung-daten"><%- themes.clientData %></script>
+<%# Darstellung am Konto (nur mit „Auf allen meinen Geräten“): display.js übernimmt sie, wenn sie neuer ist als die im Browser %>
+<% if (typeof deskDisplay !== 'undefined' && deskDisplay) { %><script type="application/json" id="darstellung-konto"><%- JSON.stringify(deskDisplay).replace(/</g, '\\u003c') %></script><% } %>
 <script src="<%= asset('display.js') %>"></script>
 <script src="<%= asset('sound.js') %>"></script>
 </head>
-<body class="desktop" data-user="<%= user ? user.id : '' %>" data-title="<%= site.title %>">
+<body class="desktop" data-user="<%= user ? user.id : '' %>" data-title="<%= site.title %>" data-csrf="<%= csrf %>">
 <div id="desk">
   <% if (marquee) { %><marquee scrollamount="4"><%= marquee %></marquee><% } %>
+  <%# Symbole: public/desk.js legt sie aus den Daten unten aufs Raster %>
+  <div class="desk-icons" id="deskicons" role="listbox" aria-label="Desktop" aria-multiselectable="true" tabindex="0"></div>
+  <% if (user) { %>
+  <div class="window desk-widget lobby-widget" id="lobbywidget" hidden>
+    <div class="titlebar"><span class="ttl">🎲 Offene Lobbys <span data-n></span></span><button type="button" class="tb-btn" data-lw="min" title="Minimieren" aria-expanded="true" aria-controls="lobbybody">_</button></div>
+    <div class="body" id="lobbybody">
+      <div class="lob-list" data-list><p class="lob-empty">Lade …</p></div>
+      <div class="lob-foot"><button type="button" class="small" data-lw="new" aria-haspopup="true">➕ Neue Lobby ▾</button><small data-time></small></div>
+    </div>
+  </div>
+  <% } %>
   <div class="desk-widget">
     <% if (showCounter) { %>
     <div class="window">
@@ -46,7 +59,11 @@
   </div>
 </div>
 <%- include('partials/startmenu') %>
+<% if (typeof desk !== 'undefined') { %><script type="application/json" id="desk-daten"><%- JSON.stringify(desk).replace(/</g, '\\u003c') %></script><% } %>
 <script src="<%= asset('retro.js') %>"></script>
+<script src="<%= asset('winui.js') %>"></script>
+<script src="<%= asset('deskui.js') %>"></script>
+<script src="<%= asset('desk.js') %>"></script>
 <% if (user) { %><script src="<%= asset('notify.js') %>"></script><% } %>
 </body>
 </html>

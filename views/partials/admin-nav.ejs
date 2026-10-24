@@ -16,6 +16,7 @@
   <a href="/admin/messages" class="<%= path.startsWith('/admin/messages') ? 'active' : '' %>">✉️ Nachrichten<% if (counts.unread) { %> <span class="badge"><%= counts.unread %></span><% } %></a>
   <a href="/admin/users" class="<%= path.startsWith('/admin/users') ? 'active' : '' %>">👥 Nutzer</a>
   <a href="/admin/design" class="<%= path.startsWith('/admin/design') ? 'active' : '' %>">🎨 Design</a>
+  <a href="/admin/desktop" class="<%= path.startsWith('/admin/desktop') ? 'active' : '' %>">🖥️ Desktop</a>
   <a href="/admin/settings" class="<%= path.startsWith('/admin/settings') ? 'active' : '' %>">⚙️ Einstellungen</a>
   <% if (!embed) { %><span class="spacer"></span>
   <a href="/">↩ Zur Website</a><% } %>

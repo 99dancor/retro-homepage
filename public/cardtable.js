@@ -311,10 +311,10 @@
           var b = stats.board;
           h += b.length ? '<table class="list"><thead><tr><th>#</th><th>Spieler</th><th class="num">Spiele</th><th class="num">Siege</th><th class="num">Quote</th>' + S.board.map(function (c) { return '<th class="num">' + c[0] + '</th>'; }).join('') + '</tr></thead><tbody>' +
             b.map(function (u, i) {
-              return '<tr' + (u.id === ME ? ' class="bj-me-row"' : '') + '><td>' + (['🥇', '🥈', '🥉'][i] || i + 1) + '</td><td><button type="button" class="bj-link" data-user="' + esc(u.user) + '" data-uid="' + u.id + '">' + esc(u.name) + '</button></td>' +
+              return '<tr' + (u.id === ME ? ' class="bj-me-row"' : '') + '><td>' + (['🥇', '🥈', '🥉'][i] || i + 1) + '</td><td>' + (u.user ? '<button type="button" class="bj-link" data-user="' + esc(u.user) + '" data-uid="' + u.id + '">' + esc(u.name) + '</button>' : '<i class="anon-name">' + esc(u.name) + '</i>') + '</td>' +
                 '<td class="num">' + u.games + '</td><td class="num"><b>' + u.wins + '</b></td><td class="num">' + pct(u.wins, u.games) + '</td>' + S.board.map(function (c) { return '<td class="num">' + c[1](u) + '</td>'; }).join('') + '</tr>';
             }).join('') + '</tbody></table>' : '<p class="bj-empty">Noch hat niemand gespielt.</p>';
-          h += '<p><small>Sortiert nach Siegen, bei Gleichstand nach der Siegquote. Es erscheint nur, wessen Profil du sehen darfst.</small></p>';
+          h += '<p><small>Sortiert nach Siegen, bei Gleichstand nach der Siegquote. Wer anonym bleiben möchte oder sein Profil vor dir verbirgt, steht hier ohne Namen.</small></p>';
         } else {
           var m = stats.me;
           h += '<div class="bj-kpis">' +

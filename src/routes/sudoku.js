@@ -7,6 +7,7 @@ const express = require('express');
 const sd = require('../sudoku');
 const auth = require('../auth');
 const profiles = require('../profiles');
+const us = require('../usersettings');
 
 const router = express.Router();
 const fail = (res, status, error) => res.status(status).json({ error });
@@ -68,12 +69,12 @@ router.get('/archiv', (req, res) => {
 });
 
 // Wer ein Profil nicht sehen darf, sieht den Namen nicht
+// u kommt aus us.boardList: anonym ohne Konto und Profil-Link
 function entry(viewer, u) {
-  const visible = profiles.canViewProfile(viewer, u);
-  return { seconds: u.seconds, help: u.help > 0, name: visible ? profiles.displayName(u) : 'Anonym', url: visible ? profiles.profileUrl(u.username) : null, me: !!viewer && viewer.id === u.id };
+  return { seconds: u.seconds, help: u.help > 0, name: u.name, url: u.user ? profiles.profileUrl(u.user) : null, me: !!viewer && viewer.id === u.id };
 }
 router.get('/bestenliste', dayParam, levelParam, (req, res) => {
-  const out = { day: req.day, level: req.level, list: sd.leaderboard(req.day, req.level, 20).map(u => entry(req.user, u)), solvers: sd.rank(0, req.day, req.level).of, mine: null };
+  const out = { day: req.day, level: req.level, list: us.boardList('sudoku', sd.leaderboard(req.day, req.level, 60), req.user).slice(0, 20).map(u => entry(req.user, u)), solvers: sd.rank(0, req.day, req.level).of, mine: null };
   if (req.user) out.mine = sd.userTotals(req.user.id);
   res.json(out);
 });

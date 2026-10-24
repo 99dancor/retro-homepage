@@ -1,0 +1,24 @@
+<%- include('partials/head') %>
+<%# Suchen: alle Treffer zu einem Begriff, gruppiert (src/search.js). Der Begriff wird nirgends gespeichert. %>
+<form class="search-page" method="get" action="/suche" role="search">
+  <label class="search-row">🔍 Suchen nach:<input type="search" name="q" value="<%= q %>" maxlength="100" autofocus aria-label="Suchbegriff"><button>Suchen</button></label>
+</form>
+<% const groups = result.groups.filter(g => !only || g.key === only); const total = result.groups.reduce((n, g) => n + g.items.length, 0); %>
+<% if (q && result.q.length < 2) { %><p class="muted">Gib mindestens zwei Zeichen ein.</p>
+<% } else if (q && !result.groups.length) { %><p class="msg">Nichts gefunden für „<%= q %>“. Gesucht wird in Programmen, Forum, Blog, Seiten, Downloads, Modlisten, Galerie, Mitgliedern<%= user ? ' und deinen eigenen Dateien' : '' %>.</p>
+<% } else if (q) { %>
+  <div class="search-filters">
+    <a class="btn small<%= !only ? ' pressed' : '' %>" href="/suche?q=<%= encodeURIComponent(q) %>">Alle (<%= total %>)</a>
+    <% for (const g of result.groups) { %><a class="btn small<%= only === g.key ? ' pressed' : '' %>" href="/suche?q=<%= encodeURIComponent(q) %>&amp;nur=<%= g.key %>"><%= g.label %> (<%= g.items.length %><%= g.more ? '+' : '' %>)</a><% } %>
+  </div>
+  <% for (const g of groups) { %>
+  <fieldset class="groupbox search-group"><legend><%= g.label %></legend>
+    <ul class="search-list">
+      <% for (const it of g.items) { %><li><a href="<%= it.url %>"<%- it.external ? ' target="_blank" rel="noopener noreferrer"' : '' %>><span class="search-ic"><% if (it.thumb || it.avatar) { %><img src="<%= it.thumb || it.avatar %>" alt="" loading="lazy"><% } else { %><%= it.icon %><% } %></span><b><%= it.name %></b><% if (it.sub) { %><small><%= it.sub %></small><% } %></a></li><% } %>
+    </ul>
+    <% if (g.more) { %><p><small class="muted">Es gibt noch mehr Treffer. Grenze die Suche weiter ein.</small></p><% } %>
+  </fieldset>
+  <% } %>
+<% } else { %><p class="muted">Findet Programme, Forenthemen und -beiträge, Blog, Seiten, Downloads, Modlisten, Bilder aus der Galerie und Mitglieder<%= user ? ', dazu deine eigenen Ordner, Textdokumente und Dateien' : '' %>. Strg+K springt von überall in die Suche unten in der Taskleiste.</p><% } %>
+<div class="statusbar"><span><%= q ? total + ' Treffer' : 'Bereit' %></span><span class="fixed">🔒 Suchbegriffe werden nicht gespeichert</span></div>
+<%- include('partials/foot') %>

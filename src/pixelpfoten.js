@@ -164,10 +164,18 @@ function boardOf(viewer, d, limit) {
   const rows = db.prepare(`SELECT c.user_id, c.pet_name, c.species, c.color, c.score, u.username, u.display_name FROM pp_contest c
                            JOIN users u ON u.id = c.user_id WHERE c.day = ? AND u.disabled = 0
                            ORDER BY c.score DESC, c.updated_at ASC LIMIT ?`).all(d, limit);
-  return rows.map((r, i) => ({
-    place: i + 1, user: r.username, name: nameOf(r), url: profiles.profileUrl(r.username), me: r.user_id === viewer.id,
-    pet: { name: r.pet_name, species: r.species, color: r.color }, score: r.score,
-  }));
+  // Bestenliste wie gewählt (Systemsteuerung → Profil und Statistik): „Gar nicht“ fehlt, „Anonym“ ohne Namen, Profil und Tiernamen.
+  // Die Plätze bleiben die echten, so passen sie zum eigenen Platz darunter.
+  const modes = require('./usersettings').boardModes('haustier', rows.map(r => r.user_id));
+  return rows.map((r, i) => {
+    const mode = modes.get(r.user_id), me = r.user_id === viewer.id;
+    if (mode === 'off' && !me) return null;
+    const anon = mode === 'anon' && !me;
+    return {
+      place: i + 1, user: anon ? null : r.username, name: anon ? 'Anonym' : nameOf(r), url: anon ? null : profiles.profileUrl(r.username), me,
+      pet: { name: anon ? '?' : r.pet_name, species: r.species, color: r.color }, score: r.score,
+    };
+  }).filter(Boolean);
 }
 
 // Platz eines Mitglieds an einem Tag oder null

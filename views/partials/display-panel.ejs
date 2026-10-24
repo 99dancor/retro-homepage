@@ -28,6 +28,17 @@
       </div>
     </div>
     <div class="tab-page" data-page="darstellung" role="tabpanel" hidden>
+      <div class="row">
+        <label>Fenster und Schaltflächen:
+          <select name="design"><option value="seite">Wie die Seite (<%= /^xp/.test(siteDesign) ? 'Windows XP' : 'Windows 98' %>)</option><option value="98">Windows 98</option><option value="xp">Windows XP</option></select></label>
+        <label data-xp-row>Farbschema:
+          <select name="xp"><option value="blau">Blau (Standard)</option><option value="oliv">Olivgrün</option><option value="silber">Silber</option></select></label>
+      </div>
+      <fieldset class="groupbox"><legend>Größe der Oberfläche</legend>
+        <div class="scale-row"><small>Klein</small><input type="range" name="scale" min="75" max="200" step="5" aria-label="Größe der Oberfläche in Prozent"><small>Groß</small><output data-scale-out>100 %</output></div>
+        <label class="inline"><input type="checkbox" name="scaleAll" value="1"> Fensterinhalte mitskalieren</label>
+        <br><small>Ohne Haken werden nur Taskleiste, Startmenü, Symbole und Titelleisten größer. Die Größe gilt immer nur für dieses Gerät.</small>
+      </fieldset>
       <fieldset class="groupbox"><legend>Schema</legend>
         <div class="swatches">
           <button type="button" class="small" data-scheme="seite">Wie die Seite</button>
@@ -52,8 +63,6 @@
           <select name="font"><option value="">Wie die Seite</option>
             <% for (const [k, [label]] of Object.entries(themes.FONTS)) { %><option value="<%= k %>"><%= label %></option><% } %>
           </select></label>
-        <label>Schriftgröße:
-          <select name="size"><option value="normal">Normal</option><option value="gross">Groß</option><option value="sehr-gross">Sehr groß</option></select></label>
       </div>
     </div>
     <div class="tab-page" data-page="effekte" role="tabpanel" hidden>
@@ -67,7 +76,12 @@
       <label>Eigenes CSS (für Profis):</label>
       <textarea name="css" class="code" spellcheck="false" placeholder="/* z. B. */&#10;.titlebar { font-family: 'Comic Sans MS'; }&#10;body { cursor: crosshair; }"></textarea>
     </div>
+    <% if (user) { %>
+    <label class="inline"><input type="checkbox" name="sync" value="1"> Auf allen meinen Geräten (am Konto speichern)</label>
+    <p><small>Ohne Haken bleibt alles in diesem Browser. Mit Haken liegt die Darstellung auch an deinem Konto, außer der Größe und einem eigenen Bild. <a href="/datenschutz#darstellung">Mehr zu deinen Daten</a></small></p>
+    <% } else { %>
     <p><small>Alles bleibt in diesem Browser, auch ein eigenes Bild. Nichts davon geht an den Server. <a href="/datenschutz">Mehr zu deinen Daten</a></small></p>
+    <% } %>
     <p class="msg err" data-error hidden></p>
     <div class="actions">
       <button type="button" class="small" data-act="reset">Alles zurücksetzen</button>

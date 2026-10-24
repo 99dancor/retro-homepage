@@ -27,7 +27,7 @@ function wallet(userId) {
   }
   return w;
 }
-// Nur nachsehen, ohne ein Konto anzulegen (Profil, Systemsteuerung)
+// Nur nachsehen, ohne ein Konto anzulegen (Profil, Seitenverwaltung)
 function peek(userId) {
   return db.prepare('SELECT * FROM ks_wallets WHERE user_id = ?').get(userId) || null;
 }

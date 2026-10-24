@@ -86,20 +86,36 @@ router.get('/files/dl/:id', (req, res, next) => {
   });
 });
 
+// Hochladen (Mitglieder mit Upload-Recht). Mit ?ordner=ID aus dem Explorer landen die Dateien gleich in einem eigenen Ordner.
+function uploadView(req, extra) {
+  const desk = require('../desk'), quota = require('../quota');
+  const raw = String((req.body && req.body.ordner) ?? req.query.ordner ?? ''), where = desk.own(req.user, raw);
+  const folder = raw === '0' ? { id: 0, name: 'Desktop' } : where && where.kind === 'folder' && !desk.trashed(where) ? where : null;
+  return { title: 'Datei hochladen', maxMb: up.MAX_MB, msg: null, err: null, folder, space: quota.view(req.user), ...extra };
+}
 router.get('/files/upload', auth.requireLogin, (req, res, next) => {
   if (!req.user.canUpload) return next();
-  res.render('upload', { title: 'Datei hochladen', maxMb: up.MAX_MB, msg: null });
+  res.render('upload', uploadView(req));
 });
 router.post('/files/upload', auth.requireLogin, (req, res, next) => (req.user.canUpload ? next() : res.status(403).end()),
   up.fileUpload.array('files'), auth.csrfCheck, (req, res) => {
-    const vis = ['public', 'members', 'friends', 'private'].includes(req.body.visibility) ? req.body.visibility : 'members';
+    const quota = require('../quota'), size = (req.files || []).reduce((n, f) => n + f.size, 0);
+    if (!quota.fits(req.user, size)) {
+      for (const f of req.files || []) up.removeQuietly(f.path);
+      return res.status(413).render('upload', uploadView(req, { err: quota.fullMessage(req.user) }));
+    }
+    const view = uploadView(req);
+    // In einen eigenen Ordner hochgeladen ist zuerst „Nur ich“, sonst wie bisher „Angemeldete“
+    const vis = ['public', 'members', 'friends', 'private'].includes(req.body.visibility) ? req.body.visibility : view.folder ? 'private' : 'members';
     const ins = db.prepare(`INSERT INTO files(title, description, category, game, original_name, stored_name, size, mime, visibility, uploader_id, created_at)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const refs = [];
     for (const f of req.files || []) {
-      ins.run((req.body.title || '').trim() || f.originalname, req.body.description || '', (req.body.category || '').trim() || 'Allgemein',
-        (req.body.game || '').trim() || null, f.originalname, f.filename, f.size, f.mimetype, vis, req.user.id, now());
+      refs.push('datei:' + ins.run((req.body.title || '').trim() || f.originalname, req.body.description || '', (req.body.category || '').trim() || 'Allgemein',
+        (req.body.game || '').trim() || null, f.originalname, f.filename, f.size, f.mimetype, vis, req.user.id, now()).lastInsertRowid);
     }
-    res.render('upload', { title: 'Datei hochladen', maxMb: up.MAX_MB, msg: `${(req.files || []).length} Datei(en) hochgeladen.` });
+    if (view.folder) require('../desk').move(req.user, refs, view.folder.id);
+    res.render('upload', { ...view, space: quota.view(req.user), msg: `${refs.length} Datei(en) hochgeladen.` });
   });
 
 // Modlisten: src/routes/mods.js
@@ -322,6 +338,7 @@ const ACCOUNT_MSG = {
     taken: 'Diesen Namen benutzt schon jemand anderes.',
     big: 'Das Bild ist zu groß (höchstens 2 MB).',
     bild: 'Das ist kein Bild, das hier geht (PNG, JPEG, GIF oder WebP).',
+    quadrat: 'Das Profilbild muss quadratisch sein. Beim Hochladen schneidet die Seite es zu, dafür braucht dein Browser JavaScript.',
   },
 };
 function renderAccount(req, res, msg, err) {

@@ -565,6 +565,20 @@
     if (isYt(current)) return yt.state === 1 || yt.state === 3;
     return !media.paused;
   }
+  // Für die Pixelpfoten auf dem Desktop (games/haustier/src/js/desktop.js): Läuft hörbar Musik, und wie laut ist der
+  // Bass gerade (0 bis 1)? Bei YouTube gibt es keinen Ton zum Messen, dann null: Die Tiere tanzen nach festem Takt.
+  var bass = null;
+  window.RetroMusic = {
+    playing: function () { return isPlaying() && Sound.musik() > 0; },
+    level: function () {
+      if (!analyser || media.paused || (current && isYt(current))) return null;
+      if (!bass) bass = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(bass);
+      var sum = 0;
+      for (var i = 1; i < 9; i++) sum += bass[i];
+      return sum / 8 / 255;
+    },
+  };
   function playPause() {
     if (lob) { var s = lob.state; if (s) lobbyCtl(s.playing ? 'pause' : 'play'); return; }
     if (!current) {

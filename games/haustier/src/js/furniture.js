@@ -10,6 +10,7 @@
 //                   flat:    liegt flach (Teppich), steht immer hinter den Tieren
 //                   toy/desk: Wurfspielzeug, das nur auf dem Desktop liegt (Bild aus icons.js)
 //                   seat:    Höhe (Bildpunkte von oben), auf der ein schlafendes Tier liegt
+//                   litter:  Streukiste (Geschäfte, siehe mess.js)   chew: Kauholz (fängt Biss- und Knabberspuren ab)
 //   furnGrid(id)    Raster          furnSvg(id, cls)   fertiges <svg>
 //   placeable(id)   kann aufgestellt werden          MAX_ROOM / MAX_DESK   so viele Teile höchstens
 import { grid, paint, fill, ell, poly, box, tube, and, or, not, dot, stamp, lineOf, gridSvg } from './pixel.js';
@@ -157,7 +158,22 @@ const SPRITES = {
     paint(g, and(ell(5, 18, 3.6, 8), (x, y) => y < 25.5), { fill: '#1a2e40', outline: false, shade: null });
     paint(g, and(ell(39, 18, 3.6, 8), (x, y) => y < 25.5), { fill: '#1a2e40', outline: false, shade: null });
   }, 44, 26),
+  furn_litter: G((g) => litter(g, 0), 24, 11),
+  furn_chew: G((g) => {
+    paint(g, ell(3, 2.5, 2.4, 2), I('#f0e0c0'));
+    paint(g, ell(3, 5.5, 2.4, 2), I('#f0e0c0'));
+    paint(g, ell(15, 2.5, 2.4, 2), I('#f0e0c0'));
+    paint(g, ell(15, 5.5, 2.4, 2), I('#f0e0c0'));
+    paint(g, box(3, 2.5, 15, 5.5), I('#f0e0c0', { hi: [box(4, 3, 14, 3.8), '#fff8e8'] }));
+  }, 18, 8),
 };
+// Streukiste: blaue Schale mit Sand, voll benutzt mit Klümpchen
+function litter(g, used) {
+  paint(g, box(1, 3, 23, 10), I('#5a8ad8', { hi: [box(2, 4, 22, 5), '#8ab0f0'] }));
+  fill(g, box(3, 2, 21, 5), '#e8d8a8');
+  for (const [x, y] of [[5, 3], [9, 2], [14, 3], [18, 2]]) dot(g, x, y, '#d0c090');
+  if (used) for (const [x, y] of [[6, 2], [12, 3], [17, 3]]) { dot(g, x, y, '#a89058'); dot(g, x + 1, y, '#a89058'); }
+}
 // Zusätzliche Stellungen: volle Näpfe, offene Kiste, zweites Bild des Laufrads, Strickleiter am Tor
 const EXTRA = {
   bowl_food_half: G((g) => bowl(g, '#d84a4a', '#f08080', kibble(4)), 24, 13),
@@ -165,6 +181,7 @@ const EXTRA = {
   bowl_water_half: G((g) => { bowl(g, '#4a86e0', '#8ab8f8', null); fill(g, ell(12, 7, 8, 0.8), '#8ad0ff'); }, 24, 13),
   bowl_water_full: G((g) => { bowl(g, '#4a86e0', '#8ab8f8', null); fill(g, ell(12, 6, 9, 1.2), '#8ad0ff'); dot(g, 9, 6, '#ffffff'); }, 24, 13),
   furn_chest_open: G((g) => chest(g, true), 24, 20),
+  litter_used: G((g) => litter(g, 1), 24, 11),
   toy_wheel_1: G((g) => wheel(g, 18, 18, 16, 1), 36, 40),
   ladder: G((g) => {
     for (const x of [1, 12]) paint(g, box(x, 0, x + 1.5, 8), I('#b08050', { shade: null }));
@@ -191,6 +208,8 @@ export const FURN = {
   furn_cert: { wall: true },
   furn_bowl_food: { bowl: 'food' },
   furn_bowl_water: { bowl: 'water' },
+  furn_litter: { litter: true },
+  furn_chew: { chew: true, flat: true },
   furn_chest: { chest: true, room: true },   // bleibt im Zimmer
   toy_wheel: { station: ['hamster', 'rat'] },
   toy_tunnel: { station: ['rabbit', 'rat', 'hamster'], hide: true },

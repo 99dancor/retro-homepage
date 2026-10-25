@@ -1,5 +1,24 @@
 # Changelog
 
+## 25.10.2026 – Pixelpfoten: gemütlicher auf dem Desktop
+
+- **Strickleiter:** Die Leiter hängt jetzt am Fenster von Pixelpfoten und verschwindet hinter Fenstern, die davor liegen. Die Tiere selbst bleiben vorn.
+- **Bewegungen:** Die Tiere setzen beim Laufen die Pfoten, fressen mit dem Kopf im Napf, lehnen sich beim Streicheln in die Hand, strecken sich beim Hochheben und Springen und schauen dem Mauszeiger nach.
+- **Tanzen:** Läuft im Mediaplayer Musik, tanzt ab und zu ein Tier im Takt mit (manchmal machen andere mit). Hört die Musik auf, gibt es eine Verbeugung.
+- **Miteinander:** Treffen sich zwei Tiere, raufen sie in einer Staubwolke oder kuscheln sich aneinander, je nach Art und Tageszeit. Abends wird mehr gekuschelt.
+- **Malheur:** Ab und zu machen die Tiere ihr Geschäft oder hinterlassen Spuren: Kratzer, Bissspuren, Sabber, Erde, Knabberspuren, Körner, Wasserspritzer oder Ruß, je nach Tier. Das passiert im Zimmer, auf der Taskleiste, auf Fenstern und auf Möbeln, etwa zweimal pro Stunde, nachts nie. Mit gedrückter Maus darüberreiben wischt es weg (dafür gibt es Freude und eine Münze). Spuren auf einem Fenster verschwinden, wenn du es schließt.
+- **Neu im Shop:** Die **Streukiste** fängt Geschäfte ab und will ab und zu geleert werden, das **Kauholz** lenkt Hunde, Füchse und Nager von Möbeln ab. Ein Kratzbaum hilft bei Katzen.
+- **Sauberkeit:** Im Fach steht, wie viele Flecken herumliegen. Ab drei sinkt die Erfüllung langsam, höchstens um 10, und ist nach dem Putzen sofort zurück. Geschäfte lassen sich in den Einstellungen abschalten.
+- **Ruhe:** Wer viel tippt und klickt, hat seine Ruhe: Die Tiere dösen dann am Rand. Den Mauszeiger jagen sie nur über freiem Desktop, über Fenstern machen sie ihm Platz. Im 🐾-Menü neben der Uhr gibt es **Eine Stunde Ruhe** und **Heute keine Streiche**.
+- **Streiche:** Wie oft, stellst du jetzt in den Einstellungen ein: Aus, selten (alle 3 Stunden), normal (jede Stunde) oder oft (alle 20 Minuten).
+- **Größe draußen:** wie im Zimmer oder kleiner.
+- **Tagesablauf:** Morgens strecken sie sich und gähnen, mittags dösen sie gern, nachts gehen sie heim.
+- **Dabei sein:** Die Tiere setzen sich gern aufs Fenster, in dem du gerade bist, und schauen zu. Gewinnst du ein Spiel, jubeln sie; bei Hinweisen und Messenger-Nachrichten horchen sie auf. Ab und zu zeigen sie in einer kleinen Gedankenblase, woran sie denken.
+- **Selbst versorgen:** Draußen bedienen sich die Tiere an Napf, Bett und Spielzeug. Fragen kommen nur noch, wenn sie Liebe brauchen oder ein Napf leer ist. Wer sich langweilt, kickt das Spielzeug herum.
+- **Fotoalbum:** 📷 Schnappschuss im 🐾-Menü (und im Album unter ⋯). Der erste Tanz, die erste Rauferei, das erste Kuscheln und der erste Streich kommen von selbst ins Album.
+- **Erste Schritte:** Waren die Tore noch nie offen, fragt ein Tier, ob es mal raus darf. Beim ersten Ausflug gibt es drei kurze Tipps.
+- **Strom sparen:** Schlafen alle oder ist niemand da, bewegen sich die Tiere sparsamer.
+
 ## 24.10.2026 – Pixelpfoten: raus auf den Desktop
 
 - **Rolltore:** Im Fenster auf dem Desktop ist das Zimmer jetzt ein Käfig mit Rolltoren links und rechts. Unter 🚪 Tore machst du sie ganz oder halb auf und wählst, wer drinbleiben soll.

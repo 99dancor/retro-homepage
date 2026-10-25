@@ -5,12 +5,18 @@
 //   api.attach(win, hooks) -> { ok, reason }      api.detach(win)
 //   api.out(visual, at)         ein Tier kommt heraus: at { side: 'l' | 'r' | 'task', u } (Tor links, rechts, Taskleisten-Knopf)
 //   api.restore(visual, at)     nach dem Neuladen: at { x, y } als Anteil des Desktops
-//   api.update({ pets, items, bowls })   Stand aus dem Spiel (items: Möbel auf dem Desktop [{ id, x, y }])
+//   api.update({ pets, items, bowls, mess, litter })   Stand aus dem Spiel (items: Möbel auf dem Desktop [{ id, x, y }],
+//                               mess: Flecken draußen, siehe mess.js)
 //   api.call(id) / callAll()    heimrufen          api.furnish(on, sel)   Möbel verschieben
 //   api.options(o)              api.minimized() -> Spiel-Fenster minimiert?
+//   api.mess(id, plan) -> bool  das Tier macht draußen ein Geschäft oder eine Spur (plan aus mess.js planMess)
+//   api.activity() -> { idle, calm }   wie lange niemand etwas tut, und ob gerade Ruhe ist (für die Flecken)
 //
 // hooks (vom Spiel, deskHooks in main.js): pets, gates, back, where, act, eat, fill, bowls, moved, unplace, prank, options,
-//   furnish, stopFurnish, sound
+//   furnish, stopFurnish, sound, messed, clean, litter, photo, first, tipsWanted, tipsDone
+//
+// Gemütlich bleibt es so: Wer viel tippt und klickt, hat seine Ruhe (die Tiere dösen am Rand), über Fenstern weichen
+// sie dem Mauszeiger aus statt ihn zu jagen, und im 🐾-Menü gibt es eine Stunde Ruhe.
 //
 // Physik und Wege stehen DOM-frei in deskphys.js. Alles bleibt Pixel-Art: ganzzahliger Maßstab U, nie gedreht.
 import { petSvg } from './art.js';
@@ -18,8 +24,10 @@ import { iconSvg, ICON_OF } from './icons.js';
 import { SPECIES } from './pets.js';
 import { FURN, furnSvg, bowlSprite, sleepsIn } from './furniture.js';
 import { KEYS, safeLocal } from './storage.js';
+import { MESS, messSvg, messSize, messPose, messMs, nightTime } from './mess.js';
+import { social } from './behavior.js';
 import {
-  deskOptions, prankDue, surfaces, surfaceKey, below, fall, jumpTo, canHop, hopPoints, route, sameSurface, throwVelocity, HARD_THROW,
+  deskOptions, deskScale, prankDue, surfaces, surfaceKey, below, fall, jumpTo, canHop, hopPoints, route, sameSurface, throwVelocity, HARD_THROW,
 } from './deskphys.js';
 
 const R = window.RetroDesk;
@@ -27,6 +35,8 @@ const doc = document;
 const deskEl = doc.getElementById('desk');
 const local = safeLocal((() => { try { return window.localStorage; } catch { return null; } })());
 const PRANK_KEY = 'haustier:v1:prank';
+const QUIET_KEY = 'haustier:v1:quiet';
+const MORNING_KEY = 'haustier:v1:morning';
 const TAB = Math.random().toString(36).slice(2);
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -36,8 +46,20 @@ const px = (v) => Math.round(v) + 'px';
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const make = (tag, cls, inner = '') => { const e = doc.createElement(tag); e.className = cls; e.innerHTML = inner; return e; };
 const readJSON = (k) => { try { return JSON.parse(local.get(k) || 'null'); } catch { return null; } };
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const EMOTE = { '❤️': 'heart', '💤': 'zzz', '♪': 'note', '✨': 'sparkle', '❗': 'bang', '🐾': 'paw', '😄': 'star' };
 const SMALL = ['hamster', 'rat', 'axolotl'];
+// Tanzschritte, einer pro Schlag
+const DANCE = ['stretch', 'walk1', 'crouch', 'walk2'];
+// Woran ein Tier zwischendurch denkt (Gedankenblase ohne Worte)
+const THINK = { love: 'heart', food: 'food_dry', water: 'drop' };
+const DREAMS = ['toy_ball', 'food_bone', 'heart', 'star', 'note', 'food_fish', 'paw'];
+// Tipps beim ersten Mal draußen
+const TIPS = [
+  'Zieh mich mit der Maus hoch! Sanft werfen macht Spaß, zu wild nicht.',
+  'Rechtsklick auf mich: streicheln oder heimrufen. Das 🐾 unten rechts ruft alle und hat eine Stunde Ruhe.',
+  'Passiert ein Malheur, wischst du es mit der Maus weg. Eine Streukiste hilft.',
+];
 
 // Aussehen kommt aus dem Spiel; hier nur die Ebenen für Tiere (über den Fenstern) und Möbel (auf dem Desktop)
 const css = make('link', '');
@@ -47,29 +69,42 @@ const layer = make('div', 'pp-layer');
 doc.body.append(layer);
 const furnLayer = make('div', 'pp-furn');
 deskEl.append(furnLayer);
+// Die Strickleiter hängt am Spiel-Fenster und liegt deshalb mit ihm zwischen den Fenstern, nicht über allen
 const ladders = { l: make('div', 'pp-ladder'), r: make('div', 'pp-ladder') };
-layer.append(ladders.l, ladders.r);
+deskEl.append(ladders.l, ladders.r);
 
 let game = null;              // { win, hooks }
-let U = 2;                    // Größe eines Bildpunkts, wie im Zimmer
+let roomU = 2;                // Größe eines Bildpunkts im Zimmer
+let U = 2;                    // … und draußen (wie im Zimmer oder kleiner)
 let opts = deskOptions(readJSON(KEYS.deskOpts));
 let furnishing = null;        // { sel, drag }
 let bowls = { food: 0, water: 0 };
+let litterLvl = 0;
 const pets = new Map();       // id -> Tier draußen
 const things = new Map();     // id -> Möbel oder Spielzeug auf dem Desktop
-let geo = { W: 800, floor: 560, top: 0, h: 560 };
+const marks = new Map();      // id -> Fleck draußen { m, el, missing }
+let geo = { W: 800, floor: 560, top: 0, h: 560, left: 0 };
 let surfs = [];
 let wins = [];                // sichtbare Fenster (für Laufflächen)
 let maxed = false;            // ein maximiertes Fenster verdeckt den Desktop
-let raf = 0, last = 0;
+let raf = 0, slow = 0, last = 0;
 let pointer = { x: -1, y: -1, t: 0 };
 let activeAt = Date.now();
+const presses = [];           // Klicks und Tasten der letzten Minute (wer arbeitet, hat Ruhe)
 let lastPrank = Number(local.get(PRANK_KEY)) || 0;
 let beat = 0, whereAt = 0;
+const romps = [];             // laufende Raufereien { el, a, c, until }
 const S = () => 48 * U;
 const winIds = new WeakMap();
 let winSeq = 0;
 const winId = (el) => { if (!winIds.has(el)) winIds.set(el, 'w' + ++winSeq); return winIds.get(el); };
+function setRoomU(u) { if (u) roomU = clamp(Math.round(u), 1, 4); U = deskScale(roomU, opts.size); }
+
+// Ruhe: eine Stunde (im 🐾-Menü), heute keine Streiche, oder gerade wird viel getippt und geklickt
+const quietUntil = () => Number(local.get(QUIET_KEY)) || 0;
+const quietHour = () => quietUntil() > Date.now();
+const working = () => { const now = Date.now(); while (presses.length && now - presses[0] > 60e3) presses.shift(); return presses.length >= 12; };
+const calm = () => quietHour() || working();
 
 // ---------- Geometrie ----------
 function measure() {
@@ -126,14 +161,15 @@ function syncThings(items) {
 function drawThing(t) {
   const f = t.f;
   const level = f.bowl ? bowls[f.bowl] : 0;
-  const sprite = f.bowl ? bowlSprite(f.bowl, level) : t.id;
-  const sig = sprite + '|' + !!furnishing + '|' + !!game;
+  const sprite = f.bowl ? bowlSprite(f.bowl, level) : f.litter && litterLvl > 0 ? 'litter_used' : t.id;
+  const sig = sprite + '|' + !!furnishing + '|' + !!game + '|' + (f.litter ? litterLvl : '');
   if (t.sig !== sig) {
     t.sig = sig;
     t.el.innerHTML = (t.toy ? iconSvg(t.id) : t.id === 'toy_wheel' ? furnSvg('toy_wheel', 'pxi w0') + furnSvg('toy_wheel_1', 'pxi w1') : furnSvg(sprite))
       + (furnishing && !t.toy ? '<button type="button" class="pp-x" title="Ins Fach legen" aria-label="Ins Fach legen">×</button>' : '');
     t.el.title = !game ? 'Pixelpfoten öffnen' : furnishing ? 'Ziehen zum Verschieben'
-      : f.bowl === 'food' ? 'Futternapf: antippen zum Füllen' : f.bowl === 'water' ? 'Wassernapf: antippen zum Füllen' : '';
+      : f.bowl === 'food' ? 'Futternapf: antippen zum Füllen' : f.bowl === 'water' ? 'Wassernapf: antippen zum Füllen'
+        : f.litter ? (litterLvl ? `Streukiste: ${litterLvl}-mal benutzt. Antippen zum Leeren.` : 'Streukiste: frisch') : '';
   }
   t.el.classList.toggle('sel', !!furnishing && furnishing.sel === t.id);
   t.el.classList.toggle('furnish', !!furnishing);
@@ -153,12 +189,102 @@ function showCopy() {
   const c = readJSON(KEYS.desk);
   const me = doc.body.dataset.user || '';
   if (!c || String(c.user || '') !== me || !Array.isArray(c.items)) return;
-  U = clamp(Math.round(c.u || 2), 1, 4);
+  setRoomU(c.u || 2);
   if (c.bowls) bowls = { food: c.bowls.food || 0, water: c.bowls.water || 0 };
   measure();
   syncThings(c.items);
   for (const t of things.values()) if (t.toy) { t.b.y = geo.floor; t.b.mode = 'stand'; t.b.on = floorSurf(); }
   placeThings();
+}
+
+// ---------- Flecken: auf dem Boden, auf Fenstern, auf Möbeln ----------
+// Wegwischen: mit gedrückter Maus darüberreiben (oder dreimal antippen)
+const WIPE = 60;
+function syncMarks(list) {
+  for (const [id, k] of marks) if (!list.some((m) => m.id === id)) { k.el.remove(); marks.delete(id); }
+  for (const m of list) {
+    if (marks.has(m.id)) { marks.get(m.id).m = m; continue; }
+    const el = make('div', 'pp-mark', messSvg(m.kind));
+    el.dataset.mark = m.id;
+    el.title = `${MESS[m.kind].name}: mit der Maus wegwischen`;
+    // Auf dem Boden (Taskleiste) liegen sie mit den Tieren über allem, damit kein Fenster sie verdeckt
+    if (m.on === 'floor') layer.prepend(el); else (m.on === 'win' ? deskEl : furnLayer).append(el);
+    marks.set(m.id, { m, el, missing: 0, rub: 0 });
+  }
+}
+// Wo ein Fleck liegt: Fläche (Bildschirmpunkte) und Ebene; null = gerade nicht zu sehen
+function markSpot(k) {
+  const m = k.m;
+  if (m.on === 'win') {
+    const w = wins.find((o) => o.w.url === m.win);
+    if (!w) return null;
+    return { x: w.left + (m.dx || 0), y: w.top, z: w.z };
+  }
+  if (m.on === 'item') {
+    const t = things.get(m.item);
+    if (!t || !t.f.tops) return null;
+    const b = boxOf(t);
+    return { x: b.left + (m.dx || 0), y: b.top + t.f.tops[0] * U, z: 4 };
+  }
+  return { x: (m.x ?? 0.5) * geo.W, y: geo.floor, z: 2 };
+}
+function placeMarks(t) {
+  for (const k of marks.values()) {
+    const at = markSpot(k);
+    // Das Fenster ist zu: Die Spur verschwindet mit ihm (kurz warten, falls es nur neu geladen wird)
+    if (k.m.on === 'win') {
+      const known = (R && R.windows ? R.windows() : []).some((w) => w.url === k.m.win && !w.closing);
+      if (known) k.missing = 0; else if (!k.missing) k.missing = t; else if (t - k.missing > 5000) { hook('clean', k.m.id, { gone: true }); k.el.remove(); marks.delete(k.m.id); continue; }
+    }
+    k.el.hidden = !at || maxed;
+    if (!at) continue;
+    const sz = messSize(k.m.kind), w = sz.w * U, h = sz.h * U;
+    const left = clamp(at.x - w / 2, 0, geo.W - w);
+    // Pfützen liegen ein wenig in der Fläche, alles andere steht darauf
+    const sink = MESS[k.m.kind].potty && k.m.kind === 'pee' ? 2 * U : U;
+    k.el.style.width = w + 'px'; k.el.style.height = h + 'px';
+    const top = k.m.on === 'floor';
+    k.el.style.transform = `translate(${px(left - (top ? 0 : geo.left))}, ${px(at.y - h + sink - (top ? 0 : geo.top))})`;
+    k.el.style.zIndex = top ? '' : at.z;
+  }
+}
+function wipeStart(e) {
+  const el = e.target.closest('.pp-mark');
+  if (!el || e.button > 0) return false;
+  const k = marks.get(el.dataset.mark);
+  if (!k) return false;
+  e.preventDefault(); e.stopPropagation();
+  if (!game) { openGame(); return true; }
+  el.setPointerCapture(e.pointerId);
+  let lx = e.clientX, ly = e.clientY;
+  k.rub += WIPE / 3;
+  el.classList.add('rub');
+  const move = (ev) => { k.rub += Math.hypot(ev.clientX - lx, ev.clientY - ly); lx = ev.clientX; ly = ev.clientY; if (k.rub >= WIPE) done(); };
+  const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); el.classList.remove('rub'); if (k.rub >= WIPE) done(); };
+  let gone = false;
+  const done = () => {
+    if (gone) return;
+    gone = true;
+    up();
+    const r = el.getBoundingClientRect();
+    sparkle(r.left + r.width / 2, r.top + r.height / 2);
+    el.remove(); marks.delete(k.m.id);
+    hook('clean', k.m.id);
+  };
+  el.addEventListener('pointermove', move);
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+  return true;
+}
+furnLayer.addEventListener('pointerdown', (e) => { wipeStart(e); }, { capture: true });
+layer.addEventListener('pointerdown', (e) => { wipeStart(e); }, { capture: true });
+deskEl.addEventListener('pointerdown', (e) => { if (e.target.closest('.pp-mark') && e.target.closest('.pp-mark').parentNode === deskEl) wipeStart(e); });
+function sparkle(x, y) {
+  const s = make('div', 'pp-sparkle', messSvg('sparkle'));
+  s.style.width = s.style.height = 7 * U * 2 + 'px';
+  s.style.transform = `translate(${px(x - 7 * U)}, ${px(y - 7 * U)})`;
+  layer.append(s);
+  setTimeout(() => s.remove(), 700);
 }
 
 // ---------- Tiere ----------
@@ -167,26 +293,43 @@ function makePet(v) {
   el.dataset.pet = v.id;
   const body = make('div', 'pp-body'), flip = make('div', 'pp-flip');
   body.append(flip);
-  const emote = make('div', 'pp-emote'), name = make('div', 'pp-name');
-  el.append(make('div', 'pp-shadow'), body, emote, name);
+  const emote = make('div', 'pp-emote'), name = make('div', 'pp-name'), think = make('div', 'pp-think');
+  el.append(make('div', 'pp-shadow'), body, emote, think, name);
   layer.append(el);
   const p = {
-    id: v.id, v, el, body, flip, emote, name, key: '',
+    id: v.id, v, el, body, flip, emote, think, name, key: '',
     b: { x: geo.W / 2, y: geo.floor, vx: 0, vy: 0, mode: 'air', on: null, adx: 0 },
     facing: 1, walking: false, goal: null, path: null, until: 0, busyUntil: 0, home: false, ladder: null,
     outAt: Date.now(), stayFor: rand(150e3, 480e3), held: null, thrown: 0, chaseUntil: 0, nextChase: 0, perch: 0, bed: null, emoteUntil: 0,
+    pose: null, poseUntil: 0, face: null, dance: null, doze: false, hidden: false, dodgeAt: 0, thinkUntil: 0, hop: 0,
   };
   pets.set(v.id, p);
-  drawPet(p);
+  drawPet(p, performance.now());
   return p;
 }
-function drawPet(p) {
+// Stellung für eine Weile (pixel.js POSES), dazu auf Wunsch ein Gesicht
+function posing(p, pose, ms, face = null) {
+  const t = performance.now();
+  p.pose = pose; p.poseUntil = t + ms;
+  if (face) { p.face = face; clearTimeout(p.faceTimer); p.faceTimer = setTimeout(() => { p.face = null; }, ms); }
+}
+function poseOf(p, t) {
+  if (t < p.poseUntil && p.pose) return p.pose;
+  const b = p.b;
+  if (b.mode === 'held') return 'stretch';
+  if (b.mode === 'air') return b.vy < 0 ? 'stretch' : 'stand';
+  if (p.el.classList.contains('eating')) return 'eat';
+  if (p.doze) return 'crouch';
+  return 'stand';
+}
+function drawPet(p, t) {
   const v = p.v;
-  const face = p.face || v.face || 'ok';
-  const key = [v.species, v.color, face, JSON.stringify(v.acc || {})].join('|');
+  const face = p.face || (p.doze && !v.sleeping ? 'sleep' : v.face) || 'ok';
+  const pose = poseOf(p, t);
+  const key = [v.species, v.color, face, pose, JSON.stringify(v.acc || {})].join('|');
   if (key !== p.key) {
     p.key = key;
-    p.flip.innerHTML = petSvg(v.species, v.color, face, { acc: v.acc || {}, shadow: false, title: `${v.name}, ${SPECIES[v.species] ? SPECIES[v.species].name : ''}` });
+    p.flip.innerHTML = petSvg(v.species, v.color, face, { acc: v.acc || {}, shadow: false, pose, walk: pose === 'stand', title: `${v.name}, ${SPECIES[v.species] ? SPECIES[v.species].name : ''}` });
   }
   p.name.textContent = v.name;
   p.el.classList.toggle('sleeping', !!v.sleeping);
@@ -197,6 +340,12 @@ function emote(p, sym, ms = 1600) {
   p.emote.innerHTML = EMOTE[sym] ? iconSvg(EMOTE[sym]) : `<b>${esc(sym)}</b>`;
   p.emote.classList.remove('show'); void p.emote.offsetWidth; p.emote.classList.add('show');
   p.emoteUntil = performance.now() + ms;
+}
+// Gedankenblase ohne Worte: ein kleines Bild
+function thinkOf(p, icon, ms = 3200) {
+  p.think.innerHTML = iconSvg(ICON_OF[icon] || icon);
+  p.think.classList.add('show');
+  p.thinkUntil = performance.now() + ms;
 }
 function floaters(p, delta = {}, coins = 0) {
   const list = Object.entries(delta).filter(([, v]) => v).map(([k, v]) => `${iconSvg(ICON_OF[k] || k)}${v > 0 ? '+' : ''}${v}`);
@@ -237,6 +386,8 @@ function placeSay() {
 }
 const sound = (n) => { if (opts.sound && game) try { game.hooks.sound(n); } catch { /* Spiel weg */ } };
 const hook = (name, ...a) => { if (!game || !game.hooks[name]) return undefined; try { return game.hooks[name](...a); } catch (e) { console.error('Pixelpfoten:', e); return undefined; } };
+const reward = (p, r) => { if (r && r.ok && (r.delta || r.coins)) floaters(p, r.delta, r.coins); };
+const awake = (p) => !p.v.sleeping && !p.home && !p.hidden && p.b.mode === 'stand';
 
 // ---------- Körper: stehen, fallen, mitfahren ----------
 // Wer auf einer Titelleiste oder einem Möbel steht, fährt mit; verschwindet die Fläche, fällt er
@@ -316,6 +467,7 @@ function jump(p, to) {
 function decide(p, t) {
   const v = p.v, b = p.b, fl = floorSurf();
   p.goal = null;
+  p.doze = false;
   if (p.home) return goHome(p);
   if (maxed) {
     // Ein Fenster füllt den Bildschirm: in die Ecke und dösen
@@ -334,23 +486,72 @@ function decide(p, t) {
     p.goal = { why: 'bowl', kind: v.need, s: fl, x: bx.left + (b.x < bx.left ? -S() * 0.3 : bx.w + S() * 0.3) };
     return;
   }
-  // Nach ein paar Minuten draußen geht es von selbst wieder heim, wenn das Tor offen ist
-  if (Date.now() - p.outAt > p.stayFor && ladderFor(p)) { p.home = true; return goHome(p); }
+  // Nachts gehen alle heim, sonst nach ein paar Minuten draußen von selbst, wenn das Tor offen ist
+  const night = nightTime(new Date());
+  if ((night || Date.now() - p.outAt > p.stayFor) && ladderFor(p)) { p.home = true; return goHome(p); }
+  // Wer arbeitet oder Ruhe will: am Rand dösen
+  if (calm() || night) return dozeAtEdge(p);
   if (reduced()) { p.until = t + rand(5000, 9000); return; }
+  const h = new Date().getHours();
+  // Mittags dösen sie gern, abends kuscheln sie gern
+  if (h >= 12 && h < 14 && Math.random() < 0.25) return dozeAtEdge(p, rand(20e3, 45e3));
+  if (Math.random() < (h >= 19 ? 0.18 : 0.08) && meet(p, t, h >= 19 ? 'snuggle' : null)) return;
   const r = Math.random();
-  if (r < 0.1 && opts.pranks.icons && sniffIcon(p)) return;
-  if (r < 0.32) {
+  if (r < 0.06) { thinkOf(p, THINK[v.need] || pick(DREAMS)); p.until = t + rand(2500, 4500); return; }
+  if (r < 0.12 && v.bored && kickToy(p)) return;
+  if (r < 0.2 && opts.pranks.icons && sniffIcon(p)) return;
+  if (r < 0.3 && watchWindow(p)) return;
+  if (r < 0.42) {
     const up = surfs.filter((s) => s !== b.on && canHop(b.on, s, S()));
     if (up.length) { const s = pick(up); p.goal = { why: 'wander', s, x: rand(s.x1 + S() / 2, Math.max(s.x1 + S() / 2, s.x2 - S() / 2)) }; return; }
   }
-  if (r < 0.4) {
+  if (r < 0.48) {
     const wheel = things.get('toy_wheel');
     if (wheel && FURN.toy_wheel.station.includes(v.species)) { p.goal = { why: 'wheel', s: fl, x: wheel.x * geo.W }; return; }
   }
-  if (r < 0.48 && b.on && b.on.kind !== 'floor') { p.goal = { why: 'wander', s: fl, x: rand(S(), geo.W - S()) }; return; }
-  if (r < 0.8 && b.on) { p.goal = { why: 'wander', s: b.on, x: rand(b.on.x1 + S() / 3, Math.max(b.on.x1 + S() / 3, b.on.x2 - S() / 3)) }; return; }
+  if (r < 0.55 && b.on && b.on.kind !== 'floor') { p.goal = { why: 'wander', s: fl, x: rand(S(), geo.W - S()) }; return; }
+  if (r < 0.82 && b.on) { p.goal = { why: 'wander', s: b.on, x: rand(b.on.x1 + S() / 3, Math.max(b.on.x1 + S() / 3, b.on.x2 - S() / 3)) }; return; }
   p.until = t + rand(2000, 5000);
   if (Math.random() < 0.3) emote(p, pick(['♪', '✨', '🐾']));
+}
+
+// Am Bildschirmrand auf dem Boden dösen (links, wenn es links steht, sonst rechts)
+function dozeAtEdge(p, ms = 0) {
+  const i = [...pets.keys()].indexOf(p.id);
+  const left = p.b.x < geo.W / 2;
+  const x = left ? S() * (0.6 + i * 0.85) : geo.W - S() * (0.6 + i * 0.85);
+  p.goal = { why: 'doze', s: floorSurf(), x, ms };
+}
+// Aufs aktive Fenster setzen und zuschauen, was man macht
+function watchWindow(p) {
+  const aw = wins.find((w) => w.w.active && (!game || w.w.win !== game.win));
+  if (!aw) return false;
+  const list = surfs.filter((s) => s.id === aw.id);
+  if (!list.length) return false;
+  const s = list.reduce((a, c) => (c.x2 - c.x1 > a.x2 - a.x1 ? c : a));
+  if (s === p.b.on || !(canHop(p.b.on, s, S()) || route(surfs, p.b.on, s, S()))) return false;
+  p.goal = { why: 'watch', s, x: rand(s.x1 + S() / 2, Math.max(s.x1 + S() / 2, s.x2 - S() / 2)) };
+  return true;
+}
+// Gelangweilt: das Spielzeug auf derselben Fläche anstupsen
+function kickToy(p) {
+  const toy = [...things.values()].find((th) => th.toy && th.b.mode === 'stand' && sameSurface(th.b.on, p.b.on) && !th.carried);
+  if (!toy) return false;
+  p.goal = { why: 'kick', toy: toy.id, s: p.b.on, x: toy.b.x + (p.b.x < toy.b.x ? -S() * 0.35 : S() * 0.35) };
+  return true;
+}
+// Ein anderes Tier besuchen: raufen oder kuscheln, je nach Art und Laune
+function meet(p, t, kind) {
+  const b = p.b;
+  const o = [...pets.values()].find((c) => c !== p && awake(c) && !c.goal && !c.dance && !c.doze && t > c.busyUntil && sameSurface(c.b.on, b.on) && Math.abs(c.b.x - b.x) < S() * 5);
+  if (!o) return false;
+  kind ||= social(p.v.species, o.v.species);
+  if (!kind) return false;
+  const side = b.x < o.b.x ? -1 : 1;
+  p.goal = { why: 'meet', kind, with: o.id, s: b.on, x: o.b.x + side * S() * (kind === 'romp' ? 0.4 : 0.5) };
+  o.until = t + 6000; o.goal = null;
+  o.facing = -side;
+  return true;
 }
 
 function arrive(p, t) {
@@ -359,12 +560,18 @@ function arrive(p, t) {
   p.walking = false;
   if (!g) return;
   if (g.why === 'corner') { p.until = t + 6000; emote(p, '💤', 2000); return; }
+  if (g.why === 'doze') {
+    p.doze = true; p.facing = p.b.x < geo.W / 2 ? 1 : -1;
+    p.until = t + (g.ms || 8000);
+    if (Math.random() < 0.4) emote(p, '💤', 2000);
+    return;
+  }
   if (g.why === 'bed') { const bed = things.get(p.bed); p.perch = bed && bed.f.seat ? bed.f.h - bed.f.seat - 2 : 0; p.until = t + 8000; return; }
   if (g.why === 'bowl') {
     const t2 = things.get(g.kind === 'food' ? 'furn_bowl_food' : 'furn_bowl_water');
     if (t2) p.facing = boxOf(t2).left + boxOf(t2).w / 2 > p.b.x ? 1 : -1;
     const r = hook('eat', p.id, g.kind);
-    if (r) { flash(p, 'eating', 1900); p.busyUntil = t + 1900; floaters(p, r.delta); }
+    if (r) { flash(p, 'eating', 1900); posing(p, 'eat', 1900); p.busyUntil = t + 1900; floaters(p, r.delta); }
     p.until = t + 2500;
     return;
   }
@@ -379,13 +586,65 @@ function arrive(p, t) {
   if (g.why === 'icon') {
     g.icon.classList.add('pp-sniff'); setTimeout(() => g.icon.classList.remove('pp-sniff'), 1300);
     p.facing = g.icon.getBoundingClientRect().left + 20 > p.b.x ? 1 : -1;
+    posing(p, 'eat', 1200);
     emote(p, '✨', 1200); p.busyUntil = t + 1300; p.until = t + 2500;
     return;
   }
+  if (g.why === 'watch') { posing(p, 'crouch', 15000); p.until = t + rand(10e3, 20e3); return; }
+  if (g.why === 'kick') {
+    const toy = things.get(g.toy);
+    if (toy && toy.b.mode === 'stand') {
+      p.facing = toy.b.x > p.b.x ? 1 : -1;
+      posing(p, 'bow', 500);
+      toy.b.mode = 'air'; toy.b.on = null; toy.b.vx = p.facing * rand(150, 260) * (U / 2); toy.b.vy = -rand(160, 260); toy.fresh = true; toy.resting = 0;
+    }
+    p.until = t + 1200;
+    return;
+  }
+  if (g.why === 'meet') {
+    const o = pets.get(g.with);
+    if (!o || !awake(o) || !sameSurface(o.b.on, p.b.on) || Math.abs(o.b.x - p.b.x) > S()) { p.until = t + 1500; return; }
+    if (g.kind === 'romp') romp(p, o, t); else snuggle(p, o, t);
+    return;
+  }
+  if (g.why === 'mess') { doMess(p, g.plan, t); return; }
   if (g.why === 'prank') { doPrank(p, g.prank); return; }
   if (g.why === 'ladder') { climbIn(p, g.side); return; }
   if (g.why === 'door') { goInside(p, g.side); return; }
   p.until = t + rand(1500, 4000);
+}
+
+// Raufen: beide verschwinden in einer Staubwolke, dann purzeln sie heraus
+function romp(a, c, t) {
+  const ms = reduced() ? 1200 : 2600;
+  const el = make('div', 'pp-cloud', messSvg('fight0') + messSvg('fight1'));
+  layer.append(el);
+  const x = (a.b.x + c.b.x) / 2, y = a.b.y;
+  romps.push({ el, a, c, x, y, until: t + ms });
+  for (const p of [a, c]) { p.hidden = true; p.el.classList.add('pp-hide'); p.goal = null; p.busyUntil = t + ms; p.until = t + ms + 1200; }
+  sound('stimme:' + a.v.species);
+  setTimeout(() => {
+    el.remove();
+    romps.splice(romps.findIndex((r) => r.el === el), 1);
+    for (const [p, dir] of [[a, -1], [c, 1]]) {
+      if (!pets.has(p.id)) continue;
+      p.hidden = false; p.el.classList.remove('pp-hide');
+      p.b.x = clamp(x + dir * S() * 0.5, S() / 2, geo.W - S() / 2); p.b.adx += 0;
+      p.facing = -dir;
+      hopUp(p, 0.35);
+      emote(p, pick(['✨', '😄', '❗']), 1200);
+      reward(p, hook('act', p.id, 'romp'));
+    }
+    firstTime('romp');
+  }, ms);
+}
+// Kuscheln: nebeneinander, anlehnen, Herzchen
+function snuggle(a, c, t) {
+  const ms = 4500;
+  a.facing = c.b.x > a.b.x ? 1 : -1; c.facing = -a.facing;
+  for (const p of [a, c]) { posing(p, 'lean', ms, 'happy'); p.goal = null; p.busyUntil = t + ms; p.until = t + ms + 800; p.snug = t + ms; emote(p, '❤️', 1800); }
+  firstTime('snuggle');
+  setTimeout(() => { for (const p of [a, c]) if (pets.has(p.id)) { reward(p, hook('act', p.id, 'snuggle')); emote(p, '❤️', 1200); } }, ms);
 }
 
 function freeBed(p) {
@@ -409,6 +668,36 @@ function sniffIcon(p) {
 }
 const coveredAt = (x, y) => wins.some((w) => x >= w.left && x <= w.right && y >= w.top && y <= w.bottom);
 
+// ---------- Geschäfte und Spuren ----------
+// plan { kind, to }: to = Möbel, zu dem das Tier dafür geht (Streukiste, Kratzbaum, Kauholz), sonst hier und jetzt
+function mess(id, plan) {
+  const p = pets.get(id);
+  if (!p || !awake(p) || p.dance || p.b.mode !== 'stand' || (p.goal && p.goal.why !== 'wander')) return false;
+  const to = plan.to && things.get(plan.to);
+  if (to) { const bx = boxOf(to); p.goal = { why: 'mess', plan, s: floorSurf(), x: bx.left + bx.w / 2 }; }
+  else p.goal = { why: 'mess', plan: { ...plan, to: null }, s: p.b.on, x: p.b.x + rand(-S(), S()) };
+  p.doze = false;
+  wake();
+  return true;
+}
+function doMess(p, plan, t) {
+  const ms = messMs(plan.kind);
+  posing(p, messPose(plan.kind, p.v.species), ms);
+  if (plan.kind === 'scratch' || plan.kind === 'dig' || plan.to === 'furn_tree') flash(p, 'running', ms);
+  p.busyUntil = t + ms; p.until = t + ms + 1500;
+  setTimeout(() => {
+    if (!pets.has(p.id)) return;
+    if (plan.to) { hook('messed', p.id, plan.kind, null, plan.to); emote(p, '✨', 1000); return; }
+    const s = p.b.on;
+    let place = { on: 'floor', x: +(p.b.x / geo.W).toFixed(3) };
+    if (s && s.kind === 'win') { const w = wins.find((o) => o.id === s.id); if (w) place = { on: 'win', win: w.w.url, dx: Math.round(p.b.x - w.left) }; }
+    else if (s && s.kind === 'item') { const th = things.get(s.id.split(':')[1]); if (th) place = { on: 'item', item: th.id, dx: Math.round(p.b.x - boxOf(th).left) }; }
+    hook('messed', p.id, plan.kind, place, null);
+    // Danach ein Stück weiter, damit man den Fleck sieht
+    if (s) p.goal = { why: 'wander', s, x: clamp(p.b.x + (Math.random() < 0.5 ? -1 : 1) * S() * 0.9, s.x1, s.x2) };
+  }, ms);
+}
+
 // ---------- Tor, Strickleiter, Taskleiste ----------
 // Die Leiter hängt außen am Fensterrand, an der Schwelle des Tores, und reicht nur bis zur nächsten Fläche darunter
 let ladderPos = { l: null, r: null };
@@ -417,7 +706,7 @@ function placeLadders() {
   const gw = gameWin();
   const g = gw && !gw.min ? hook('gates') : null;
   if (g) {
-    U = clamp(Math.round(g.u || U), 1, 4);
+    setRoomU(g.u);
     const fr = gw.iframe.getBoundingClientRect(), wr = gw.el.getBoundingClientRect();
     const lw = 15 * U;
     for (const side of ['l', 'r']) {
@@ -436,7 +725,8 @@ function placeLadders() {
     const lw = 15 * U;
     el.style.width = lw + 'px'; el.style.height = px(lp.bottom - lp.top);
     el.style.backgroundSize = `${lw}px ${8 * U}px`;
-    el.style.transform = `translate(${px(lp.x - lw / 2)}, ${px(lp.top)})`;
+    el.style.transform = `translate(${px(lp.x - lw / 2 - geo.left)}, ${px(lp.top - geo.top)})`;
+    el.style.zIndex = gw.z;
   }
 }
 const ladderUrl = () => `url("data:image/svg+xml,${encodeURIComponent(furnSvg('ladder', ''))}")`;
@@ -496,21 +786,23 @@ const PRANK_TARGETS = {
   },
 };
 function planPrank(t) {
-  if (!game || furnishing || maxed || !prankDue({ now: Date.now(), last: lastPrank, active: activeAt, reduced: reduced() })) return;
+  if (!game || furnishing || maxed) return;
+  if (!prankDue({ now: Date.now(), last: lastPrank, active: activeAt, reduced: reduced(), rate: opts.rate, quiet: quietHour() || opts.quietDay === today() })) return;
   const ids = Object.keys(PRANK_TARGETS).filter((k) => opts.pranks[k] && PRANK_TARGETS[k]());
-  const p = [...pets.values()].find((o) => !o.v.sleeping && !o.home && o.b.mode === 'stand' && (!o.goal || o.goal.why === 'wander'));
+  const p = [...pets.values()].find((o) => awake(o) && !o.dance && (!o.goal || o.goal.why === 'wander'));
   if (!ids.length || !p) return;
   const id = pick(ids), el = PRANK_TARGETS[id]();
   const r = el.getBoundingClientRect();
   lastPrank = Date.now();
   local.set(PRANK_KEY, String(lastPrank));
+  p.doze = false;
   p.goal = { why: 'prank', prank: { id, el }, s: floorSurf(), x: r.left + r.width / 2 };
   p.until = t + 30000;
 }
 function doPrank(p, { id, el }) {
   const t = performance.now();
   if (Date.now() - activeAt < 3000 || !el.isConnected) return;   // wer gerade etwas tut, wird nicht gestört
-  flash(p, 'pounce', 500); p.busyUntil = t + 900; p.until = t + 2500;
+  flash(p, 'pounce', 500); posing(p, 'stretch', 600); p.busyUntil = t + 900; p.until = t + 2500;
   el.classList.add('pp-wiggle'); setTimeout(() => el.classList.remove('pp-wiggle'), 900);
   const name = esc(p.v.name);
   if (id === 'bell') {
@@ -539,38 +831,188 @@ function doPrank(p, { id, el }) {
     say(p, `${name} zieht an einem Fenster.`, 3500);
     hook('prank', p.id, `${p.v.name} hat draußen an einem Fensterknopf gezogen.`);
   }
+  firstTime('prank');
   sound('stimme:' + p.v.species);
+}
+
+// ---------- Musik: tanzen, wenn im Mediaplayer etwas läuft ----------
+// Der erste Tanz kommt 20 bis 90 Sekunden nach dem Start der Musik, danach alle 10 bis 20 Minuten einer (20 bis 40 s).
+// Der Takt kommt aus dem Bass (Analyser im Mediaplayer), bei YouTube gilt ein fester Takt von 100 Schlägen pro Minute.
+const groove = { on: 0, next: 0, beatAt: 0, avg: 0, m: null, checkAt: 0 };
+function music() {
+  for (const w of R && R.windows ? R.windows() : []) {
+    try { const m = w.win && w.win.RetroMusic; if (m && !w.closing && m.playing()) return m; } catch { /* fremde Seite */ }
+  }
+  return null;
+}
+function stepMusic(t) {
+  if (t > groove.checkAt) { groove.checkAt = t + 1000; groove.m = game && !reduced() ? music() : null; }
+  const m = groove.m;
+  const dancers = [...pets.values()].filter((p) => p.dance);
+  if (!m) {
+    if (groove.on) { groove.on = 0; for (const p of dancers) endDance(p, true); }
+    return;
+  }
+  if (!groove.on) { groove.on = t; groove.next = t + rand(20e3, 90e3); }
+  if (!dancers.length) { if (t > groove.next && !calm()) startDance(t); return; }
+  let lvl = null;
+  try { lvl = m.level(); } catch { /* weg */ }
+  let hit;
+  if (lvl === null || lvl === undefined) hit = t - groove.beatAt > 600;
+  else {
+    groove.avg = groove.avg * 0.94 + lvl * 0.06;
+    hit = (lvl > groove.avg * 1.15 && lvl > 0.18 && t - groove.beatAt > 320) || t - groove.beatAt > 900;
+  }
+  if (hit) { groove.beatAt = t; for (const p of dancers) danceStep(p, t); }
+  let left = 0;
+  for (const p of dancers) { if (t > p.dance.until || !awake(p)) endDance(p, false); else left++; }
+  if (!left) groove.next = t + rand(10, 20) * 60e3;
+}
+function startDance(t) {
+  const list = [...pets.values()].filter((p) => awake(p) && !p.goal && t > p.busyUntil);
+  if (!list.length) { groove.next = t + 30e3; return; }
+  const lead = pick(list);
+  for (const p of list) {
+    if (p !== lead && Math.random() >= 0.4) continue;
+    p.dance = { until: t + rand(20e3, 40e3), n: 0 };
+    p.doze = false; p.goal = null; p.walking = false;
+    emote(p, '♪', 1400);
+  }
+  firstTime('dance');
+}
+function danceStep(p, t) {
+  const n = ++p.dance.n;
+  p.pose = DANCE[n % DANCE.length]; p.poseUntil = t + 900;
+  if (n % 4 === 0) p.facing = -p.facing;
+  if (n % 2) p.hop = t;
+  if (n % 8 === 0) emote(p, '♪', 1200);
+}
+function endDance(p, stopped) {
+  p.dance = null;
+  // Musik aus: eine kleine Verbeugung
+  if (stopped) { posing(p, 'bow', 1300); p.busyUntil = performance.now() + 1300; } else emote(p, '✨', 1200);
+  reward(p, hook('act', p.id, 'dance'));
+}
+
+// ---------- Dabei sein: Töne und Nachrichten ----------
+// tusch (gewonnen) → jubeln, hinweis (Achtung) und Messenger → aufhorchen
+let cheerAt = 0;
+function heard(name) {
+  const t = performance.now();
+  if (!pets.size || t - cheerAt < 3000 || reduced()) return;
+  if (name === 'tusch') {
+    cheerAt = t;
+    for (const p of pets.values()) if (awake(p) && !p.dance) { hopUp(p, 0.45); posing(p, 'stretch', 700); emote(p, '😄', 1300); }
+  } else if (name === 'hinweis' || String(name).startsWith('msgr-')) perk(t);
+}
+function perk(t, x = null) {
+  cheerAt = t;
+  const aw = wins.find((w) => w.w.active);
+  const tx = x ?? (aw ? (aw.left + aw.right) / 2 : geo.W / 2);
+  for (const p of pets.values()) if (awake(p) && !p.dance) { p.facing = tx > p.b.x ? 1 : -1; posing(p, 'stretch', 900); emote(p, '❗', 900); p.doze = false; }
+  wake();
+}
+function wrapSound(w, mine) {
+  try {
+    const S0 = w.RetroSound;
+    if (!S0 || S0.ppWrapped || mine) return;
+    const play = S0.play;
+    S0.play = function (name, ...a) { try { heard(name); } catch { /* egal */ } return play.call(this, name, ...a); };
+    S0.ppWrapped = true;
+  } catch { /* fremde Seite */ }
+}
+wrapSound(window, false);
+new MutationObserver((list) => {
+  for (const m of list) for (const n of m.addedNodes) {
+    if (n.nodeType === 1 && n.classList.contains('msgr-toast')) { const r = n.getBoundingClientRect(); perk(performance.now(), r.left + r.width / 2); }
+  }
+}).observe(doc.body, { childList: true });
+
+// ---------- Erstes Mal, Fotos, Tipps ----------
+function firstTime(kind) { if (game) setTimeout(() => hook('first', kind, shot()), 400); }
+// Schnappschuss: Wo die Tiere und Möbel gerade sind, in Bildpunkten (unabhängig von der Größe draußen)
+function shot() {
+  const list = [...pets.values()].filter((p) => !p.hidden && p.b.mode !== 'gone');
+  if (!list.length) return null;
+  const s = S();
+  let x0 = Math.min(...list.map((p) => p.b.x)) - s, x1 = Math.max(...list.map((p) => p.b.x)) + s;
+  if (x1 - x0 < s * 4) { const c = (x0 + x1) / 2; x0 = c - s * 2; x1 = c + s * 2; }
+  const y1 = Math.max(...list.map((p) => p.b.y)) + 4 * U, y0 = Math.min(...list.map((p) => p.b.y)) - s * 1.4;
+  const k = (v) => Math.round(v / U);
+  const ground = list.some((p) => p.b.on && p.b.on.kind === 'floor') ? k(geo.floor - y0) : null;
+  return {
+    w: k(x1 - x0), h: k(y1 - y0), floor: ground,
+    pets: list.map((p) => ({
+      name: p.v.name, species: p.v.species, color: p.v.color, acc: p.v.acc || {}, face: p.face || p.v.face || 'ok',
+      pose: poseOf(p, performance.now()), facing: p.facing, x: k(p.b.x - x0), y: k(p.b.y - y0),
+    })),
+    things: [...things.values()].filter((t) => !t.toy).map((t) => ({ id: t.f.bowl ? bowlSprite(t.f.bowl, bowls[t.f.bowl]) : t.id, b: boxOf(t) }))
+      .filter(({ b }) => b.left + b.w > x0 && b.left < x1 && b.top < y1 && b.top + b.h > y0)
+      .map(({ id, b }) => ({ id, x: k(b.left - x0), y: k(b.top - y0) })),
+    marks: [...marks.values()].map((m) => ({ kind: m.m.kind, at: markSpot(m) })).filter((m) => m.at && m.at.x > x0 && m.at.x < x1 && m.at.y > y0 && m.at.y <= y1)
+      .map((m) => ({ kind: m.kind, x: k(m.at.x - x0), y: k(m.at.y - y0) })),
+  };
+}
+function snapshot() {
+  const s = shot();
+  if (!s) return;
+  const f = make('div', 'pp-flash');
+  layer.append(f);
+  setTimeout(() => f.remove(), 500);
+  sound('klick');
+  const r = hook('photo', s);
+  const p = [...pets.values()][0];
+  if (r && p) say(p, esc(r.text || 'Klick! Das Foto ist im Album.'), 3000);
+}
+let tipsRunning = false;
+function tips() {
+  if (tipsRunning || !hook('tipsWanted')) return;
+  tipsRunning = true;
+  TIPS.forEach((text, i) => setTimeout(() => {
+    const p = [...pets.values()].find((o) => !o.hidden);
+    if (p) say(p, esc(text), 6500);
+    if (i === TIPS.length - 1) { hook('tipsDone'); tipsRunning = false; }
+  }, 2500 + i * 7000));
 }
 
 // ---------- Takt ----------
 function tick(ts) {
-  raf = 0;
+  raf = 0; slow = 0;
   const dt = Math.min(0.05, last ? (ts - last) / 1000 : 0.016);
   last = ts;
   const t = performance.now();
   measure();
   placeLadders();
+  stepMusic(t);
   for (const p of pets.values()) stepPet(p, dt, t);
   for (const th of things.values()) if (th.toy) stepToy(th, dt, t);
-  separate();
+  separate(t);
   draw(t);
   planPrank(t);
   if (game && Date.now() - whereAt > 15000) report();
-  if (pets.size || [...things.values()].some((th) => th.toy && th.b.mode !== 'stand') || furnishing) raf = requestAnimationFrame(tick);
-  else { last = 0; placeThings(); }
+  const moving = [...things.values()].some((th) => th.toy && th.b.mode !== 'stand') || furnishing;
+  if (pets.size || moving) {
+    // Stromsparen: Schlafen alle (oder tut seit 5 Minuten niemand etwas und keiner tanzt), reichen 8 Bilder pro Sekunde
+    const still = [...pets.values()].every((p) => p.v.sleeping || (p.doze && !p.walking)) || (Date.now() - activeAt > 300e3 && !groove.on);
+    if (still && !moving && !romps.length) slow = setTimeout(() => tick(performance.now()), 125);
+    else raf = requestAnimationFrame(tick);
+  } else if (marks.size && game) {
+    // Nur Flecken: Sie wandern mit den Fenstern
+    slow = setTimeout(() => tick(performance.now()), 250);
+  } else { last = 0; placeThings(); placeMarks(t); }
 }
-function wake() { if (!raf && !doc.hidden) raf = requestAnimationFrame(tick); }
+function wake() { if (!raf && !doc.hidden) { clearTimeout(slow); slow = 0; raf = requestAnimationFrame(tick); } }
 
 function stepPet(p, dt, t) {
   const b = p.b;
-  if (b.mode === 'held' || b.mode === 'gone') return;
+  if (b.mode === 'held' || b.mode === 'gone' || p.hidden) return;
   if (b.mode === 'ladder') {
     const lp = ladderPos[p.ladder.side];
     if (!lp) { b.mode = 'air'; p.ladder = null; return; }
     b.x = lp.x;
     b.y += p.ladder.dir * 80 * (U / 2) * dt;
     p.walking = true;
-    if (p.ladder.dir > 0 && b.y >= lp.bottom) { b.y = lp.bottom; p.ladder = null; if (lp.s) land(b, lp.s); else b.mode = 'air'; p.walking = false; p.until = t + 800; }
+    if (p.ladder.dir > 0 && b.y >= lp.bottom) { b.y = lp.bottom; p.ladder = null; if (lp.s) land(b, lp.s); else b.mode = 'air'; p.walking = false; p.until = t + 800; morning(p); }
     else if (p.ladder.dir < 0 && b.y <= lp.top) { b.y = lp.top; backHome(p, lp.side); }
     return;
   }
@@ -582,7 +1024,7 @@ function stepPet(p, dt, t) {
       const r = hook('act', p.id, 'throw', { hard });
       if (r && r.text) say(p, esc(r.text), 2500);
       emote(p, hard ? '❗' : '😄');
-      if (r && r.face) { p.face = r.face; p.key = ''; setTimeout(() => { p.face = null; p.key = ''; }, 2500); }
+      if (r && r.face) { p.face = r.face; setTimeout(() => { p.face = null; }, 2500); }
       flash(p, 'squish', 500);
       p.until = t + 1500;
     }
@@ -590,6 +1032,7 @@ function stepPet(p, dt, t) {
   }
   settle(b);
   if (b.mode !== 'stand') return;
+  if (p.dance) { p.walking = false; return; }
   if (t < p.busyUntil) { p.walking = false; return; }
   if (p.v.sleeping && !p.home) {
     // Schläft: aufs Bett, wenn eins frei ist, sonst hier
@@ -600,21 +1043,32 @@ function stepPet(p, dt, t) {
     return;
   }
   if (p.bed) { p.bed = null; p.perch = 0; }
+  // Dösen hört auf, sobald wieder Ruhe im Kopf ist (oder die Zeit um ist)
+  if (p.doze && t > p.until && !calm()) p.doze = false;
   // Spielzeug, das fliegt oder rollt, wird gejagt
   const toy = [...things.values()].find((th) => th.toy && th.fresh);
-  if (toy && !p.home && !(p.goal && ['prank', 'bowl'].includes(p.goal.why))) {
+  if (toy && !p.home && !p.doze && !(p.goal && ['prank', 'bowl', 'mess'].includes(p.goal.why))) {
     if (chaseToy(p, toy, dt, t)) return;
   }
-  // Mauszeiger jagen
-  if (opts.mouse && !p.home && !reduced() && (!p.goal || p.goal.why === 'wander' || p.goal.why === 'mouse')) {
-    const near = Math.abs(pointer.x - b.x) < 320 && Math.abs(pointer.y - b.y) < 220 && Date.now() - pointer.t < 1200;
-    if (near && t > p.nextChase && (!p.goal || p.goal.why !== 'mouse')) { p.goal = { why: 'mouse', s: b.on, x: pointer.x }; p.chaseUntil = t + 5000; emote(p, '❗', 700); }
-    if (p.goal && p.goal.why === 'mouse') {
-      p.goal.x = clamp(pointer.x, b.on.x1, b.on.x2);
-      if (Math.hypot(pointer.x - b.x, pointer.y - (b.y - S() / 2)) < S() * 0.6) { hopUp(p, 0.6); flash(p, 'pounce', 400); p.goal = null; p.nextChase = t + 15000; p.until = t + 1200; return; }
-      if (t > p.chaseUntil) { p.goal = null; p.nextChase = t + 15000; }
-      else { walkTo(p, p.goal.x, speedOf(p, true), dt); return; }
+  // Mauszeiger: über freiem Desktop jagen, über Fenstern Platz machen
+  const fresh = Date.now() - pointer.t < 1200;
+  if (fresh && !p.home && !reduced() && !(p.goal && ['prank', 'mess', 'meet'].includes(p.goal.why))) {
+    const over = coveredAt(pointer.x, pointer.y);
+    if (over && b.on && b.on.kind !== 'floor' && t > p.dodgeAt && Math.abs(pointer.x - b.x) < S() * 0.8 && pointer.y > b.y - S() * 1.1 && pointer.y < b.y + S() * 0.6) {
+      const dir = pointer.x < b.x ? 1 : -1;
+      const x = clamp(b.x + dir * S() * 1.4, b.on.x1, b.on.x2);
+      if (Math.abs(x - b.x) > S() * 0.4) { p.goal = { why: 'wander', s: b.on, x }; p.dodgeAt = t + 1500; p.doze = false; }
     }
+    if (opts.mouse && !over && !calm() && !p.doze && (!p.goal || p.goal.why === 'wander' || p.goal.why === 'mouse')) {
+      const near = Math.abs(pointer.x - b.x) < 320 && Math.abs(pointer.y - b.y) < 220;
+      if (near && t > p.nextChase && (!p.goal || p.goal.why !== 'mouse')) { p.goal = { why: 'mouse', s: b.on, x: pointer.x }; p.chaseUntil = t + 5000; emote(p, '❗', 700); }
+    }
+  }
+  if (p.goal && p.goal.why === 'mouse') {
+    p.goal.x = clamp(pointer.x, b.on.x1, b.on.x2);
+    if (Math.hypot(pointer.x - b.x, pointer.y - (b.y - S() / 2)) < S() * 0.6) { hopUp(p, 0.6); flash(p, 'pounce', 400); p.goal = null; p.nextChase = t + 15000; p.until = t + 1200; return; }
+    if (t > p.chaseUntil || coveredAt(pointer.x, pointer.y) || calm()) { p.goal = null; p.nextChase = t + 15000; }
+    else { walkTo(p, p.goal.x, speedOf(p, true), dt); return; }
   }
   if (!p.goal && t > p.until) decide(p, t);
   if (p.goal) {
@@ -624,6 +1078,13 @@ function stepPet(p, dt, t) {
   } else p.walking = false;
 }
 function hopUp(p, k = 1) { if (p.b.mode === 'stand') { p.b.mode = 'air'; p.b.on = null; p.b.vy = -520 * k * (U / 2); } }
+// Am Morgen: Wer zum ersten Mal am Tag herauskommt, streckt sich und gähnt
+function morning(p) {
+  const h = new Date().getHours();
+  if (h < 6 || h >= 11 || local.get(MORNING_KEY) === today()) return;
+  local.set(MORNING_KEY, today());
+  setTimeout(() => { if (pets.has(p.id)) { posing(p, 'stretch', 1400, 'sleep'); emote(p, '💤', 1300); p.busyUntil = performance.now() + 1500; } }, 500);
+}
 
 function chaseToy(p, toy, dt, t) {
   const tb = toy.b, b = p.b;
@@ -670,10 +1131,10 @@ function stepToy(th, dt, t) {
   }
 }
 
-// Tiere auf derselben Fläche halten etwas Abstand (Schlafende bleiben liegen)
-function separate() {
+// Tiere auf derselben Fläche halten etwas Abstand (Schlafende bleiben liegen, Kuschelnde auch)
+function separate(t) {
   // Wer läuft, darf vorbei; nur wer steht oder liegt, rückt zur Seite
-  const list = [...pets.values()].filter((p) => p.b.mode === 'stand' && !p.walking);
+  const list = [...pets.values()].filter((p) => p.b.mode === 'stand' && !p.walking && !p.hidden && !(p.snug > t));
   for (let i = 0; i < list.length; i++) {
     for (let j = i + 1; j < list.length; j++) {
       const a = list[i], c = list[j];
@@ -688,23 +1149,40 @@ function separate() {
   }
 }
 
+// Wohin die Augen schauen: zum Mauszeiger, solange er sich in der Nähe bewegt (im Bild gespiegelt, wenn das Tier nach links schaut)
+function gaze(p) {
+  if (p.v.sleeping || p.doze || Date.now() - pointer.t > 4000) return '';
+  const dx = pointer.x - p.b.x;
+  if (Math.abs(dx) < S() * 0.4 || Math.abs(dx) > 500 || Math.abs(pointer.y - p.b.y) > 400) return '';
+  return dx * p.facing > 0 ? 'r' : 'l';
+}
+
 function draw(t) {
   const s = S();
   for (const p of pets.values()) {
-    drawPet(p);
+    drawPet(p, t);
     const lift = p.perch && !p.walking && p.v.sleeping ? p.perch * U : 0;
-    const step = p.walking ? (Math.floor(t / 120) % 2) * U : 0;
+    const hop = p.dance && t - p.hop < 140 ? 2 * U : 0;
     p.el.style.width = p.el.style.height = s + 'px';
-    p.el.style.transform = `translate(${px(p.b.x - s / 2)}, ${px(p.b.y - s - lift)})`;
-    p.body.style.transform = `translateY(${-step}px)`;
+    p.el.style.transform = `translate(${px(p.b.x - s / 2)}, ${px(p.b.y - s - lift - hop)})`;
     p.flip.style.transform = `scaleX(${p.facing})`;
     p.el.classList.toggle('walking', p.walking);
     p.el.classList.toggle('held', p.b.mode === 'held');
     p.el.classList.toggle('climb', p.b.mode === 'ladder');
+    const look = gaze(p);
+    p.el.classList.toggle('look-l', look === 'l');
+    p.el.classList.toggle('look-r', look === 'r');
     if (p.emoteUntil && t > p.emoteUntil) { p.emote.classList.remove('show'); p.emoteUntil = 0; }
+    if (p.thinkUntil && t > p.thinkUntil) { p.think.classList.remove('show'); p.thinkUntil = 0; }
+  }
+  for (const r of romps) {
+    const w = 64 * U, h = 46 * U, j = (Math.floor(t / 90) % 3 - 1) * U;
+    r.el.style.width = w + 'px'; r.el.style.height = h + 'px';
+    r.el.style.transform = `translate(${px(r.x - w / 2 + j)}, ${px(r.y - h + U)})`;
   }
   for (const th of things.values()) drawThing(th);
   placeThings();
+  placeMarks(t);
   placeSay();
 }
 
@@ -723,7 +1201,7 @@ layer.addEventListener('pointerdown', (e) => {
   if (!petEl && !toyEl) return;
   e.preventDefault();
   const obj = petEl ? pets.get(petEl.dataset.pet) : things.get(toyEl.dataset.thing);
-  if (!obj) return;
+  if (!obj || obj.hidden) return;
   const b = obj.b;
   const grab = { obj, pet: !!petEl, dx: b.x - e.clientX, dy: b.y - e.clientY, samples: [{ x: e.clientX, y: e.clientY, t: e.timeStamp }], moved: 0, x0: e.clientX, y0: e.clientY };
   const el = petEl || toyEl;
@@ -734,7 +1212,7 @@ layer.addEventListener('pointerdown', (e) => {
       // Hochgehoben
       if (grab.pet && obj.ladder) obj.ladder = null;
       b.mode = 'held'; b.on = null;
-      if (grab.pet) { obj.goal = null; emote(obj, '❗', 900); }
+      if (grab.pet) { obj.goal = null; obj.dance = null; obj.doze = false; emote(obj, '❗', 900); }
     }
     if (b.mode === 'held') {
       b.x = clamp(ev.clientX + grab.dx, 0, geo.W); b.y = clamp(ev.clientY + grab.dy, 0, geo.floor);
@@ -756,17 +1234,23 @@ layer.addEventListener('pointerdown', (e) => {
       return;
     }
     if (ev.type !== 'pointerup') return;
-    // Angetippt: streicheln (Tier) oder anstupsen (Spielzeug)
-    if (grab.pet) {
-      const r = hook('act', obj.id, 'pet');
-      if (r && r.ok) { emote(obj, '❤️', 1200); floaters(obj, r.delta, r.coins); hopUp(obj, 0.35); }
-      else if (r && r.text) say(obj, esc(r.text), 2500);
-    } else if (b.mode === 'stand') { b.mode = 'air'; b.on = null; b.vy = -420; b.vx = rand(-160, 160); obj.fresh = true; obj.resting = 0; wake(); }
+    // Angetippt: streicheln (Tier, lehnt sich in die Hand) oder anstupsen (Spielzeug)
+    if (grab.pet) petIt(obj);
+    else if (b.mode === 'stand') { b.mode = 'air'; b.on = null; b.vy = -420; b.vx = rand(-160, 160); obj.fresh = true; obj.resting = 0; wake(); }
   };
   el.addEventListener('pointermove', move);
   el.addEventListener('pointerup', up);
   el.addEventListener('pointercancel', up);
 });
+function petIt(p) {
+  const r = hook('act', p.id, 'pet');
+  if (r && r.ok) {
+    emote(p, '❤️', 1200); floaters(p, r.delta, r.coins);
+    if (p.v.sleeping) return;
+    p.doze = false;
+    posing(p, 'lean', 1200, 'happy'); p.busyUntil = performance.now() + 1200;
+  } else if (r && r.text) say(p, esc(r.text), 2500);
+}
 layer.addEventListener('contextmenu', (e) => {
   const petEl = e.target.closest('.pp-pet');
   if (!petEl || !window.WinUI) return;
@@ -776,15 +1260,17 @@ layer.addEventListener('contextmenu', (e) => {
   window.WinUI.contextMenu(e.clientX, e.clientY, [
     { label: `Streicheln`, icon: '❤️', act: 'pet' },
     { label: 'Heimrufen', icon: '🏠', act: 'home' },
+    { label: 'Schnappschuss', icon: '📷', act: 'photo' },
     '-', { label: 'Pixelpfoten öffnen', icon: '🐾', act: 'open' },
   ], (act) => {
-    if (act === 'pet') { const r = hook('act', p.id, 'pet'); if (r && r.ok) { emote(p, '❤️'); floaters(p, r.delta, r.coins); } }
+    if (act === 'pet') petIt(p);
     if (act === 'home') call(p.id);
+    if (act === 'photo') snapshot();
     if (act === 'open') openGame();
   });
 });
 
-// Möbel: antippen (Napf füllen) oder beim Einrichten ziehen
+// Möbel: antippen (Napf füllen, Streukiste leeren) oder beim Einrichten ziehen
 furnLayer.addEventListener('pointerdown', (e) => {
   const el = e.target.closest('.pp-thing');
   if (!el || e.button > 0) return;
@@ -820,22 +1306,31 @@ furnLayer.addEventListener('pointerdown', (e) => {
     el.addEventListener('pointercancel', up);
     return;
   }
+  const p = [...pets.values()][0];
   if (th.f.bowl) {
     const r = hook('fill', th.f.bowl);
-    const p = [...pets.values()][0];
     if (r && p) say(p, esc(r.ok ? r.text : r.reason), 3000);
     return;
   }
+  if (th.f.litter) {
+    const r = hook('litter');
+    if (r && r.ok) { const bx = boxOf(th); sparkle(bx.left + bx.w / 2, bx.top + bx.h / 2); }
+    if (r && p) say(p, esc(r.text || r.reason || ''), 3000);
+    return;
+  }
   // Deko: das nächste Tier schaut hin
-  const p = [...pets.values()].filter((o) => !o.v.sleeping).sort((a, c) => Math.abs(a.b.x - th.x * geo.W) - Math.abs(c.b.x - th.x * geo.W))[0];
-  if (p) { p.facing = th.x * geo.W > p.b.x ? 1 : -1; emote(p, '✨', 900); }
+  const near = [...pets.values()].filter((o) => !o.v.sleeping).sort((a, c) => Math.abs(a.b.x - th.x * geo.W) - Math.abs(c.b.x - th.x * geo.W))[0];
+  if (near) { near.facing = th.x * geo.W > near.b.x ? 1 : -1; emote(near, '✨', 900); }
 });
 
-// Was Nutzer tun (auch in den Fenstern): Streiche nur, wenn eine Weile niemand etwas macht; Mauszeiger zum Jagen
+// Was Nutzer tun (auch in den Fenstern): Streiche nur, wenn eine Weile niemand etwas macht; Mauszeiger zum Jagen;
+// viele Klicks und Tasten heißen: Hier wird gearbeitet
 const seenWins = new WeakSet();
 function busy(e, off) {
   activeAt = Date.now();
+  if (e.type === 'pointerdown' || e.type === 'keydown') presses.push(activeAt);
   if (e.type === 'pointermove' && e.pointerType === 'mouse') pointer = { x: e.clientX + (off ? off.left : 0), y: e.clientY + (off ? off.top : 0), t: Date.now() };
+  if (slow && pets.size) wake();
 }
 for (const ev of ['pointermove', 'pointerdown', 'keydown', 'wheel']) doc.addEventListener(ev, (e) => busy(e, null), { capture: true, passive: true });
 setInterval(() => {
@@ -844,6 +1339,7 @@ setInterval(() => {
       const cw = w.win;
       if (!cw || seenWins.has(cw.document)) continue;
       seenWins.add(cw.document);
+      wrapSound(cw, !!game && cw === game.win);
       for (const ev of ['pointermove', 'pointerdown', 'keydown', 'wheel']) cw.document.addEventListener(ev, (e) => busy(e, w.iframe.getBoundingClientRect()), { capture: true, passive: true });
     } catch { /* fremde Seite */ }
   }
@@ -866,7 +1362,8 @@ function trayUpdate() {
   }
   if (!trayBtn) return;
   trayBtn.querySelector('.pp-count').textContent = pets.size;
-  trayBtn.title = `Pixelpfoten: ${[...pets.values()].map((p) => p.v.name).join(', ')} draußen`;
+  trayBtn.classList.toggle('quiet', quietHour());
+  trayBtn.title = `Pixelpfoten: ${[...pets.values()].map((p) => p.v.name).join(', ')} draußen${quietHour() ? ' (Ruhe bis ' + new Date(quietUntil()).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + ')' : ''}`;
 }
 function trayMenu() {
   if (!window.WinUI || !trayBtn) return;
@@ -874,13 +1371,23 @@ function trayMenu() {
   const list = [...pets.values()];
   const items = list.map((p) => ({ label: `${p.v.name} heimrufen`, icon: SPECIES[p.v.species] ? SPECIES[p.v.species].icon : '🐾', act: 'call:' + p.id }));
   if (list.length > 1) items.push({ label: 'Alle heimrufen', icon: '🏠', act: 'all' });
-  items.push('-', { label: 'Pixelpfoten öffnen', icon: '🐾', act: 'open' }, { label: 'Desktop einrichten …', icon: '🛋️', act: 'furnish' }, { label: 'Optionen …', icon: '⚙️', act: 'options' });
-  window.WinUI.contextMenu(r.left, r.top - 8 - (items.length * 24), items, (act) => {
+  const noPranks = opts.quietDay === today();
+  items.push('-', { label: 'Schnappschuss', icon: '📷', act: 'photo' },
+    quietHour() ? { label: 'Ruhe beenden', icon: '🔔', act: 'loud' } : { label: 'Eine Stunde Ruhe', icon: '🌙', act: 'quiet' },
+    { label: noPranks ? 'Streiche heute wieder erlauben' : 'Heute keine Streiche', icon: noPranks ? '😼' : '🙅', act: 'pranks' },
+    '-', { label: 'Pixelpfoten öffnen', icon: '🐾', act: 'open' }, { label: 'Desktop einrichten …', icon: '🛋️', act: 'furnish' }, { label: 'Optionen …', icon: '⚙️', act: 'options' });
+  const lines = items.filter((i) => i !== '-').length, seps = items.length - lines;
+  window.WinUI.contextMenu(r.left, r.top - 8 - (lines * 24) - seps * 8, items, (act) => {
     if (act.startsWith('call:')) call(act.slice(5));
     else if (act === 'all') callAll();
+    else if (act === 'photo') snapshot();
+    else if (act === 'quiet') { local.set(QUIET_KEY, String(Date.now() + 3600e3)); for (const p of pets.values()) { p.dance = null; p.until = 0; p.goal = p.home ? p.goal : null; } trayUpdate(); }
+    else if (act === 'loud') { local.remove(QUIET_KEY); for (const p of pets.values()) { p.doze = false; p.until = 0; } trayUpdate(); }
+    else if (act === 'pranks') { opts = deskOptions({ ...opts, quietDay: noPranks ? '' : today() }); local.set(KEYS.deskOpts, JSON.stringify(opts)); }
     else if (act === 'open') openGame();
     else if (act === 'furnish') { openGame(); hook('furnish'); }
     else if (act === 'options') { openGame(); hook('options'); }
+    wake();
   });
 }
 function openGame() {
@@ -895,6 +1402,7 @@ function attach(win, hooks) {
   if (other && other.tab !== TAB && Date.now() - other.at < 15000) return { ok: false, reason: 'Deine Tiere sind gerade in einem anderen Tab auf dem Desktop.' };
   game = { win, hooks };
   opts = deskOptions(readJSON(KEYS.deskOpts));
+  setRoomU(roomU);
   const heart = () => local.set(KEYS.deskTab, JSON.stringify({ tab: TAB, at: Date.now() }));
   heart();
   clearInterval(beat);
@@ -912,6 +1420,7 @@ function detach(win) {
   local.remove(KEYS.deskTab);
   for (const p of [...pets.values()]) removePet(p);
   for (const th of things.values()) th.sig = '';
+  syncMarks([]);
   trayUpdate();
   placeLadders();
   furnish(false);
@@ -919,7 +1428,7 @@ function detach(win) {
 }
 function out(v, at = {}) {
   measure();
-  if (at.u) U = clamp(Math.round(at.u), 1, 4);
+  if (at.u) setRoomU(at.u);
   placeLadders();
   const p = pets.get(v.id) || makePet(v);
   p.v = v; p.home = false; p.outAt = Date.now(); p.goal = null;
@@ -933,9 +1442,11 @@ function out(v, at = {}) {
     const r = gw ? (at.side === 'task' || gw.min ? gw.task : gw.el).getBoundingClientRect() : { left: geo.W / 2, width: 0 };
     p.b.x = clamp(r.left + r.width / 2, S() / 2, geo.W - S() / 2); p.b.y = geo.floor;
     p.b.mode = 'air'; p.b.vy = -620 * (U / 2); p.b.vx = rand(-120, 120);
+    setTimeout(() => morning(p), 800);
   }
   sound('stimme:' + v.species);
   trayUpdate();
+  tips();
   wake();
 }
 function restore(v, at = {}) {
@@ -948,19 +1459,21 @@ function restore(v, at = {}) {
   trayUpdate();
   wake();
 }
-function update({ pets: list = [], items = [], bowls: bw = null } = {}) {
+function update({ pets: list = [], items = [], bowls: bw = null, mess: ms = null, litter = null } = {}) {
   if (bw) bowls = { food: bw.food || 0, water: bw.water || 0 };
+  if (litter !== null) litterLvl = litter;
   for (const v of list) { const p = pets.get(v.id); if (p) p.v = v; }
   for (const p of [...pets.values()]) if (!list.some((v) => v.id === p.id)) removePet(p);
   measure();
   syncThings(items);
+  if (ms) syncMarks(ms);
   trayUpdate();
   wake();
 }
 function call(id) {
   const p = pets.get(id);
   if (!p) return;
-  p.home = true; p.goal = null; p.until = 0; p.busyUntil = 0;
+  p.home = true; p.goal = null; p.until = 0; p.busyUntil = 0; p.dance = null; p.doze = false;
   emote(p, '❗', 900);
   wake();
 }
@@ -998,8 +1511,9 @@ if (R && R.onClose) {
 }
 
 window.RetroPets.api = {
-  attach, detach, out, restore, update, call, callAll, furnish,
-  options(o) { opts = deskOptions(o); },
+  attach, detach, out, restore, update, call, callAll, furnish, mess,
+  options(o) { opts = deskOptions(o); setRoomU(roomU); wake(); },
   minimized() { const gw = gameWin(); return !!gw && gw.min; },
+  activity: () => ({ idle: Date.now() - activeAt, calm: calm() }),
 };
 showCopy();

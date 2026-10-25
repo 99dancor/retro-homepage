@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  PRANKS, PRANK_GAP, PRANK_IDLE, deskOptions, prankDue, subtract, surfaces, surfaceAt, below, surfaceKey,
+  PRANKS, PRANK_GAP, PRANK_IDLE, PRANK_RATES, deskOptions, deskScale, prankDue, subtract, surfaces, surfaceAt, below, surfaceKey,
   fall, jumpTo, canHop, hopPoints, route, throwVelocity,
 } from '../src/js/deskphys.js';
 
@@ -139,4 +139,20 @@ test('Wurfgeschwindigkeit aus den letzten Zeigerpunkten', () => {
   assert.deepEqual(throwVelocity([{ x: 0, y: 0, t: 0 }]), { vx: 0, vy: 0 });
   assert.deepEqual(throwVelocity([{ x: 0, y: 0, t: 0 }, { x: 100, y: -50, t: 100 }]), { vx: 1000, vy: -500 });
   assert.equal(throwVelocity([{ x: 0, y: 0, t: 0 }, { x: 1000, y: 0, t: 100 }]).vx, 2400);
+});
+
+test('Streiche: Häufigkeit einstellbar, Ruhe hat Vorrang; Größe draußen bleibt ganzzahlig', () => {
+  const now = 10 * 3600e3;
+  assert.equal(deskOptions(null).rate, 'normal');
+  assert.equal(deskOptions({ rate: 'quatsch' }).rate, 'normal');
+  assert.equal(deskOptions({ size: 'small' }).size, 'small');
+  assert.equal(prankDue({ now, last: now - 30 * 60e3, active: 0, rate: 'often' }), true);
+  assert.equal(prankDue({ now, last: now - 30 * 60e3, active: 0, rate: 'normal' }), false);
+  assert.equal(prankDue({ now, last: now - 2 * 3600e3, active: now - 3 * 60e3, rate: 'rare' }), false);
+  assert.equal(prankDue({ now, last: 0, active: 0, rate: 'off' }), false);
+  assert.equal(prankDue({ now, last: 0, active: 0, quiet: true }), false);
+  assert.ok(PRANK_RATES.often.gap < PRANK_RATES.rare.gap);
+  assert.equal(deskScale(3, 'room'), 3);
+  assert.equal(deskScale(3, 'small'), 2);
+  assert.equal(deskScale(1, 'small'), 1);
 });

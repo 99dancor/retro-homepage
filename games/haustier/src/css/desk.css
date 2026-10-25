@@ -44,6 +44,26 @@
 @keyframes pp-open { 0% { visibility: visible; } 96.5%, 100% { visibility: hidden; } }
 @keyframes pp-shut { 0% { visibility: hidden; } 96.5%, 100% { visibility: visible; } }
 @keyframes pp-zzz { 50% { translate: 0 -1px; } }
+/* Laufen: drei Bilder im Wechsel (Stand, linker Fuß, rechter Fuß); Augen schauen zum Mauszeiger (art.js, Gruppen pw und lk).
+   Ausgeblendet wird mit opacity, weil visibility der Kinder (Schwanz, Blinzeln) sonst durchscheint. */
+.pp-pet .pet-svg .pw1, .pp-pet .pet-svg .pw2, .pp-pet .pet-svg .lk-l, .pp-pet .pet-svg .lk-r { opacity: 0; }
+.pp-pet.walking .pet-svg .pw0 { animation: pp-pw0 .48s steps(1, end) infinite; }
+.pp-pet.walking .pet-svg .pw1 { animation: pp-pw1 .48s steps(1, end) infinite; }
+.pp-pet.walking .pet-svg .pw2 { animation: pp-pw2 .48s steps(1, end) infinite; }
+@keyframes pp-pw0 { 0% { opacity: 1; } 25% { opacity: 0; } 50% { opacity: 1; } 75%, 100% { opacity: 0; } }
+@keyframes pp-pw1 { 0% { opacity: 0; } 25% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes pp-pw2 { 0% { opacity: 0; } 75%, 100% { opacity: 1; } }
+.pp-pet.look-l .pet-svg .lk-c, .pp-pet.look-r .pet-svg .lk-c { opacity: 0; }
+.pp-pet.look-l .pet-svg .lk-l, .pp-pet.look-r .pet-svg .lk-r { opacity: 1; }
+.pp-pet.pp-hide { opacity: 0; pointer-events: none; transition: none; }
+/* Gedankenblase ohne Worte */
+.pp-think { position: absolute; left: 62%; top: -22%; width: 30%; aspect-ratio: 1; padding: 4%; background: #fff; border: 1px solid #000; border-radius: 50%;
+  opacity: 0; transition: opacity .3s; pointer-events: none; }
+.pp-think::before, .pp-think::after { content: ''; position: absolute; background: #fff; border: 1px solid #000; border-radius: 50%; }
+.pp-think::before { width: 22%; height: 22%; left: -6%; bottom: -14%; }
+.pp-think::after { width: 12%; height: 12%; left: -22%; bottom: -30%; }
+.pp-think .pxi { display: block; width: 100%; height: 100%; }
+.pp-think.show { opacity: 1; }
 .pp-pet.eating .pet-svg { animation: pp-nibble .36s steps(1, end) infinite; }
 @keyframes pp-nibble { 50% { translate: 0 2.083%; } }
 .pp-pet.pounce .pp-flip { animation: pp-pounce .4s steps(2); }
@@ -54,7 +74,7 @@
 @keyframes pp-run { 50% { translate: 0 -4.166%; } }
 .pp-pet.climb .pp-body { animation: pp-run .5s steps(1) infinite; }
 
-/* Strickleiter am Fensterrand */
+/* Strickleiter am Fensterrand: liegt im Desktop mit der Höhe des Spiel-Fensters, Fenster davor verdecken sie */
 .pp-ladder { position: absolute; left: 0; top: 0; background-repeat: repeat-y; background-position: center top; pointer-events: none; }
 
 /* Möbel und Spielzeug */
@@ -69,6 +89,23 @@
 .pp-thing.furnish { cursor: move; outline: 1px dashed rgba(255,255,255,.85); outline-offset: 1px; }
 .pp-thing.sel { outline: 2px solid #ffd800; }
 .pp-x { position: absolute; right: -8px; top: -8px; width: 18px; height: 18px; min-width: 0; padding: 0; font: bold 12px/16px Tahoma, sans-serif; }
+
+/* Flecken und Spuren: mit der Maus wegwischen */
+.pp-mark { position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer; }
+.pp-mark > svg { display: block; width: 100%; height: 100%; }
+.pp-mark.rub { animation: pp-wiggle .2s steps(2) infinite; opacity: .7; }
+.pp-sparkle { position: absolute; left: 0; top: 0; pointer-events: none; animation: pp-sparkle .7s steps(4) forwards; }
+.pp-sparkle > svg { display: block; width: 100%; height: 100%; }
+@keyframes pp-sparkle { 0% { scale: .4; opacity: 1; } 60% { scale: 1.2; opacity: 1; } 100% { scale: 1.4; opacity: 0; } }
+/* Rauferei: Staubwolke in zwei Bildern */
+.pp-cloud { position: absolute; left: 0; top: 0; pointer-events: none; }
+.pp-cloud > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pp-cloud > svg:last-child { animation: pp-w1 .24s steps(1) infinite; visibility: hidden; }
+.pp-cloud > svg:first-child { animation: pp-w0 .24s steps(1) infinite; }
+/* Schnappschuss: kurzer Blitz */
+.pp-flash { position: absolute; inset: 0; background: #fff; pointer-events: none; animation: pp-flash .45s ease-out forwards; }
+@keyframes pp-flash { from { opacity: .85; } to { opacity: 0; } }
+.pp-tray.quiet { opacity: .65; }
 
 /* Sprechblase, Hinweis beim Einrichten */
 .pp-say { position: absolute; left: 0; top: 0; width: max-content; max-width: 240px; padding: 5px 9px; background: #ffffe1; color: #000; border: 1px solid #000;
@@ -86,5 +123,6 @@
 .pp-tray .pp-count { font-size: 10px; margin-left: 1px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pp-pet *, .pp-wiggle, .dicon.pp-sniff .g { animation: none !important; }
+  .pp-pet *, .pp-wiggle, .dicon.pp-sniff .g, .pp-mark, .pp-sparkle, .pp-flash { animation: none !important; }
+  .pp-flash { display: none; }
 }

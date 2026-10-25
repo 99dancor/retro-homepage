@@ -1,5 +1,12 @@
 # Changelog
 
+## 25.10.2026 – Pixelpfoten: gemütlicher auf dem Desktop
+
+- **Pixelpfoten draußen:** Die Strickleiter verschwindet hinter Fenstern, die davor liegen. Die Tiere laufen, fressen und lehnen sich jetzt sichtbar an, schauen dem Mauszeiger nach, tanzen zur Musik im Mediaplayer, raufen in einer Staubwolke und kuscheln.
+- **Malheur:** Ab und zu machen die Tiere ihr Geschäft oder hinterlassen Spuren, auf Taskleiste, Fenstern und Möbeln. Wegwischen mit der Maus; Streukiste und Kauholz helfen, Geschäfte lassen sich abschalten.
+- **Ruhe:** Wer arbeitet, wird in Ruhe gelassen. Im 🐾-Menü gibt es „Eine Stunde Ruhe“, „Heute keine Streiche“ und den Schnappschuss fürs neue Fotoalbum. Wie oft Streiche kommen und wie groß die Tiere draußen sind, steht in den Einstellungen.
+- **Mediaplayer:** meldet den Takt der Musik an Pixelpfoten.
+
 ## 24.10.2026 – Pixelpfoten auf dem Desktop
 
 - **Tiere auf dem Desktop:** Pixelpfoten hat jetzt Rolltore. Offen klettern die Tiere aus dem Fenster, laufen über Fenster und Taskleiste, jagen die Maus, lassen sich werfen und spielen ab und zu einen harmlosen Streich (Glocke, Ton leiser, Startmenü, Fensterknopf). Jeder Streich lässt sich abschalten. 🐾 neben der Uhr ruft sie heim, beim Schließen des Fensters kommen alle zurück.

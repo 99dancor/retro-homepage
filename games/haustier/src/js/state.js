@@ -2,8 +2,11 @@
 import { SPECIES, STATS, starterInventory } from './pets.js';
 import { ITEMS } from './items.js';
 import { canPlace } from './furniture.js';
+import { MESS, MESS_MAX, LITTER_MAX, PENALTY_MAX } from './mess.js';
+import { cleanShot } from './photo.js';
 
 export const VERSION = 1;
+export const ALBUM_MAX = 24;      // so viele Fotos hat das Album
 
 // Kalendertag in lokaler Zeit als "JJJJ-MM-TT"
 export function dayKey(ms) {
@@ -43,6 +46,12 @@ export function newState(now = Date.now()) {
     bowls: { food: null, water: 0 },   // Näpfe: food { item, left } (left: Rest einer Portion, 0 bis 1), water 0 bis 1
     desk: { gates: { l: 0, r: 0 }, stay: [], out: {} },   // Käfig: Tore (0 zu, 1 halb, 2 offen), wer drinbleibt, wer draußen ist
     tasksDone: 0,           // insgesamt erledigte Tagesaufgaben (für Belohnungen)
+    mess: [],               // Pfützen, Häufchen und Spuren (siehe mess.js)
+    litter: 0,              // Füllstand der Streukiste
+    messDebt: 0,            // so viel Erfüllung kosten die Flecken gerade jedes Tier (kommt beim Putzen zurück)
+    prefs: { potty: true }, // Einstellungen fürs ganze Konto: Geschäfte ja oder nein
+    album: [],              // Fotoalbum: [{ at, text, shot }] (shot: Stellung der Tiere, siehe photo.js)
+    seen: {},               // Erstes Mal: Tore offen, Tipps draußen, erster Tanz … (für Hinweise und Fotos)
   };
 }
 
@@ -110,6 +119,13 @@ export function migrate(raw) {
   s.bowls = fixBowls(raw.bowls);
   s.desk = fixDesk(raw.desk, s.pets);
   if (typeof s.tasksDone !== 'number' || !(s.tasksDone >= 0)) s.tasksDone = 0;
+  s.mess = Array.isArray(raw.mess) ? raw.mess.filter((m) => m && MESS[m.kind] && typeof m.id === 'string' && typeof m.t === 'number').slice(0, MESS_MAX) : [];
+  s.litter = typeof raw.litter === 'number' ? Math.max(0, Math.min(LITTER_MAX, Math.round(raw.litter))) : 0;
+  s.messDebt = typeof raw.messDebt === 'number' ? Math.max(0, Math.min(PENALTY_MAX, raw.messDebt)) : 0;
+  s.prefs = { potty: !(raw.prefs && raw.prefs.potty === false) };
+  s.album = (Array.isArray(raw.album) ? raw.album : []).filter((e) => e && typeof e.at === 'number').map((e) => ({ at: e.at, text: String(e.text || '').slice(0, 120), shot: cleanShot(e.shot) }))
+    .filter((e) => e.shot).slice(0, ALBUM_MAX);
+  s.seen = raw.seen && typeof raw.seen === 'object' && !Array.isArray(raw.seen) ? raw.seen : {};
   s.version = VERSION;
   return s;
 }

@@ -196,7 +196,7 @@ function blush(g, P, lx, rx, y, w = 3) {
 function face(g, P, s, o) {
   const f = s.face;
   const kind = f === 'happy' || f === 'sleep' ? f : s.blink ? 'blink' : f === 'sad' ? 'sad' : 'ok';
-  eyes(g, P, kind, o.lx, o.ey, o.gap);
+  eyes(g, P, kind, o.lx + (kind === 'ok' || kind === 'sad' ? s.look || 0 : 0), o.ey, o.gap);
   const ny = o.ny, m = P.mouth, n = P.nose;
   if (o.kind === 'axolotl') {
     if (f === 'sad') stamp(g, 20, ny, ['..mmmm..', '.m....m.'], { m });
@@ -532,6 +532,58 @@ export function petGrid(species, color, s = {}) {
   // Erst der Hals, dann der Kopf darüber
   for (const slot of ['back', 'neck', 'head']) for (const id of list) if (ACC[id].slot === slot && ACC[id].draw) ACC[id].draw(g, P, k);
   return g;
+}
+
+// ---------- Stellungen ----------
+// Aus dem einen Bild von vorn werden weitere Stellungen, indem Teile des Rasters um ganze Bildpunkte verschoben werden:
+// Pfote heben, ducken, strecken, Kopf senken, lehnen. So bekommen alle Arten jede Stellung, ohne eigene Zeichnung.
+// box: Rahmen des Grundbilds (boxOf), damit Schwanz- und Augenebenen genau gleich verschoben werden.
+export const POSES = ['walk1', 'walk2', 'crouch', 'stretch', 'eat', 'lean', 'bow', 'leg'];
+export function boxOf(g) {
+  let x0 = g.w, y0 = g.h, x1 = -1, y1 = -1;
+  for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) if (g.px[y * g.w + x]) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  return x1 < 0 ? { x0: 0, y0: 0, x1: g.w - 1, y1: g.h - 1, cx: g.w / 2, h: g.h } : { x0, y0, x1, y1, cx: (x0 + x1 + 1) / 2, h: y1 - y0 + 1 };
+}
+// Teil des Rasters (sel(x, y)) um dx, dy verschieben; es liegt danach über dem Rest
+function moveRegion(g, sel, dx, dy) {
+  const out = grid(g.w, g.h);
+  const moved = [];
+  for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
+    const c = g.px[y * g.w + x];
+    if (!c) continue;
+    if (sel(x, y)) moved.push([x + dx, y + dy, c]); else out.px[y * g.w + x] = c;
+  }
+  for (const [x, y, c] of moved) if (x >= 0 && y >= 0 && x < g.w && y < g.h) out.px[y * g.w + x] = c;
+  return out;
+}
+// Jede Zeile um ihren eigenen Versatz verschieben (Lehnen)
+function shear(g, off) {
+  const out = grid(g.w, g.h);
+  for (let y = 0; y < g.h; y++) {
+    const d = off(y);
+    for (let x = 0; x < g.w; x++) { const c = g.px[y * g.w + x], nx = x + d; if (c && nx >= 0 && nx < g.w) out.px[y * g.w + nx] = c; }
+  }
+  return out;
+}
+export function posed(g, pose, b = boxOf(g)) {
+  if (!pose || pose === 'stand') return g;
+  const feet = b.y1 - 5, mid = Math.round(b.y0 + b.h * 0.58), head = Math.round(b.y0 + b.h * 0.45);
+  switch (pose) {
+    case 'walk1': return moveRegion(g, (x, y) => y >= feet && x < b.cx, 0, -2);
+    case 'walk2': return moveRegion(g, (x, y) => y >= feet && x >= b.cx, 0, -2);
+    case 'crouch': return moveRegion(g, (x, y) => y < mid, 0, 3);
+    case 'eat': return moveRegion(g, (x, y) => y < head, 1, 4);
+    case 'stretch': {
+      // Oberkörper zwei Punkte hoch, die Lücke füllt die Zeile darunter
+      const out = moveRegion(g, (x, y) => y < mid, 0, -2);
+      for (const y of [mid - 2, mid - 1]) for (let x = 0; x < g.w; x++) if (!out.px[y * g.w + x]) out.px[y * g.w + x] = g.px[mid * g.w + x];
+      return out;
+    }
+    case 'lean': return shear(g, (y) => Math.max(0, Math.round(((b.y1 - y) * 3) / b.h)));
+    case 'bow': return moveRegion(moveRegion(g, (x, y) => y < head, 2, 3), (x, y) => y >= feet && x < b.cx, 0, -1);
+    case 'leg': return shear(moveRegion(g, (x, y) => y >= feet - 2 && x < b.cx, -1, -5), (y) => (y < mid ? 1 : 0));
+    default: return g;
+  }
 }
 
 // Accessoire allein, für Shop und Menüs

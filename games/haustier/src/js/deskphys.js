@@ -10,8 +10,18 @@ export const PRANKS = [
   { id: 'tasks', label: 'An Fensterknöpfen in der Taskleiste ziehen', hint: 'nie am aktiven Fenster' },
   { id: 'icons', label: 'Desktop-Symbole beschnuppern', hint: 'wackeln nur, öffnen nichts' },
 ];
-export const PRANK_GAP = 3600e3;    // höchstens ein Streich pro Stunde
-export const PRANK_IDLE = 120e3;    // und nur, wenn seit 2 Minuten niemand etwas tut
+// Wie oft: höchstens einer je gap, und nur, wenn seit idle niemand etwas tut
+export const PRANK_RATES = {
+  off: { label: 'Aus', gap: Infinity, idle: Infinity },
+  rare: { label: 'Selten (alle 3 Stunden)', gap: 3 * 3600e3, idle: 300e3 },
+  normal: { label: 'Normal (jede Stunde)', gap: 3600e3, idle: 120e3 },
+  often: { label: 'Oft (alle 20 Minuten)', gap: 1200e3, idle: 60e3 },
+};
+export const PRANK_GAP = PRANK_RATES.normal.gap;
+export const PRANK_IDLE = PRANK_RATES.normal.idle;
+// Größe draußen: wie im Zimmer oder kleiner (immer ganzzahlig, damit die Pixel scharf bleiben)
+export const SIZES = { room: 'Wie im Zimmer', small: 'Kleiner' };
+export const deskScale = (u, size) => (size === 'small' ? Math.max(1, Math.round(u / 2)) : u);
 
 export function deskOptions(raw) {
   const r = raw && typeof raw === 'object' ? raw : {};
@@ -20,11 +30,16 @@ export function deskOptions(raw) {
     mouse: r.mouse !== false,
     sound: r.sound !== false,
     pranks: Object.fromEntries(PRANKS.map((p) => [p.id, pr[p.id] !== false])),
+    rate: PRANK_RATES[r.rate] ? r.rate : 'normal',
+    size: SIZES[r.size] ? r.size : 'room',
+    quietDay: typeof r.quietDay === 'string' ? r.quietDay : '',
   };
 }
 
-export function prankDue({ now, last = 0, active = 0, reduced = false }) {
-  return !reduced && now - last >= PRANK_GAP && now - active >= PRANK_IDLE;
+// quiet: „Heute keine Streiche“ oder „Eine Stunde Ruhe“ gilt gerade
+export function prankDue({ now, last = 0, active = 0, reduced = false, rate = 'normal', quiet = false }) {
+  const r = PRANK_RATES[rate] || PRANK_RATES.normal;
+  return !reduced && !quiet && now - last >= r.gap && now - active >= r.idle;
 }
 
 // Strecken [a, b] ohne den Teil [c, d]

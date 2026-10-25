@@ -186,3 +186,63 @@ export const messSize = (kind) => { const g = messGrid(kind); return { w: g.w, h
 const MESS_POSE = { pee: 'crouch', poo: 'crouch', scratch: 'stretch', bite: 'eat', drool: 'eat', dig: 'bow', nibble: 'eat', crumbs: 'eat', splash: 'bow', soot: 'stretch' };
 export const messPose = (kind, species) => (kind === 'pee' && (species === 'dog' || species === 'fox') ? 'leg' : MESS_POSE[kind] || 'crouch');
 export const messMs = (kind) => (kind === 'scratch' || kind === 'dig' ? 1800 : 1400);
+
+// ---------- Während niemand zuschaut ----------
+// Wie viel Tageszeit (ohne die Nacht von 22 bis 7 Uhr) zwischen from und to liegt, in ms. Höchstens 7 Tage zurück.
+export function dayMs(from, to) {
+  from = Math.max(from, to - 7 * 86400e3);
+  let ms = 0;
+  for (let t = from; t < to;) {
+    const d = new Date(t);
+    const next = Math.min(to, new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() + 1).getTime());
+    if (!nightTime(d)) ms += next - t;
+    t = next;
+  }
+  return ms;
+}
+// Zufälliger Zeitpunkt in der Tageszeit zwischen from und to
+function dayPoint(from, to, total, rng) {
+  let left = rng() * total;
+  from = Math.max(from, to - 7 * 86400e3);
+  for (let t = from; t < to;) {
+    const d = new Date(t);
+    const next = Math.min(to, new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() + 1).getTime());
+    if (!nightTime(d)) { if (left < next - t) return Math.round(t + left); left -= next - t; }
+    t = next;
+  }
+  return to;
+}
+// Anzahl Ereignisse bei Mittelwert lam (Poisson; große Werte genähert)
+function poisson(lam, rng) {
+  if (lam <= 0) return 0;
+  if (lam > 30) return Math.max(0, Math.round(lam + Math.sqrt(lam) * Math.sqrt(-2 * Math.log(rng() || 1e-9)) * Math.cos(2 * Math.PI * rng())));
+  const L = Math.exp(-lam);
+  let k = 0, p = 1;
+  do { k++; p *= rng(); } while (p > L);
+  return k - 1;
+}
+// Nachrechnen, was die Tiere zwischen from und to angestellt haben, während niemand zugeschaut hat: etwa MESS_RATE
+// pro Stunde Tageszeit, zufällig verteilt. where(pet) sagt, wo ein Tier war ('room' oder 'desk'); placed(id, where):
+// steht dort das Möbel? Gibt { room, desk, litter } zurück (so viele neue Flecken, so oft in die Streukiste).
+export function catchUp(state, from, to, { where = () => 'room', placed = () => false, lvl = () => 1, rate = MESS_RATE } = {}, rng = Math.random) {
+  const out = { room: 0, desk: 0, litter: 0 };
+  const pets = state.pets || [];
+  if (!pets.length || !(to > from)) return out;
+  const total = dayMs(from, to);
+  const n = poisson((rate * total) / 3600e3, rng);
+  const potty = !(state.prefs && state.prefs.potty === false);
+  const times = Array.from({ length: n }, () => dayPoint(from, to, total, rng)).sort((a, b) => a - b);
+  for (const t of times) {
+    if ((state.mess || []).length >= MESS_MAX) break;
+    const pet = pets[Math.floor(rng() * pets.length)];
+    const at = where(pet) === 'desk' ? 'desk' : 'room';
+    const plan = planMess(pet, { potty, placed: (id) => placed(id, at), litter: state.litter || 0, lvl: lvl(pet) }, rng);
+    if (plan.to === 'furn_litter') { state.litter = Math.min(LITTER_MAX, (state.litter || 0) + 1); out.litter++; continue; }
+    if (plan.to) continue;   // Kratzbaum oder Kauholz haben es abgefangen
+    const m = at === 'desk'
+      ? addMess(state, { kind: plan.kind, at, on: 'floor', x: 0.05 + rng() * 0.9 }, t)
+      : addMess(state, { kind: plan.kind, at, x: 0.1 + rng() * 0.8, y: 0.15 + rng() * 0.8 }, t);
+    if (m) out[at]++;
+  }
+  return out;
+}

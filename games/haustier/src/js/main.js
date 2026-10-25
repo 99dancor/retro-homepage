@@ -11,7 +11,7 @@ import {
 } from './pets.js';
 import { ITEMS, ITEM_LIST, usableBy, isFav, isDurable, owned } from './items.js';
 import { PRANKS, PRANK_RATES, SIZES, deskOptions } from './deskphys.js';
-import { MESS, planMess, addMess, cleanMess, dryUp, messMood, messChance, nightTime, cleanText, LITTER_MAX, CLEAN_JOY, PENALTY_FROM } from './mess.js';
+import { MESS, planMess, addMess, cleanMess, dryUp, messMood, messChance, nightTime, cleanText, catchUp, LITTER_MAX, CLEAN_JOY, PENALTY_FROM } from './mess.js';
 import { photoSvg, cleanShot } from './photo.js';
 import {
   ensureDaily, track, taskProgress, TASK_INFO, actionCoins, addCoins, loginBonus, streakMilestones, levelReward,
@@ -444,21 +444,46 @@ function syncDesk() {
 }
 
 // ---------- Geschäfte, Spuren, Putzen (Regeln in mess.js) ----------
-// Etwa MESS_RATE neue Flecken pro Stunde, nur solange jemand da ist und nicht nachts. Ein wachsames Tier macht es,
-// draußen auf dem Desktop oder im Zimmer; mit Streukiste, Kratzbaum und Kauholz geht das meiste dorthin.
-let messAt = Date.now(), moodAt = Date.now(), ownInput = Date.now();
+// Etwa MESS_RATE neue Flecken pro Stunde, außer nachts. Schaut jemand zu, macht es ein wachsames Tier sichtbar, draußen auf
+// dem Desktop oder im Zimmer; mit Streukiste, Kratzbaum und Kauholz geht das meiste dorthin. Ist das Spiel zu, der Tab im
+// Hintergrund oder niemand da, wird die Zeit beim nächsten Mal nachgerechnet (state.messAt) und zufällig verteilt.
+let ownInput = Date.now();
 for (const ev of ['pointerdown', 'keydown', 'pointermove']) document.addEventListener(ev, () => { ownInput = Date.now(); }, { capture: true, passive: true });
 const placedAt = (id, at) => !!state.place[id] && state.place[id].at === at;
+function catchUpMess(now = Date.now()) {
+  const from = state.messAt || now;
+  state.messAt = now;
+  if (now - from < 60e3) return false;
+  const host = !!deskHost();
+  const r = catchUp(state, from, now, {
+    where: (p) => (host && state.desk.out[p.id] ? 'desk' : 'room'),
+    placed: placedAt,
+    lvl: (p) => level(p),
+  });
+  if (!r.room && !r.desk && !r.litter) return true;
+  const parts = [];
+  if (r.room) parts.push(`${r.room} ${r.room === 1 ? 'Fleck' : 'Flecken'} im Zimmer`);
+  if (r.desk) parts.push(r.room ? `${r.desk} draußen auf dem Desktop` : `${r.desk} ${r.desk === 1 ? 'Fleck' : 'Flecken'} draußen auf dem Desktop`);
+  if (r.litter) parts.push(`${r.litter}× in die Streukiste`);
+  const text = `Während du weg warst: ${listNames(parts)}.`;
+  note(text);
+  setTimeout(() => log(text, 10000), 1500);
+  return true;
+}
 function messTick() {
-  const now = Date.now(), dt = now - messAt;
-  messAt = now;
+  const now = Date.now();
   let changed = dryUp(state, now) > 0;
-  const mm = messMood(state, (now - moodAt) / 3600e3);
-  moodAt = now;
-  if (mm) changed = true;
   const act = pets ? (() => { try { return pets.activity(); } catch { return null; } })() : null;
   const idle = Math.min(now - ownInput, act ? act.idle : Infinity);
-  if (!visit && idle < 10 * 60e3 && !(act && act.calm) && !nightTime(new Date()) && Math.random() < messChance(dt)) {
+  const live = !visit && document.visibilityState === 'visible' && idle < 10 * 60e3 && !(act && act.calm);
+  // Wer nicht zuschaut, bekommt es beim nächsten Mal nachgerechnet
+  if (!live) { if (changed) { store.save(state); render(); } return; }
+  const dt = Math.min(now - (state.messAt || now), 30e3);
+  if (catchUpMess(now)) changed = true;
+  const mm = messMood(state, (now - (state.moodAt || now)) / 3600e3);
+  state.moodAt = now;
+  if (mm) changed = true;
+  if (!nightTime(new Date()) && Math.random() < messChance(dt)) {
     const awake = state.pets.filter((p) => !p.sleeping);
     const pet = awake.length ? pick(awake) : null;
     if (pet) {
@@ -2142,6 +2167,12 @@ function followTheme() {
 function arrive() {
   const away = tickAll(state);
   const msgs = [];
+  if (state.pets.length && !visit) {
+    catchUpMess();
+    messMood(state, (Date.now() - (state.moodAt || Date.now())) / 3600e3);
+    state.moodAt = Date.now();
+    store.save(state);
+  }
   if (registerVisit(state)) {
     const b = loginBonus(state);
     let html = `<p>🔥 <b>${days(state.visits.streak)} in Folge!</b></p><p>Täglicher Bonus (Tag ${b.day} von 7): ${coins(b.coins)}</p>`;

@@ -49,6 +49,8 @@ export function newState(now = Date.now()) {
     mess: [],               // Pfützen, Häufchen und Spuren (siehe mess.js)
     litter: 0,              // Füllstand der Streukiste
     messDebt: 0,            // so viel Erfüllung kosten die Flecken gerade jedes Tier (kommt beim Putzen zurück)
+    messAt: now,            // bis hierhin sind Flecken berechnet (was danach kommt, wird beim nächsten Mal nachgerechnet)
+    moodAt: now,            // bis hierhin ist die Erfüllung der Sauberkeit gefolgt
     prefs: { potty: true }, // Einstellungen fürs ganze Konto: Geschäfte ja oder nein
     album: [],              // Fotoalbum: [{ at, text, shot }] (shot: Stellung der Tiere, siehe photo.js)
     seen: {},               // Erstes Mal: Tore offen, Tipps draußen, erster Tanz … (für Hinweise und Fotos)
@@ -123,6 +125,7 @@ export function migrate(raw) {
   s.litter = typeof raw.litter === 'number' ? Math.max(0, Math.min(LITTER_MAX, Math.round(raw.litter))) : 0;
   s.messDebt = typeof raw.messDebt === 'number' ? Math.max(0, Math.min(PENALTY_MAX, raw.messDebt)) : 0;
   s.prefs = { potty: !(raw.prefs && raw.prefs.potty === false) };
+  for (const k of ['messAt', 'moodAt']) s[k] = typeof raw[k] === 'number' && raw[k] > 0 ? raw[k] : (typeof raw.updatedAt === 'number' ? raw.updatedAt : Date.now());
   s.album = (Array.isArray(raw.album) ? raw.album : []).filter((e) => e && typeof e.at === 'number').map((e) => ({ at: e.at, text: String(e.text || '').slice(0, 120), shot: cleanShot(e.shot) }))
     .filter((e) => e.shot).slice(0, ALBUM_MAX);
   s.seen = raw.seen && typeof raw.seen === 'object' && !Array.isArray(raw.seen) ? raw.seen : {};

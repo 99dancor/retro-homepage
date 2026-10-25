@@ -1,5 +1,9 @@
 # Changelog
 
+## 25.10.2026 – Pixelpfoten: Flecken auch, während du weg bist
+
+- **Pixelpfoten:** Die Tiere machen ihr Geschäft auch, wenn du offline bist. Beim Zurückkommen wird die Zeit nachgerechnet und die Flecken liegen zufällig verteilt; das Tagebuch sagt, was passiert ist.
+
 ## 25.10.2026 – Pixelpfoten: gemütlicher auf dem Desktop
 
 - **Pixelpfoten draußen:** Die Strickleiter verschwindet hinter Fenstern, die davor liegen. Die Tiere laufen, fressen und lehnen sich jetzt sichtbar an, schauen dem Mauszeiger nach, tanzen zur Musik im Mediaplayer, raufen in einer Staubwolke und kuscheln.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 25.10.2026 – Pixelpfoten: Flecken auch, während du weg bist
+
+- **Den ganzen Tag über:** Die Tiere machen ihr Geschäft und hinterlassen Spuren auch, wenn du offline bist oder gerade nicht hinschaust. Beim Zurückkommen wird die verstrichene Zeit nachgerechnet (etwa zwei Flecken pro Stunde, nachts nie) und die Flecken liegen zufällig verteilt im Zimmer oder draußen auf dem Boden. Die Streukiste und Kratzbaum oder Kauholz fangen dabei weiter einiges ab. Was passiert ist, steht im Tagebuch.
+
 ## 25.10.2026 – Pixelpfoten: gemütlicher auf dem Desktop
 
 - **Strickleiter:** Die Leiter hängt jetzt am Fenster von Pixelpfoten und verschwindet hinter Fenstern, die davor liegen. Die Tiere selbst bleiben vorn.

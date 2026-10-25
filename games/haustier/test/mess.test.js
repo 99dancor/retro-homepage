@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  MESS, MARKS, planMess, addMess, cleanMess, dryUp, messMood, messChance, missChance, nightTime, cleanText, messPose, messSvg,
+  MESS, MARKS, catchUp, dayMs, planMess, addMess, cleanMess, dryUp, messMood, messChance, missChance, nightTime, cleanText, messPose, messSvg,
   MESS_RATE, MESS_MAX, PENALTY_FROM, PENALTY_MAX, LITTER_MAX,
 } from '../src/js/mess.js';
 import { social } from '../src/js/behavior.js';
@@ -92,4 +92,32 @@ test('Fotoalbum: Schnappschüsse werden geprüft und gezeichnet, der Spielstand 
   assert.equal(s.litter, LITTER_MAX);
   assert.equal(s.prefs.potty, false);
   assert.equal(migrate({ ...newState(0) }).prefs.potty, true);
+});
+
+test('Während niemand zuschaut: verstrichene Tageszeit nachrechnen und zufällig verteilen', () => {
+  const day = (h) => new Date(2026, 9, 25, h).getTime();
+  assert.equal(dayMs(day(8), day(12)), 4 * 3600e3);
+  assert.equal(dayMs(day(20), day(20) + 12 * 3600e3), 3 * 3600e3);   // 20–22 und 7–8 Uhr, die Nacht zählt nicht
+  let r = 0.5, i = 0;
+  const rng = () => { i++; r = (r * 9301 + 49297) % 233280 / 233280; return r; };
+  const s = newState(0);
+  adopt(s, 'cat', 'orange', 'Mimi', 0);
+  adopt(s, 'dog', 'brown', 'Bello', 0);
+  const out = catchUp(s, day(8), day(13), { where: (p) => (p.species === 'dog' ? 'desk' : 'room') }, rng);
+  assert.ok(out.room + out.desk >= 3 && out.room + out.desk <= 18, JSON.stringify(out));
+  assert.equal(s.mess.length, out.room + out.desk);
+  for (const m of s.mess) {
+    assert.ok(m.t >= day(8) && m.t <= day(13));
+    if (m.at === 'desk') assert.equal(m.on, 'floor');
+    else assert.ok(m.y > 0 && m.x > 0);
+  }
+  // Nachts entsteht nichts, und mehr als MESS_MAX liegen nie herum
+  const n = newState(0); adopt(n, 'cat', 'orange', 'Mimi', 0);
+  assert.deepEqual(catchUp(n, day(22) + 60e3, day(22) + 8 * 3600e3, {}, rng), { room: 0, desk: 0, litter: 0 });
+  catchUp(n, day(8) - 5 * 86400e3, day(8), {}, rng);
+  assert.equal(n.mess.length, MESS_MAX);
+  // Mit Streukiste landet ein Teil dort
+  const k = newState(0); adopt(k, 'cat', 'orange', 'Mimi', 0); k.pets[0].stats.love = 100;
+  const o = catchUp(k, day(8), day(18), { placed: (id) => id === 'furn_litter', lvl: () => 8 }, rng);
+  assert.ok(o.litter > 0 && k.litter === Math.min(LITTER_MAX, o.litter));
 });

@@ -5,6 +5,7 @@
 //   iconSvg(id, cls)      fertiges <svg>
 //   ICON_OF               Symbol für Werte, Aktionen und Ausflugsdinge, die keinen eigenen Gegenstand haben
 import { grid, paint, fill, ell, poly, box, tube, and, or, not, inside, dot, stamp, darker, lighter, lineOf, gridSvg, accGrid } from './pixel.js';
+import { hasFurn, furnGrid } from './furniture.js';
 
 const I = (c, extra = {}) => ({ fill: c, line: lineOf(c), ...extra });
 const hi = (cx, cy, rx, ry, c) => [ell(cx, cy, rx, ry), c];
@@ -474,11 +475,12 @@ export function iconGrid(id) {
   let g;
   if (ICONS[id]) g = ICONS[id]();
   else if (id.startsWith('acc_')) g = accGrid(id);
+  else if (hasFurn(id)) g = furnGrid(id);   // Einrichtung: das große Bild, im Shop verkleinert
   else g = ICONS.star();
   cache.set(id, g);
   return g;
 }
-export const hasIcon = (id) => !!(ICONS[ICON_OF[id] || id] || String(id).startsWith('acc_'));
+export const hasIcon = (id) => !!(ICONS[ICON_OF[id] || id] || String(id).startsWith('acc_') || hasFurn(id));
 
 const svgCache = new Map();
 export function iconSvg(id, cls = 'pxi') {

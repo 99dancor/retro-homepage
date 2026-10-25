@@ -1,5 +1,18 @@
 # Changelog
 
+## 24.10.2026 – Pixelpfoten: raus auf den Desktop
+
+- **Rolltore:** Im Fenster auf dem Desktop ist das Zimmer jetzt ein Käfig mit Rolltoren links und rechts. Unter 🚪 Tore machst du sie ganz oder halb auf und wählst, wer drinbleiben soll.
+- **Draußen:** Durch offene Tore klettern deine Tiere über Strickleitern hinaus, die bis zum nächsten Fenster oder zur Taskleiste reichen. Draußen gilt Schwerkraft: Sie laufen über Fensterkanten, Möbel und die Taskleiste, springen hinauf und lassen sich fallen. Ist das Fenster maximiert, warten sie in einer Ecke, ist es minimiert, schlüpfen sie über den Knopf in der Taskleiste heim.
+- **Anfassen:** Klick streichelt, Ziehen hebt hoch, Loslassen wirft. Wer zu doll geworfen wird, ist beleidigt. Die Tiere jagen den Mauszeiger, spielen mit Bällen und Spielzeug auf dem Desktop und schnuppern an Symbolen.
+- **Streiche:** Ab und zu, höchstens einmal pro Stunde und nur, wenn du eine Weile nichts tust, läutet ein Tier an der Glocke, dreht den Ton leiser (mit Rückgängig), öffnet kurz das Startmenü oder zupft an einem Fensterknopf. Jeden Streich kannst du in den Einstellungen abschalten.
+- **Heimrufen:** 🐾 neben der Uhr zeigt, wer draußen ist, und ruft einzelne Tiere oder alle heim. Schließt du das Fenster, laufen erst alle Tiere zurück.
+- **Einrichten:** Unter 🛋️ Einrichten stellst du Möbel ins Zimmer oder auf den Desktop und ziehst sie an ihren Platz, bis zu 16 im Zimmer und 12 draußen. Neu im Shop: Futternapf, Wassernapf, Kissen, ein blaues Körbchen, Karton, Hamsterhaus, Kratzbaum, Wandbrett, Pflanze, Stehlampe, Teppich und ein Bild. Als Belohnung gibt es Herzkissen, Treue-Abzeichen, Sternenhimmel und Urkunde.
+- **Näpfe und Füttern:** Futter schüttest du in den Napf, Wasser füllst du mit einem Klick auf. Hungrige und durstige Tiere bedienen sich selbst. Aus der Hand gefüttert gibt es etwas mehr Zuneigung.
+- **Schlafen:** Müde Tiere legen sich von selbst schlafen, jedes in ein eigenes Bett. Sie liegen nicht mehr ineinander.
+- **Benachrichtigungen:** Wie es deinen Tieren geht, kommt gebündelt in einer Nachricht und erst wieder neu, wenn du sie gelesen oder das Spiel geöffnet hast. Nachts ist Ruhe, morgens erzählen dir deine Tiere, wie die Nacht war.
+- **Design:** Im XP-Design sieht auch das Spiel nach XP aus, in Blau, Olivgrün oder Silber.
+
 ## 22.10.2026 – Pixelpfoten: aufgeräumt und in Pixeln
 
 - **Pixel-Look:** Alle Tiere sind jetzt liebevoll gepixelt, dazu Futter, Spielzeug, Accessoires und alles, was dir auf Ausflügen begegnet. Die Bilder werden nur in ganzen Schritten vergrößert und bleiben so immer scharf. Die Zimmer und Ausflugsorte bekommen ihren Pixel-Look als Nächstes.

@@ -15,6 +15,9 @@ export const KEYS = {
   user: (name) => PREFIX + 'user:' + name,
   lastUser: PREFIX + 'lastUser',
   prefs: PREFIX + 'prefs',
+  desk: PREFIX + 'desk',          // Kopie der Möbel auf dem Desktop, damit er sie auch ohne offenes Spiel zeigt
+  deskOpts: PREFIX + 'deskOpts',  // Optionen für draußen (Maus, Streiche …), gelten nur für dieses Gerät
+  deskTab: PREFIX + 'deskTab',    // welcher Tab gerade Tiere draußen zeigt (es soll sie nur einmal geben)
 };
 
 // localStorage kann fehlen oder werfen (privater Modus, gesperrte Website-Daten)

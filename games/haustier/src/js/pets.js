@@ -161,6 +161,11 @@ export function cleanName(name) {
 const RATE_AWAKE = { food: 3.5, water: 4.5, fun: 3, rest: 2, love: 0.5 };
 const RATE_ASLEEP = { food: 1.5, water: 2, fun: 0.5, rest: -30, love: 0.2 };
 export const FLOOR = 10;      // durch Zeit allein sinkt kein Wert unter 10
+export const SLEEPY = 20;     // so müde gehen Tiere von selbst schlafen
+// Näpfe: Wer hungrig oder durstig ist, bedient sich selbst, bis FULL erreicht ist
+export const HUNGRY = 40;
+export const FULL = 85;
+export const BOWL_WATER = 60; // so viel Wasser fasst ein voller Napf
 const JOY_PULL = 0.08;        // Erfüllung nähert sich pro Stunde um 8 % dem Durchschnitt der anderen Werte
 const FATIGUE_RECOVER = 4;    // so viele "Wiederholungen" baut ein Tier pro Stunde wieder ab
 const STEP_MS = 10 * 60 * 1000;
@@ -185,15 +190,43 @@ function step(pet, hours, sp, opts) {
   const mean = NEEDS.reduce((a, k) => a + s[k], 0) / NEEDS.length;
   s.joy = clamp(s.joy + (mean - s.joy) * Math.min(1, JOY_PULL * hours));
   if (pet.sleeping && s.rest >= 100) pet.sleeping = false;
-  else if (!pet.sleeping && s.rest <= FLOOR) pet.sleeping = true; // schläft vor Erschöpfung von selbst ein
+  else if (!pet.sleeping && s.rest <= SLEEPY) pet.sleeping = true; // müde Tiere legen sich von selbst schlafen
+  if (!pet.sleeping && opts.bowls) bowlMeal(pet, opts);
   for (const k of Object.keys(pet.fatigue)) {
     pet.fatigue[k] = Math.max(0, pet.fatigue[k] - FATIGUE_RECOVER * hours);
     if (pet.fatigue[k] === 0) delete pet.fatigue[k];
   }
 }
 
+// Aus den Näpfen fressen und trinken, wenn Hunger oder Durst da sind. opts: { bowls, food, water, below } (food/water:
+// der Napf steht irgendwo; below: ab diesem Wert hat das Tier Hunger oder Durst). Ändert pet.stats und den Füllstand, gibt { food, water } (Zuwachs) zurück.
+export function bowlMeal(pet, { bowls, food = false, water = false, below = HUNGRY }) {
+  const s = pet.stats, out = { food: 0, water: 0 };
+  const b = bowls && bowls.food;
+  const item = b && ITEMS[b.item];
+  if (food && item && b.left > 0 && s.food < below && usableBy(item, pet.species) && item.effect.food > 0) {
+    const take = Math.min(b.left, (FULL - s.food) / item.effect.food);
+    for (const [k, v] of Object.entries(item.effect)) {
+      if (v <= 0 || !(k in s)) continue;
+      const before = s[k];
+      s[k] = clamp(s[k] + v * take);
+      if (k === 'food' || k === 'water') out[k] += s[k] - before;
+    }
+    b.left -= take;
+    if (b.left < 0.01) bowls.food = null;
+  }
+  if (water && bowls.water > 0 && s.water < below) {
+    const take = Math.min(bowls.water * BOWL_WATER, FULL - s.water);
+    s.water = clamp(s.water + take);
+    out.water += take;
+    bowls.water = Math.max(0, bowls.water - take / BOWL_WATER);
+    if (bowls.water < 0.01) bowls.water = 0;
+  }
+  return out;
+}
+
 // Bringt ein Tier auf den Stand von "now". Gibt die vergangenen Stunden zurück.
-//   opts.bed: Körbchen vorhanden (Ruhe sinkt langsamer)
+//   opts.bed: Körbchen vorhanden (Ruhe sinkt langsamer)    opts.bowls/food/water: Näpfe (siehe bowlMeal)
 export function tickPet(pet, now = Date.now(), opts = {}) {
   const sp = SPECIES[pet.species];
   const from = pet.tickAt || now;
@@ -208,7 +241,10 @@ export function tickPet(pet, now = Date.now(), opts = {}) {
   return (now - from) / 3600000;
 }
 
-export const tickOpts = (state) => ({ bed: owned(state, 'care_bed') });
+export const tickOpts = (state) => ({
+  bed: owned(state, 'care_bed'),
+  bowls: state.bowls, food: !!(state.place && state.place.furn_bowl_food), water: !!(state.place && state.place.furn_bowl_water),
+});
 
 export function tickAll(state, now = Date.now()) {
   let away = 0;
@@ -218,10 +254,22 @@ export function tickAll(state, now = Date.now()) {
 }
 
 // ---------- Stimmung ----------
-const NEED_TEXT = {
+export const NEED_TEXT = {
   food: ['hungrig', 'hat Hunger'], water: ['durstig', 'hat Durst'], fun: ['gelangweilt', 'langweilt sich'],
   rest: ['müde', 'ist müde'], love: ['einsam', 'fühlt sich einsam'],
 };
+
+// Alle Bedürfnisse unter einer Grenze, dringendste zuerst
+export const lowNeeds = (pet, below = 25) => NEEDS.filter((k) => pet.stats[k] < below).sort((a, b) => pet.stats[a] - pet.stats[b]);
+
+// „Mimi hat Hunger und Durst und ist müde“: mehrere Bedürfnisse eines Tieres in einem Satz
+export function needsSentence(pet, keys) {
+  const has = keys.filter((k) => NEED_TEXT[k][1].startsWith('hat ')).map((k) => NEED_TEXT[k][1].slice(4));
+  const parts = [];
+  if (has.length) parts.push('hat ' + has.join(' und '));
+  for (const k of keys) if (!NEED_TEXT[k][1].startsWith('hat ')) parts.push(NEED_TEXT[k][1]);
+  return `${pet.name} ${parts.join(' und ')}`;
+}
 
 export function mood(pet) {
   const s = pet.stats;
@@ -403,6 +451,9 @@ export function starterInventory(state) {
     state.inventory.toy_ball = 1;
     state.inventory.food_dry = (state.inventory.food_dry || 0) + 5;
     state.inventory.room_living = 1;
+    state.inventory.furn_chest = 1;
+    state.place ||= {};
+    state.place.furn_chest ||= { at: 'room', x: 0.87, y: 0.06 };
     state.starterGiven = true;
   }
 }

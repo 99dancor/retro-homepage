@@ -1464,7 +1464,9 @@ async function main() {
         assert.equal((await at(anna, { action: 'start' })).status, 200, game + ': der Gastgeber startet');
         while (st.phase !== 'playing') st = await live.state();
         if (hand) {
-          assert.equal(st.hand.length, hand, game + ': eigene Karten');
+          // UNO: Liegt zu Beginn „Zieh zwei“ offen, zieht der erste Spieler gleich zwei Karten dazu
+          const ok = game === 'uno' ? [hand, hand + 2] : [hand];
+          assert.ok(ok.includes(st.hand.length), `${game}: eigene Karten (${st.hand.length})`);
           assert.ok(!JSON.stringify(st.seats).includes('"hand"'), 'fremde Karten nicht');
         } else assert.ok(st.f7 && st.f7.deck < 94, 'Flip 7: es wird offen gegeben');
         assert.equal((await at(anna, { action: 'quatsch' })).status, 400);

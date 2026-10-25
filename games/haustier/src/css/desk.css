@@ -1,0 +1,90 @@
+/* Pixelpfoten draußen auf dem Desktop (games/haustier/src/js/desktop.js). Die Ebene mit den Tieren liegt über allen
+   Fenstern und der Taskleiste, lässt aber jeden Klick durch, der kein Tier und kein Spielzeug trifft. Die Möbel stehen
+   auf dem Desktop selbst, unter den Fenstern. Bewegungen wie im Zimmer (game.css), hier mit pp- davor. */
+.pp-layer { position: fixed; inset: 0; z-index: 10; pointer-events: none; overflow: hidden; }
+.pp-furn { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+/* Beim Einrichten kommen die Möbel vor die Fenster, damit man sie greifen kann */
+.pp-furn.furnish { z-index: 9000; }
+
+.pp-pet { position: absolute; left: 0; top: 0; will-change: transform; pointer-events: none; cursor: grab; transition: opacity .3s, scale .3s; }
+.pp-pet .pet-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.pp-pet .pet-svg path { pointer-events: visiblePainted; }
+.pp-pet.held { cursor: grabbing; }
+.pp-pet.pp-in { opacity: 0; scale: .5; }
+.pp-body, .pp-flip { position: absolute; inset: 0; transform-origin: 50% 100%; }
+.pp-shadow { position: absolute; left: 26%; right: 26%; bottom: -2%; height: 6%; background: rgba(0,0,0,.2);
+  clip-path: polygon(10% 0, 90% 0, 100% 35%, 100% 65%, 90% 100%, 10% 100%, 0 65%, 0 35%); }
+.pp-pet.held .pp-shadow, .pp-pet.climb .pp-shadow { display: none; }
+.pp-name { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); padding: 0 5px; font: 11px/14px Tahoma, Verdana, sans-serif;
+  white-space: nowrap; background: rgba(255,255,255,.85); color: #000; opacity: 0; transition: opacity .2s; }
+.pp-pet:hover .pp-name, .pp-pet.held .pp-name { opacity: 1; }
+.pp-emote { position: absolute; left: 50%; top: -10%; width: 33.333%; font-size: 18px; line-height: 1; text-align: center; opacity: 0; transform: translate(-50%, 0); }
+.pp-emote .pxi { display: block; width: 100%; height: auto; aspect-ratio: 1; }
+.pp-emote.show { animation: pp-emote 1.6s steps(8) forwards; }
+@keyframes pp-emote { 0% { opacity: 0; transform: translate(-50%, 6px); } 15% { opacity: 1; transform: translate(-50%, -4px); }
+  75% { opacity: 1; transform: translate(-50%, -8px); } 100% { opacity: 0; transform: translate(-50%, -18px); } }
+.pp-float { position: absolute; top: 25%; display: inline-flex; align-items: center; gap: 2px; font: bold 13px Tahoma, Verdana, sans-serif; color: #b0003a;
+  white-space: nowrap; text-shadow: 0 1px #fff, 1px 0 #fff, -1px 0 #fff; animation: pp-float 1.8s ease-out forwards; }
+.pp-float .pxi { width: 16px; height: 16px; }
+@keyframes pp-float { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-70px); } }
+
+/* Schwanz und Augen (Ebenen aus art.js) */
+.pp-pet .pet-svg .px-t0, .pp-pet .pet-svg .px-t2, .pp-pet .pet-svg .px-shut { visibility: hidden; }
+.pp-pet .px-t0 { animation: pp-t0 2.4s steps(1, end) infinite; }
+.pp-pet .px-t1 { animation: pp-t1 2.4s steps(1, end) infinite; }
+.pp-pet .px-t2 { animation: pp-t2 2.4s steps(1, end) infinite; }
+.pp-pet.walking .px-t, .pp-pet .species-dog .px-t { animation-duration: .6s; }
+.pp-pet .px-open { animation: pp-open 4.6s steps(1, end) infinite; }
+.pp-pet .px-shut { animation: pp-shut 4.6s steps(1, end) infinite; }
+.pp-pet .face-sleep .px-t, .pp-pet .face-sad .px-t { animation: none !important; }
+.pp-pet .zzz { animation: pp-zzz 2s steps(1) infinite; }
+@keyframes pp-t0 { 0% { visibility: visible; } 25%, 100% { visibility: hidden; } }
+@keyframes pp-t1 { 0% { visibility: hidden; } 25% { visibility: visible; } 50% { visibility: hidden; } 75%, 100% { visibility: visible; } }
+@keyframes pp-t2 { 0% { visibility: hidden; } 50% { visibility: visible; } 75%, 100% { visibility: hidden; } }
+@keyframes pp-open { 0% { visibility: visible; } 96.5%, 100% { visibility: hidden; } }
+@keyframes pp-shut { 0% { visibility: hidden; } 96.5%, 100% { visibility: visible; } }
+@keyframes pp-zzz { 50% { translate: 0 -1px; } }
+.pp-pet.eating .pet-svg { animation: pp-nibble .36s steps(1, end) infinite; }
+@keyframes pp-nibble { 50% { translate: 0 2.083%; } }
+.pp-pet.pounce .pp-flip { animation: pp-pounce .4s steps(2); }
+@keyframes pp-pounce { 40% { scale: 1.1 .9; } }
+.pp-pet.squish .pp-flip { animation: pp-squish .5s steps(3); }
+@keyframes pp-squish { 30% { scale: 1.12 .86; } 60% { scale: .96 1.05; } }
+.pp-pet.running .pp-body { animation: pp-run .3s steps(1) infinite; }
+@keyframes pp-run { 50% { translate: 0 -4.166%; } }
+.pp-pet.climb .pp-body { animation: pp-run .5s steps(1) infinite; }
+
+/* Strickleiter am Fensterrand */
+.pp-ladder { position: absolute; left: 0; top: 0; background-repeat: repeat-y; background-position: center top; pointer-events: none; }
+
+/* Möbel und Spielzeug */
+.pp-thing { position: absolute; left: 0; top: 0; pointer-events: auto; filter: drop-shadow(0 2px 0 rgba(0,0,0,.2)); }
+.pp-thing > svg { display: block; width: 100%; height: 100%; }
+.pp-thing.toy { cursor: grab; }
+.pp-thing .w1 { position: absolute; left: 0; top: 0; visibility: hidden; }
+.pp-thing.spin .w0 { animation: pp-w0 .2s steps(1) infinite; }
+.pp-thing.spin .w1 { animation: pp-w1 .2s steps(1) infinite; }
+@keyframes pp-w0 { 0% { visibility: visible; } 50% { visibility: hidden; } }
+@keyframes pp-w1 { 0% { visibility: hidden; } 50% { visibility: visible; } }
+.pp-thing.furnish { cursor: move; outline: 1px dashed rgba(255,255,255,.85); outline-offset: 1px; }
+.pp-thing.sel { outline: 2px solid #ffd800; }
+.pp-x { position: absolute; right: -8px; top: -8px; width: 18px; height: 18px; min-width: 0; padding: 0; font: bold 12px/16px Tahoma, sans-serif; }
+
+/* Sprechblase, Hinweis beim Einrichten */
+.pp-say { position: absolute; left: 0; top: 0; width: max-content; max-width: 240px; padding: 5px 9px; background: #ffffe1; color: #000; border: 1px solid #000;
+  border-radius: 8px; font: 12px/1.35 Tahoma, Verdana, sans-serif; pointer-events: auto; }
+.pp-say::after { content: ''; position: absolute; left: var(--tail, 50%); bottom: -7px; width: 10px; height: 7px; margin-left: -5px; background: #000; clip-path: polygon(0 0, 100% 0, 30% 100%); }
+.pp-say::before { content: ''; position: absolute; left: var(--tail, 50%); bottom: -5px; width: 8px; height: 6px; margin-left: -4px; background: #ffffe1; clip-path: polygon(0 0, 100% 0, 30% 90%); z-index: 1; }
+.pp-say .row { margin-top: 5px; }
+.pp-banner { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); max-width: calc(100vw - 20px); pointer-events: auto; }
+.pp-banner .body { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; }
+
+/* Was die Tiere anstupsen */
+.pp-wiggle { animation: pp-wiggle .3s steps(2) 3; }
+.dicon.pp-sniff .g { animation: pp-wiggle .3s steps(2) 4; }
+@keyframes pp-wiggle { 50% { translate: 2px -1px; } }
+.pp-tray .pp-count { font-size: 10px; margin-left: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-pet *, .pp-wiggle, .dicon.pp-sniff .g { animation: none !important; }
+}

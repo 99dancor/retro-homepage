@@ -9,6 +9,9 @@
 //   scene.floaters(petId, list)            aufsteigende Zahlen über einem Tier: [[html, minus, cls]]
 //   scene.speak(key, html, ms) / hush()    Sprechblase über einem Tier (ms = 0: bleibt, bis hush)
 //   scene.snapshot()                       Stand der eigenen Tiere und des Spielzeugs fürs Live-Zimmer
+//   scene.enter(key, side)                 ein Tier kommt durchs Tor ('l' | 'r') vom Desktop zurück
+//   scene.furnish(on, sel)                 Einrichten: Teile verschieben, × legt sie ins Fach (sel: gerade aufgestellt)
+//   scene.gateInfo()                       Lage der Tore im Fenster (für die Strickleiter auf dem Desktop)
 //
 // hooks:
 //   roster()   alle Tiere im Zimmer: [{ key, pet, kind, owner?, net? }]
@@ -18,12 +21,18 @@
 //   chest()    Spielzeugkiste zeigen?           openChest(rect): Kiste angetippt
 //   thought(entry) -> Wert, an den das Tier gerade denkt (Gedankenblase), oder null;  need(entry, key): Blase angetippt
 //   select(entry), stroke(entry), menu(entry, x, y), play(entry, itemId) -> { ok, factor, fav }, sound(name)
+//   props()    aufgestellte Einrichtung im Zimmer: [{ id, x, y, level?, open?, title? }] (Lage wie state.place)
+//   tapProp(id, rect)       Teil angetippt (Kiste, Napf …)      placed(id, x, y) / unplace(id): beim Einrichten
+//   bowlWant(entry) -> 'food' | 'water' | null: will an den Napf     eat(entry, kind): frisst oder trinkt dort
+//   gates() -> { on, l, r }  Tore (0 zu, 1 halb, 2 offen)           gateSet(side, v): am Griff gezogen
+//   mayLeave(entry)          darf raus      leave(entry, side, at): ist durchs Tor (at: Fußpunkt im Fenster in px)
 //
 // Alles ist Pixel-Art: Tiere 48 × 48, Spielzeug 16 × 16, immer im selben ganzzahligen Maßstab und nie gedreht.
 import { SPECIES, mood } from './pets.js';
 import { petSvg } from './art.js';
 import { iconSvg, ICON_OF } from './icons.js';
-import { TOYS, decide, besides, stepTowards, canCatch, wantsToPlay, speed } from './behavior.js';
+import { TOYS, decide, besides, stepTowards, canCatch, wantsToPlay, speed, assignBeds } from './behavior.js';
+import { FURN, furnSvg, bowlSprite } from './furniture.js';
 
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -34,9 +43,9 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 // Wie lange ein Tier nach einem gefangenen Spielzeug wartet, bevor es wieder zählt
 const PLAY_GAP = 2500;
 const BORED_MS = 25000;
-const BED = { x: 0.13, d: 0.12 };
-const CHEST = { x: 0.87, d: 0.06 };
 const MIN_GAP = 0.17;          // so weit (in Zimmerbreiten) halten Tiere Abstand voneinander
+const GATE_D = 0.32;           // Tiefe, auf der die Tore im Fensterrand sitzen
+const SMALL = ['hamster', 'rat', 'axolotl'];   // passen auch durchs halb offene Tor
 // Spielzeug, das im Zimmer steht: Bild und Größe in Bildpunkten
 const STATION = { toy_wheel: ['wheel0', 36, 40], toy_tunnel: ['tunnel', 44, 26], toy_rope: ['rope', 12, 56] };
 // Gefühle als kleine Pixelbilder (alles andere bleibt Zeichen)
@@ -55,7 +64,12 @@ export function createScene(hooks) {
   let toy = null;                  // herausgeholtes Spielzeug
   let lure = null;                 // Zeiger für Federangel, Laser und Knabberstab: { x, y } in px
   const bubbles = [];
-  let bed = null, chest = null;
+  const props = new Map();         // aufgestellte Einrichtung: id -> { id, f, el, x, y, level, user }
+  const entering = new Map();      // Tiere, die gleich durchs Tor zurückkommen: key -> Seite
+  let furnishing = null;           // Einrichten: { sel, drag }
+  let gates = { on: false, l: 0, r: 0 };
+  const gateEls = {};
+  let gateDrag = null;             // Griff eines Tores: { side, y0, v0 }
   let speech = null;               // Sprechblase: { key, el, until }
   let drag = null;                 // gehaltenes Wurfspielzeug: { id, samples }
   let stroke = null;               // Streicheln: { id, x, y, dist, moved, timer }
@@ -100,6 +114,7 @@ export function createScene(hooks) {
       facing: 1, hop: 0, hopV: 0, walking: false, plan: null, until: 0, key: '',
       face: null, busyUntil: 0, nextPlay: 0, bored: {}, carry: false, hidden: false,
       emoteUntil: 0, tiltUntil: 0, blink: rand(0, 4).toFixed(2),
+      bed: null, spot: null, perch: 0, tucked: false,   // Schlafplatz: id des Betts, Ziel, Höhe darauf, im Haus versteckt
     };
   }
 
@@ -115,7 +130,17 @@ export function createScene(hooks) {
     list.forEach((e, i) => {
       const a = actors.get(e.key);
       if (a) a.entry = e;
-      else actors.set(e.key, makeActor(e, i, list.length));
+      else {
+        const n = makeActor(e, i, list.length);
+        actors.set(e.key, n);
+        const side = entering.get(e.key);
+        if (side) {
+          // Kommt vom Desktop: steht im Tor und läuft ein Stück herein
+          entering.delete(e.key);
+          n.x = side === 'l' ? -0.06 : 1.06; n.d = GATE_D; n.facing = side === 'l' ? 1 : -1;
+          n.plan = { type: 'wander', x: side === 'l' ? rand(0.15, 0.35) : rand(0.65, 0.85), d: rand(0.3, 0.7) }; n.until = performance.now() + 6000;
+        }
+      }
     });
     const active = hooks.active();
     const mine = list.filter((e) => e.kind === 'own').length;
@@ -135,8 +160,8 @@ export function createScene(hooks) {
       a.el.classList.toggle('guest', a.entry.kind !== 'own');
       drawThought(a, hooks.thought ? hooks.thought(a.entry) : null);
     }
-    drawBed(hooks.bed());
-    drawChest();
+    drawProps();
+    drawGates();
   }
 
   // Gedankenblase über dem Kopf: woran das Tier gerade denkt (zum Antippen)
@@ -150,30 +175,111 @@ export function createScene(hooks) {
     a.el.append(a.think);
   }
 
-  function drawBed(has) {
-    if (!has) { if (bed) { bed.remove(); bed = null; } return; }
-    if (!bed) {
-      bed = html('div', 'sc-bed', iconSvg('bed'));
-      bed.title = 'Körbchen';
-      layer.prepend(bed);
+  // ---------- Einrichtung ----------
+  function drawProps() {
+    const list = hooks.props ? hooks.props() : [];
+    for (const [id, p] of props) {
+      if (list.some((q) => q.id === id)) continue;
+      p.el.remove(); props.delete(id);
+      for (const a of actors.values()) if (a.bed === id) { a.bed = null; a.spot = null; }
+    }
+    for (const q of list) {
+      const f = FURN[q.id];
+      if (!f || f.desk) continue;
+      let p = props.get(q.id);
+      if (!p) {
+        p = { id: q.id, f, el: html('div', 'sc-prop'), sig: '', user: null };
+        p.el.dataset.prop = q.id;
+        layer.prepend(p.el);
+        props.set(q.id, p);
+      }
+      if (!(furnishing && furnishing.drag && furnishing.drag.id === q.id)) { p.x = q.x; p.y = q.y; }
+      p.level = q.level;
+      const sprite = f.bowl ? bowlSprite(f.bowl, q.level) : q.id === 'furn_chest' && q.open ? 'furn_chest_open' : q.id;
+      const sig = sprite + '|' + !!furnishing;
+      if (p.sig !== sig) {
+        p.sig = sig;
+        p.el.innerHTML = (q.id === 'toy_wheel' ? furnSvg('toy_wheel', 'pxi w0') + furnSvg('toy_wheel_1', 'pxi w1') : furnSvg(sprite))
+          + (furnishing && !f.chest ? '<button type="button" class="sc-x" title="Ins Fach legen" aria-label="Ins Fach legen">×</button>' : '');
+      }
+      p.el.title = furnishing ? 'Ziehen zum Verschieben' : q.title || '';
+      p.el.classList.toggle('wall', !!f.wall);
+      p.el.classList.toggle('flat', !!f.flat);
+      p.el.classList.toggle('use', !!(f.chest || f.bowl || f.station));
+      p.el.classList.toggle('sel', !!furnishing && furnishing.sel === q.id);
     }
   }
 
-  function drawChest() {
-    const has = hooks.chest ? hooks.chest() : false;
-    if (!has) { if (chest) { chest.remove(); chest = null; } return; }
-    const open = !!toy;
-    if (!chest) {
-      chest = html('div', 'sc-chest');
-      chest.setAttribute('role', 'button');
-      chest.setAttribute('aria-haspopup', 'menu');
-      layer.append(chest);
+  // Lage eines Teils in px: links, oben, Breite, Höhe, Ebene
+  function propBox(p) {
+    const u = geo.u, w = p.f.w * u, h = p.f.h * u;
+    const left = clamp(p.x * geo.W - w / 2, 0, Math.max(0, geo.W - w));
+    if (p.f.wall) {
+      const bottom = clamp(p.y * geo.top, h + 2 * u, geo.top - u);
+      return { left, top: bottom - h, w, h, z: 4 };
     }
-    if (chest.dataset.open !== String(open)) {
-      chest.dataset.open = String(open);
-      chest.innerHTML = iconSvg(open ? 'chest_open' : 'chest');
-      chest.title = open ? 'Spielzeugkiste: anderes Spielzeug oder wegräumen' : 'Spielzeugkiste: Spielzeug herausholen';
+    const fy = feetY(p.y);
+    return { left, top: p.f.flat ? fy - h / 2 : fy - h + 2 * u, w, h, z: p.f.flat ? 6 : 9 + Math.round(p.y * 100) };
+  }
+
+  // Schlafplätze: Betten, Kissen und (für manche Arten) Karton und Hamsterhaus
+  function spots() {
+    const out = [];
+    for (const p of props.values()) {
+      if (!p.f.sleep) continue;
+      out.push({ id: p.id, x: p.x, d: Math.min(1, p.y + 0.01), sleep: p.f.sleep, hide: !!p.f.hide, lift: p.f.seat ? p.f.h - p.f.seat - 2 : 0 });
     }
+    return out.sort((a, b) => (a.id < b.id ? -1 : 1));
+  }
+  function assignSleep() {
+    const sleepers = [...actors.values()].filter((o) => local(o) && o.entry.pet.sleeping && o.plan?.type !== 'out')
+      .sort((a, b) => (a.id < b.id ? -1 : 1))
+      .map((o) => ({ key: o.id, species: o.entry.pet.species, bed: o.bed }));
+    const got = assignBeds(sleepers, spots(), MIN_GAP);
+    for (const a of actors.values()) {
+      const spot = got.get(a.id);
+      if (spot === undefined) { if (a.bed || a.tucked) wakeUp(a); continue; }
+      if (spot && spot.id !== a.bed) { a.perch = 0; untuck(a); }
+      a.bed = spot ? spot.id : null;
+      a.spot = spot;
+    }
+  }
+  function untuck(a) { if (a.tucked) { a.tucked = false; a.el.style.opacity = ''; } }
+  function wakeUp(a) { a.bed = null; a.spot = null; a.perch = 0; untuck(a); }
+
+  // ---------- Tore im Fensterrand ----------
+  function drawGates() {
+    gates = hooks.gates ? hooks.gates() : { on: false, l: 0, r: 0 };
+    for (const side of ['l', 'r']) {
+      let el = gateEls[side];
+      if (!gates.on) { if (el) { el.remove(); delete gateEls[side]; } continue; }
+      if (!el) {
+        el = gateEls[side] = html('div', 'sc-gate ' + side, '<i class="hole"></i><i class="shutter"><b class="grip" title="Ziehen: Tor auf oder zu"></b></i><i class="roll"></i>');
+        el.dataset.gate = side;
+        layer.append(el);
+      }
+      el.dataset.v = gates[side];
+      el.title = ['Tor zu', 'Tor halb offen: nur kleine Tiere passen durch', 'Tor offen'][gates[side]];
+    }
+  }
+  const gateOpenFor = (p, side) => gates.on && (gates[side] === 2 || (gates[side] === 1 && SMALL.includes(p.species)));
+  function placeGates() {
+    const u = geo.u, h = 58 * u, w = 7 * u, bottom = feetY(GATE_D) + 2 * u;
+    for (const side of ['l', 'r']) {
+      const el = gateEls[side];
+      if (!el) continue;
+      const v = gateDrag && gateDrag.side === side ? gateDrag.v : gates[side];
+      el.style.width = w + 'px'; el.style.height = h + 'px';
+      el.style.transform = `translate(${px(side === 'l' ? 0 : geo.W - w)}, ${px(bottom - h)})`;
+      el.style.setProperty('--u', u + 'px');
+      el.style.setProperty('--shut', px((1 - v / 2) * (h - 6 * u) + 2 * u));
+    }
+  }
+  // Wo die Tore im Fenster sitzen (Fußpunkt der Schwelle), für Strickleiter und Übergabe
+  function gateInfo() {
+    if (!layer.isConnected) return null;
+    const r = layer.getBoundingClientRect();
+    return { left: r.left, right: r.left + geo.W, y: r.top + feetY(GATE_D), u: geo.u, size: sizeOf() };
   }
 
   function say(a, symbol, ms = 1600) {
@@ -231,7 +337,7 @@ export function createScene(hooks) {
     }
     if (toy.el) layer.append(toy.el);
     layer.classList.add('toy-' + t.kind);
-    drawChest();
+    drawProps();
   }
 
   function putAway() {
@@ -240,7 +346,7 @@ export function createScene(hooks) {
     for (const b of bubbles.splice(0)) b.el.remove();
     for (const a of actors.values()) { a.carry = false; if (a.hidden) { a.hidden = false; a.el.style.opacity = ''; } }
     toy = null; lure = null; drawLure();
-    drawChest();
+    drawProps();
   }
 
   function drawLure() {
@@ -295,6 +401,7 @@ export function createScene(hooks) {
     const all = [...actors.values()];
     stepToy(dt, now);
     stepBubbles(dt);
+    assignSleep();
     for (const a of all) {
       const p = a.entry.pet;
       if (!local(a)) { stepRemote(a, dt); continue; }
@@ -305,32 +412,35 @@ export function createScene(hooks) {
         if (a.hop <= 0) { a.hop = 0; a.hopV = 0; }
       }
     }
-    separate(all.filter(local), dt, now);
+    separate(all.filter((a) => local(a) && a.plan?.type !== 'out'), dt, now);
     draw(now);
     raf = requestAnimationFrame(tick);
   }
 
   function stepActor(a, p, all, dt, now) {
+    if (furnishing) { a.walking = false; return; }   // beim Einrichten warten alle
     if (now < a.busyUntil) { a.walking = false; return; }
-    const others = all.filter((o) => o !== a && !o.hidden).map((o) => ({ key: o.id, pet: o.entry.pet, x: o.x, d: o.d, a: o }));
+    const others = all.filter((o) => o !== a && !o.hidden && !o.tucked).map((o) => ({ key: o.id, pet: o.entry.pet, x: o.x, d: o.d, a: o }));
 
-    // Schlafen: ins Körbchen, falls vorhanden, sonst dort, wo es gerade ist
+    // Schlafen: jedes Tier auf seinen eigenen Platz (Bett, Kissen, Haus), sonst dort, wo es gerade ist
     if (p.sleeping) {
       a.carry = false;
-      if (bed) {
-        const sleepers = [...actors.values()].filter((o) => local(o) && o.entry.pet.sleeping);
-        const i = sleepers.indexOf(a);
-        const spot = { x: BED.x + (i - (sleepers.length - 1) / 2) * 0.07, d: BED.d + (i % 2) * 0.05 };
-        if (move(a, spot, speed(p) * 0.8, dt)) a.walking = false;
+      if (a.spot) {
+        if (move(a, a.spot, speed(p) * 0.8, dt)) {
+          a.walking = false;
+          a.perch = a.spot.lift || 0;
+          if (a.spot.hide && !a.tucked) { a.tucked = true; a.el.style.opacity = '0'; }
+        } else { a.perch = 0; untuck(a); }
       } else a.walking = false;
       return;
     }
+    if (a.bed || a.tucked) wakeUp(a);
 
     if (toy && playToy(a, p, others, dt, now)) return;
 
-    // Eigene Pläne: herumlaufen, sitzen, Freunde besuchen, Fangen spielen
+    // Eigene Pläne: herumlaufen, sitzen, Freunde besuchen, Fangen spielen, an den Napf, durchs Tor
     if (!a.plan || now > a.until) {
-      const plan = reduced() ? { type: 'sit', ms: 4000 } : decide({ pet: p, x: a.x, d: a.d }, others);
+      const plan = reduced() ? { type: 'sit', ms: 4000 } : ownPlan(a, p) || decide({ pet: p, x: a.x, d: a.d }, others);
       a.plan = plan; a.until = now + plan.ms;
       if (plan.type === 'look') a.tiltUntil = now + plan.ms;
       if (plan.type === 'nap') say(a, '💤', plan.ms);
@@ -369,8 +479,91 @@ export function createScene(hooks) {
         }
         break;
       }
+      case 'out': {
+        // Durchs offene Tor auf den Desktop
+        if (!gateOpenFor(p, pl.side) || !(hooks.mayLeave && hooks.mayLeave(a.entry))) { a.plan = null; break; }
+        if (move(a, { x: pl.side === 'l' ? -0.07 : 1.07, d: GATE_D }, speed(p, 'run'), dt)) {
+          const g = gateInfo();
+          a.plan = { type: 'sit' }; a.until = now + 3000;
+          if (g && hooks.leave) hooks.leave(a.entry, pl.side, { x: pl.side === 'l' ? g.left : g.right, y: g.y, facing: pl.side === 'l' ? -1 : 1, u: g.u });
+        }
+        break;
+      }
+      case 'bowl': {
+        const b = props.get(pl.id);
+        if (!b) { a.plan = null; break; }
+        const side = a.x < b.x ? -1 : 1;
+        if (move(a, { x: clamp(b.x + side * (b.f.w * geo.u / geo.W) * 0.55, 0.06, 0.94), d: Math.min(1, b.y + 0.03) }, speed(p), dt)) {
+          a.facing = -side;
+          a.busyUntil = now + 1900; flash(a, 'eating', 1900);
+          if (hooks.eat) hooks.eat(a.entry, pl.kind);
+          a.plan = { type: 'sit' }; a.until = now + 2500;
+        }
+        break;
+      }
+      case 'prop': {
+        const b = props.get(pl.id);
+        if (!b || (b.user && b.user !== a.id)) { a.plan = null; break; }
+        b.user = a.id;
+        if (move(a, { x: b.x, d: Math.min(1, b.y + 0.02) }, speed(p, pl.play ? 'run' : 'walk'), dt)) usePropNow(a, b, pl.play, now);
+        break;
+      }
       default: a.walking = false;
     }
+  }
+
+  // Eigene Wünsche vor dem Zufall: Hunger oder Durst und ein voller Napf, ab und zu raus, ab und zu ein Möbel
+  function ownPlan(a, p) {
+    const want = hooks.bowlWant ? hooks.bowlWant(a.entry) : null;
+    if (want) {
+      const b = [...props.values()].find((x) => x.f.bowl === want);
+      if (b) return { type: 'bowl', id: b.id, kind: want, ms: 12000 };
+    }
+    if (gates.on && a.entry.kind === 'own' && hooks.mayLeave && hooks.mayLeave(a.entry) && Math.random() < 0.18) {
+      const sides = ['l', 'r'].filter((sd) => gateOpenFor(p, sd));
+      if (sides.length) return { type: 'out', side: sides[Math.floor(Math.random() * sides.length)], ms: 20000 };
+    }
+    if (Math.random() < 0.12) {
+      const b = [...props.values()].filter((x) => !x.user && fitsProp(x, p));
+      if (b.length) return { type: 'prop', id: pick(b).id, ms: 15000 };
+    }
+    return null;
+  }
+  const fitsProp = (b, p) => (b.f.station && b.f.station.includes(p.species)) || (b.f.climb && b.f.climb.includes(p.species))
+    || (b.f.hide && !b.f.station && Array.isArray(b.f.sleep) && b.f.sleep.includes(p.species));
+
+  // Ein Möbel benutzen: Laufrad drehen, durch den Tunnel, Kratzbaum hinauf, kurz im Karton verschwinden.
+  // play: angetippt, zählt als Spielen
+  function usePropNow(a, b, play, now) {
+    const id = b.id, ms = id === 'toy_tunnel' ? 1400 : 2600;
+    a.plan = { type: 'sit' }; a.until = now + ms + 1500;
+    a.busyUntil = now + ms;
+    if (id === 'toy_wheel') { b.el.classList.add('spin'); flash(a, 'running', ms); } else if (b.f.climb) flash(a, 'climb', ms);
+    else {
+      a.hidden = true; a.el.style.opacity = '0';
+      const out = b.x + (a.x < 0.5 ? 0.16 : -0.16);
+      setTimeout(() => { a.hidden = false; a.el.style.opacity = ''; if (id === 'toy_tunnel') a.x = clamp(out, 0.08, 0.92); hop(a, 0.6); }, ms - 200);
+    }
+    setTimeout(() => {
+      b.el.classList.remove('spin');
+      if (b.user === a.id) b.user = null;
+      if (play && hooks.play) {
+        const r = hooks.play(a.entry, id) || { ok: false };
+        if (!r.ok) say(a, '💤'); else say(a, r.factor < 0.5 ? '…' : r.fav ? '😍' : '♪');
+      }
+    }, ms);
+  }
+
+  // Ein Möbel angetippt: das gewählte Tier (oder ein anderes, das Lust hat) spielt damit
+  function tapProp(b) {
+    if (b.user) { const a = actors.get(b.user); if (a && b.id === 'toy_wheel') a.busyUntil += 600; return; }
+    const act = hooks.active();
+    const order = [...actors.values()].filter((o) => o.entry.kind === 'own').sort((x, y) => (y.id === act) - (x.id === act));
+    const a = order.find((o) => wantsToPlay(o.entry.pet, b.id) && fitsProp(b, o.entry.pet));
+    if (!a) { if (order[0]) say(order[0], '😴'); return; }
+    a.plan = { type: 'prop', id: b.id, play: true }; a.until = performance.now() + 15000;
+    b.user = a.id;
+    say(a, '❗', 800);
   }
 
   // Live-Tiere: sanft zum letzten gemeldeten Stand gleiten
@@ -396,7 +589,10 @@ export function createScene(hooks) {
         if (Math.abs(dx) >= MIN_GAP || Math.abs(dd) >= 0.25) continue;
         const sign = dx > 0 || (dx === 0 && i % 2) ? 1 : -1;
         const push = (MIN_GAP - Math.abs(dx)) * Math.min(1, dt * 3);
-        const fa = now < a.busyUntil ? 0 : now < b.busyUntil ? 2 : 1, fb = 2 - fa;
+        // Schlafende bleiben liegen, wer wach ist, weicht aus
+        const sa = a.entry.pet.sleeping, sb = b.entry.pet.sleeping;
+        if (sa && sb) continue;
+        const fa = sa || now < a.busyUntil ? 0 : sb || now < b.busyUntil ? 2 : 1, fb = 2 - fa;
         a.x = clamp(a.x - sign * push * fa / 2, 0.06, 0.94);
         b.x = clamp(b.x + sign * push * fb / 2, 0.06, 0.94);
       }
@@ -573,7 +769,7 @@ export function createScene(hooks) {
     layer.classList.toggle('speaking', !!speech);   // solange eins spricht, ruhen die Gedankenblasen
     for (const a of actors.values()) {
       const fy = feetY(a.d);
-      let lift = a.hop;
+      let lift = a.hop + (a.perch && !a.walking ? a.perch * u : 0);
       if (a.el.classList.contains('climb')) lift += Math.sin(((now % 2400) / 2400) * Math.PI) * geo.H * 0.32;
       const step = a.walking ? (Math.floor(now / 120 + a.blink * 3) % 2) * u : 0;
       a.el.style.width = a.el.style.height = s + 'px';
@@ -609,15 +805,13 @@ export function createScene(hooks) {
       }
       toy.el.style.zIndex = z(toy.d, toy.id === 'toy_tunnel' ? 12 : 9);
     }
-    if (bed) {
-      bed.style.width = 60 * u + 'px';
-      bed.style.transform = `translate(${px(BED.x * geo.W - 30 * u)}, ${px(feetY(BED.d) - 15 * u)})`;
+    for (const p of props.values()) {
+      const b = propBox(p);
+      p.el.style.width = b.w + 'px'; p.el.style.height = b.h + 'px';
+      p.el.style.transform = `translate(${px(b.left)}, ${px(b.top)})`;
+      p.el.style.zIndex = b.z;
     }
-    if (chest) {
-      chest.style.width = 24 * u + 'px';
-      chest.style.transform = `translate(${px(CHEST.x * geo.W - 12 * u)}, ${px(feetY(CHEST.d) - 19 * u)})`;
-      chest.style.zIndex = z(CHEST.d);
-    }
+    placeGates();
     for (const b of bubbles) b.el.style.transform = `translate(${px(b.x - b.r)}, ${px(b.y - b.r)})`;
     if (speech) placeSpeech(now);
     drawGhosts();
@@ -675,8 +869,38 @@ export function createScene(hooks) {
       if (a && a.thinkKey) hooks.need(a.entry, a.thinkKey);
       return;
     }
-    if (e.target.closest('.sc-chest')) { e.preventDefault(); hooks.openChest(chest.getBoundingClientRect()); return; }
     const p = pos(e);
+    const grip = e.target.closest('.sc-gate .grip');
+    if (grip) {
+      const side = grip.closest('.sc-gate').dataset.gate;
+      gateDrag = { side, y0: p.y, v0: gates[side], v: gates[side] };
+      layer.setPointerCapture?.(e.pointerId);
+      e.preventDefault();
+      return;
+    }
+    const propEl = e.target.closest('.sc-prop');
+    if (propEl && props.has(propEl.dataset.prop)) {
+      const b = props.get(propEl.dataset.prop);
+      e.preventDefault();
+      if (furnishing) {
+        if (e.target.closest('.sc-x')) { hooks.unplace(b.id); return; }
+        const box = propBox(b);
+        furnishing.sel = b.id;
+        furnishing.drag = { id: b.id, dx: p.x - (box.left + box.w / 2), dy: p.y - (box.top + box.h), moved: 0 };
+        drawProps();
+        layer.setPointerCapture?.(e.pointerId);
+        return;
+      }
+      if (b.f.chest) { hooks.openChest(propEl.getBoundingClientRect()); return; }
+      if (b.f.station) { tapProp(b); return; }
+      if (hooks.tapProp) hooks.tapProp(b.id, propEl.getBoundingClientRect());
+      if (!b.f.bowl && !b.f.station && !b.f.chest) {
+        // Deko: das nächste Tier schaut kurz hin
+        const a = [...actors.values()].filter(local).sort((x, y) => Math.abs(x.x - b.x) - Math.abs(y.x - b.x))[0];
+        if (a && !a.entry.pet.sleeping) { a.facing = b.x > a.x ? 1 : -1; say(a, '✨', 900); }
+      }
+      return;
+    }
     if (toy && toy.el && toy.kind === 'throw' && !toy.carriedBy && e.target.closest('.sc-toy')) {
       drag = { samples: [{ ...p, t: e.timeStamp }] };
       toy.vx = toy.vy = 0;
@@ -707,6 +931,23 @@ export function createScene(hooks) {
 
   layer.addEventListener('pointermove', (e) => {
     const p = pos(e);
+    if (gateDrag) {
+      // Griff hoch: auf, runter: zu (rastet bei zu, halb und offen ein)
+      const h = 58 * geo.u;
+      gateDrag.v = clamp(gateDrag.v0 + ((gateDrag.y0 - p.y) / (h * 0.5)), 0, 2);
+      placeGates();
+      return;
+    }
+    if (furnishing && furnishing.drag) {
+      const fd = furnishing.drag, b = props.get(fd.id);
+      if (!b) return;
+      fd.moved += 1;
+      const cx = p.x - fd.dx, by = p.y - fd.dy;
+      b.x = clamp(cx / geo.W, 0.02, 0.98);
+      b.y = b.f.wall ? clamp(by / geo.top, 0.1, 1) : depthAt(by - 2 * geo.u);
+      draw(performance.now());
+      return;
+    }
     if (drag) {
       toy.x = clamp(p.x, 0, geo.W); toy.y = clamp(p.y, 0, geo.H);
       if (p.y > geo.far) toy.d = depthAt(p.y + toyR());
@@ -725,6 +966,19 @@ export function createScene(hooks) {
   });
 
   const up = (e) => {
+    if (gateDrag) {
+      const g = gateDrag;
+      gateDrag = null;
+      const v = Math.round(g.v);
+      if (v !== g.v0 && hooks.gateSet) hooks.gateSet(g.side, v); else placeGates();
+      return;
+    }
+    if (furnishing && furnishing.drag) {
+      const fd = furnishing.drag, b = props.get(fd.id);
+      furnishing.drag = null;
+      if (b && fd.moved && hooks.placed) hooks.placed(b.id, +b.x.toFixed(3), +b.y.toFixed(3));
+      return;
+    }
     if (drag) {
       const s = drag.samples, a = s[0], b = s[s.length - 1];
       const ms = Math.max(16, b.t - a.t);
@@ -831,8 +1085,19 @@ export function createScene(hooks) {
 
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && host && !raf) raf = requestAnimationFrame(tick); });
 
+  // Ein Tier kommt vom Desktop zurück: sync() setzt es ins Tor
+  function enter(key, side) { entering.set(key, side === 'l' ? 'l' : 'r'); }
+
+  function furnish(on, sel = null) {
+    furnishing = on ? { sel, drag: null } : null;
+    layer.classList.toggle('furnish', !!on);
+    for (const p of props.values()) p.sig = '';
+    drawProps();
+  }
+
   return {
-    mount, sync, useToy, putAway, animate, floaters, snapshot, speak, hush,
+    mount, sync, useToy, putAway, animate, floaters, snapshot, speak, hush, enter, furnish, gateInfo,
+    get furnishing() { return !!furnishing; },
     get toy() { return toy ? toy.id : null; },
     get speaking() { return speech ? speech.key : null; },
     actorAt: (id) => actors.get(id),

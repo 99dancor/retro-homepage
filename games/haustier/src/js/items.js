@@ -6,9 +6,12 @@
 //   fav:        Lieblingssache dieser Arten, wirkt 50 % stärker
 //   effect:     Änderungen der Werte beim Benutzen
 //   req:        { level } Zuneigungsstufe eines Tieres, { best } beste Serie, { months } nur in diesen Monaten,
-//               { owns } Tierart muss im Besitz sein; notForSale: nur als Geschenk
+//               { owns } Tierart muss im Besitz sein, { trophy } ein Pokal aus dem Tageswettbewerb,
+//               { tasks } so viele erledigte Tagesaufgaben; notForSale: nur als Geschenk
+//               Mit Preis 0 und req ist ein Gegenstand eine Belohnung: gesperrt, bis man sie verdient, dann gratis.
 //   consumable: wird beim Benutzen verbraucht (Futter, Seife)
 //   slot:       Accessoire-Platz head | neck | back
+//   Einrichtung (furn) und Laufrad/Tunnel lassen sich im Zimmer oder auf dem Desktop aufstellen (furniture.js)
 
 export const CATEGORIES = [
   { id: 'food', label: 'Futter', icon: '🍖' },
@@ -16,6 +19,7 @@ export const CATEGORIES = [
   { id: 'care', label: 'Pflege', icon: '🧼' },
   { id: 'acc', label: 'Accessoires', icon: '🎀' },
   { id: 'room', label: 'Räume', icon: '🖼️' },
+  { id: 'furn', label: 'Einrichtung', icon: '🛋️' },
 ];
 
 const list = [
@@ -57,7 +61,6 @@ const list = [
   { id: 'care_runball', cat: 'care', name: 'Laufball', icon: '🔵', price: 60, for: ['hamster', 'rat'], note: 'Schaltet „Ausflug“ frei.' },
   { id: 'care_harness', cat: 'care', name: 'Geschirr', icon: '🎽', price: 60, for: ['cat', 'rabbit'], note: 'Schaltet „Ausflug“ frei.' },
   { id: 'care_travelglass', cat: 'care', name: 'Reiseglas', icon: '🫙', price: 60, for: ['axolotl'], note: 'Schaltet „Ausflug“ frei.' },
-  { id: 'care_bed', cat: 'care', name: 'Körbchen', icon: '🧺', price: 120, note: 'Ruhe sinkt 20 % langsamer.' },
   { id: 'extra_slot', cat: 'care', name: 'Weiterer Tierplatz', icon: '🏡', price: 2000, note: 'Platz für ein drittes Tier.' },
 
   // Accessoires (nur Aussehen, jedes Tier trägt je Platz eins)
@@ -78,6 +81,26 @@ const list = [
   { id: 'acc_sweater', cat: 'acc', slot: 'back', name: 'Pullover', icon: '🧥', price: 120 },
   { id: 'acc_cape', cat: 'acc', slot: 'back', name: 'Umhang', icon: '🦸', price: 150 },
   { id: 'acc_wings', cat: 'acc', slot: 'back', name: 'Engelsflügel', icon: '🪽', price: 300, req: { best: 30 } },
+
+  // Einrichtung (hält für immer, steht im Zimmer, auf dem Desktop oder im Fach)
+  { id: 'furn_chest', cat: 'furn', name: 'Spielzeugkiste', icon: '🧰', price: 0, notForSale: true, note: 'Von Anfang an da. Darin liegt das Spielzeug.' },
+  { id: 'care_bed', cat: 'furn', name: 'Körbchen', icon: '🧺', price: 120, note: 'Schlafplatz. Ruhe sinkt 20 % langsamer.' },
+  { id: 'furn_bed2', cat: 'furn', name: 'Blaues Körbchen', icon: '🛏️', price: 150, note: 'Noch ein Schlafplatz, damit keiner kuscheln muss.' },
+  { id: 'furn_box', cat: 'furn', name: 'Karton', icon: '📦', price: 15, note: 'Zum Verstecken und Schlafen. Katzen lieben ihn.' },
+  { id: 'furn_cushion', cat: 'furn', name: 'Kissen', icon: '🟥', price: 40, note: 'Schlafplatz für ein Nickerchen.' },
+  { id: 'furn_bowl_water', cat: 'furn', name: 'Wassernapf', icon: '💧', price: 20, note: 'Ein Klick füllt ihn. Durstige Tiere trinken selbst.' },
+  { id: 'furn_bowl_food', cat: 'furn', name: 'Futternapf', icon: '🥣', price: 25, note: 'Futter hineinschütten. Hungrige Tiere fressen selbst.' },
+  { id: 'furn_rug', cat: 'furn', name: 'Teppich', icon: '🟦', price: 50, note: 'Deko für den Boden.' },
+  { id: 'furn_plant', cat: 'furn', name: 'Pflanze', icon: '🪴', price: 60, note: 'Deko.' },
+  { id: 'furn_frame', cat: 'furn', name: 'Bild „Hügel“', icon: '🖼️', price: 70, note: 'Deko für die Wand.' },
+  { id: 'furn_shelf', cat: 'furn', name: 'Wandbrett', icon: '🪵', price: 80, note: 'Hängt an der Wand. Auf dem Desktop können Tiere darauf springen.' },
+  { id: 'furn_lamp', cat: 'furn', name: 'Stehlampe', icon: '💡', price: 90, note: 'Deko.' },
+  { id: 'furn_house', cat: 'furn', name: 'Hamsterhaus', icon: '🏠', price: 120, for: ['hamster', 'rat', 'axolotl'], note: 'Versteck und Schlafplatz für kleine Tiere.' },
+  { id: 'furn_tree', cat: 'furn', name: 'Kratzbaum', icon: '🌴', price: 300, for: ['cat', 'fox', 'rat'], fav: ['cat'], note: 'Zum Klettern. Auf dem Desktop eine Plattform.' },
+  { id: 'furn_heart', cat: 'furn', name: 'Herzkissen', icon: '💛', price: 0, req: { level: 4 }, note: 'Belohnung: ein Tier auf Zuneigungsstufe 4.' },
+  { id: 'furn_badge', cat: 'furn', name: 'Treue-Abzeichen', icon: '🏅', price: 0, req: { best: 7 }, note: 'Belohnung: 7 Tage in Folge besucht.' },
+  { id: 'furn_star', cat: 'furn', name: 'Bild „Sternenhimmel“', icon: '🌠', price: 0, req: { tasks: 15 }, note: 'Belohnung: 15 Tagesaufgaben erledigt.' },
+  { id: 'furn_cert', cat: 'furn', name: 'Urkunde', icon: '📜', price: 0, req: { trophy: true }, note: 'Belohnung: ein Pokal im Tageswettbewerb.' },
 
   // Räume (Hintergründe)
   { id: 'room_living', cat: 'room', name: 'Wohnzimmer', icon: '🛋️', price: 0, notForSale: true, note: 'Von Anfang an da.' },
@@ -100,4 +123,6 @@ export function usableBy(item, species) {
 
 export const isFav = (item, species) => !!(item.fav && item.fav.includes(species));
 export const isDurable = (item) => item.cat !== 'food' && !item.consumable;
+// Belohnung: kostet nichts, ist aber erst frei, wenn man sie verdient hat
+export const isReward = (item) => !!item && !item.price && !!item.req && !item.notForSale;
 export const owned = (state, id) => (state.inventory[id] || 0) > 0;

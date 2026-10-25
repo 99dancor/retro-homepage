@@ -165,7 +165,24 @@
     if (w.before) { w.el.classList.remove('mini'); w.before = null; } // der Mediaplayer merkt das und wird wieder groß
     w.el.classList.toggle('max'); sound('maximieren'); focus(w);
   }
+  // Vor dem Schließen dürfen andere noch kurz etwas erledigen (Pixelpfoten: die Tiere laufen heim), höchstens 4 Sekunden
+  var closeGuards = [];
   function close(w) {
+    if (w.closing) return;
+    var waits = [];
+    closeGuards.forEach(function (fn) {
+      try { var p = fn(w.iframe.contentWindow, w.el); if (p && p.then) waits.push(p); } catch (e) { /* egal */ }
+    });
+    if (waits.length) {
+      w.closing = true;
+      w.el.classList.add('closing');
+      Promise.race([Promise.all(waits), new Promise(function (r) { setTimeout(r, 4000); })]).then(function () { w.closing = false; closeNow(w); });
+      return;
+    }
+    closeNow(w);
+  }
+  function closeNow(w) {
+    if (wins.indexOf(w) < 0) return;
     sound('schliessen');
     w.el.remove(); w.task.remove();
     wins.splice(wins.indexOf(w), 1);
@@ -503,7 +520,37 @@
       var w = byWin(win);
       if (w) close(w);
     },
+    // Alle Fenster, hinterstes zuerst (Pixelpfoten laufen auf den Titelleisten)
+    windows: function () {
+      return wins.slice().sort(function (a, b) { return a.z - b.z; }).map(function (w) {
+        return { el: w.el, win: w.iframe.contentWindow, iframe: w.iframe, task: w.task, url: w.url, z: w.z, active: active === w,
+          min: w.el.classList.contains('min'), max: w.el.classList.contains('max'), closing: !!w.closing };
+      });
+    },
+    focusWin: function (win) { var w = byWin(win); if (w) focus(w); },
+    onClose: function (fn) { closeGuards.push(fn); },
   };
+
+  // Pixelpfoten draußen: Tiere und Möbel auf dem Desktop (games/haustier/src/js/desktop.js). Das Spiel lädt die Ebene, wenn es
+  // ein Tier herauslässt; stehen schon Möbel auf dem Desktop, kommt sie gleich mit, damit sie auch ohne offenes Spiel dastehen.
+  var petsLoad = null;
+  window.RetroPets = {
+    load: function () {
+      if (petsLoad) return petsLoad;
+      petsLoad = new Promise(function (resolve, reject) {
+        var s = document.createElement('script');
+        s.type = 'module'; s.src = '/haustier/js/desktop.js';
+        s.onload = function () { if (window.RetroPets.api) resolve(window.RetroPets.api); else { petsLoad = null; reject(new Error('Pixelpfoten fehlt')); } };
+        s.onerror = function () { petsLoad = null; s.remove(); reject(new Error('Pixelpfoten konnte nicht geladen werden')); };
+        document.head.appendChild(s);
+      });
+      return petsLoad;
+    },
+  };
+  try {
+    var petCopy = JSON.parse(localStorage.getItem('haustier:v1:desk') || 'null');
+    if (petCopy && petCopy.items && petCopy.items.length && String(petCopy.user || '') === String(me || '') && !mobile.matches) window.RetroPets.load().catch(function () { /* ohne Möbel */ });
+  } catch (e) { /* privat */ }
 
   // Startmenü öffnet Fenster
   if (menu) menu.addEventListener('click', function (e) {

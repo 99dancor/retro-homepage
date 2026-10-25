@@ -62,7 +62,7 @@ test('Push wird verschlüsselt, mit VAPID angemeldet und lässt sich entschlüss
   assert.equal(webpush.publicKey(), m[2], 'Schlüssel bleibt gleich');
 });
 
-test('Haustier-Erinnerung: hungriges Tier und offene Besuchsserie, je einmal am Tag', async () => {
+test('Haustier-Erinnerung: eine für alle Tiere, ein Push bis gelesen, nachts Ruhe, morgens ein Gruß', async () => {
   const { db, now } = require('../src/db');
   const notify = require('../src/notify');
   const petwatch = require('../src/petwatch');
@@ -71,17 +71,82 @@ test('Haustier-Erinnerung: hungriges Tier und offene Besuchsserie, je einmal am 
   db.prepare("INSERT INTO users(username, password_hash, role, created_at) VALUES ('tierfreund', 'x', 'user', ?)").run(now());
   const uid = db.prepare("SELECT id FROM users WHERE username = 'tierfreund'").get().id;
   const t = new Date(2026, 9, 16, 19, 0).getTime();
-  const s = state.newState(t - 3 * 86400e3);
-  pets.adopt(s, 'cat', 'ginger', 'Mimi', t - 3 * 86400e3);
-  s.visits = { total: 5, streak: 5, best: 5, lastDay: state.dayKey(t - 86400e3) };
-  const data = JSON.stringify(s);
+  const H = 3600e3;
+  // Spielstand, zuletzt gespeichert um saved; Werte gelten ab t (kein Absinken bis dahin)
+  const save = (saved, fn = () => {}) => {
+    const s = state.newState(t - 3 * 86400e3);
+    s.extraSlots = 1;
+    pets.adopt(s, 'cat', 'ginger', 'Mimi', t - 3 * 86400e3);
+    pets.adopt(s, 'dog', 'brown', 'Bello', t - 3 * 86400e3);
+    s.pets[0].stats = { love: 60, fun: 60, food: 15, water: 12, rest: 60, joy: 50 };
+    s.pets[1].stats = { love: 60, fun: 18, food: 60, water: 60, rest: 60, joy: 50 };
+    for (const p of s.pets) p.tickAt = t;
+    s.visits = { total: 5, streak: 5, best: 5, lastDay: state.dayKey(t - 86400e3) };
+    s.updatedAt = saved;
+    fn(s);
+    return JSON.stringify(s);
+  };
+  const petRows = () => notify.list(uid, 50).filter(n => n.kind === 'pet');
+  const data = save(t - 2 * H);
   petwatch.check(uid, data, t);
   petwatch.check(uid, data, t + 15 * 60e3);
-  const items = notify.list(uid);
-  assert.equal(items.filter(n => n.kind === 'daily').length, 1);
-  assert.match(items.find(n => n.kind === 'daily').title, /Besuchsserie von 5 Tagen endet um Mitternacht/);
-  const pet = items.filter(n => n.kind === 'pet');
-  assert.ok(pet.length >= 1, 'nach drei Tagen ohne Pflege braucht Mimi etwas');
-  assert.match(pet[0].title, /^🐾 Mimi /);
-  assert.equal(new Set(pet.map(n => n.key)).size, pet.length, 'jede Erinnerung nur einmal');
+  let rows = petRows();
+  assert.equal(rows.length, 1, 'eine Erinnerung für beide Tiere');
+  assert.equal(rows[0].title, '🐾 Mimi hat Durst und Hunger, Bello langweilt sich');
+  assert.equal(rows[0].count, 1, 'gleicher Stand: nichts Neues');
+  const daily = notify.list(uid).filter(n => n.kind === 'daily');
+  assert.equal(daily.length, 1);
+  assert.match(daily[0].title, /Besuchsserie von 5 Tagen endet um Mitternacht/);
+
+  // Gelesen, aber nicht gespielt: dasselbe kommt erst nach 6 Stunden wieder, etwas Neues sofort
+  notify.markRead(uid);
+  petwatch.check(uid, data, t + 1 * H);
+  assert.equal(petRows().length, 1);
+  petwatch.check(uid, save(t - 2 * H, (s) => { s.pets[1].stats.love = 10; }), t + 1.5 * H);
+  rows = petRows();
+  assert.equal(rows.length, 2, 'Bello fühlt sich jetzt auch einsam');
+  assert.match(rows[0].title, /Bello fühlt sich einsam und langweilt sich/);
+  // Ungelesen: weitere Änderungen nur still im Text
+  petwatch.check(uid, data, t + 2 * H);
+  rows = petRows();
+  assert.equal(rows.length, 2);
+  assert.doesNotMatch(rows[0].title, /einsam/, 'Text angepasst');
+  assert.equal(rows[0].count, 1);
+  // Spiel geöffnet: die offene Erinnerung gilt als gelesen
+  petwatch.seen(uid);
+  assert.ok(petRows().every(n => n.read_at));
+
+  // Nachts nichts
+  petwatch.check(uid, save(t - 2 * H), new Date(2026, 9, 16, 23, 30).getTime());
+  assert.equal(petRows().length, 2);
+  // Morgens ein Gruß, einmal
+  const morning = new Date(2026, 9, 17, 8, 30).getTime();
+  const night = save(t, (s) => { for (const p of s.pets) { p.tickAt = t; p.stats = { love: 80, fun: 80, food: 90, water: 90, rest: 70, joy: 80 }; } s.visits.lastDay = state.dayKey(t); s.visits.streak = 6; });
+  petwatch.check(uid, night, morning);
+  petwatch.check(uid, night, morning + 15 * 60e3);
+  rows = petRows().filter(n => n.key.startsWith('pet:morgen:'));
+  assert.equal(rows.length, 1);
+  assert.match(rows[0].title, /^☀️ Guten Morgen! /);
+  assert.match(rows[0].body, /Tag 7 deiner Besuchsserie/);
+});
+
+test('Haustier-Erinnerung: Wer aus vollen Näpfen frisst, wird nicht gemeldet', async () => {
+  const { db, now } = require('../src/db');
+  const notify = require('../src/notify');
+  const petwatch = require('../src/petwatch');
+  const state = await import('../games/haustier/src/js/state.js');
+  const pets = await import('../games/haustier/src/js/pets.js');
+  db.prepare("INSERT INTO users(username, password_hash, role, created_at) VALUES ('napffreund', 'x', 'user', ?)").run(now());
+  const uid = db.prepare("SELECT id FROM users WHERE username = 'napffreund'").get().id;
+  const t = new Date(2026, 9, 16, 15, 0).getTime();
+  const s = state.newState(t - 86400e3);
+  pets.adopt(s, 'cat', 'ginger', 'Mimi', t - 86400e3);
+  s.pets[0].stats = { love: 60, fun: 60, food: 15, water: 12, rest: 60, joy: 50 };
+  s.pets[0].tickAt = t - 60e3;
+  s.inventory.furn_bowl_food = 1; s.inventory.furn_bowl_water = 1;
+  s.place = { furn_bowl_food: { at: 'room', x: 0.5, y: 0.5 }, furn_bowl_water: { at: 'desk', x: 0.4, y: 1 } };
+  s.bowls = { food: { item: 'food_tuna', left: 1 }, water: 1 };
+  s.updatedAt = t - 3600e3;
+  petwatch.check(uid, JSON.stringify(s), t);
+  assert.equal(notify.list(uid).filter(n => n.kind === 'pet').length, 0);
 });

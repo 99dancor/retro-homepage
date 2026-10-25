@@ -124,3 +124,16 @@ export function stepTowards(pos, target, dist) {
 export function canCatch(pos, toy, reach = 0.18) {
   return Math.abs(pos.x - toy.x) < CATCH_X && Math.abs(pos.d - toy.d) < CATCH_D && (toy.air || 0) < reach;
 }
+
+// Miteinander: Wie gern eine Art rauft oder kuschelt (0 bis 1). social() entscheidet, was zwei Tiere tun, wenn sie sich
+// besuchen: 'romp' (Staubwolke), 'snuggle' (anlehnen, Herzchen) oder null (nur Hallo sagen)
+export const ROMP = { dog: 0.8, fox: 0.7, rat: 0.6, dragon: 0.6, cat: 0.5, hamster: 0.4, rabbit: 0.3, axolotl: 0.2 };
+export const SNUG = { rabbit: 0.8, dog: 0.7, hamster: 0.7, rat: 0.7, cat: 0.6, fox: 0.5, axolotl: 0.5, dragon: 0.4 };
+export function social(a, b, { evening = false } = {}, rng = Math.random) {
+  const romp = (ROMP[a] ?? 0.4) * (ROMP[b] ?? 0.4) * 0.6;
+  const snug = (SNUG[a] ?? 0.5) * (SNUG[b] ?? 0.5) * (evening ? 0.9 : 0.5);
+  const r = rng();
+  if (r < romp) return 'romp';
+  if (r < romp + snug) return 'snuggle';
+  return null;
+}

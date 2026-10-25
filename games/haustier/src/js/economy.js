@@ -6,7 +6,7 @@ import { level, maxLevel, usableItems, walkItem } from './pets.js';
 import { canPlace, MAX_ROOM, MAX_DESK } from './furniture.js';
 
 // Münzen pro Aktion; Aktionen bringen höchstens DAILY_CAP Münzen am Tag, damit Dauerklicken nichts bringt
-export const ACTION_COINS = { pet: 1, cuddle: 3, feed: 2, water: 1, sleep: 2, play: 3, brush: 2, bath: 3, walk: 5 };
+export const ACTION_COINS = { pet: 1, cuddle: 3, feed: 2, water: 1, sleep: 2, play: 3, brush: 2, bath: 3, walk: 5, clean: 1 };
 export const DAILY_CAP = 150;
 export const LOGIN_BONUS = [20, 25, 30, 35, 40, 50, 100];
 export const ACCOUNT_BONUS = 200;

@@ -61,3 +61,24 @@ test('Pixel: SVG mit einem Pfad je Farbe und sicherem Namen', () => {
   assert.match(svg, /aria-label="Ein &quot;Bild&quot;"/);
   assert.match(gridSvg(grid(2, 2)), /aria-hidden="true"/);
 });
+
+test('Stellungen: gleiches Raster, jede sieht anders aus, nichts fällt aus dem Bild', async () => {
+  const { petGrid, posed, boxOf, POSES } = await import('../src/js/pixel.js');
+  const { SPECIES } = await import('../src/js/pets.js');
+  const { petSvg } = await import('../src/js/art.js');
+  for (const id of Object.keys(SPECIES)) {
+    const g = petGrid(id, SPECIES[id].colors[0], { face: 'ok', acc: {} });
+    const n = g.px.filter(Boolean).length;
+    for (const pose of POSES) {
+      const p = posed(g, pose);
+      assert.equal(p.w, g.w); assert.equal(p.h, g.h);
+      assert.notDeepEqual(p.px, g.px, `${id} ${pose}`);
+      assert.ok(p.px.filter(Boolean).length > n * 0.8, `${id} ${pose} verliert Pixel`);
+    }
+    const b = boxOf(g);
+    assert.ok(b.x1 > b.x0 && b.y1 > b.y0);
+    const walk = petSvg(id, SPECIES[id].colors[0].id, 'ok', { walk: true });
+    assert.match(walk, /class="pw pw2"/);
+    assert.match(walk, /lk lk-l/);
+  }
+});

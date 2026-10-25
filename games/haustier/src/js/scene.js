@@ -12,6 +12,8 @@
 //   scene.enter(key, side)                 ein Tier kommt durchs Tor ('l' | 'r') vom Desktop zurück
 //   scene.furnish(on, sel)                 Einrichten: Teile verschieben, × legt sie ins Fach (sel: gerade aufgestellt)
 //   scene.gateInfo()                       Lage der Tore im Fenster (für die Strickleiter auf dem Desktop)
+//   scene.mess(key, plan) -> bool          ein Tier macht im Zimmer ein Geschäft oder eine Spur (plan aus mess.js planMess)
+//   scene.shot()                           Schnappschuss fürs Fotoalbum (Format wie auf dem Desktop, siehe photo.js)
 //
 // hooks:
 //   roster()   alle Tiere im Zimmer: [{ key, pet, kind, owner?, net? }]
@@ -26,13 +28,18 @@
 //   bowlWant(entry) -> 'food' | 'water' | null: will an den Napf     eat(entry, kind): frisst oder trinkt dort
 //   gates() -> { on, l, r }  Tore (0 zu, 1 halb, 2 offen)           gateSet(side, v): am Griff gezogen
 //   mayLeave(entry)          darf raus      leave(entry, side, at): ist durchs Tor (at: Fußpunkt im Fenster in px)
+//   marks() -> [{ id, kind, x, y }]  Flecken im Zimmer (y: Tiefe)      clean(id): weggewischt
+//   messed(entry, kind, at, to)      Geschäft gemacht: at { x, y } im Zimmer oder to (Möbel, das es abgefangen hat)
+//   social(entry, kind)              gerauft, gekuschelt, getanzt ('romp' | 'snuggle' | 'dance') -> { ok, delta }
+//   music() -> { playing(), level() } | null   Musik im Mediaplayer (zum Tanzen)      first(kind): zum ersten Mal
 //
 // Alles ist Pixel-Art: Tiere 48 × 48, Spielzeug 16 × 16, immer im selben ganzzahligen Maßstab und nie gedreht.
 import { SPECIES, mood } from './pets.js';
 import { petSvg } from './art.js';
 import { iconSvg, ICON_OF } from './icons.js';
-import { TOYS, decide, besides, stepTowards, canCatch, wantsToPlay, speed, assignBeds } from './behavior.js';
+import { TOYS, decide, besides, stepTowards, canCatch, wantsToPlay, speed, assignBeds, social } from './behavior.js';
 import { FURN, furnSvg, bowlSprite } from './furniture.js';
+import { MESS, messSvg, messSize, messPose, messMs } from './mess.js';
 
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -54,6 +61,8 @@ const EMOTE = {
   '✨': 'sparkle', '❗': 'bang', '🎁': 'gift', '🐾': 'paw', '😄': 'star', '🎉': 'star', '☀️': 'star', '🫧': 'drop',
 };
 const emoteHtml = (s) => (EMOTE[s] ? iconSvg(EMOTE[s]) : `<b>${esc(s)}</b>`);
+const DANCE = ['stretch', 'walk1', 'crouch', 'walk2'];   // Tanzschritte, einer pro Schlag
+const WIPE = 60;                                        // so weit (px) reibt man über einen Fleck, bis er weg ist
 
 export function createScene(hooks) {
   const layer = html('div', 'scene');
@@ -73,6 +82,12 @@ export function createScene(hooks) {
   let speech = null;               // Sprechblase: { key, el, until }
   let drag = null;                 // gehaltenes Wurfspielzeug: { id, samples }
   let stroke = null;               // Streicheln: { id, x, y, dist, moved, timer }
+  let slow = 0;                    // Takt beim Stromsparen (setTimeout statt requestAnimationFrame)
+  let ptr = { x: 0, y: 0, t: 0 };  // Mauszeiger im Zimmer (die Augen folgen ihm)
+  const marks = new Map();         // Flecken: id -> { m, el }
+  let rub = null;                  // Wegwischen: { id, x, y, dist }
+  const groove = { on: 0, next: 0, beatAt: 0, avg: 0, m: null, checkAt: 0 };
+  const romps = [];                // Staubwolken { el, x, d, until }
 
   // ---------- Geometrie ----------
   // Der Zimmerhintergrund ist 400 × 300 groß, unten ausgerichtet und füllt die Fläche (slice); der Boden beginnt bei 186.
@@ -112,7 +127,7 @@ export function createScene(hooks) {
       id: entry.key, entry, el, body, flip, shadow, emote, name, think: null, thinkKey: null, seq: 0, lastEmote: '', netSeq: net ? net.seq : 0,
       x: net ? net.x : n === 1 ? 0.5 : 0.22 + (0.56 * i) / Math.max(1, n - 1), d: net ? net.d : 0.55 + (i % 2) * 0.25,
       facing: 1, hop: 0, hopV: 0, walking: false, plan: null, until: 0, key: '',
-      face: null, busyUntil: 0, nextPlay: 0, bored: {}, carry: false, hidden: false,
+      face: null, busyUntil: 0, nextPlay: 0, bored: {}, carry: false, hidden: false, moodFace: 'ok', pose: null, poseUntil: 0, dance: null, snug: 0,
       emoteUntil: 0, tiltUntil: 0, blink: rand(0, 4).toFixed(2),
       bed: null, spot: null, perch: 0, tucked: false,   // Schlafplatz: id des Betts, Ziel, Höhe darauf, im Haus versteckt
     };
@@ -147,13 +162,9 @@ export function createScene(hooks) {
     for (const a of actors.values()) {
       const p = a.entry.pet;
       // Live-Tiere zeigen das Gesicht, das ihr Besitzer sieht
-      const face = a.face || (a.entry.kind === 'remote' && a.entry.net ? (a.entry.net.face || 'ok') : mood(p).face);
-      const key = [p.species, p.color, face, JSON.stringify(p.acc), a.shine > Date.now()].join('|');
-      if (key !== a.key) {
-        a.key = key;
-        a.flip.innerHTML = petSvg(p.species, p.color, face, { title: `${p.name}, ${SPECIES[p.species].name}`, acc: p.acc, shine: a.shine > Date.now(), shadow: false });
-        a.flip.firstChild.style.setProperty('--blink', a.blink + 's');
-      }
+      a.moodFace = a.entry.kind === 'remote' && a.entry.net ? (a.entry.net.face || 'ok') : mood(p).face;
+      const face = a.face || a.moodFace;
+      paint(a, performance.now());
       a.name.textContent = a.entry.owner ? `${p.name} · ${a.entry.owner}` : p.name;
       a.el.classList.toggle('active', a.id === active && (mine > 1 || list.length > mine));
       a.el.classList.toggle('happy', face === 'happy');
@@ -162,6 +173,179 @@ export function createScene(hooks) {
     }
     drawProps();
     drawGates();
+    drawMarks();
+  }
+
+  // Bild eines Tieres in seiner Stellung (pixel.js POSES); neu gezeichnet wird nur, wenn sich etwas ändert
+  function poseOf(a, now) {
+    if (!local(a)) return 'stand';
+    if (now < a.poseUntil && a.pose) return a.pose;
+    if (a.el.classList.contains('eating')) return 'eat';
+    if (a.hopV > 0) return 'stretch';
+    return 'stand';
+  }
+  function paint(a, now) {
+    const p = a.entry.pet, face = a.face || a.moodFace, pose = poseOf(a, now), shine = a.shine > Date.now();
+    const key = [p.species, p.color, face, pose, JSON.stringify(p.acc), shine].join('|');
+    if (key === a.key) return;
+    a.key = key;
+    a.flip.innerHTML = petSvg(p.species, p.color, face, { title: `${p.name}, ${SPECIES[p.species].name}`, acc: p.acc, shine, shadow: false, pose, walk: pose === 'stand' });
+    a.flip.firstChild.style.setProperty('--blink', a.blink + 's');
+  }
+  function posing(a, pose, ms, face = null) {
+    a.pose = pose; a.poseUntil = performance.now() + ms;
+    if (face) { a.face = face; clearTimeout(a.faceTimer); a.faceTimer = setTimeout(() => { a.face = null; }, ms); }
+  }
+  // Augen zum Mauszeiger (im Bild gespiegelt, wenn das Tier nach links schaut)
+  function gaze(a, now) {
+    if (a.entry.pet.sleeping || now - ptr.t > 4000) return '';
+    const dx = ptr.x - a.x * geo.W;
+    if (Math.abs(dx) < sizeOf() * 0.4) return '';
+    return dx * a.facing > 0 ? 'r' : 'l';
+  }
+
+  // ---------- Flecken: Pfützen, Häufchen und Spuren (mess.js) ----------
+  function drawMarks() {
+    const list = hooks.marks ? hooks.marks() : [];
+    for (const [id, k] of marks) if (!list.some((m) => m.id === id)) { k.el.remove(); marks.delete(id); }
+    for (const m of list) {
+      if (marks.has(m.id)) { marks.get(m.id).m = m; continue; }
+      const el = html('div', 'sc-mark', messSvg(m.kind));
+      el.dataset.mark = m.id;
+      el.title = `${MESS[m.kind].name}: mit der Maus wegwischen`;
+      layer.prepend(el);
+      marks.set(m.id, { m, el });
+    }
+  }
+  function placeMarks() {
+    const u = geo.u;
+    for (const { m, el } of marks.values()) {
+      const sz = messSize(m.kind), w = sz.w * u, h = sz.h * u;
+      el.style.width = w + 'px'; el.style.height = h + 'px';
+      el.style.transform = `translate(${px(clamp((m.x ?? 0.5) * geo.W - w / 2, 0, geo.W - w))}, ${px(feetY(m.y ?? 0.7) - h + (m.kind === 'pee' ? 2 : 1) * u)})`;
+      el.style.zIndex = 7;
+    }
+  }
+  function wiped(id) {
+    const k = marks.get(id);
+    if (!k) return;
+    const r = k.el.getBoundingClientRect(), lr = layer.getBoundingClientRect();
+    const sp = html('div', 'sc-sparkle', messSvg('sparkle')), s = 14 * geo.u;
+    sp.style.width = sp.style.height = s + 'px';
+    sp.style.transform = `translate(${px(r.left - lr.left + r.width / 2 - s / 2)}, ${px(r.top - lr.top + r.height / 2 - s / 2)})`;
+    layer.append(sp);
+    setTimeout(() => sp.remove(), 700);
+    k.el.remove(); marks.delete(id);
+    if (hooks.clean) hooks.clean(id);
+  }
+  // Ein Tier macht sein Geschäft oder seine Spur: zur Streukiste (zum Kratzbaum, Kauholz) oder gleich hier
+  function mess(key, plan) {
+    const a = actors.get(key);
+    if (!a || !local(a) || a.entry.pet.sleeping || a.hidden || a.dance || (a.plan && ['out', 'bowl', 'prop', 'mess'].includes(a.plan.type))) return false;
+    const b = plan.to && props.get(plan.to);
+    a.plan = b ? { type: 'mess', plan, x: b.x, d: Math.min(1, b.y + 0.02) }
+      : { type: 'mess', plan: { ...plan, to: null }, x: clamp(a.x + rand(-0.1, 0.1), 0.08, 0.92), d: clamp(a.d + rand(-0.1, 0.1), 0, 1) };
+    a.until = performance.now() + 15000;
+    return true;
+  }
+  function doMess(a, plan, now) {
+    const ms = messMs(plan.kind);
+    posing(a, messPose(plan.kind, a.entry.pet.species), ms);
+    if (plan.kind === 'scratch' || plan.kind === 'dig') flash(a, 'running', ms);
+    a.busyUntil = now + ms; a.walking = false;
+    a.plan = { type: 'wander', x: clamp(a.x + (Math.random() < 0.5 ? -0.12 : 0.12), 0.08, 0.92), d: a.d }; a.until = now + ms + 4000;
+    setTimeout(() => { if (actors.get(a.id) === a && hooks.messed) hooks.messed(a.entry, plan.kind, plan.to ? null : { x: +a.x.toFixed(3), y: +a.d.toFixed(3) }, plan.to); }, ms);
+  }
+
+  // ---------- Miteinander: raufen, kuscheln, tanzen ----------
+  const reward = (a, kind) => {
+    const r = hooks.social && a.entry.kind === 'own' ? hooks.social(a.entry, kind) : null;
+    if (r && r.ok && r.delta) floaters(a.id, Object.entries(r.delta).filter(([, v]) => v).map(([k, v]) => [`${iconSvg(ICON_OF[k] || k)}+${v}`, false]));
+  };
+  function romp(a, o, now) {
+    const ms = reduced() ? 1200 : 2600;
+    const el = html('div', 'sc-cloud', messSvg('fight0') + messSvg('fight1'));
+    layer.append(el);
+    const r = { el, x: (a.x + o.x) / 2, d: Math.max(a.d, o.d), until: now + ms };
+    romps.push(r);
+    for (const x of [a, o]) { x.hidden = true; x.el.style.opacity = '0'; x.busyUntil = now + ms; x.plan = { type: 'sit' }; x.until = now + ms + 1500; }
+    hooks.sound('stimme:' + a.entry.pet.species);
+    setTimeout(() => {
+      el.remove(); romps.splice(romps.indexOf(r), 1);
+      [[a, -1], [o, 1]].forEach(([x, dir]) => {
+        x.hidden = false; x.el.style.opacity = '';
+        x.x = clamp(r.x + dir * 0.09, 0.06, 0.94); x.facing = -dir;
+        hop(x, 0.6); say(x, pick(['✨', '😄', '❗']), 1200);
+        reward(x, 'romp');
+      });
+      if (hooks.first) hooks.first('romp');
+    }, ms);
+  }
+  function snuggle(a, o, now) {
+    const ms = 4500;
+    a.facing = o.x > a.x ? 1 : -1; o.facing = -a.facing;
+    o.d = a.d;
+    for (const x of [a, o]) { posing(x, 'lean', ms, 'happy'); x.busyUntil = now + ms; x.snug = now + ms; x.plan = { type: 'sit' }; x.until = now + ms + 800; say(x, '💞', 1800); }
+    if (hooks.first) hooks.first('snuggle');
+    setTimeout(() => { for (const x of [a, o]) if (actors.get(x.id) === x) { reward(x, 'snuggle'); say(x, '❤️', 1200); } }, ms);
+  }
+  // Läuft im Mediaplayer Musik, tanzen die Tiere ab und zu (der erste Tanz nach 20 bis 90 Sekunden, dann alle 10 bis 20 Minuten)
+  function stepMusic(now) {
+    if (now > groove.checkAt) { groove.checkAt = now + 1000; groove.m = hooks.music && !reduced() && !furnishing ? hooks.music() : null; }
+    const m = groove.m;
+    const dancers = [...actors.values()].filter((a) => a.dance);
+    if (!m) { if (groove.on) { groove.on = 0; for (const a of dancers) endDance(a, true); } return; }
+    if (!groove.on) { groove.on = now; groove.next = now + rand(20e3, 90e3); }
+    if (!dancers.length) {
+      if (now < groove.next) return;
+      const list = [...actors.values()].filter((a) => a.entry.kind === 'own' && !a.entry.pet.sleeping && !a.hidden && now > a.busyUntil && (!a.plan || ['sit', 'wander', 'look'].includes(a.plan.type)));
+      if (!list.length) { groove.next = now + 30e3; return; }
+      const lead = pick(list);
+      for (const a of list) if (a === lead || Math.random() < 0.4) { a.dance = { until: now + rand(20e3, 40e3), n: 0 }; a.plan = null; a.walking = false; say(a, '♪', 1400); }
+      if (hooks.first) hooks.first('dance');
+      return;
+    }
+    let lvl = null;
+    try { lvl = m.level(); } catch { /* weg */ }
+    let hit;
+    if (lvl === null || lvl === undefined) hit = now - groove.beatAt > 600;
+    else { groove.avg = groove.avg * 0.94 + lvl * 0.06; hit = (lvl > groove.avg * 1.15 && lvl > 0.18 && now - groove.beatAt > 320) || now - groove.beatAt > 900; }
+    if (hit) {
+      groove.beatAt = now;
+      for (const a of dancers) {
+        const n = ++a.dance.n;
+        a.pose = DANCE[n % DANCE.length]; a.poseUntil = now + 900;
+        if (n % 4 === 0) a.facing = -a.facing;
+        if (n % 2) hop(a, 0.25);
+        if (n % 8 === 0) say(a, '♪', 1200);
+      }
+    }
+    let left = 0;
+    for (const a of dancers) { if (now > a.dance.until || a.entry.pet.sleeping) endDance(a, false); else left++; }
+    if (!left) groove.next = now + rand(10, 20) * 60e3;
+  }
+  function endDance(a, stopped) {
+    a.dance = null;
+    if (stopped) { posing(a, 'bow', 1300); a.busyUntil = performance.now() + 1300; } else say(a, '✨', 1200);
+    reward(a, 'dance');
+  }
+
+  // Schnappschuss: Tiere, Möbel und Flecken in Bildpunkten (Boden bei floor)
+  function shot() {
+    if (!layer.isConnected) return null;
+    const u = geo.u, k = (v) => Math.round(v / u);
+    const list = [...actors.values()].filter((a) => !a.hidden && !a.tucked);
+    if (!list.length) return null;
+    const now = performance.now();
+    return {
+      w: k(geo.W), h: k(geo.H), floor: k(geo.top), depth: true,
+      pets: list.sort((a, b) => a.d - b.d).map((a) => ({
+        name: a.entry.pet.name, species: a.entry.pet.species, color: a.entry.pet.color, acc: a.entry.pet.acc || {}, face: a.face || a.moodFace,
+        pose: poseOf(a, now), facing: a.facing, x: k(a.x * geo.W), y: k(feetY(a.d) - a.hop),
+      })),
+      things: [...props.values()].sort((a, b) => propBox(a).z - propBox(b).z).map((p) => { const b = propBox(p); return { id: p.f.bowl ? bowlSprite(p.f.bowl, p.level) : p.id, x: k(b.left), y: k(b.top) }; }),
+      marks: [...marks.values()].map(({ m }) => ({ kind: m.kind, x: k((m.x ?? 0.5) * geo.W), y: k(feetY(m.y ?? 0.7)) })),
+    };
   }
 
   // Gedankenblase über dem Kopf: woran das Tier gerade denkt (zum Antippen)
@@ -401,6 +585,7 @@ export function createScene(hooks) {
     const all = [...actors.values()];
     stepToy(dt, now);
     stepBubbles(dt);
+    stepMusic(now);
     assignSleep();
     for (const a of all) {
       const p = a.entry.pet;
@@ -412,13 +597,18 @@ export function createScene(hooks) {
         if (a.hop <= 0) { a.hop = 0; a.hopV = 0; }
       }
     }
-    separate(all.filter((a) => local(a) && a.plan?.type !== 'out'), dt, now);
+    separate(all.filter((a) => local(a) && a.plan?.type !== 'out' && !(a.snug > now)), dt, now);
     draw(now);
-    raf = requestAnimationFrame(tick);
+    // Stromsparen: Schlafen alle und ist nichts los, reichen 8 Bilder pro Sekunde
+    const still = all.length && all.every((a) => local(a) && a.entry.pet.sleeping && !a.walking && !a.hop) && !toy && !speech && !furnishing && !rub;
+    if (still) slow = setTimeout(() => { slow = 0; tick(performance.now()); }, 125);
+    else raf = requestAnimationFrame(tick);
   }
+  function kick() { if (slow) { clearTimeout(slow); slow = 0; } if (!raf && host) raf = requestAnimationFrame(tick); }
 
   function stepActor(a, p, all, dt, now) {
     if (furnishing) { a.walking = false; return; }   // beim Einrichten warten alle
+    if (a.dance) { a.walking = false; return; }
     if (now < a.busyUntil) { a.walking = false; return; }
     const others = all.filter((o) => o !== a && !o.hidden && !o.tucked).map((o) => ({ key: o.id, pet: o.entry.pet, x: o.x, d: o.d, a: o }));
 
@@ -469,7 +659,11 @@ export function createScene(hooks) {
           break;
         }
         if (move(a, target, speed(p, pl.type === 'chase' ? 'run' : 'walk'), dt) && pl.type === 'visit') {
-          // Angekommen: einander anschauen, beschnuppern, Herzchen
+          // Angekommen: raufen, kuscheln oder einander anschauen, beschnuppern, Herzchen
+          const both = a.entry.kind === 'own' && o.entry.kind === 'own' && now > o.busyUntil && !o.dance;
+          const kind = both ? social(p.species, o.entry.pet.species, { evening: new Date().getHours() >= 19 }) : null;
+          if (kind === 'romp') { romp(a, o, now); break; }
+          if (kind === 'snuggle') { snuggle(a, o, now); break; }
           a.facing = o.x > a.x ? 1 : -1;
           if (!o.walking && local(o)) o.facing = -a.facing;
           say(a, pick(['❤️', '💕', '👋', '😊'])); setTimeout(() => say(o, pick(['❤️', '💕', '😊'])), 450);
@@ -501,6 +695,7 @@ export function createScene(hooks) {
         }
         break;
       }
+      case 'mess': if (move(a, pl, speed(p), dt)) doMess(a, pl.plan, now); break;
       case 'prop': {
         const b = props.get(pl.id);
         if (!b || (b.user && b.user !== a.id)) { a.plan = null; break; }
@@ -771,11 +966,14 @@ export function createScene(hooks) {
       const fy = feetY(a.d);
       let lift = a.hop + (a.perch && !a.walking ? a.perch * u : 0);
       if (a.el.classList.contains('climb')) lift += Math.sin(((now % 2400) / 2400) * Math.PI) * geo.H * 0.32;
-      const step = a.walking ? (Math.floor(now / 120 + a.blink * 3) % 2) * u : 0;
+      paint(a, now);
+      const look = gaze(a, now);
+      a.el.classList.toggle('look-l', look === 'l');
+      a.el.classList.toggle('look-r', look === 'r');
       a.el.style.width = a.el.style.height = s + 'px';
       a.el.style.transform = `translate(${px(a.x * geo.W - s / 2)}, ${px(fy - s)})`;
       a.el.style.zIndex = z(a.d);
-      a.body.style.transform = `translateY(${-Math.round(lift / u) * u - step}px)`;
+      a.body.style.transform = `translateY(${-Math.round(lift / u) * u}px)`;
       a.flip.style.transform = `scaleX(${a.facing})`;
       a.shadow.style.transform = `scale(${(Math.round(clamp(1 - lift / (s * 1.4), 0.4, 1) * 4) / 4).toFixed(2)})`;
       a.el.classList.toggle('walking', a.walking);
@@ -812,6 +1010,13 @@ export function createScene(hooks) {
       p.el.style.zIndex = b.z;
     }
     placeGates();
+    placeMarks();
+    for (const r of romps) {
+      const w = 64 * u, h = 46 * u, j = (Math.floor(now / 90) % 3 - 1) * u;
+      r.el.style.width = w + 'px'; r.el.style.height = h + 'px';
+      r.el.style.transform = `translate(${px(r.x * geo.W - w / 2 + j)}, ${px(feetY(r.d) - h + u)})`;
+      r.el.style.zIndex = z(r.d, 11);
+    }
     for (const b of bubbles) b.el.style.transform = `translate(${px(b.x - b.r)}, ${px(b.y - b.r)})`;
     if (speech) placeSpeech(now);
     drawGhosts();
@@ -870,6 +1075,15 @@ export function createScene(hooks) {
       return;
     }
     const p = pos(e);
+    const markEl = e.target.closest('.sc-mark');
+    if (markEl && marks.has(markEl.dataset.mark) && !furnishing) {
+      e.preventDefault();
+      rub = { id: markEl.dataset.mark, x: e.clientX, y: e.clientY, dist: WIPE / 3 };
+      markEl.classList.add('rub');
+      layer.setPointerCapture?.(e.pointerId);
+      kick();
+      return;
+    }
     const grip = e.target.closest('.sc-gate .grip');
     if (grip) {
       const side = grip.closest('.sc-gate').dataset.gate;
@@ -931,6 +1145,12 @@ export function createScene(hooks) {
 
   layer.addEventListener('pointermove', (e) => {
     const p = pos(e);
+    if (e.pointerType === 'mouse') { ptr = { x: p.x, y: p.y, t: performance.now() }; kick(); }
+    if (rub) {
+      rub.dist += Math.hypot(e.clientX - rub.x, e.clientY - rub.y); rub.x = e.clientX; rub.y = e.clientY;
+      if (rub.dist >= WIPE) { const id = rub.id; rub = null; wiped(id); }
+      return;
+    }
     if (gateDrag) {
       // Griff hoch: auf, runter: zu (rastet bei zu, halb und offen ein)
       const h = 58 * geo.u;
@@ -966,6 +1186,13 @@ export function createScene(hooks) {
   });
 
   const up = (e) => {
+    if (rub) {
+      const k = marks.get(rub.id);
+      if (k) k.el.classList.remove('rub');
+      if (rub.dist >= WIPE) wiped(rub.id);
+      rub = null;
+      return;
+    }
     if (gateDrag) {
       const g = gateDrag;
       gateDrag = null;
@@ -1045,8 +1272,8 @@ export function createScene(hooks) {
         setTimeout(() => bowl.remove(), 2100);
         break;
       }
-      case 'pet': say(a, '❤️', 1200); hop(a, 0.35); break;
-      case 'cuddle': say(a, '💞', 1800); flash(a, 'squish', 900); break;
+      case 'pet': say(a, '❤️', 1200); if (!a.entry.pet.sleeping) posing(a, 'lean', 1200, 'happy'); break;
+      case 'cuddle': say(a, '💞', 1800); posing(a, 'lean', 1800, 'happy'); break;
       case 'brush': a.shine = Date.now() + 3000; a.key = ''; sync(); say(a, '✨', 1800); a.busyUntil = now + 1200; setTimeout(sync, 3100); break;
       case 'bath': say(a, '🫧', 2200); flash(a, 'bath', 2200); a.busyUntil = now + 2200; break;
       case 'walk': {
@@ -1080,10 +1307,10 @@ export function createScene(hooks) {
     if (layer.parentNode !== el) el.append(layer);
     measure();
     sync();
-    if (!raf) { last = 0; raf = requestAnimationFrame(tick); }
+    if (!raf && !slow) { last = 0; raf = requestAnimationFrame(tick); }
   }
 
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && host && !raf) raf = requestAnimationFrame(tick); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && host && !raf && !slow) raf = requestAnimationFrame(tick); });
 
   // Ein Tier kommt vom Desktop zurück: sync() setzt es ins Tor
   function enter(key, side) { entering.set(key, side === 'l' ? 'l' : 'r'); }
@@ -1096,7 +1323,7 @@ export function createScene(hooks) {
   }
 
   return {
-    mount, sync, useToy, putAway, animate, floaters, snapshot, speak, hush, enter, furnish, gateInfo,
+    mount, sync, useToy, putAway, animate, floaters, snapshot, speak, hush, enter, furnish, gateInfo, mess, shot,
     get furnishing() { return !!furnishing; },
     get toy() { return toy ? toy.id : null; },
     get speaking() { return speech ? speech.key : null; },

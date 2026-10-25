@@ -3,14 +3,16 @@
 // mit ihrer Leiste darunter, rechts das Seitenfach (Tier, Shop, Aufgaben …), unten die Statusleiste, die das
 // Desktop-Fenster der Homepage in seinen Rahmen übernimmt.
 import { createStore, KEYS, safeLocal } from './storage.js';
-import { registerVisit, dayKey, newState } from './state.js';
+import { registerVisit, dayKey, newState, ALBUM_MAX } from './state.js';
 import {
   SPECIES, STATS, ACTIONS, CUDDLE_LOVE, CUDDLE_LEVEL, SLOT_LEVEL, tickAll, tickPet, tickOpts, mood, canDo, doAction,
   adopt, activePet, isUnlocked, unlockText, petSlots, nextSlotHint, cleanName, level, levelProgress,
   usableItems, walkLabel, walkGear, bowlMeal, HUNGRY,
 } from './pets.js';
 import { ITEMS, ITEM_LIST, usableBy, isFav, isDurable, owned } from './items.js';
-import { PRANKS, deskOptions } from './deskphys.js';
+import { PRANKS, PRANK_RATES, SIZES, deskOptions } from './deskphys.js';
+import { MESS, planMess, addMess, cleanMess, dryUp, messMood, messChance, nightTime, cleanText, LITTER_MAX, CLEAN_JOY, PENALTY_FROM } from './mess.js';
+import { photoSvg, cleanShot } from './photo.js';
 import {
   ensureDaily, track, taskProgress, TASK_INFO, actionCoins, addCoins, loginBonus, streakMilestones, levelReward,
   accountBonus, available, relevant, dealOfDay, priceOf, canBuy, buy, wear, setRoom, LOGIN_BONUS, DAILY_CAP, ACCOUNT_BONUS,
@@ -196,6 +198,12 @@ const scene = createScene({
   menu: (e, x, y) => petMenu(e, x, y),
   play: (e, itemId) => (e.kind === 'own' ? playWith(e.pet.id, itemId) : foreign(e, 'play', itemId)),
   sound: (n) => sfx(n),
+  marks: () => (visit ? [] : (state.mess || []).filter((m) => m.at === 'room')),
+  clean: (id) => cleaned(id),
+  messed: (e, kind, at, to) => messed(e.pet.id, kind, at ? { at: 'room', ...at } : null, to),
+  social: (e, kind) => socialAct(e.pet.id, kind),
+  music: () => musicNow(),
+  first: (kind) => first(kind, scene.shot()),
 });
 
 // Ein fremdes Tier streicheln oder mit ihm spielen: landet im Besuchsbuch seines Besitzers
@@ -301,9 +309,17 @@ function deskHost() {
 const deskReady = () => !!pets && !visit;
 const isOut = (id) => !!state.desk.out[id] && (deskPending || !!pets || !!deskBlocked);
 const gateState = () => ({ on: deskReady() && view === 'room', l: state.desk.gates.l, r: state.desk.gates.r });
+// Draußen sorgen die Tiere selbst für sich (Napf, Bett, Spielzeug); gefragt wird nur nach Liebe und leeren Näpfen
+function outsideNeed(p) {
+  const k = thought(p);
+  if (k === 'love') return k;
+  if (k === 'food') return state.bowls.food && state.bowls.food.left > 0 ? 'food' : 'bowl';
+  if (k === 'water') return state.bowls.water > 0 ? 'water' : 'bowl';
+  return null;
+}
 const visualOf = (p) => ({
   id: p.id, name: p.name, species: p.species, color: p.color, acc: p.acc, face: mood(p).face, sleeping: !!p.sleeping,
-  need: thought(p), small: SMALL.includes(p.species), stay: state.desk.stay.includes(p.id),
+  need: outsideNeed(p), bored: p.stats.fun < 45, small: SMALL.includes(p.species), stay: state.desk.stay.includes(p.id),
 });
 function mayLeave(pet) {
   return deskReady() && !pet.sleeping && !state.desk.stay.includes(pet.id) && !isOut(pet.id) && !$('dlg').open;
@@ -311,6 +327,7 @@ function mayLeave(pet) {
 // side: 'l', 'r' oder 'both'; v: 0 zu, 1 halb (nur kleine Tiere), 2 offen
 function setGate(side, v) {
   for (const sd of side === 'both' ? ['l', 'r'] : [side]) state.desk.gates[sd] = v;
+  if (v > 0) state.seen.gates = true;
   sfx('klick');
   store.save(state);
   render();
@@ -368,6 +385,13 @@ const deskHooks = {
   furnish: () => openHome('desk'),
   stopFurnish: () => { if (pane === 'home' && homeTab === 'desk') { pane = null; render(); } },
   sound: (n) => sfx(n),
+  messed: (id, kind, place, to) => messed(id, kind, place ? { at: 'desk', ...place } : null, to),
+  clean: (id, o = {}) => cleaned(id, o),
+  litter: () => emptyLitter(),
+  photo: (shot) => addPhoto(shot, 'Schnappschuss'),
+  first: (kind, shot) => first(kind, shot),
+  tipsWanted: () => !state.seen.tips,
+  tipsDone: () => { state.seen.tips = true; store.save(state); },
 };
 
 // Pflege draußen (Streicheln, Werfen, Spielzeug): gleiche Regeln wie im Zimmer, ohne die Ansicht zu wechseln
@@ -386,6 +410,7 @@ function deskAct(id, kind, { hard = false, toy = null } = {}) {
     store.save(state);
     return { ok: true, text: `${pet.name} fand das lustig!`, face: 'happy' };
   }
+  if (['dance', 'romp', 'snuggle'].includes(kind)) return socialAct(id, kind);
   const action = kind === 'play' ? 'play' : 'pet';
   const key = id + ':' + action;
   if (lastAction[key] && now - lastAction[key] < ACTIONS[action].cooldown) return { ok: false };
@@ -415,7 +440,141 @@ function syncDesk() {
     if (items.length) local.set(KEYS.desk, copy); else local.remove(KEYS.desk);
   }
   if (!pets) return;
-  try { pets.update({ pets: deskHooks.pets(), items, bowls: deskHooks.bowls() }); } catch { /* Desktop weg */ }
+  try { pets.update({ pets: deskHooks.pets(), items, bowls: deskHooks.bowls(), mess: (state.mess || []).filter((m) => m.at === 'desk'), litter: state.litter }); } catch { /* Desktop weg */ }
+}
+
+// ---------- Geschäfte, Spuren, Putzen (Regeln in mess.js) ----------
+// Etwa MESS_RATE neue Flecken pro Stunde, nur solange jemand da ist und nicht nachts. Ein wachsames Tier macht es,
+// draußen auf dem Desktop oder im Zimmer; mit Streukiste, Kratzbaum und Kauholz geht das meiste dorthin.
+let messAt = Date.now(), moodAt = Date.now(), ownInput = Date.now();
+for (const ev of ['pointerdown', 'keydown', 'pointermove']) document.addEventListener(ev, () => { ownInput = Date.now(); }, { capture: true, passive: true });
+const placedAt = (id, at) => !!state.place[id] && state.place[id].at === at;
+function messTick() {
+  const now = Date.now(), dt = now - messAt;
+  messAt = now;
+  let changed = dryUp(state, now) > 0;
+  const mm = messMood(state, (now - moodAt) / 3600e3);
+  moodAt = now;
+  if (mm) changed = true;
+  const act = pets ? (() => { try { return pets.activity(); } catch { return null; } })() : null;
+  const idle = Math.min(now - ownInput, act ? act.idle : Infinity);
+  if (!visit && idle < 10 * 60e3 && !(act && act.calm) && !nightTime(new Date()) && Math.random() < messChance(dt)) {
+    const awake = state.pets.filter((p) => !p.sleeping);
+    const pet = awake.length ? pick(awake) : null;
+    if (pet) {
+      const out = isOut(pet.id);
+      const where = out ? 'desk' : 'room';
+      const plan = planMess(pet, { potty: state.prefs.potty, placed: (id) => placedAt(id, where), litter: state.litter, lvl: level(pet) });
+      if (out && pets) { try { pets.mess(pet.id, plan); } catch { /* Desktop weg */ } }
+      else if (!out && view === 'room' && $('room')) scene.mess(pet.id, plan);
+    }
+  }
+  if (changed) { store.save(state); render(); }
+}
+// Gemeldet von Zimmer oder Desktop: place { at, x, y | on, win, item, dx } (wo der Fleck liegt) oder to (Möbel, das ihn abfängt)
+function messed(id, kind, place, to) {
+  const pet = state.pets.find((p) => p.id === id);
+  if (!pet || !MESS[kind]) return null;
+  if (to === 'furn_litter') {
+    state.litter = Math.min(LITTER_MAX, (state.litter || 0) + 1);
+    if (state.litter >= LITTER_MAX) log('Die Streukiste ist voll: antippen zum Leeren.', 8000);
+  } else if (!to && place) {
+    const m = addMess(state, { kind, ...place });
+    if (!m) return null;
+    if ((state.mess || []).length === PENALTY_FROM) log(`${cleanText(state.mess.length)}. Wisch mit der Maus darüber.`, 8000);
+  }
+  store.save(state);
+  render();
+  return { ok: true };
+}
+// Weggewischt (gone: das Fenster mit der Spur ist zu): Alle Tiere freuen sich, dazu eine Münze
+function cleaned(id, { gone = false } = {}) {
+  const m = cleanMess(state, id);
+  if (!m) return { ok: false };
+  messMood(state, 0);
+  let got = 0;
+  if (!gone) {
+    for (const p of state.pets) p.stats.joy = Math.min(100, p.stats.joy + CLEAN_JOY);
+    got = actionCoins(state, 'clean', 1);
+    sfx('pop');
+    log(state.mess.length ? `Sauber! ${cleanText(state.mess.length)}.` : 'Alles sauber! Deine Tiere freuen sich.', 5000);
+  }
+  store.save(state);
+  render();
+  return { ok: true, coins: got };
+}
+function emptyLitter() {
+  if (!state.litter) return { ok: false, reason: 'Die Streukiste ist noch frisch.' };
+  state.litter = 0;
+  for (const p of state.pets) p.stats.joy = Math.min(100, p.stats.joy + 1);
+  const got = actionCoins(state, 'clean', 1);
+  sfx('pop'); store.save(state); render();
+  return { ok: true, text: `Streukiste geleert, frischer Sand ist drin.${got ? ` +${got} Münze` : ''}` };
+}
+
+// ---------- Miteinander: tanzen, raufen, kuscheln ----------
+// Jedes zählt höchstens zweimal pro Stunde und Tier
+const SOCIAL = { dance: { fun: 4, joy: 2 }, romp: { fun: 5, rest: -2, joy: 1 }, snuggle: { love: 4, rest: 2, joy: 2 } };
+const socialLog = {};
+function socialAct(id, kind) {
+  const pet = state.pets.find((p) => p.id === id);
+  if (!pet || !SOCIAL[kind]) return { ok: false };
+  const now = Date.now(), k = id + ':' + kind;
+  socialLog[k] = (socialLog[k] || []).filter((t) => now - t < 3600e3);
+  if (socialLog[k].length >= 2) return { ok: true };
+  socialLog[k].push(now);
+  tickPet(pet, now, tickOpts(state));
+  const delta = {};
+  for (const [s, v] of Object.entries(SOCIAL[kind])) { const before = pet.stats[s]; pet.stats[s] = Math.max(0, Math.min(100, before + v)); delta[s] = Math.round(pet.stats[s] - before); }
+  store.save(state);
+  render();
+  return { ok: true, delta };
+}
+// Musik im Mediaplayer der Homepage (für die Tiere im Zimmer)
+function musicNow() {
+  const d = desk();
+  if (!d || !d.windows) return null;
+  for (const w of d.windows()) {
+    try { const m = w.win && w.win.RetroMusic; if (m && !w.closing && m.playing()) return m; } catch { /* fremde Seite */ }
+  }
+  return null;
+}
+
+// ---------- Fotoalbum und erste Male ----------
+const FIRST_TEXT = {
+  dance: 'Der erste Tanz!', romp: 'Die erste Rauferei!', snuggle: 'Zum ersten Mal gekuschelt!', prank: 'Der erste Streich!',
+};
+function addPhoto(shot, text) {
+  const s = cleanShot(shot && !shot.room && view === 'room' && !visit && shot.depth ? { ...shot, room: state.room } : shot);
+  if (!s) return { ok: false, text: 'Gerade ist niemand zu sehen.' };
+  state.album = [{ at: Date.now(), text, shot: s }, ...(state.album || [])].slice(0, ALBUM_MAX);
+  store.save(state);
+  return { ok: true, text: `Klick! Das Foto ist im Album (${state.album.length} von ${ALBUM_MAX}).` };
+}
+function first(kind, shot) {
+  if (!FIRST_TEXT[kind] || state.seen['first_' + kind]) return;
+  state.seen['first_' + kind] = Date.now();
+  const r = addPhoto(shot, FIRST_TEXT[kind]);
+  note(`${FIRST_TEXT[kind]} Ein Foto davon ist im Album.`);
+  if (r.ok) log(`📷 ${FIRST_TEXT[kind]} Das Foto ist im Album.`, 8000);
+  store.save(state);
+}
+function showAlbum() {
+  const list = state.album || [];
+  const body = list.length
+    ? `<div class="album">${list.map((e, i) => `<figure>${photoSvg(e.shot)}<figcaption><b>${esc(e.text)}</b> ${when(e.at)}
+        <button type="button" class="mini" data-del="${i}" title="Foto löschen" aria-label="Foto löschen">🗑</button></figcaption></figure>`).join('')}</div>`
+    : '<p>Noch keine Fotos. Im 🐾-Menü neben der Uhr gibt es den <b>Schnappschuss</b>, im Zimmer unter ⋯ auch. Besondere Momente fotografiert das Album von selbst.</p>';
+  const p = dialog(`Fotoalbum (${list.length} von ${ALBUM_MAX})`, body, [...(view === 'room' && !visit ? [{ label: '📷 Schnappschuss', value: 'shot' }] : []), { label: 'Schließen', value: 'ok', def: true }]);
+  $('dlg-body').querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => {
+    state.album.splice(Number(b.dataset.del), 1);
+    store.save(state);
+    $('dlg').close('again');
+  }));
+  p.then((v) => {
+    if (v === 'again') showAlbum();
+    if (v === 'shot') { const r = addPhoto(scene.shot(), 'Schnappschuss'); sfx('klick'); log(r.text, 5000); showAlbum(); }
+  });
 }
 
 async function connectDesk() {
@@ -856,6 +1015,7 @@ function moreItems() {
   const items = [
     { icon: '📜', label: 'Neuigkeiten', dot: !$('news-dot').hidden, run: showNews },
     { icon: '❔', label: 'Hilfe', run: showHelp },
+    { icon: '📷', label: 'Fotoalbum', sub: state.album && state.album.length ? String(state.album.length) : '', run: showAlbum },
     { icon: muted() ? '🔇' : '🔊', label: muted() ? 'Ton einschalten' : 'Ton ausschalten', run: () => { toggleMuted(); sfx('pop'); } },
     '-', { icon: '⚙️', label: 'Einstellungen …', run: () => showSettings() },
   ];
@@ -925,9 +1085,17 @@ function petPane() {
         <small>${sp.name} · Stufe ${lvl}</small><small>${esc(m.text.slice(pet.name.length + 1))}</small></div></div>
     <div class="love"><span>Zuneigung</span>${bar(lp.need ? (100 * lp.have) / lp.need : 100, 'xp', 'Zuneigung')}<small>${lp.need ? `${lp.have}/${lp.need}` : 'max'}</small></div>
     ${next ? `<small class="unlock">Ab Stufe ${next}: ${esc(LEVEL_NEXT[next])}</small>` : ''}
-    <fieldset class="groupbox"><legend>Bedürfnisse</legend><div class="needs">${needs}</div></fieldset>
+    <fieldset class="groupbox"><legend>Bedürfnisse</legend><div class="needs">${needs}</div>${cleanLine()}</fieldset>
     <div class="wear"><span>Trägt: ${worn.length ? esc(worn.join(', ')) : 'nichts'}</span><button type="button" class="small" data-dress>Anziehen …</button></div>
     ${diaryHtml(pet)}</div>`;
+}
+
+// Sauberkeit: wie viele Flecken herumliegen und ob die Streukiste geleert werden will
+function cleanLine() {
+  const n = (state.mess || []).length, inside = (state.mess || []).filter((m) => m.at === 'room').length;
+  const litter = state.place.furn_litter ? (state.litter >= LITTER_MAX ? ' · Streukiste voll' : state.litter ? ` · Streukiste ${state.litter}/${LITTER_MAX}` : '') : '';
+  const where = n && inside < n ? (inside ? ` (${inside} im Zimmer, ${n - inside} draußen)` : ' (draußen)') : '';
+  return `<small class="clean${n >= PENALTY_FROM ? ' low' : ''}">🧽 ${esc(cleanText(n) + where + litter)}${n >= PENALTY_FROM ? '. Das drückt etwas auf die Erfüllung.' : ''}</small>`;
 }
 
 // ---------- Tagebuch: was zuletzt los war ----------
@@ -1743,7 +1911,13 @@ function showHelp() {
        und wer Hunger oder Durst hat, bedient sich.</li>
      <li><b>Raus auf den Desktop:</b> Im Desktop-Fenster öffnest du unter <b>Tore</b> die Rolltore links und rechts. Dann klettern deine Tiere
        über Strickleitern hinaus, laufen über Fenster und Taskleiste, jagen die Maus und spielen mit allem, was dort steht. Du kannst sie
-       hochheben und werfen (nicht zu doll). Mit 🐾 neben der Uhr rufst du sie heim, beim Schließen des Fensters kommen alle von selbst zurück.</li>
+       hochheben und werfen (nicht zu doll). Mit 🐾 neben der Uhr rufst du sie heim, beim Schließen des Fensters kommen alle von selbst zurück.
+       Draußen bedienen sie sich selbst an Napf, Bett und Spielzeug. Läuft im Mediaplayer Musik, tanzen sie ab und zu. Wer viel tippt und klickt,
+       hat seine Ruhe: Dann dösen sie am Rand. Im 🐾-Menü gibt es außerdem <b>Eine Stunde Ruhe</b>, <b>Heute keine Streiche</b> und den <b>Schnappschuss</b>.</li>
+     <li><b>Malheur:</b> Ab und zu machen die Tiere ihr Geschäft oder hinterlassen Kratz- und Bissspuren, im Zimmer, auf dem Desktop, auf Fenstern und Möbeln.
+       Mit gedrückter Maus darüberreiben wischt sie weg. Eine <b>Streukiste</b> (ab und zu leeren), ein Kratzbaum und ein <b>Kauholz</b> fangen das meiste ab.
+       Liegen ${PENALTY_FROM} oder mehr Flecken herum, sinkt die Erfüllung etwas, nach dem Putzen ist sie sofort zurück. Geschäfte lassen sich in den Einstellungen abschalten.</li>
+     <li><b>Fotoalbum</b> (unter ⋯): Schnappschüsse und besondere Momente wie der erste Tanz oder die erste Rauferei.</li>
      <li><b>Ausflüge:</b> Unter Ausflug läuft dein Tier durch Park, Wald, Strand oder Berge. Tippe oder drück die Leertaste zum Springen,
        sammle Leckerli, Münzen und Schnüffelstellen ein. Dabei werden <b>Tempo, Sprungkraft und Spürnase</b> besser. Im <b>Tageswettbewerb</b> laufen alle dieselbe Strecke um die Wette.</li>
      <li>Jede Pflege bringt <b>Zuneigung</b>. Ab Stufe ${CUDDLE_LEVEL} und ${CUDDLE_LOVE} Liebe könnt ihr <b>kuscheln</b>,
@@ -1764,18 +1938,27 @@ function deskSettingsHtml() {
   const o = deskOpts();
   const box = (name, label, on, hint = '') => `<label class="check"><input type="checkbox" name="${name}"${on ? ' checked' : ''}> ${esc(label)}${hint ? ` <small class="muted">${esc(hint)}</small>` : ''}</label>`;
   return `<fieldset class="groupbox"><legend>🖥️ Draußen auf dem Desktop</legend>
-    ${box('o:mouse', 'Tiere jagen den Mauszeiger', o.mouse)}
+    <label class="opt-row">Größe draußen <select name="s:size">${Object.entries(SIZES).map(([k, v]) => `<option value="${k}"${o.size === k ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
+    ${box('o:mouse', 'Tiere jagen den Mauszeiger (nur über freiem Desktop)', o.mouse)}
     ${box('o:sound', 'Geräusche der Tiere', o.sound)}
-    <p><small>Streiche (höchstens einer pro Stunde, nur wenn du eine Weile nichts tust):</small></p>
+    <label class="opt-row">Streiche <select name="s:rate">${Object.entries(PRANK_RATES).map(([k, r]) => `<option value="${k}"${o.rate === k ? ' selected' : ''}>${esc(r.label)}</option>`).join('')}</select></label>
+    <p><small>Nur wenn du eine Weile nichts tust. Welche:</small></p>
     ${PRANKS.map((p) => box('p:' + p.id, p.label, o.pranks[p.id], p.hint)).join('')}
-    <p><small class="muted">Gilt nur für dieses Gerät. Bei „Bewegung reduzieren“ im System gibt es keine Streiche.</small></p></fieldset>`;
+    <p><small class="muted">Gilt nur für dieses Gerät. Bei „Bewegung reduzieren“ im System gibt es keine Streiche. Wer viel tippt und klickt, hat seine Ruhe:
+      Die Tiere dösen dann am Rand. Im 🐾-Menü neben der Uhr gibt es außerdem „Eine Stunde Ruhe“ und „Heute keine Streiche“.</small></p></fieldset>`;
 }
+// Geschäfte gelten fürs ganze Konto (Spielstand), nicht nur fürs Gerät
+const pottyHtml = () => `<fieldset class="groupbox"><legend>🧺 Geschäfte</legend>
+    <label class="check"><input type="checkbox" name="g:potty"${state.prefs.potty ? ' checked' : ''}> Tiere machen ab und zu ihr Geschäft (Pfützen und Häufchen)</label>
+    <p><small class="muted">Kratz- und Bissspuren gibt es trotzdem. Mit Streukiste, Kratzbaum und Kauholz geht das meiste dorthin. Ab ${PENALTY_FROM} Flecken sinkt die Erfüllung etwas,
+      nach dem Wegwischen ist sie sofort zurück.</small></p></fieldset>`;
 function readDeskSettings() {
   const o = deskOpts();
   for (const el of $('dlg-body').querySelectorAll('input[type=checkbox]')) {
     const [k, id] = el.name.split(':');
     if (k === 'o') o[id] = el.checked; else if (k === 'p') o.pranks[id] = el.checked;
   }
+  for (const el of $('dlg-body').querySelectorAll('select[name^="s:"]')) o[el.name.slice(2)] = el.value;
   local.set(KEYS.deskOpts, JSON.stringify(o));
   if (pets) try { pets.options(o); } catch { /* Desktop weg */ }
 }
@@ -1787,9 +1970,11 @@ async function showSettings(focus = '') {
     `${desk && focus === 'desk' ? deskSettingsHtml() : ''}<fieldset class="groupbox"><legend>Spielstand</legend>
       <p>Gespeichert ${where}.<br>Angefangen am ${fmtDate(state.createdAt)}.<br>
       Besuchstage: ${state.visits.total} · beste Serie: ${state.visits.best}<br>
-      Insgesamt verdient: ${coins(state.earned || 0)}</p></fieldset>${desk && focus !== 'desk' ? deskSettingsHtml() : ''}`,
+      Insgesamt verdient: ${coins(state.earned || 0)}</p></fieldset>${pottyHtml()}${desk && focus !== 'desk' ? deskSettingsHtml() : ''}`,
     [{ label: 'Spielstand zurücksetzen …', value: 'reset', danger: true }, { label: 'OK', value: 'close', def: true }]);
   if (desk) readDeskSettings();
+  const potty = $('dlg-body').querySelector('[name="g:potty"]');
+  if (potty && potty.checked !== state.prefs.potty) { state.prefs.potty = potty.checked; store.save(state); }
   if (r !== 'reset') return;
   const sure = await dialog('Spielstand zurücksetzen',
     '<p>⚠️ Dein ganzer Fortschritt geht verloren, auch deine Tiere und Münzen. Das kann nicht rückgängig gemacht werden.</p>',
@@ -2044,6 +2229,17 @@ async function start() {
     const can = state.pets.filter((p) => mayLeave(p) && (Math.max(g.l, g.r) === 2 || (Math.max(g.l, g.r) === 1 && SMALL.includes(p.species))));
     if (can.length) leavePet(pick(can).id, 'task');
   }, 60000);
+  // Flecken: neue entstehen, Pfützen trocknen, Erfüllung folgt der Sauberkeit
+  setInterval(messTick, 20000);
+  // Waren die Tore noch nie offen, fragt ab und zu ein Tier, ob es mal raus darf (höchstens einmal am Tag)
+  setInterval(() => {
+    if (!deskReady() || state.seen.gates || view !== 'room' || $('dlg').open || state.seen.askOut === dayKey(Date.now()) || Date.now() - ownInput > 120e3) return;
+    const pet = state.pets.find((p) => !p.sleeping && !state.desk.stay.includes(p.id));
+    if (!pet) return;
+    state.seen.askOut = dayKey(Date.now());
+    store.save(state);
+    tell(pet.id, `${pet.name} schaut sehnsüchtig zum Fensterrand. Unter „Tore“ oben kannst du die Rolltore zum Desktop öffnen!`, 8000);
+  }, 5 * 60e3);
   // Live-Zimmer: Stand der eigenen Tiere an die anderen Anwesenden
   setInterval(() => { if (view === 'room' && live.connected && live.members.size) live.send(scene.snapshot()); }, 200);
 }

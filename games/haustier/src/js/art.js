@@ -4,7 +4,7 @@
 //   accSvg(id)                              ein Accessoire allein
 //   roomSvg(id)                             Hintergrund eines Zimmers
 import { SPECIES } from './pets.js';
-import { petGrid, gridSvg, paths, grid, stamp, ell, paint } from './pixel.js';
+import { petGrid, gridSvg, paths, grid, stamp, ell, paint, posed, boxOf } from './pixel.js';
 import { iconSvg } from './icons.js';
 
 // Farbe aufhellen (to = '#ffffff') oder abdunkeln (to = '#000000'), t von 0 bis 1
@@ -14,32 +14,40 @@ export function mix(hex, to, t) {
   return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, '0')).join('');
 }
 
-// Ein Tier besteht aus Ebenen: was sich nie ändert, drei Stellungen des Schwanzes und die Augen offen und zu.
-// Die Szene blendet die Stellungen per CSS um (Wedeln, Blinzeln), ohne das Bild neu zu zeichnen.
+// Ein Tier besteht aus Ebenen: was sich nie ändert, drei Stellungen des Schwanzes, die Augen offen und zu, und die
+// Augen nach links, Mitte und rechts. Die Szene blendet sie per CSS um (Wedeln, Blinzeln, Hinschauen), ohne neu zu zeichnen.
 //   opts.title: Name fürs Vorlesen   opts.acc: { head, neck, back }   opts.shine: glitzert (nach dem Bürsten)
 //   opts.shadow: Schatten unter dem Tier (die Szene zeichnet ihn selbst, damit er beim Springen am Boden bleibt)
+//   opts.pose: Stellung (pixel.js POSES)   opts.walk: drei Bilder fürs Laufen (Klassen pw0, pw1, pw2, per CSS im Wechsel)
 const cache = new Map();
-function layers(speciesId, color, face, acc) {
-  const key = [speciesId, color.id, face, acc.head, acc.neck, acc.back].join('|');
+function layers(speciesId, color, face, acc, pose = 'stand') {
+  const key = [speciesId, color.id, face, acc.head, acc.neck, acc.back, pose].join('|');
   if (cache.has(key)) return cache.get(key);
-  const base = petGrid(speciesId, color, { face, acc });
-  const tails = [-1, 1].map((tail) => petGrid(speciesId, color, { face, acc, tail }));
-  const shut = face === 'ok' || face === 'sad' ? petGrid(speciesId, color, { face, acc, blink: true }) : null;
+  const raw = petGrid(speciesId, color, { face, acc });
+  const b = boxOf(raw);
+  const P = (s) => posed(petGrid(speciesId, color, { face, acc, ...s }), pose, b);
+  const base = posed(raw, pose, b);
+  const tails = [-1, 1].map((tail) => P({ tail }));
+  const open = face === 'ok' || face === 'sad';
+  const shut = open ? P({ blink: true }) : null;
+  const looks = open ? [-1, 1].map((look) => P({ look })) : null;
   const n = base.px.length, T = new Set(), E = new Set();
   for (let i = 0; i < n; i++) {
     if (tails.some((t) => t.px[i] !== base.px[i])) T.add(i);
-    else if (shut && shut.px[i] !== base.px[i]) E.add(i);
+    else if ((shut && shut.px[i] !== base.px[i]) || (looks && looks.some((l) => l.px[i] !== base.px[i]))) E.add(i);
   }
   const still = new Set();
   for (let i = 0; i < n; i++) if (!T.has(i) && !E.has(i)) still.add(i);
+  const eyes = !E.size ? '' : looks
+    ? `<g class="px-e px-open"><g class="lk lk-c">${paths(base, E)}</g><g class="lk lk-l">${paths(looks[0], E)}</g><g class="lk lk-r">${paths(looks[1], E)}</g></g><g class="px-e px-shut">${paths(shut, E)}</g>`
+    : `<g class="px-e px-open">${paths(base, E)}</g><g class="px-e px-shut">${paths(shut, E)}</g>`;
   const out = `<g class="px">${paths(base, still)}</g>`
     + (T.size ? `<g class="px-t px-t0">${paths(tails[0], T)}</g><g class="px-t px-t1">${paths(base, T)}</g><g class="px-t px-t2">${paths(tails[1], T)}</g>` : '')
-    + (E.size ? `<g class="px-e px-open">${paths(base, E)}</g><g class="px-e px-shut">${paths(shut, E)}</g>` : '');
+    + eyes;
   if (cache.size > 300) cache.clear();
   cache.set(key, out);
   return out;
 }
-
 // Schlaf-Z und Glitzern als kleine Pixelmuster
 const ZZZ = (() => { const g = grid(48, 48); stamp(g, 39, 0, ['zzzz', '..z.', '.z..', 'zzzz'], { z: '#5a5ab0' }); stamp(g, 44, 5, ['zzz', '.z.', 'zzz'], { z: '#7a7ad0' }); return paths(g); })();
 const SHINE = (() => {
@@ -49,13 +57,17 @@ const SHINE = (() => {
 })();
 const SHADOW = (() => { const g = grid(48, 48); paint(g, ell(24, 46.5, 13, 1.6), { fill: 'rgba(40,20,30,.16)', outline: false, shade: null }); return paths(g); })();
 
-export function petSvg(speciesId, colorId, face = 'ok', { title = '', acc = {}, shine = false, shadow = true } = {}) {
+export function petSvg(speciesId, colorId, face = 'ok', { title = '', acc = {}, shine = false, shadow = true, pose = 'stand', walk = false } = {}) {
   const sp = SPECIES[speciesId];
   const color = sp.colors.find((x) => x.id === colorId) || sp.colors[0];
   const extra = (face === 'sleep' ? `<g class="zzz">${ZZZ}</g>` : '') + (shine ? `<g class="sparkle">${SHINE}</g>` : '');
+  const a = acc || {};
+  const body = walk && (!pose || pose === 'stand')
+    ? ['stand', 'walk1', 'walk2'].map((ps, i) => `<g class="pw pw${i}">${layers(speciesId, color, face, a, ps)}</g>`).join('')
+    : layers(speciesId, color, face, a, pose);
   return gridSvg({ w: 48, h: 48 }, {
-    cls: `pet-svg species-${speciesId} face-${face}`, label: title || sp.name,
-    extra: (shadow ? `<g class="px-shadow">${SHADOW}</g>` : '') + layers(speciesId, color, face, acc || {}) + extra,
+    cls: `pet-svg species-${speciesId} face-${face}${walk ? ' walkable' : ''}`, label: title || sp.name,
+    extra: (shadow ? `<g class="px-shadow">${SHADOW}</g>` : '') + body + extra,
   });
 }
 

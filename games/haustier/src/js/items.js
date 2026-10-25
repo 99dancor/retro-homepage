@@ -90,6 +90,8 @@ const list = [
   { id: 'furn_cushion', cat: 'furn', name: 'Kissen', icon: '🟥', price: 40, note: 'Schlafplatz für ein Nickerchen.' },
   { id: 'furn_bowl_water', cat: 'furn', name: 'Wassernapf', icon: '💧', price: 20, note: 'Ein Klick füllt ihn. Durstige Tiere trinken selbst.' },
   { id: 'furn_bowl_food', cat: 'furn', name: 'Futternapf', icon: '🥣', price: 25, note: 'Futter hineinschütten. Hungrige Tiere fressen selbst.' },
+  { id: 'furn_litter', cat: 'furn', name: 'Streukiste', icon: '🧺', price: 30, note: 'Hier machen die Tiere ihr Geschäft, statt daneben. Ab und zu leeren.' },
+  { id: 'furn_chew', cat: 'furn', name: 'Kauholz', icon: '🦴', price: 15, note: 'Zum Knabbern und Kauen: Hunde, Füchse und Nager lassen Möbel und Fenster in Ruhe.' },
   { id: 'furn_rug', cat: 'furn', name: 'Teppich', icon: '🟦', price: 50, note: 'Deko für den Boden.' },
   { id: 'furn_plant', cat: 'furn', name: 'Pflanze', icon: '🪴', price: 60, note: 'Deko.' },
   { id: 'furn_frame', cat: 'furn', name: 'Bild „Hügel“', icon: '🖼️', price: 70, note: 'Deko für die Wand.' },

@@ -1,0 +1,51 @@
+<%- include('_top') %>
+<%# Preise wie im Preis-Menü des Spiels: links alle Waren, rechts der Jahresverlauf der gewählten. Preise in € je 1 000 l aus dem Economy-Feed. %>
+<% const cur = m.month; %>
+<div class="fs-maphead"><h2>📈 Preise</h2>
+  <div class="layer" role="group" aria-label="Filter">
+    <% for (const [k, l] of [['alle', 'Alle'], ['feld', 'Feldfrüchte'], ['tiere', 'Tiere'], ['produkte', 'Produkte'], ['habe', 'Was ihr habt']]) { %>
+      <a class="btn small<%= filter === k ? ' on' : '' %>" href="/farming/preise?f=<%= k %>"><%= l %></a>
+    <% } %>
+  </div>
+  <span class="spacer"></span><span class="hint"><%= m.date ? 'Jetzt: ' + m.date.monthName : 'Monat unbekannt, Preise im Jahresschnitt' %></span>
+</div>
+<% if (m.demands.length) { %>
+  <div class="demand">📣 <b>Große Nachfrage:</b> <%= m.demands.map(d => N.fill(d.fill) + ' +' + Math.round((d.mult - 1) * 100) + ' %' + (d.running ? ' (läuft)' : d.day ? ' ab ' + (fmtDay(d.day) || 'Tag ' + d.day) + ', ' + d.hour + ' Uhr, ' + d.hours + ' Std.' : '')).join(' · ') %></div>
+<% } %>
+<% if (!m.economy) { %><p class="hint">Noch keine Preise. Dafür braucht der Hub den Economy-Feed.</p><% } else { %>
+<div class="fs-prices">
+  <div class="fs-scroll">
+    <table class="pr">
+      <colgroup><col style="width:34%"><col style="width:14%"><col style="width:12%"><col style="width:22%"><col style="width:18%"></colgroup>
+      <tr><th>Ware</th><th>Jetzt</th><th>Tendenz</th><th>Jahr</th><th>Bester Monat</th></tr>
+      <% for (const g of goods) { %>
+        <tr class="<%= sel && sel.fill === g.fill ? 'hl' : '' %>">
+          <td class="f"><a href="/farming/preise?f=<%= filter %>&amp;w=<%= g.fill %>"><%= g.name %></a><%= g.have ? ' 📦' : '' %><%= g.demand ? ' 📣' : '' %></td>
+          <td><%= g.now !== null ? de(g.now) : de(g.prices.reduce((a, b) => a + b, 0) / 12) %></td>
+          <td class="<%= g.trend > 0 ? 'ok' : g.trend < 0 ? 'bad' : '' %>"><%= g.trend === null ? '' : (g.trend > 0 ? '▲ ' : g.trend < 0 ? '▼ ' : '● ') + Math.abs(g.trend) + ' %' %></td>
+          <td class="sp"><svg viewBox="0 0 60 16" aria-hidden="true"><path d="<%= spark(g.prices, 60, 16) %>" fill="none" stroke="currentColor" stroke-width="1.2"/><% if (cur !== null) { %><circle cx="<%= (1 + cur * 58 / 11).toFixed(1) %>" cy="<%= (15 - (g.prices[cur] - Math.min(...g.prices)) / ((Math.max(...g.prices) - Math.min(...g.prices)) || 1) * 14).toFixed(1) %>" r="2" fill="#e0a800"/><% } %></svg></td>
+          <td class="<%= cur === g.best ? 'best' : '' %>"><%= N.MONTHS_SHORT[g.best] %> · <%= de(g.bestPrice) %></td>
+        </tr>
+      <% } %>
+    </table>
+  </div>
+  <% if (sel) { %>
+    <% const vals = sel.prices, lo = Math.min(...vals) * (Math.min(...vals) === Math.max(...vals) ? 0.8 : 0.9), hi = Math.max(...vals) * (Math.min(...vals) === Math.max(...vals) ? 1.2 : 1.05), Y = v => (190 - (v - lo) / ((hi - lo) || 1) * 170).toFixed(1), X = i => (40 + i * 30).toFixed(1); %>
+    <fieldset class="groupbox fs-chart"><legend><%= sel.name %> – € je 1 000 l</legend>
+      <svg viewBox="0 0 400 220" role="img" aria-label="Preisverlauf <%= sel.name %>">
+        <% for (let k = 0; k <= 4; k++) { const v = lo + (hi - lo) * k / 4; %><line x1="36" x2="395" y1="<%= Y(v) %>" y2="<%= Y(v) %>" class="grid"/><text x="32" y="<%= (Number(Y(v)) + 3).toFixed(1) %>" class="ax" text-anchor="end"><%= de(v) %></text><% } %>
+        <% if (cur !== null) { %><rect x="<%= (Number(X(cur)) - 14).toFixed(1) %>" y="16" width="28" height="178" class="now"/><% } %>
+        <path d="<%= vals.map((v, i) => (i ? 'L' : 'M') + X(i) + ',' + Y(v)).join(' ') %>" class="line"/>
+        <% vals.forEach((v, i) => { %><circle cx="<%= X(i) %>" cy="<%= Y(v) %>" r="<%= i === sel.best ? 5 : 3 %>" class="<%= i === sel.best ? 'best' : 'pt' %>"><title><%= N.MONTHS[i] %>: <%= de(v) %> €</title></circle><text x="<%= X(i) %>" y="210" class="ax" text-anchor="middle"><%= N.MONTHS_SHORT[i] %></text><% }) %>
+      </svg>
+      <div>Jetzt <b><%= sel.now !== null ? de(sel.now) + ' €' : '–' %></b> · bester Monat <b><%= N.MONTHS[sel.best] %></b> mit <%= de(sel.bestPrice) %> €<%= sel.demand ? ' · 📣 große Nachfrage +' + Math.round((sel.demand.mult - 1) * 100) + ' %' : '' %></div>
+      <% for (const h of holdings) { %>
+        <div>📦 <span class="dot" style="background:<%= h.farm.color %>"></span> <%= h.farm.name %> hat <%= liters(h.amount) %> → jetzt <%= eur(h.amount / 1000 * (sel.now ?? sel.bestPrice)) %>, im <%= N.MONTHS[sel.best] %> <%= eur(h.amount / 1000 * sel.bestPrice) %></div>
+      <% } %>
+      <p class="hint">Einzelne Verkaufsstellen nennt der Feed nicht, die Preise sind der Durchschnitt des Spiels.</p>
+    </fieldset>
+  <% } %>
+</div>
+<p class="hint"><%= goods.length %> von <%= all %> Waren</p>
+<% } %>
+<%- include('_bottom') %>

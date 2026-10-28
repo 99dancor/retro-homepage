@@ -651,6 +651,136 @@ CREATE TABLE IF NOT EXISTS ignores (
   PRIMARY KEY (user_id, other_id)
 );
 CREATE INDEX IF NOT EXISTS ig_other ON ignores(other_id);
+-- Farming Simulator Hub (src/fshub.js, src/fsfeeds.js). Höfe heißen wie im Spiel nach ihrer Farm-Nummer (id).
+-- Zwischenspeicher der Feeds: der zuletzt ausgelesene Stand je Zugang (stats, savegame, vehicles, economy, map, ftp)
+CREATE TABLE IF NOT EXISTS fs_cache (
+  feed TEXT PRIMARY KEY,
+  data TEXT,                            -- ausgelesener Stand als JSON (keine Adressen, keine Zugangsdaten)
+  ok_at INTEGER, tried_at INTEGER,
+  error TEXT,                           -- letzter Fehler, leer = letzter Abruf hat geklappt
+  info TEXT                             -- Zusammenfassung für die Seitenverwaltung
+);
+CREATE TABLE IF NOT EXISTS fs_farms (
+  id INTEGER PRIMARY KEY,               -- Farm-Nummer im Spiel
+  name TEXT, color TEXT,
+  updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  updated_at INTEGER
+);
+-- Wer zu welchem Hof gehört. Mitglieder tragen sich selbst ein, je Konto ein Hof.
+CREATE TABLE IF NOT EXISTS fs_members (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  farm_id INTEGER NOT NULL,
+  joined_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS fs_notes (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER
+);
+-- Aufgaben. Fällig nach echtem Datum (due_date) oder nach Spieltag (due_day, zählt seit Spielbeginn ab 1).
+-- Regelmäßig: repeat days | weekly (echte Tage) oder gdays | gmonths (Spieltage, Spielmonate) alle repeat_n.
+CREATE TABLE IF NOT EXISTS fs_tasks (
+  id INTEGER PRIMARY KEY,
+  farm_id INTEGER NOT NULL DEFAULT 0,   -- 0 = für alle Höfe
+  title TEXT NOT NULL,
+  note TEXT,
+  field INTEGER,                        -- Feldnummer
+  place_id INTEGER,
+  assignee_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  due_date TEXT,
+  due_day INTEGER,
+  repeat TEXT NOT NULL DEFAULT '',
+  repeat_n INTEGER NOT NULL DEFAULT 1,
+  auto_key TEXT,                        -- aus einem Vorschlag des Hubs übernommen
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at INTEGER NOT NULL,
+  done_at INTEGER,
+  done_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS fst_farm ON fs_tasks(farm_id, done_at);
+-- Vorschläge des Hubs, die jemand ausgeblendet hat; sig ändert sich, wenn sich am Anlass etwas ändert
+CREATE TABLE IF NOT EXISTS fs_hidden (key TEXT PRIMARY KEY, sig TEXT, hidden_at INTEGER NOT NULL);
+-- Benannte Stellen auf der Karte (Fischzucht, Ziegenstall …) für Produktion und „steht bei“
+CREATE TABLE IF NOT EXISTS fs_places (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  farm_id INTEGER NOT NULL DEFAULT 0,
+  x REAL NOT NULL, z REAL NOT NULL,
+  radius REAL NOT NULL DEFAULT 30
+);
+-- Kalendervorlage: Monate als Liste 0–11 (0 = März wie im Spiel)
+CREATE TABLE IF NOT EXISTS fs_crops (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  fill TEXT,                            -- Ware im Economy-Feed (WHEAT …) für Preise
+  color TEXT NOT NULL DEFAULT '#8fd16a',
+  sow TEXT NOT NULL DEFAULT '',
+  harvest TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL DEFAULT 'field',   -- field | grass (wächst nach) | perm (Dauerkultur)
+  position INTEGER NOT NULL DEFAULT 0
+);
+-- Anbauplan: was auf welches Feld kommt, mit Saat- und Erntemonat (Vorgabe aus fs_crops)
+CREATE TABLE IF NOT EXISTS fs_plans (
+  id INTEGER PRIMARY KEY,
+  farm_id INTEGER NOT NULL,
+  field INTEGER,
+  label TEXT,                           -- statt Feldnummer, z. B. „Wiesen“
+  crop_id INTEGER REFERENCES fs_crops(id) ON DELETE CASCADE,
+  sow_month INTEGER NOT NULL,
+  harvest_month INTEGER NOT NULL,
+  note TEXT,
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at INTEGER NOT NULL
+);
+-- Was Mitglieder zu einem Feld gemeldet haben (der Server liefert Frucht und Zustand nicht)
+CREATE TABLE IF NOT EXISTS fs_fields (
+  field INTEGER PRIMARY KEY,
+  crop_id INTEGER REFERENCES fs_crops(id) ON DELETE SET NULL,
+  state TEXT,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  game_day INTEGER,
+  updated_at INTEGER NOT NULL
+);
+-- Online-Zeiten je Spielername (aus dem Stats-Feed)
+CREATE TABLE IF NOT EXISTS fs_sessions (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL COLLATE NOCASE,
+  start_at INTEGER NOT NULL,
+  end_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS fss_name ON fs_sessions(name, start_at);
+-- Verläufe je Tag (Kontostand, Bilanz, Paletten je Ort): series z. B. money:1, bilanz:2, place:5
+CREATE TABLE IF NOT EXISTS fs_hist (
+  series TEXT NOT NULL,
+  day TEXT NOT NULL,
+  value REAL NOT NULL,
+  PRIMARY KEY (series, day)
+);
+CREATE TABLE IF NOT EXISTS fs_changelog (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,   -- leer = vom Hub selbst (z. B. Mods geändert)
+  kind TEXT NOT NULL DEFAULT 'note',    -- note | mods | server
+  title TEXT NOT NULL,
+  body TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS fs_suggestions (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  body TEXT,
+  status TEXT NOT NULL DEFAULT 'offen', -- offen | geplant | umgesetzt | abgelehnt
+  answer TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER
+);
+CREATE TABLE IF NOT EXISTS fs_votes (
+  suggestion_id INTEGER NOT NULL REFERENCES fs_suggestions(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (suggestion_id, user_id)
+);
 CREATE INDEX IF NOT EXISTS qz_user ON quizzes(user_id, updated_at);
 CREATE INDEX IF NOT EXISTS qr_user ON quiz_results(user_id);
 CREATE INDEX IF NOT EXISTS qr_game ON quiz_results(game_id);
@@ -810,6 +940,15 @@ const DEFAULT_SETTINGS = {
   smtp_user: '',
   smtp_pass: '',
   smtp_from: '',
+  // Farming Simulator Hub (src/fshub.js): Adressen und FTP-Zugang trägt der Admin ein (Seitenverwaltung → Farming), Vorgaben hier
+  fs_enabled: '1',
+  fs_view: 'members',           // wer den Hub sieht: members | public (Gäste nur lesen)
+  fs_edit: 'farm',              // wer planen, melden und Aufgaben anlegen darf: farm (Mitglieder des Hofs) | members (alle Mitglieder)
+  fs_map_border: '25',          // Rand des Kartenbilds vom Server in Prozent je Seite (die Karte liegt in der Mitte)
+  fs_auto_wear: '50',           // Vorschlag Werkstatt ab diesem Verschleiß in Prozent
+  fs_auto_diesel: '50',         // Vorschlag Tanken unter so vielen Litern Diesel
+  fs_auto_pallets: '6',         // Vorschlag Paletten abholen ab so vielen an einem Ort
+  fs_auto_food: '1',            // Vorschlag Futter, wenn ein Stall (FTP) leer ist
 };
 // Das Freundebuch der Seite heißt seit den Profil-Freundebüchern „Besucherbuch“: unveränderte Standardtexte mitziehen
 for (const k of ['home_md', 'theme_marquee']) {

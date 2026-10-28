@@ -7,7 +7,7 @@ function menu(user) {
   return [['blog', '/blog', '📝 Blog'],
     ['dokumente', '📂 Dokumente', [...(user ? [['eigene-dateien', '/eigene-dateien', '🗂️ Eigene Dateien'], ['notizblock', '/notizblock', '🗒️ Notizblock']] : []), ...(user && user.canUpload ? [['upload', '/files/upload', '📤 Datei hochladen']] : []), ['files', '/files', '📁 Downloads'], ['mods', '/mods', '🧩 Modlisten'], ['links', '/links', '🔗 Links'], ['galerie', '/galerie', '🖼️ Galerie']]],
     ['spiele', '🎮 Spiele und Apps', [['kartenspiele', '/kartenspiele', '🂡 Kartenspiele'], ['quiz', '/quiz', '❓ Quiz'], ['werwolf', '/werwolf', '🐺 Werwolf'], ['minesweeper', '/minesweeper', '💣 Minesweeper'], ['kreuzwortraetsel', '/kreuzwortraetsel', '📰 Kreuzworträtsel'], ['sudoku', '/sudoku', '🔢 Sudoku'], ['paint', '/paint', '🎨 Paint'], ['zufall', '/zufall', '🎲 Zufallsgenerator'], ['musik', '/musik', '🎵 Mediaplayer'], ['apps', '/apps', '🕹️ Andere Games']]],
-    ['haustier', '/haustier/', '🐾 Pixelpfoten'], ['board', '/forum', '💬 Forum'], ['nutzer', '/messenger', '🌼 Messenger'], ['guestbook', '/guestbook', '📖 Besucherbuch'], ['contact', '/contact', '✉️ Kontakt']];
+    ['haustier', '/haustier/', '🐾 Pixelpfoten'], ['farming', '/farming', '🚜 Farming Simulator'], ['board', '/forum', '💬 Forum'], ['nutzer', '/messenger', '🌼 Messenger'], ['guestbook', '/guestbook', '📖 Besucherbuch'], ['contact', '/contact', '✉️ Kontakt']];
 }
 
 // Symbole, die als Bild gezeichnet werden (retro.css .sym-…): Der Messenger zeigt je nach Design die ICU-Blume oder die
@@ -28,7 +28,7 @@ function labelHtml(label) {
 function off(l) {
   return {
     guestbook: !l.guestbookEnabled, board: !l.boardEnabled, kartenspiele: !l.cardsEnabled, paint: !l.paintEnabled,
-    quiz: !l.quizEnabled, werwolf: !l.werwolfEnabled, galerie: !l.galleryEnabled, contact: !l.contactEnabled,
+    quiz: !l.quizEnabled, werwolf: !l.werwolfEnabled, galerie: !l.galleryEnabled, contact: !l.contactEnabled, farming: !l.farmingVisible,
   };
 }
 

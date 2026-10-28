@@ -1,0 +1,543 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Server game="Farming Simulator 25" version="1.25.0.0" mapOverviewFilename="$moddir$FS25_Bilk/maps/overview.png" mapSize="2048" mapName="Bilk" name="Chaosfarm" dayTime="28876111">
+    <Slots capacity="4" numUsed="0">
+        <Player isUsed="false"/>
+        <Player isUsed="false"/>
+        <Player isUsed="false"/>
+        <Player isUsed="false"/>
+    </Slots>
+    <Mods>
+        <Mod name="pdlc_highlandsFishingPack" author="GIANTS Software" version="1.6.0.0" hash="6590b09c4faf09e6fefc876c27afe0e9">Highlands Fishing Expansion</Mod>
+        <Mod name="pdlc_strawHarvestPack" author="Creative Mesh" version="1.3.0.0" hash="9edcc38785aea13896cb1bfe678d5876">Straw Harvest Pack</Mod>
+        <Mod name="FS25_additionalFieldInfo" author="yumi" version="1.0.2.0" hash="557733bdd32b06ef8ac2f326aff22e1d">Additional Field Info</Mod>
+        <Mod name="FS25_additionalGameSettings" author="Rockstar" version="1.0.0.5" hash="34a0f3c4cd8606008a8be0e673f26200">Additional Game Settings</Mod>
+        <Mod name="FS25_allTheFoliage" author="PeterPwn247" version="1.0.1.0" hash="869ac03f493703fcbcaaccb0a4f16519">All Decorative Foliage</Mod>
+        <Mod name="FS25_AutomaticWater_Animals_Greenhouses" author="JogaDim" version="1.1.0.0" hash="2dcecaf2f2cb03887d3de2bdfaa1de92">Automatic Water For Animals And Greenhouses</Mod>
+        <Mod name="FS25_BankCredit" author="Squallqt" version="1.0.1.0" hash="7ce60fc8f7f60e976b032121442fc760">Bank And Credit</Mod>
+        <Mod name="FS25_BertiTFBYE200" author="A-ndrea - ZioFicus" version="1.0.0.0" hash="0d2566acb5aabe6fef47e00c4d8f83af">Berti TFB-YE 200</Mod>
+        <Mod name="FS25_Bilk" author="0maxi0" version="1.0.0.0" hash="e32b98890fc4a4d00f5360669c083c57">BILK</Mod>
+        <Mod name="FS25_BunkerSiloModularSet" author="Kastor [D-S-Agrarservice&amp;#93;" version="1.0.0.1" hash="1bdf1894d38f520d50ebb7f81cb4ecc7">Bunker Silo Set Modular</Mod>
+        <Mod name="FS25_claasSaddleTracPack" author="GIANTS Software" version="1.0.0.1" hash="3f7199cd4d4fa827519b7b2abf9950e6">CLAAS XERION SADDLE TRAC Pack</Mod>
+        <Mod name="FS25_CutOpenBale" author="olaf.tnt" version="1.0.0.0" hash="6478d02e20b96c1cecdca754c1c82755">Cut Open Bale</Mod>
+        <Mod name="FS25_Cynkomet_Dzik" author="Nikos321" version="1.0.0.0" hash="6a7b76080fd76a9c9bf7b12d3e3306b0">Cynkomet Dzik</Mod>
+        <Mod name="FS25_DigitalDisplay" author="Achimobil" version="1.2.0.0" hash="f5305eced1d1375195407973497cb7e4">Digital Display</Mod>
+        <Mod name="FS25_ExtendedGameInfoDisplay" author="Peppie84" version="1.1.0.0" hash="c9bdefc57caf873b39acc17091d81057">Extended Game Infodisplay</Mod>
+        <Mod name="FS25_FeltrinaVineyard_Series" author="SMI Modding Team" version="1.0.0.0" hash="050b2218e32dac1560cc1f23dcd44719">Feltrina Vineyard Series</Mod>
+        <Mod name="FS25_fieldCalculator" author="[Weekend Farmers&amp;#93;" version="1.0.0.0" hash="8619931d8ff12e4b92f9122c452d54b1">Field Calculator</Mod>
+        <Mod name="FS25_HirePurchasing" author="Ozz" version="1.0.0.9" hash="48643f9a8ac32f45adaab93fce758fbb">Hire Purchasing</Mod>
+        <Mod name="FS25_IncreaseLightRange" author="Rival" version="1.0.0.0" hash="ffba7cac8e3731b5d2364733ce218e71">Increase Light Range</Mod>
+        <Mod name="FS25_Invoices" author="Squallqt" version="1.2.1.0" hash="2b434b877bebe3d2a4ee033cba373568">Invoices</Mod>
+        <Mod name="FS25_LiquidManureDryer" author="NazzaB82" version="1.0.0.2" hash="951442a5ba5b8202839302f952bca1b8">LiquidManureDryer</Mod>
+        <Mod name="FS25_Lizard_AugerMaster" author="Mantrid" version="1.0.0.0" hash="dccf8fea94f4cf947c9cc32aa55258e9">Lizard Auger Master</Mod>
+        <Mod name="FS25_LumberJack" author="loki_79" version="1.1.2.0" hash="69a0b4976ccfdaea3eea37d4b10574f3">LumberJack</Mod>
+        <Mod name="FS25_MA_modernPigesty" author="ModdingAssociation - Katsuo" version="1.0.0.1" hash="6c2fee560a7d1e4a8ea845aeed59616a">Modern Pigsty</Mod>
+        <Mod name="FS25_MachineHall_Big" author="0maxi0" version="1.0.0.0" hash="14d4ca6b4be3973adae4abfe09d857e1">Large Machine Hall</Mod>
+        <Mod name="FS25_MAN_TGS18500" author="JH-Modding" version="1.0.0.0" hash="6670135e2cf4d0bd7ec4a602eb4d2e88">MAN TGS 18.500 4x4</Mod>
+        <Mod name="FS25_MapObjectsHider" author="Achimobil" version="1.2.0.3" hash="ead403db2e9539216286355909586b7a">Map Objects Hider</Mod>
+        <Mod name="FS25_minimapPlus" author="50keda" version="1.0.1.0" hash="8860dbdc87c9d1d65398f59dd9d85a6a">Minimap Plus</Mod>
+        <Mod name="FS25_modernHouseSet" author="Redphoenix" version="1.0.0.0" hash="ab286769ec818947776b23eec1581897">Modern House Set</Mod>
+        <Mod name="FS25_modernWoodenCowBarn" author="PXLR" version="1.1.0.0" hash="f957b42bf6518d84c645a97b32811271">Modern Cow Barn</Mod>
+        <Mod name="FS25_MultiFarmStorage" author="Anthicz" version="1.1.0.1" hash="043f6ebbd68f131e05859a997a77851c">Multi-fruit Farm Storage</Mod>
+        <Mod name="FS25_multiPurposeTrailer" author="filip plajer 54" version="1.0.0.0" hash="cb7171a4ba313412ec9062ae925625be">Multi Purpose Trailer</Mod>
+        <Mod name="FS25_NC16TBaletrailer" author="NM Modding" version="1.0.0.0" hash="5c414cd13243737c743794cc79bbee60">NC Engineering 16t Bale Trailer</Mod>
+        <Mod name="FS25_newHolland85_series" author="Peppe978" version="1.0.0.0" hash="6154996d9df236d1b289372f97837816">New Holland 88-85</Mod>
+        <Mod name="FS25_NXProductions" author="NX Modding" version="1.0.0.1" hash="4bf740513cd5d7a0d6ab1459228f7a18">Productions Manager</Mod>
+        <Mod name="FS25_orchardsAndGreenhouses_crossplay" author="MrHector" version="1.0.1.0" hash="e7d9b891e89d1051512b1b12688265a1">Orchards And Greenhouses</Mod>
+        <Mod name="FS25_paintAndTerraformAnywhere" author="modelleicher (Farming Agency)" version="1.0.0.2" hash="989de5d7a626f7ec61cd8167705787a5">Paint And Terraform Anywhere</Mod>
+        <Mod name="FS25_PerfectEdge" author="olaf.tnt" version="1.1.0.0" hash="e59ad491b98525fcfcd4ca4244115484">PerfectEdge</Mod>
+        <Mod name="FS25_potatohall" author="AgrarKadabra, Plugz" version="1.0.0.0" hash="65de57052fc4e50bf58d83e2c4ec3cdf">Potatohall</Mod>
+        <Mod name="FS25_ProductionAdvisor" author="NYKK3" version="1.0.0.0" hash="9708f0490447e65bb07ed44374eac433">Production Advisor</Mod>
+        <Mod name="FS25_Provitis_mp122Ocea_Twin" author="Univers Simu Modding" version="1.0.0.0" hash="1c16bc5fa96783013052f92ec6a7793d">MP 122 OCEA Twin</Mod>
+        <Mod name="FS25_QuickSelector" author="Quity" version="1.2.0.0" hash="3c746ff1113e90141a6569cac2ef6129">Quick Selector</Mod>
+        <Mod name="FS25_quonsetStorages_Pack" author="ScandinavianVikingsModRebuildsTeam" version="1.0.0.0" hash="29782d8689fbd286c8d995736c682daf">Reinforced Quonset Sheds For Rootcrops &amp; Woodchips</Mod>
+        <Mod name="FS25_Raisinproductionpack" author="Chenben" version="1.1.0.0" hash="add44b0711b2aed71b30f45fc20905ad">Grape Production Pack</Mod>
+        <Mod name="FS25_RedTape" author="Ozz" version="1.0.3.0" hash="7bf110fe845de29117ac5f869e6217f2">Red Tape</Mod>
+        <Mod name="FS25_RentYourStable" author="farmerfivetom" version="1.0.0.0" hash="8316712698df4f785704752f174af816">Rent Out Your Stable</Mod>
+        <Mod name="FS25_RoadKit" author="OlaHaldor" version="1.0.0.1" hash="65926b2bf2d85279f015d6a888781599">Road Kit</Mod>
+        <Mod name="FS25_Straw_Shed_Old" author="Blacksheep Modding" version="1.0.0.1" hash="213f3c7117929cf0945f9c6e3073d6e8">Old Storage Shed</Mod>
+        <Mod name="FS25_threeSidedFarm" author="Modding Association" version="1.0.0.1" hash="c6c2817aed4f0d7feb31bb1148a0f846">Three Sided Farm</Mod>
+        <Mod name="FS25_toggleSuperStrength" author="AgrarKadabra" version="1.1.0.0" hash="e9b5c90a59266069539f0d41d55d276e">Super Strength</Mod>
+        <Mod name="FS25_UniversalAutoload" author="loki_79" version="1.1.1.0" hash="d3a4cf16524608558fc2359ff4f12b71">Universal Autoload</Mod>
+        <Mod name="FS25_unlimitedColorConfigurations" author="GIANTS Software" version="1.0.0.0" hash="4b13a100610865fd4d28b5b4f896deec">Unlimited Color Configurations</Mod>
+        <Mod name="FS25_UnloadBalesEarly" author="Farmsim Tim (timmeey86)" version="1.1.2.0" hash="da8c3cc7fd1ba3587519b3c20c1ec3b3">Unload Bales Early</Mod>
+        <Mod name="FS25_volvoF16" author="GIANTS Software" version="1.0.0.0" hash="a5a4bf2982176ff959495d12c15b568e">Volvo F16 Globetrotter</Mod>
+        <Mod name="FS25_WorkshopTable" author="Nico Du 55" version="1.0.0.0" hash="15cadbfe9b7cd3263840d64131392000">Workshop Table</Mod>
+        <Mod name="FS25_ZYX_HighFuelPrices" author="ZYX / w33zl" version="1.0.0.0" hash="55d48107edec1f6c23785fdf3b4ba639">Increased Fuel Prices</Mod>
+    </Mods>
+    <Farmlands>
+        <Farmland name="1" id="1" owner="0" area="0.554800" price="33288" x="987.513367" z="854.175171"/>
+        <Farmland name="2" id="2" owner="0" area="0.473600" price="28416" x="959.733093" z="778.170593"/>
+        <Farmland name="3" id="3" owner="1" area="2.684400" price="161064" x="878.633728" z="823.085815"/>
+        <Farmland name="4" id="4" owner="1" area="1.471600" price="88296" x="761.122314" z="693.159851"/>
+        <Farmland name="5" id="5" owner="1" area="6.276400" price="376584" x="874.949890" z="578.353027"/>
+        <Farmland name="6" id="6" owner="1" area="1.101200" price="66072" x="941.860168" z="436.067200"/>
+        <Farmland name="7" id="7" owner="1" area="7.214000" price="432840" x="864.047852" z="259.926208"/>
+        <Farmland name="8" id="8" owner="1" area="0.773200" price="46392" x="780.030518" z="141.967407"/>
+        <Farmland name="9" id="9" owner="1" area="1.548800" price="92928" x="662.931824" z="401.612610"/>
+        <Farmland name="10" id="10" owner="1" area="1.134800" price="68088" x="640.008118" z="240.425446"/>
+        <Farmland name="11" id="11" owner="1" area="4.973200" price="298392" x="582.887085" z="144.942886"/>
+        <Farmland name="12" id="12" owner="1" area="3.307200" price="198432" x="768.483093" z="57.780602"/>
+        <Farmland name="13" id="13" owner="0" area="0.537600" price="32256" x="947.008911" z="85.934525"/>
+        <Farmland name="14" id="14" owner="0" area="1.136400" price="68184" x="935.617371" z="9.931362"/>
+        <Farmland name="15" id="15" owner="1" area="2.688000" price="161280" x="715.900879" z="-103.229164"/>
+        <Farmland name="16" id="16" owner="0" area="0.264000" price="15840" x="581.393921" z="-120.239395"/>
+        <Farmland name="17" id="17" owner="0" area="3.096800" price="185808" x="482.337128" z="-161.124252"/>
+        <Farmland name="18" id="18" owner="0" area="1.166800" price="70008" x="560.906067" z="-187.222153"/>
+        <Farmland name="19" id="19" owner="0" area="0.653200" price="39192" x="558.489258" z="-300.714630"/>
+        <Farmland name="20" id="20" owner="0" area="2.176800" price="130608" x="757.379639" z="-230.826172"/>
+        <Farmland name="21" id="21" owner="0" area="1.773600" price="106416" x="861.660339" z="-135.683807"/>
+        <Farmland name="22" id="22" owner="0" area="0.881600" price="52896" x="949.005432" z="-78.381126"/>
+        <Farmland name="23" id="23" owner="0" area="3.936400" price="236184" x="894.527100" z="-290.373230"/>
+        <Farmland name="24" id="24" owner="0" area="1.487600" price="89256" x="926.783264" z="-414.922546"/>
+        <Farmland name="25" id="25" owner="0" area="1.462000" price="87720" x="955.693848" z="-520.429260"/>
+        <Farmland name="26" id="26" owner="0" area="1.306800" price="78408" x="745.082031" z="-440.624725"/>
+        <Farmland name="27" id="27" owner="0" area="1.654400" price="99264" x="820.326416" z="-534.044983"/>
+        <Farmland name="28" id="28" owner="0" area="0.687200" price="41232" x="921.915039" z="-624.732239"/>
+        <Farmland name="29" id="29" owner="0" area="0.308800" price="18528" x="979.559570" z="-670.329041"/>
+        <Farmland name="30" id="30" owner="0" area="1.068000" price="64080" x="637.370789" z="-507.567780"/>
+        <Farmland name="31" id="31" owner="0" area="2.153200" price="129192" x="731.900635" z="-607.605591"/>
+        <Farmland name="32" id="32" owner="0" area="1.683600" price="101016" x="939.209534" z="-744.119995"/>
+        <Farmland name="33" id="33" owner="0" area="2.653200" price="159192" x="883.127563" z="-814.200378"/>
+        <Farmland name="34" id="34" owner="0" area="2.626800" price="157608" x="713.731262" z="-716.155762"/>
+        <Farmland name="35" id="35" owner="0" area="0.672400" price="40344" x="579.812622" z="-640.112427"/>
+        <Farmland name="36" id="36" owner="0" area="1.110400" price="66624" x="507.842926" z="-587.981262"/>
+        <Farmland name="37" id="37" owner="0" area="1.971600" price="118296" x="885.065735" z="-930.873413"/>
+        <Farmland name="38" id="38" owner="0" area="1.850400" price="111024" x="667.474304" z="-812.610046"/>
+        <Farmland name="39" id="39" owner="0" area="5.927200" price="355632" x="628.706543" z="-907.633972"/>
+        <Farmland name="40" id="40" owner="0" area="2.968400" price="178104" x="438.274231" z="-826.941528"/>
+        <Farmland name="41" id="41" owner="0" area="0.217600" price="13056" x="378.378662" z="-801.000000"/>
+        <Farmland name="42" id="42" owner="0" area="1.176000" price="70560" x="362.552368" z="-906.601379"/>
+        <Farmland name="43" id="43" owner="0" area="1.843600" price="110616" x="276.936218" z="-643.372314"/>
+        <Farmland name="44" id="44" owner="0" area="3.738000" price="224280" x="204.961685" z="-831.276733"/>
+        <Farmland name="45" id="45" owner="0" area="1.985600" price="119136" x="231.925461" z="-951.839661"/>
+        <Farmland name="46" id="46" owner="0" area="0.920000" price="55200" x="67.831306" z="-962.581726"/>
+        <Farmland name="47" id="47" owner="0" area="3.018000" price="181080" x="-97.016434" z="-937.936279"/>
+        <Farmland name="48" id="48" owner="0" area="6.006000" price="360360" x="75.415848" z="-660.609985"/>
+        <Farmland name="49" id="49" owner="0" area="1.105600" price="66336" x="-99.477570" z="-724.007263"/>
+        <Farmland name="50" id="50" owner="0" area="0.954800" price="57288" x="-93.807709" z="-808.789673"/>
+        <Farmland name="51" id="51" owner="0" area="2.187600" price="131256" x="-198.651489" z="-780.234985"/>
+        <Farmland name="52" id="52" owner="0" area="0.656000" price="39360" x="-232.962189" z="-882.776855"/>
+        <Farmland name="53" id="53" owner="0" area="0.361200" price="21672" x="-277.217041" z="-984.911377"/>
+        <Farmland name="54" id="54" owner="0" area="3.064000" price="183840" x="-316.219055" z="-854.527649"/>
+        <Farmland name="55" id="55" owner="0" area="4.655200" price="279312" x="-479.744446" z="-903.300415"/>
+        <Farmland name="56" id="56" owner="0" area="1.681600" price="100896" x="-521.300659" z="-712.315918"/>
+        <Farmland name="57" id="57" owner="0" area="2.319200" price="139152" x="-598.893066" z="-819.058960"/>
+        <Farmland name="58" id="58" owner="0" area="0.638400" price="38304" x="-649.289490" z="-738.582703"/>
+        <Farmland name="59" id="59" owner="0" area="2.376400" price="142584" x="-713.456482" z="-894.081665"/>
+        <Farmland name="60" id="60" owner="0" area="4.727600" price="283656" x="-881.908691" z="-907.326416"/>
+        <Farmland name="61" id="61" owner="0" area="3.976000" price="238560" x="-934.277649" z="-680.800598"/>
+        <Farmland name="62" id="62" owner="0" area="4.950000" price="297000" x="-747.869812" z="-660.547974"/>
+        <Farmland name="63" id="63" owner="0" area="3.834800" price="230088" x="-667.686584" z="-545.821350"/>
+        <Farmland name="64" id="64" owner="0" area="0.338000" price="20280" x="-953.213013" z="-503.785797"/>
+        <Farmland name="65" id="65" owner="0" area="0.322800" price="19368" x="-832.244141" z="-454.858734"/>
+        <Farmland name="66" id="66" owner="0" area="2.790400" price="167424" x="-632.906250" z="-470.689209"/>
+        <Farmland name="67" id="67" owner="0" area="2.904000" price="174240" x="-543.220642" z="-414.937195"/>
+        <Farmland name="68" id="68" owner="0" area="0.894400" price="53664" x="-459.361359" z="-323.134155"/>
+        <Farmland name="69" id="69" owner="0" area="0.602800" price="36168" x="-363.571991" z="-440.657593"/>
+        <Farmland name="70" id="70" owner="2" area="0.988000" price="59280" x="-240.595139" z="-445.893127"/>
+        <Farmland name="71" id="71" owner="0" area="2.923200" price="175392" x="-294.850586" z="-537.592773"/>
+        <Farmland name="72" id="72" owner="0" area="1.359200" price="81552" x="-313.832245" z="-627.811035"/>
+        <Farmland name="73" id="73" owner="0" area="1.245600" price="74736" x="-134.346176" z="-605.621094"/>
+        <Farmland name="74" id="74" owner="0" area="1.876000" price="112560" x="-182.765884" z="-427.701080"/>
+        <Farmland name="75" id="75" owner="2" area="1.824400" price="109464" x="110.472923" z="-520.891235"/>
+        <Farmland name="76" id="76" owner="0" area="0.896800" price="53808" x="113.329170" z="-473.876892"/>
+        <Farmland name="77" id="77" owner="0" area="5.540000" price="332400" x="-53.063538" z="-345.493011"/>
+        <Farmland name="78" id="78" owner="2" area="2.982800" price="178968" x="-241.487869" z="-239.471771"/>
+        <Farmland name="79" id="79" owner="0" area="0.871200" price="52272" x="-4.528008" z="-204.468323"/>
+        <Farmland name="80" id="80" owner="0" area="0.687200" price="41232" x="76.112923" z="-262.267761"/>
+        <Farmland name="81" id="81" owner="0" area="2.874000" price="172440" x="184.737503" z="-342.676270"/>
+        <Farmland name="82" id="82" owner="2" area="0.933600" price="56016" x="306.568970" z="-404.024841"/>
+        <Farmland name="83" id="83" owner="0" area="1.379200" price="82752" x="341.767975" z="-515.736084"/>
+        <Farmland name="84" id="84" owner="0" area="1.761600" price="105696" x="434.786102" z="-368.320160"/>
+        <Farmland name="85" id="85" owner="0" area="4.998800" price="299928" x="348.997284" z="-94.713371"/>
+        <Farmland name="86" id="86" owner="0" area="1.341600" price="80496" x="156.583786" z="-164.045914"/>
+        <Farmland name="87" id="87" owner="0" area="0.969200" price="58152" x="74.347916" z="-133.539825"/>
+        <Farmland name="88" id="88" owner="0" area="0.832400" price="49944" x="143.219131" z="-52.234982"/>
+        <Farmland name="89" id="89" owner="0" area="2.347200" price="140832" x="209.000000" z="21.622017"/>
+        <Farmland name="90" id="90" owner="2" area="7.226400" price="433584" x="-53.830620" z="8.544669"/>
+        <Farmland name="91" id="91" owner="0" area="2.836800" price="170208" x="33.858715" z="161.573044"/>
+        <Farmland name="92" id="92" owner="2" area="5.376800" price="322608" x="-344.215454" z="-102.713730"/>
+        <Farmland name="93" id="93" owner="2" area="0.349200" price="20952" x="-480.773193" z="-115.465065"/>
+        <Farmland name="94" id="94" owner="0" area="0.632800" price="37968" x="-413.140320" z="-220.046783"/>
+        <Farmland name="95" id="95" owner="0" area="2.834000" price="170040" x="-536.925781" z="-203.224136"/>
+        <Farmland name="96" id="96" owner="0" area="1.214800" price="72888" x="-628.280884" z="-240.753708"/>
+        <Farmland name="97" id="97" owner="2" area="1.644800" price="98688" x="-701.268494" z="-255.991241"/>
+        <Farmland name="98" id="98" owner="0" area="0.275600" price="16536" x="-689.081299" z="-347.804077"/>
+        <Farmland name="99" id="99" owner="0" area="2.153600" price="129216" x="-791.247375" z="-305.926453"/>
+        <Farmland name="100" id="100" owner="0" area="1.267200" price="76032" x="-871.876892" z="-385.154053"/>
+        <Farmland name="101" id="101" owner="0" area="1.622000" price="97320" x="-968.518127" z="-387.230835"/>
+        <Farmland name="102" id="102" owner="0" area="1.803600" price="108216" x="-926.041016" z="-248.517853"/>
+        <Farmland name="103" id="103" owner="0" area="0.942400" price="56544" x="-967.994080" z="-114.039902"/>
+        <Farmland name="104" id="104" owner="0" area="10.632000" price="637920" x="-716.603455" z="-34.180134"/>
+        <Farmland name="105" id="105" owner="0" area="4.154000" price="249240" x="-876.081543" z="105.651131"/>
+        <Farmland name="106" id="106" owner="0" area="1.575200" price="94512" x="-955.272217" z="210.658203"/>
+        <Farmland name="107" id="107" owner="0" area="1.090400" price="65424" x="-274.092438" z="33.656639"/>
+        <Farmland name="108" id="108" owner="0" area="1.665600" price="99936" x="-379.727173" z="80.010086"/>
+        <Farmland name="109" id="109" owner="0" area="2.969600" price="178176" x="-515.777222" z="166.256729"/>
+        <Farmland name="110" id="110" owner="0" area="4.727600" price="283656" x="-690.368652" z="269.052460"/>
+        <Farmland name="111" id="111" owner="0" area="6.610000" price="396600" x="-772.876892" z="416.138153"/>
+        <Farmland name="112" id="112" owner="0" area="1.484800" price="62362" x="-548.594299" z="351.392242"/>
+        <Farmland name="113" id="113" owner="0" area="1.284800" price="77088" x="-494.320038" z="396.031128"/>
+        <Farmland name="114" id="114" owner="0" area="3.530400" price="211824" x="-333.849091" z="268.237488"/>
+        <Farmland name="115" id="115" owner="0" area="3.460000" price="207600" x="-189.217804" z="238.934341"/>
+        <Farmland name="116" id="116" owner="0" area="0.911200" price="54672" x="-187.622482" z="136.313431"/>
+        <Farmland name="117" id="117" owner="0" area="2.706800" price="162408" x="25.534948" z="303.849426"/>
+        <Farmland name="118" id="118" owner="1" area="3.572800" price="214368" x="184.830719" z="249.631439"/>
+        <Farmland name="119" id="119" owner="1" area="1.824800" price="109488" x="285.267853" z="240.023666"/>
+        <Farmland name="120" id="120" owner="1" area="1.872400" price="112344" x="351.200378" z="284.212128"/>
+        <Farmland name="121" id="121" owner="1" area="5.248000" price="314880" x="464.546661" z="282.802429"/>
+        <Farmland name="122" id="122" owner="1" area="0.243200" price="14592" x="544.322388" z="484.351959"/>
+        <Farmland name="123" id="123" owner="1" area="5.602400" price="336144" x="514.391235" z="673.971436"/>
+        <Farmland name="124" id="124" owner="0" area="2.473200" price="148392" x="786.781677" z="864.668457"/>
+        <Farmland name="125" id="125" owner="0" area="0.946000" price="56760" x="630.654114" z="819.188599"/>
+        <Farmland name="126" id="126" owner="0" area="6.188400" price="371304" x="603.698975" z="943.642761"/>
+        <Farmland name="127" id="127" owner="0" area="5.828800" price="349728" x="324.330231" z="851.656616"/>
+        <Farmland name="128" id="128" owner="0" area="8.612400" price="516744" x="278.632629" z="626.650391"/>
+        <Farmland name="129" id="129" owner="0" area="1.329200" price="79752" x="283.988861" z="441.319580"/>
+        <Farmland name="130" id="130" owner="1" area="2.745200" price="164712" x="132.349258" z="457.669678"/>
+        <Farmland name="131" id="131" owner="0" area="1.245600" price="74736" x="121.524727" z="579.771362"/>
+        <Farmland name="132" id="132" owner="0" area="3.339200" price="200352" x="-22.686632" z="490.102295"/>
+        <Farmland name="133" id="133" owner="0" area="1.786000" price="107160" x="-17.254423" z="631.750305"/>
+        <Farmland name="134" id="134" owner="0" area="2.788400" price="167304" x="-177.286896" z="452.403534"/>
+        <Farmland name="135" id="135" owner="0" area="1.402000" price="84120" x="-307.873047" z="390.499573"/>
+        <Farmland name="136" id="136" owner="0" area="3.391200" price="203472" x="-405.060638" z="479.569489"/>
+        <Farmland name="137" id="137" owner="0" area="3.152800" price="189168" x="-268.693481" z="602.010925"/>
+        <Farmland name="138" id="138" owner="0" area="5.020800" price="301248" x="-457.231689" z="647.060730"/>
+        <Farmland name="139" id="139" owner="0" area="9.236800" price="554208" x="-191.279922" z="812.729248"/>
+        <Farmland name="140" id="140" owner="0" area="2.094800" price="125688" x="50.560818" z="825.550293"/>
+        <Farmland name="141" id="141" owner="0" area="2.456800" price="147408" x="124.438293" z="942.186584"/>
+        <Farmland name="142" id="142" owner="0" area="1.052000" price="63120" x="-38.466160" z="894.241821"/>
+        <Farmland name="143" id="143" owner="0" area="1.512800" price="90768" x="-92.356422" z="962.580627"/>
+        <Farmland name="144" id="144" owner="0" area="0.755600" price="45336" x="-416.854950" z="968.858154"/>
+        <Farmland name="145" id="145" owner="0" area="0.442400" price="26544" x="-442.338165" z="897.591309"/>
+        <Farmland name="146" id="146" owner="0" area="0.940800" price="56448" x="-397.053558" z="832.233826"/>
+        <Farmland name="147" id="147" owner="0" area="1.715600" price="102936" x="-503.607147" z="766.875488"/>
+        <Farmland name="148" id="148" owner="0" area="1.112800" price="66768" x="-605.184021" z="705.815979"/>
+        <Farmland name="149" id="149" owner="0" area="1.083200" price="64992" x="-675.422424" z="664.316833"/>
+        <Farmland name="150" id="150" owner="0" area="1.010800" price="60648" x="-738.263184" z="628.671570"/>
+        <Farmland name="151" id="151" owner="0" area="0.829600" price="49776" x="-789.340393" z="598.431030"/>
+        <Farmland name="152" id="152" owner="0" area="2.200000" price="132000" x="-860.542175" z="523.840698"/>
+        <Farmland name="153" id="153" owner="0" area="0.708800" price="42528" x="-931.899536" z="559.791199"/>
+        <Farmland name="154" id="154" owner="0" area="0.114000" price="6840" x="-998.564941" z="531.589478"/>
+        <Farmland name="155" id="155" owner="0" area="0.980000" price="58800" x="-962.530640" z="439.765717"/>
+        <Farmland name="156" id="156" owner="0" area="0.233200" price="13992" x="-995.157776" z="387.634644"/>
+        <Farmland name="157" id="157" owner="0" area="7.119200" price="427152" x="-687.132141" z="814.576477"/>
+        <Farmland name="158" id="158" owner="0" area="3.361600" price="201696" x="-730.018066" z="929.040466"/>
+        <Farmland name="159" id="159" owner="0" area="4.594000" price="275640" x="-930.438904" z="876.748535"/>
+        <Farmland name="160" id="160" owner="1" area="1.640400" price="442908" x="713.514038" z="457.361877"/>
+        <Farmland name="161" id="161" owner="1" area="1.266000" price="759600" x="689.783569" z="616.065430"/>
+        <Farmland name="162" id="162" owner="0" area="2.313200" price="138792" x="277.795441" z="-245.311264"/>
+        <Farmland name="163" id="163" owner="2" area="0.660000" price="178200" x="-126.296967" z="-76.528488"/>
+        <Farmland name="164" id="164" owner="0" area="0.222400" price="13344" x="-153.575546" z="-132.028778"/>
+        <Farmland name="165" id="165" owner="2" area="0.754000" price="203580" x="-89.393631" z="-468.257294"/>
+        <Farmland name="166" id="166" owner="0" area="0.184000" price="11040" x="-17.000000" z="-472.000000"/>
+        <Farmland name="167" id="167" owner="0" area="0.394400" price="23664" x="-86.995941" z="-661.991882"/>
+        <Farmland name="168" id="168" owner="0" area="1.210000" price="326700" x="30.080330" z="-861.536194"/>
+        <Farmland name="169" id="169" owner="0" area="2.006800" price="120408" x="-404.629669" z="-685.117188"/>
+        <Farmland name="170" id="170" owner="0" area="0.841600" price="504960" x="-339.123566" z="-369.220520"/>
+        <Farmland name="171" id="171" owner="0" area="0.455200" price="19118" x="-426.574707" z="-387.383118"/>
+        <Farmland name="172" id="172" owner="0" area="0.834400" price="75096" x="362.392151" z="97.567596"/>
+        <Farmland name="173" id="173" owner="0" area="0.440000" price="18480" x="493.938171" z="59.105453"/>
+    </Farmlands>
+    <Fields>
+        <Field id="1" x="986.817566" z="836.306030" isOwned="false"/>
+        <Field id="2" x="957.954712" z="783.248047" isOwned="false"/>
+        <Field id="3" x="847.503113" z="782.994385" isOwned="true"/>
+        <Field id="4" x="777.266846" z="689.584106" isOwned="true"/>
+        <Field id="5" x="896.598999" z="587.385742" isOwned="true"/>
+        <Field id="6" x="955.914734" z="437.450836" isOwned="true"/>
+        <Field id="7" x="870.591736" z="269.177704" isOwned="true"/>
+        <Field id="8" x="687.169556" z="169.794128" isOwned="true"/>
+        <Field id="9" x="670.807983" z="356.136841" isOwned="true"/>
+        <Field id="10" x="653.573303" z="274.808472" isOwned="true"/>
+        <Field id="11" x="577.894531" z="34.679096" isOwned="true"/>
+        <Field id="12" x="816.820435" z="47.864944" isOwned="true"/>
+        <Field id="13" x="927.220459" z="94.285835" isOwned="false"/>
+        <Field id="14" x="936.326660" z="11.863429" isOwned="false"/>
+        <Field id="15" x="696.751160" z="-107.097549" isOwned="true"/>
+        <Field id="16" x="589.894165" z="-116.193153" isOwned="false"/>
+        <Field id="17" x="480.046021" z="-75.724815" isOwned="false"/>
+        <Field id="18" x="561.476868" z="-181.064377" isOwned="false"/>
+        <Field id="19" x="557.290649" z="-278.363129" isOwned="false"/>
+        <Field id="20" x="760.693909" z="-228.983871" isOwned="false"/>
+        <Field id="21" x="867.578430" z="-139.139359" isOwned="false"/>
+        <Field id="22" x="957.157349" z="-81.036674" isOwned="false"/>
+        <Field id="23" x="854.530457" z="-333.772736" isOwned="false"/>
+        <Field id="24" x="917.073730" z="-425.916870" isOwned="false"/>
+        <Field id="25" x="948.306885" z="-518.386719" isOwned="false"/>
+        <Field id="26" x="760.544434" z="-427.877899" isOwned="false"/>
+        <Field id="27" x="811.769653" z="-517.810486" isOwned="false"/>
+        <Field id="28" x="917.294006" z="-617.927734" isOwned="false"/>
+        <Field id="29" x="978.997498" z="-669.375916" isOwned="false"/>
+        <Field id="30" x="644.595154" z="-545.267029" isOwned="false"/>
+        <Field id="31" x="720.302185" z="-594.767944" isOwned="false"/>
+        <Field id="32" x="960.206421" z="-741.873840" isOwned="false"/>
+        <Field id="33" x="860.056030" z="-783.259888" isOwned="false"/>
+        <Field id="34" x="740.779114" z="-718.018616" isOwned="false"/>
+        <Field id="35" x="601.531677" z="-605.941284" isOwned="false"/>
+        <Field id="36" x="499.486023" z="-597.764587" isOwned="false"/>
+        <Field id="37" x="815.824768" z="-898.101318" isOwned="false"/>
+        <Field id="38" x="732.846985" z="-854.997620" isOwned="false"/>
+        <Field id="39" x="587.374512" z="-913.512451" isOwned="false"/>
+        <Field id="40" x="436.614075" z="-750.620972" isOwned="false"/>
+        <Field id="41" x="381.635864" z="-798.411865" isOwned="false"/>
+        <Field id="42" x="368.899902" z="-882.767212" isOwned="false"/>
+        <Field id="43" x="251.189438" z="-632.158813" isOwned="false"/>
+        <Field id="44" x="167.482849" z="-841.819458" isOwned="false"/>
+        <Field id="45" x="263.425323" z="-947.297485" isOwned="false"/>
+        <Field id="46" x="67.384766" z="-969.144714" isOwned="false"/>
+        <Field id="47" x="-44.447075" z="-951.841370" isOwned="false"/>
+        <Field id="48" x="81.037674" z="-661.312561" isOwned="false"/>
+        <Field id="49" x="-108.533905" z="-720.355347" isOwned="false"/>
+        <Field id="50" x="-110.320862" z="-799.428772" isOwned="false"/>
+        <Field id="51" x="-203.453674" z="-751.134399" isOwned="false"/>
+        <Field id="52" x="-227.363983" z="-902.501465" isOwned="false"/>
+        <Field id="53" x="-269.833984" z="-985.383789" isOwned="false"/>
+        <Field id="54" x="-314.750183" z="-896.727722" isOwned="false"/>
+        <Field id="55" x="-479.480164" z="-918.764954" isOwned="false"/>
+        <Field id="56" x="-491.098602" z="-750.417297" isOwned="false"/>
+        <Field id="57" x="-589.138123" z="-809.684021" isOwned="false"/>
+        <Field id="58" x="-678.856934" z="-771.225159" isOwned="false"/>
+        <Field id="59" x="-698.029541" z="-915.987732" isOwned="false"/>
+        <Field id="60" x="-880.380249" z="-898.729065" isOwned="false"/>
+        <Field id="61" x="-922.224670" z="-717.673706" isOwned="false"/>
+        <Field id="62" x="-771.386047" z="-650.322327" isOwned="false"/>
+        <Field id="63" x="-853.743652" z="-506.010986" isOwned="false"/>
+        <Field id="64" x="-940.365112" z="-502.373962" isOwned="false"/>
+        <Field id="65" x="-816.573303" z="-452.845367" isOwned="false"/>
+        <Field id="66" x="-711.197510" z="-445.013916" isOwned="false"/>
+        <Field id="67" x="-566.322571" z="-402.561371" isOwned="false"/>
+        <Field id="68" x="-444.223053" z="-319.050537" isOwned="false"/>
+        <Field id="69" x="-366.443298" z="-432.786285" isOwned="false"/>
+        <Field id="70" x="-238.481750" z="-439.872986" isOwned="true"/>
+        <Field id="71" x="-311.500336" z="-527.456116" isOwned="false"/>
+        <Field id="72" x="-346.927765" z="-622.727417" isOwned="false"/>
+        <Field id="73" x="-140.095215" z="-601.031189" isOwned="false"/>
+        <Field id="74" x="-267.918304" z="-329.532990" isOwned="false"/>
+        <Field id="75" x="124.794205" z="-517.749817" isOwned="true"/>
+        <Field id="76" x="132.217987" z="-472.470612" isOwned="false"/>
+        <Field id="77" x="-75.022995" z="-312.893982" isOwned="false"/>
+        <Field id="78" x="-247.183411" z="-243.668121" isOwned="true"/>
+        <Field id="79" x="23.078411" z="-222.967072" isOwned="false"/>
+        <Field id="80" x="82.154968" z="-249.881500" isOwned="false"/>
+        <Field id="81" x="202.405502" z="-351.692291" isOwned="false"/>
+        <Field id="82" x="314.281433" z="-420.128357" isOwned="true"/>
+        <Field id="83" x="331.034760" z="-495.247406" isOwned="false"/>
+        <Field id="84" x="425.978851" z="-348.968170" isOwned="false"/>
+        <Field id="85" x="330.299713" z="-84.840988" isOwned="false"/>
+        <Field id="86" x="174.764008" z="-157.055298" isOwned="false"/>
+        <Field id="87" x="65.942543" z="-148.913055" isOwned="false"/>
+        <Field id="88" x="143.990555" z="-49.604816" isOwned="false"/>
+        <Field id="89" x="202.470078" z="42.092026" isOwned="false"/>
+        <Field id="90" x="-8.735062" z="11.248984" isOwned="true"/>
+        <Field id="91" x="40.358829" z="169.240616" isOwned="false"/>
+        <Field id="92" x="-347.452820" z="-111.685593" isOwned="true"/>
+        <Field id="93" x="-474.426666" z="-108.669800" isOwned="true"/>
+        <Field id="94" x="-406.388550" z="-225.472229" isOwned="false"/>
+        <Field id="95" x="-549.246887" z="-172.258560" isOwned="false"/>
+        <Field id="96" x="-612.518799" z="-271.045563" isOwned="false"/>
+        <Field id="97" x="-698.345032" z="-266.271545" isOwned="true"/>
+        <Field id="98" x="-687.164124" z="-344.822388" isOwned="false"/>
+        <Field id="99" x="-770.653625" z="-347.111389" isOwned="false"/>
+        <Field id="100" x="-870.732178" z="-380.461945" isOwned="false"/>
+        <Field id="101" x="-964.720154" z="-388.358154" isOwned="false"/>
+        <Field id="102" x="-914.637573" z="-274.185791" isOwned="false"/>
+        <Field id="103" x="-962.770203" z="-124.128792" isOwned="false"/>
+        <Field id="104" x="-674.005127" z="-4.534667" isOwned="false"/>
+        <Field id="105" x="-856.253540" z="124.413979" isOwned="false"/>
+        <Field id="106" x="-959.113220" z="206.769409" isOwned="false"/>
+        <Field id="107" x="-271.730469" z="34.443649" isOwned="false"/>
+        <Field id="108" x="-364.787201" z="85.979156" isOwned="false"/>
+        <Field id="109" x="-501.922119" z="173.567337" isOwned="false"/>
+        <Field id="110" x="-673.030884" z="273.032074" isOwned="false"/>
+        <Field id="111" x="-663.264771" z="486.700134" isOwned="false"/>
+        <Field id="112" x="-538.473999" z="345.858185" isOwned="false"/>
+        <Field id="113" x="-543.582886" z="441.658081" isOwned="false"/>
+        <Field id="114" x="-364.017456" z="252.342224" isOwned="false"/>
+        <Field id="115" x="-126.963173" z="303.145233" isOwned="false"/>
+        <Field id="116" x="-209.996460" z="111.675240" isOwned="false"/>
+        <Field id="117" x="37.999107" z="302.822083" isOwned="false"/>
+        <Field id="118" x="188.429062" z="230.583878" isOwned="true"/>
+        <Field id="119" x="287.430511" z="347.872559" isOwned="true"/>
+        <Field id="120" x="354.425079" z="371.652527" isOwned="true"/>
+        <Field id="121" x="448.398346" z="182.098511" isOwned="true"/>
+        <Field id="122" x="533.568298" z="475.810120" isOwned="true"/>
+        <Field id="123" x="528.410889" z="715.932251" isOwned="true"/>
+        <Field id="124" x="775.893677" z="866.669800" isOwned="false"/>
+        <Field id="125" x="630.343689" z="816.745667" isOwned="false"/>
+        <Field id="126" x="617.333740" z="931.915466" isOwned="false"/>
+        <Field id="127" x="325.476440" z="849.792847" isOwned="false"/>
+        <Field id="128" x="304.062378" z="620.253967" isOwned="false"/>
+        <Field id="129" x="282.389374" z="446.746918" isOwned="false"/>
+        <Field id="130" x="99.226021" z="468.069855" isOwned="true"/>
+        <Field id="131" x="113.318939" z="574.675842" isOwned="false"/>
+        <Field id="132" x="-35.876125" z="444.636261" isOwned="false"/>
+        <Field id="133" x="-66.412209" z="592.752686" isOwned="false"/>
+        <Field id="134" x="-178.308640" z="434.658691" isOwned="false"/>
+        <Field id="135" x="-321.826324" z="376.269501" isOwned="false"/>
+        <Field id="136" x="-404.185120" z="484.661072" isOwned="false"/>
+        <Field id="137" x="-267.847534" z="601.134399" isOwned="false"/>
+        <Field id="138" x="-531.212708" z="589.265198" isOwned="false"/>
+        <Field id="139" x="-176.499939" z="789.001892" isOwned="false"/>
+        <Field id="140" x="53.549171" z="831.023743" isOwned="false"/>
+        <Field id="141" x="138.965942" z="938.089294" isOwned="false"/>
+        <Field id="142" x="-38.263023" z="899.362000" isOwned="false"/>
+        <Field id="143" x="-109.804390" z="958.203186" isOwned="false"/>
+        <Field id="144" x="-409.266785" z="966.500061" isOwned="false"/>
+        <Field id="145" x="-438.586273" z="906.126526" isOwned="false"/>
+        <Field id="146" x="-394.030731" z="828.490540" isOwned="false"/>
+        <Field id="147" x="-511.810181" z="758.963928" isOwned="false"/>
+        <Field id="148" x="-592.550598" z="696.841797" isOwned="false"/>
+        <Field id="149" x="-692.356750" z="689.256226" isOwned="false"/>
+        <Field id="150" x="-759.559937" z="651.719421" isOwned="false"/>
+        <Field id="151" x="-764.178040" z="578.871887" isOwned="false"/>
+        <Field id="152" x="-839.902588" z="535.067322" isOwned="false"/>
+        <Field id="153" x="-907.361145" z="592.424255" isOwned="false"/>
+        <Field id="154" x="-997.680603" z="533.374207" isOwned="false"/>
+        <Field id="155" x="-970.909058" z="447.158325" isOwned="false"/>
+        <Field id="156" x="-990.540283" z="390.375702" isOwned="false"/>
+        <Field id="157" x="-541.383179" z="895.369385" isOwned="false"/>
+        <Field id="158" x="-747.028503" z="936.640564" isOwned="false"/>
+        <Field id="159" x="-920.846924" z="823.199951" isOwned="false"/>
+    </Fields>
+    <Vehicles>
+        <Vehicle name="MF 8570 Header" category="CUTTERS" type="cutter" x="140.048660" y="75.126022" z="333.396851"/>
+        <Vehicle name="DIRECT DISC 500" category="FORAGEHARVESTERCUTTERS" type="cutter" x="711.900024" y="78.503548" z="361.922974"/>
+        <Vehicle name="XB 150" category="FRONTLOADERS" type="attachableFrontloader" x="671.786133" y="76.123238" z="645.300903"/>
+        <Vehicle name="Universal Bucket" category="TELELOADERTOOLS" type="shovelLeveler" x="-43.172249" y="73.407166" z="-468.891968" fillTypes="UNKNOWN UNKNOWN" fillLevels="0.000 0.000"/>
+        <Vehicle name="High Tip Bucket (L180H)" category="WHEELLOADERTOOLS" type="shovelLeveler" x="694.890869" y="76.207253" z="646.565552" fillTypes="SILAGE UNKNOWN" fillLevels="7262.638 0.000"/>
+        <Vehicle name="Ruby 2000" category="FRONTLOADERTOOLS" type="turnOnShovel" x="669.754761" y="76.535873" z="645.419800" fillTypes="UNKNOWN" fillLevels="0.000"/>
+        <Vehicle name="Liquid Fertilizer" category="IBC" type="pallet" x="-77.446999" y="72.945526" z="-435.908997" fillTypes="LIQUIDFERTILIZER" fillLevels="2000.000"/>
+        <Vehicle name="Liquid Fertilizer" category="IBC" type="pallet" x="-76.276001" y="72.945541" z="-437.575989" fillTypes="LIQUIDFERTILIZER" fillLevels="2000.000"/>
+        <Vehicle name="Solid Fertilizer Big bag" category="BIGBAGS" type="bigBag" x="-123.292976" y="73.005020" z="-72.704979" fillTypes="FERTILIZER" fillLevels="1000.000"/>
+        <Vehicle name="Solid Fertilizer Big bag" category="BIGBAGS" type="bigBag" x="-124.182999" y="73.011688" z="-72.068001" fillTypes="FERTILIZER" fillLevels="1000.000"/>
+        <Vehicle name="Solid Fertilizer Big bag" category="BIGBAGS" type="bigBag" x="-122.385208" y="73.000870" z="-73.267090" fillTypes="FERTILIZER" fillLevels="858.874"/>
+        <Vehicle name="Grape must pallet" category="PALLETS" type="pallet" x="284.709045" y="73.455292" z="-408.720123" fillTypes="GRAPEMUST" fillLevels="1000.000"/>
+        <Vehicle name="Grape Pallet" category="PALLETS" type="pallet" x="282.962006" y="73.457047" z="-408.619995" fillTypes="GRAPESEED" fillLevels="550.000"/>
+        <Vehicle name="Grape must pallet" category="PALLETS" type="pallet" x="281.514984" y="73.455284" z="-408.537903" fillTypes="GRAPEMUST" fillLevels="1000.000"/>
+        <Vehicle name="Grape must pallet" category="PALLETS" type="pallet" x="279.916992" y="73.455292" z="-408.446991" fillTypes="GRAPEMUST" fillLevels="1000.000"/>
+        <Vehicle name="Grape Pallet" category="PALLETS" type="pallet" x="284.545990" y="73.457222" z="-410.713989" fillTypes="GRAPESEED" fillLevels="550.000"/>
+        <Vehicle name="Grape must pallet" category="PALLETS" type="pallet" x="278.320007" y="73.455292" z="-408.355988" fillTypes="GRAPEMUST" fillLevels="1000.000"/>
+        <Vehicle name="Grape must pallet" category="PALLETS" type="pallet" x="282.998016" y="73.455292" z="-410.626068" fillTypes="GRAPEMUST" fillLevels="1000.000"/>
+        <Vehicle name="Grape Pallet" category="PALLETS" type="pallet" x="281.151001" y="73.457047" z="-410.520996" fillTypes="GRAPESEED" fillLevels="550.000"/>
+        <Vehicle name="Grape must pallet" category="PALLETS" type="pallet" x="278.205902" y="73.455292" z="-410.353180" fillTypes="GRAPEMUST" fillLevels="1000.000"/>
+        <Vehicle name="Fish Box" category="PALLETS" type="pallet" x="588.431030" y="71.040703" z="448.039001" fillTypes="TROUT" fillLevels="2000.000"/>
+        <Vehicle name="Fish Box" category="PALLETS" type="pallet" x="597.893005" y="71.036812" z="430.281006" fillTypes="TROUT" fillLevels="2000.000"/>
+        <Vehicle name="Fish Box" category="PALLETS" type="pallet" x="623.369995" y="71.037827" z="366.217010" fillTypes="TROUT" fillLevels="2000.000"/>
+        <Vehicle name="Fish Box" category="PALLETS" type="pallet" x="624.931030" y="71.032921" z="344.146973" fillTypes="TROUT" fillLevels="2000.000"/>
+        <Vehicle name="Fish Box" category="PALLETS" type="pallet" x="617.580994" y="71.032921" z="391.298004" fillTypes="TROUT" fillLevels="2000.000"/>
+        <Vehicle name="Fish Box" category="PALLETS" type="pallet" x="607.674011" y="71.044594" z="412.761993" fillTypes="TROUT" fillLevels="2000.000"/>
+        <Vehicle name="MF 8570" category="HARVESTERS" type="combineDrivable" x="137.861099" y="74.011993" z="328.646423" fillTypes="UNKNOWN DIESEL" fillLevels="0.000 84.933" isAIActive="false"/>
+        <Vehicle name="AS2100 SCS" category="FERTILIZERSPREADERS" type="spreader" x="677.052979" y="78.490852" z="473.436035" fillTypes="LIME" fillLevels="355.181"/>
+        <Vehicle name="GMD 3123 F" category="MOWERS" type="mower" x="599.056091" y="70.622826" z="304.090179"/>
+        <Vehicle name="GMD 8730-FF" category="MOWERS" type="mower" x="612.839050" y="72.166084" z="302.351074"/>
+        <Vehicle name="MES 400" category="LEVELER" type="leveler" x="688.041016" y="76.109291" z="652.152954" fillTypes="UNKNOWN" fillLevels="0.000"/>
+        <Vehicle name="PFW 18000 MaxxLine Plus" category="SLURRYTANKS" type="manureBarrel" x="658.286011" y="78.633141" z="355.819000" fillTypes="UNKNOWN" fillLevels="0.000"/>
+        <Vehicle name="Citan 15001-C" category="SEEDERS" type="fertilizingSowingMachine" x="-147.227814" y="73.029861" z="-177.665833" fillTypes="SEEDS UNKNOWN" fillLevels="2475.890 0.000"/>
+        <Vehicle name="NZ Extreme 1425" category="CULTIVATORS" type="cultivator" x="703.759949" y="78.465515" z="459.465973"/>
+        <Vehicle name="PAC-750" category="WEIGHTS" type="implement" x="-155.835190" y="73.691765" z="-171.279221"/>
+        <Vehicle name="P8 - 890" category="TEDDERS" type="tedder" x="604.641907" y="71.207062" z="310.112000"/>
+        <Vehicle name="ROTOCARE V 12400" category="WEEDERS" type="weeder" x="-125.773010" y="73.006912" z="-75.702003"/>
+        <Vehicle name="ROTOCARE V 12400" category="WEEDERS" type="weeder" x="724.666992" y="78.502632" z="552.009949"/>
+        <Vehicle name="K105" category="FERTILIZERSPREADERS" type="spreader" x="-77.294846" y="73.210258" z="-82.345154" fillTypes="UNKNOWN" fillLevels="0.000"/>
+        <Vehicle name="TAIFUN 900 RP58" category="CULTIVATORS" type="cultivator" x="-130.947266" y="73.130043" z="-130.261368"/>
+        <Vehicle name="Z2-840 H" category="WINDROWERS" type="windrower" x="610.112000" y="71.612167" z="309.282959"/>
+        <Vehicle name="CONVIO FLEX 1380" category="CUTTERS" type="cutter" x="-180.773697" y="74.229248" z="-168.056198"/>
+        <Vehicle name="CONVIO FLEX 1380" category="CUTTERS" type="cutter" x="633.752319" y="74.723305" z="301.887878"/>
+        <Vehicle name="LEXION 6900" category="HARVESTERS" type="combineDrivable" x="-180.230316" y="72.896454" z="-173.068375" fillTypes="UNKNOWN DIESEL DEF" fillLevels="0.000 680.869 110.000" isAIActive="false"/>
+        <Vehicle name="LEXION 6900" category="HARVESTERS" type="combineDrivable" x="635.921082" y="73.082520" z="315.954071" fillTypes="UNKNOWN DIESEL DEF" fillLevels="0.000 848.949 110.000" isAIActive="false"/>
+        <Vehicle name="N60-45" category="CUTTERTRAILERS" type="dynamicMountAttacherTrailer" x="-120.719055" y="72.998688" z="-56.603848" fillTypes="" fillLevels=""/>
+        <Vehicle name="N60-45" category="CUTTERTRAILERS" type="dynamicMountAttacherTrailer" x="634.154053" y="73.744576" z="303.676788" fillTypes="" fillLevels=""/>
+        <Vehicle name="N60-45" category="CUTTERTRAILERS" type="dynamicMountAttacherTrailer" x="685.720947" y="77.737289" z="300.728363" fillTypes="" fillLevels=""/>
+        <Vehicle name="TR 34090/2 PT+" category="TRAILERS" type="trailer" x="-143.507065" y="72.945694" z="-149.455154" fillTypes="UNKNOWN" fillLevels="0.000"/>
+        <Vehicle name="TR 34090/2 PT+" category="TRAILERS" type="trailer" x="709.422791" y="78.599205" z="404.437805" fillTypes="UNKNOWN" fillLevels="0.000"/>
+        <Vehicle name="Avatar 12.25 SD" category="SEEDERS" type="fertilizingSowingMachine" x="730.785950" y="78.453644" z="549.320129" fillTypes="SEEDS FERTILIZER" fillLevels="2399.607 2177.893"/>
+        <Vehicle name="Tony 10900 TTR" category="TRACTORSS" type="tractorReverseDriving" x="714.964966" y="78.541786" z="399.156982" fillTypes="DIESEL" fillLevels="80.000" isAIActive="false"/>
+        <Vehicle name="Tigrecar 3200 GST" category="CARS" type="carFillable" x="724.104065" y="79.288239" z="325.272034" fillTypes="DIESEL UNKNOWN" fillLevels="29.000 0.000" isAIActive="false"/>
+        <Vehicle name="ORBIS 900" category="FORAGEHARVESTERCUTTERS" type="cutter" x="703.956909" y="76.483910" z="580.136658"/>
+        <Vehicle name="Stego 485 Pro" category="SILOCOMPACTION" type="silageRoller" x="683.176880" y="76.163864" z="651.952148"/>
+        <Vehicle name="900 Vario" category="TRACTORSL" type="tractorReverseDriving" x="-156.987030" y="72.964973" z="-154.839035" fillTypes="DIESEL DEF AIR" fillLevels="273.886 70.000 3284.672" isAIActive="false"/>
+        <Vehicle name="S Series" category="TRACTORSL" type="tractor" x="-129.462158" y="72.973289" z="-137.687592" fillTypes="DIESEL DEF AIR" fillLevels="507.966 70.000 2293.835" isAIActive="false"/>
+        <Vehicle name="S Series" category="TRACTORSL" type="tractor" x="716.942139" y="78.496132" z="403.685944" fillTypes="DIESEL DEF AIR" fillLevels="560.988 70.000 2012.322" isAIActive="false"/>
+        <Vehicle name="TPN 140" category="MULCHERS" type="mulcher" x="257.368011" y="73.969749" z="-705.244995"/>
+        <Vehicle name="TPN 140" category="MULCHERS" type="mulcher" x="-76.874992" y="72.941254" z="-433.443054"/>
+        <Vehicle name="700 Vario" category="TRACTORSM" type="tractor" x="-153.117416" y="72.924240" z="-172.226532" fillTypes="DIESEL DEF AIR" fillLevels="449.000 48.000 3359.197" isAIActive="false"/>
+        <Vehicle name="4905 Blue Drive" category="PLANTERS" type="fertilizingSowingMachine" x="700.724060" y="79.066612" z="463.386108" fillTypes="SEEDS LIQUIDFERTILIZER" fillLevels="4195.478 2840.000"/>
+        <Vehicle name="4905 Blue Drive" category="PLANTERS" type="fertilizingSowingMachine" x="-164.296921" y="73.587997" z="-65.568993" fillTypes="SEEDS LIQUIDFERTILIZER" fillLevels="2745.708 451.499"/>
+        <Vehicle name="JAGUAR 990 TERRA TRAC" category="FORAGEHARVESTERS" type="combineDrivable" x="699.827026" y="75.992271" z="580.053955" fillTypes="UNKNOWN DIESEL DEF SILAGE_ADDITIVE" fillLevels="0.000 1142.569 130.000 32.322" isAIActive="false"/>
+        <Vehicle name="Disc-O-Vigne V" category="SUBSOILERS" type="cultivator" x="-82.482010" y="72.877357" z="-434.370972"/>
+        <Vehicle name="HJ6130" category="RICEHARVESTERS" type="riceHarvester" x="658.010010" y="79.126228" z="-27.917995" fillTypes="UNKNOWN DIESEL DEF" fillLevels="0.000 51.996 10.000" isAIActive="false"/>
+        <Vehicle name="SB 1290 iD" category="BALERSSQUARE" type="baler" x="724.737854" y="78.604675" z="523.375000" fillTypes="UNKNOWN BALE_TWINE" fillLevels="0.000 20.000"/>
+        <Vehicle name="Series 140" category="TRAILERS" type="trailer" x="-151.688690" y="72.979485" z="-152.582672" fillTypes="UNKNOWN" fillLevels="0.000"/>
+        <Vehicle name="Series 140" category="TRAILERS" type="trailer" x="682.927979" y="76.061714" z="591.601074" fillTypes="MANURE" fillLevels="5320.069"/>
+        <Vehicle name="MP 122 OCEA" category="GRAPETOOLS" type="vinePrepruner" x="-81.900009" y="72.942093" z="-433.312927"/>
+        <Vehicle name="K-Extreme 11-500" category="SUBSOILERS" type="cultivator" x="257.018005" y="74.009338" z="-720.872131"/>
+        <Vehicle name="Outlander Pro XU HD7" category="CARS" type="selfPropelledLeveler" x="678.359985" y="76.092133" z="651.491089" fillTypes="DIESEL UNKNOWN" fillLevels="19.500 0.000" isAIActive="false"/>
+        <Vehicle name="POV 5 XL" category="PLOWS" type="plowPacker" x="692.583984" y="78.467545" z="543.720032"/>
+        <Vehicle name="Super 7" category="WEEDERS" type="weeder" x="704.776978" y="78.483887" z="469.587982"/>
+        <Vehicle name="FRC 65" category="SLURRYTRANSPORT" type="manureTrailer" x="679.780151" y="75.978409" z="593.008362" fillTypes="LIQUIDMANURE" fillLevels="40153.105"/>
+        <Vehicle name="16t Trailer" category="BALELOADERS" type="FS25_NC16TBaletrailer.baleAutoLoad" x="722.765503" y="78.699806" z="387.274475" fillTypes="UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN" fillLevels="0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000"/>
+        <Vehicle name="16t Trailer" category="BALELOADERS" type="FS25_NC16TBaletrailer.baleAutoLoad" x="-96.984886" y="73.221954" z="-481.901917" fillTypes="UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN" fillLevels="0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000"/>
+        <Vehicle name="16t Trailer" category="BALELOADERS" type="FS25_NC16TBaletrailer.baleAutoLoad" x="703.460327" y="78.710052" z="422.334991" fillTypes="UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN UNKNOWN" fillLevels="0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000"/>
+        <Vehicle name="MF 9S" category="TRACTORSL" type="tractor" x="691.289062" y="78.714417" z="354.646057" fillTypes="DIESEL DEF AIR" fillLevels="607.987 68.000 2124.865" isAIActive="false"/>
+        <Vehicle name="QUADRANT 5300 FC" category="BALERSSQUARE" type="baler" x="-166.100021" y="73.021744" z="-75.877991" fillTypes="STRAW BALE_TWINE" fillLevels="5063.737 18.000"/>
+        <Vehicle name="MKS 8" category="BARRELS" type="waterTrailer" x="678.792053" y="78.421211" z="393.035126" fillTypes="LIQUIDFERTILIZER" fillLevels="2839.859"/>
+        <Vehicle name="Dragon" category="TRUCKS" type="carFillable" x="625.744019" y="78.491791" z="454.954010" fillTypes="DIESEL WHEAT" fillLevels="112.989 250.886" isAIActive="false"/>
+        <Vehicle name="MF44.9CS-170-CVTRONIC" category="TELELOADERVEHICLES" type="teleHandler" x="-41.355648" y="72.627983" z="-472.327606" fillTypes="DIESEL DEF" fillLevels="124.998 18.000" isAIActive="false"/>
+        <Vehicle name="MKS 32" category="BARRELS" type="waterTrailer" x="707.592102" y="78.530128" z="345.381958" fillTypes="UNKNOWN" fillLevels="0.000"/>
+        <Vehicle name="DT 2800H S5" category="SPRAYERS" type="selfPropelledSprayer" x="670.683228" y="78.467834" z="347.390808" fillTypes="HERBICIDE DIESEL DEF" fillLevels="6000.000 248.000 25.000" isAIActive="false"/>
+        <Vehicle name="MERCURY 4000L" category="GRAPETOOLS" type="sprayer" x="-83.768936" y="72.925652" z="-437.245026" fillTypes="LIQUIDFERTILIZER" fillLevels="2000.000"/>
+        <Vehicle name="200 V Vario" category="TRACTORSS" type="tractor" x="-86.653984" y="73.043137" z="-441.860046" fillTypes="DIESEL DEF AIR" fillLevels="58.000 16.000 1968.259" isAIActive="false"/>
+        <Vehicle name="XERION 4200 SADDLE TRAC" category="TRACTORSL" type="tractor" x="678.546997" y="76.134018" z="625.943054" fillTypes="DIESEL DEF AIR" fillLevels="152.720 88.000 2140.438" isAIActive="false"/>
+        <Vehicle name="XERION SADDLE TRAC Semi‑Trailed Tanker" category="SLURRYTANKS" type="manureBarrel" x="678.994019" y="76.665970" z="632.227051" fillTypes="DIGESTATE" fillLevels="30000.000"/>
+        <Vehicle name="SBH4 36" category="SLURRYTOOLS" type="sprayer" x="679.268005" y="76.250023" z="638.552612" fillTypes="UNKNOWN" fillLevels="0.000"/>
+        <Vehicle name="Auger Master" category="AUGERWAGONS" type="augerWagon" x="689.912964" y="76.085342" z="579.982117" fillTypes="UNKNOWN" fillLevels="0.000"/>
+        <Vehicle name="FW 212 TD PROFI" category="FERTILIZERSPREADERS" type="spreaderCraneTool" x="729.463501" y="78.347427" z="444.613251" fillTypes="LIME LIME" fillLevels="15600.000 1200.000"/>
+        <Vehicle name="L180H" category="WHEELLOADERVEHICLES" type="tractorReverseDriving" x="694.797974" y="76.012520" z="651.171814" fillTypes="DIESEL DEF" fillLevels="311.991 31.000" isAIActive="false"/>
+        <Vehicle name="GL" category="GRAPEHARVESTERS" type="vineHarvester" x="-55.498047" y="71.423294" z="-540.415039" fillTypes="UNKNOWN DIESEL DEF" fillLevels="0.000 221.997 20.000" isAIActive="false"/>
+        <Vehicle name="GL" category="GRAPEHARVESTERS" type="vineHarvester" x="-113.833992" y="73.171425" z="-475.195007" fillTypes="UNKNOWN DIESEL DEF" fillLevels="0.000 259.000 20.000" isAIActive="false"/>
+        <Vehicle name="GL" category="GRAPEHARVESTERS" type="vineHarvester" x="699.235962" y="79.446846" z="-25.144033" fillTypes="UNKNOWN DIESEL DEF" fillLevels="0.000 239.997 20.000" isAIActive="false"/>
+        <Vehicle name="Fastrac 8000 iCON Series" category="TRACTORSL" type="tractor" x="730.651978" y="78.327087" z="540.266357" fillTypes="DIESEL DEF AIR" fillLevels="467.962 70.000 3917.597" isAIActive="false"/>
+        <Vehicle name="NorthStar 1830" category="CORNHEADERS" type="cutter" x="685.001099" y="78.719208" z="298.810364"/>
+        <Vehicle name="KATOR KN 8000Q PROFI" category="POWERHARROWS" type="turnOnCultivator" x="-92.602013" y="73.166130" z="-104.760040"/>
+        <Vehicle name="PRJ8D" category="RICEPLANTERS" type="selfPropelledSowingMachineConsumable" x="652.521973" y="79.121254" z="-27.824999" fillTypes="RICESAPLINGS FERTILIZER DIESEL" fillLevels="8.000 109.855 23.000" isAIActive="false"/>
+        <Vehicle name="Green pepper Pallet" category="PALLETS" type="pallet" x="-42.494987" y="72.674927" z="-485.806030" fillTypes="GREENPEPPER" fillLevels="1000.000"/>
+        <Vehicle name="Tomatoes Pallet" category="PALLETS" type="pallet" x="-43.760269" y="72.925484" z="-485.889099" fillTypes="TOMATO" fillLevels="1000.000"/>
+        <Vehicle name="Green pepper Pallet" category="PALLETS" type="pallet" x="-45.498001" y="72.674934" z="-485.915985" fillTypes="GREENPEPPER" fillLevels="1000.000"/>
+        <Vehicle name="Tomatoes Pallet" category="PALLETS" type="pallet" x="-46.896999" y="72.674934" z="-485.970001" fillTypes="TOMATO" fillLevels="1000.000"/>
+        <Vehicle name="Tomatoes Pallet" category="PALLETS" type="pallet" x="-48.300999" y="72.674934" z="-485.912994" fillTypes="TOMATO" fillLevels="1000.000"/>
+        <Vehicle name="FST 990" category="MISC" type="fuelTrailer" x="687.697998" y="77.968742" z="296.688019" fillTypes="DIESEL" fillLevels="2218.509"/>
+        <Vehicle name="Silage Additive" category="PALLETSILAGE" type="pallet" x="724.121765" y="80.492310" z="325.524933" fillTypes="SILAGE_ADDITIVE" fillLevels="60.000"/>
+        <Vehicle name="Silage Additive" category="PALLETSILAGE" type="pallet" x="724.119019" y="80.075531" z="325.490112" fillTypes="SILAGE_ADDITIVE" fillLevels="23.000"/>
+        <Vehicle name="Silage Additive" category="PALLETSILAGE" type="pallet" x="724.279907" y="80.043304" z="326.297028" fillTypes="SILAGE_ADDITIVE" fillLevels="60.000"/>
+        <Vehicle name="Silage Additive" category="PALLETSILAGE" type="pallet" x="724.268127" y="80.460686" z="326.311066" fillTypes="SILAGE_ADDITIVE" fillLevels="60.000"/>
+        <Vehicle name="Fish Food Pallet" category="PALLETS" type="pallet" x="613.412537" y="72.145546" z="314.908142" fillTypes="FISHFOOD" fillLevels="905.376"/>
+        <Vehicle name="Fish Food Pallet" category="PALLETS" type="pallet" x="615.830017" y="71.586784" z="316.079956" fillTypes="FISHFOOD" fillLevels="1044.656"/>
+        <Vehicle name="Honey Pallet" category="PALLETS" type="pallet" x="743.418213" y="78.128639" z="376.640961" fillTypes="HONEY" fillLevels="185.103"/>
+        <Vehicle name="Goat Milk Pallet" category="PALLETS" type="pallet" x="695.288635" y="78.488358" z="506.819946" fillTypes="GOATMILK" fillLevels="1000.000"/>
+        <Vehicle name="Goat Milk Pallet" category="PALLETS" type="pallet" x="631.851990" y="78.503738" z="499.457001" fillTypes="GOATMILK" fillLevels="1000.000"/>
+        <Vehicle name="Goat Milk Pallet" category="PALLETS" type="pallet" x="695.292969" y="78.499390" z="509.351990" fillTypes="GOATMILK" fillLevels="1000.000"/>
+        <Vehicle name="Goat Milk Pallet" category="PALLETS" type="pallet" x="631.851990" y="78.503738" z="492.457001" fillTypes="GOATMILK" fillLevels="892.500"/>
+        <Vehicle name="Goat Milk Pallet" category="PALLETS" type="pallet" x="693.893188" y="78.511513" z="509.352020" fillTypes="GOATMILK" fillLevels="362.500"/>
+        <Vehicle name="Eggs" category="PALLETS" type="pallet" x="623.885010" y="78.495956" z="473.834015" fillTypes="EGG" fillLevels="1000.000"/>
+        <Vehicle name="Eggs" category="PALLETS" type="pallet" x="625.284973" y="78.495956" z="473.834015" fillTypes="EGG" fillLevels="1000.000"/>
+        <Vehicle name="Eggs" category="PALLETS" type="pallet" x="626.684998" y="78.495956" z="473.834015" fillTypes="EGG" fillLevels="1000.000"/>
+        <Vehicle name="Eggs" category="PALLETS" type="pallet" x="623.885010" y="78.495949" z="475.555023" fillTypes="EGG" fillLevels="1000.000"/>
+        <Vehicle name="Eggs" category="PALLETS" type="pallet" x="625.284973" y="78.495956" z="475.554993" fillTypes="EGG" fillLevels="102.812"/>
+        <Vehicle name="Sugar Pallet" category="PALLETS" type="pallet" x="271.700012" y="73.480377" z="-421.000000" fillTypes="SUGAR" fillLevels="1000.000"/>
+        <Vehicle name="Sugar Pallet" category="PALLETS" type="pallet" x="273.100006" y="73.480377" z="-421.000000" fillTypes="SUGAR" fillLevels="1000.000"/>
+        <Vehicle name="Sugar Pallet" category="PALLETS" type="pallet" x="274.500000" y="73.480377" z="-421.000000" fillTypes="SUGAR" fillLevels="1000.000"/>
+        <Vehicle name="Sugar Pallet" category="PALLETS" type="pallet" x="275.899994" y="73.480385" z="-421.000000" fillTypes="SUGAR" fillLevels="1000.000"/>
+        <Vehicle name="Sugar Pallet" category="PALLETS" type="pallet" x="277.299988" y="73.480377" z="-421.000000" fillTypes="SUGAR" fillLevels="1000.000"/>
+        <Vehicle name="Sugar Pallet" category="PALLETS" type="pallet" x="271.700012" y="73.480377" z="-423.500000" fillTypes="SUGAR" fillLevels="1000.000"/>
+        <Vehicle name="Goat Cheese Pallet" category="PALLETS" type="pallet" x="672.200012" y="78.495956" z="375.250000" fillTypes="GOATCHEESE" fillLevels="1000.000"/>
+        <Vehicle name="Goat Cheese Pallet" category="PALLETS" type="pallet" x="673.599976" y="78.495956" z="375.250000" fillTypes="GOATCHEESE" fillLevels="1000.000"/>
+        <Vehicle name="Goat Cheese Pallet" category="PALLETS" type="pallet" x="675.000000" y="78.495956" z="375.250000" fillTypes="GOATCHEESE" fillLevels="1000.000"/>
+        <Vehicle name="RX 125" category="CARS" type="motorbike" x="750.728027" y="78.249008" z="397.798004" fillTypes="DIESEL" fillLevels="7.000" isAIActive="false"/>
+        <Vehicle name="TGS 18.500 4x4" category="TRUCKS" type="tractor" x="661.566956" y="78.537804" z="483.406006" fillTypes="DIESEL DEF AIR" fillLevels="290.975 60.000 3525.537" isAIActive="false"/>
+        <Vehicle name="Profi Liner" category="TRAILERSSEMI" type="trailer" x="668.461060" y="78.617844" z="483.576996" fillTypes="" fillLevels=""/>
+        <Vehicle name="Vigneto 3AX" category="GRAPETRAILERS" type="trailer" x="284.688965" y="73.174004" z="-523.031982" fillTypes="UNKNOWN UNKNOWN" fillLevels="0.000 0.000"/>
+        <Vehicle name="Multi Purpose Trailer" category="TRAILERS" type="trailer" x="691.469116" y="78.522614" z="349.249939" fillTypes="UNKNOWN" fillLevels="0.000"/>
+        <Vehicle name="T Series" category="TRACTORSM" type="tractorReverseDriving" x="679.546997" y="76.239304" z="601.459961" fillTypes="DIESEL DEF AIR" fillLevels="241.999 70.000 2624.515" isAIActive="false"/>
+    </Vehicles>
+</Server>

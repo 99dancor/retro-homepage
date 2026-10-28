@@ -1,0 +1,28 @@
+<%# Neue Aufgabe oder Aufgabe bearbeiten (e). Fällig: ohne, heute, Datum, Spieltag oder Spielmonat; regelmäßig nach echten Tagen oder Spielzeit %>
+<% const dueKind = e ? (e.due_date ? 'date' : e.due_day ? 'gday' : 'none') : (query.feld ? 'gmonth' : 'none'); %>
+<form method="post" action="<%= e ? '/farming/aufgaben/' + e.id : '/farming/hof/' + f.id + '/aufgaben' %>" class="fs-form groupbox fs-taskform" id="<%= e ? 'bearbeiten' : 'neu' %>">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="/farming/hof/<%= f.id %>?tab=aufgaben">
+  <b><%= e ? '✏️ Aufgabe bearbeiten' : '➕ Neue Aufgabe' %></b>
+  <div class="row">
+    <input name="title" maxlength="120" required placeholder="Was ist zu tun?" value="<%= e ? e.title : '' %>" aria-label="Aufgabe" class="grow">
+    <select name="assignee_id" aria-label="Wer"><option value="">Wer? (alle)</option><% for (const u of f.members) { %><option value="<%= u.id %>"<%= e && e.assignee_id === u.id ? ' selected' : '' %>><%= u.display_name || u.username %></option><% } %></select>
+    <select name="field" aria-label="Feld"><option value="">Feld?</option><% for (const x of myFields) { %><option value="<%= x.id %>"<%= (e ? e.field : Number(query.feld)) === x.id ? ' selected' : '' %>>Feld <%= x.id %></option><% } %></select>
+    <select name="place_id" aria-label="Ort"><option value="">Ort?</option><% for (const p of places.filter(p => !p.farm_id || p.farm_id === f.id)) { %><option value="<%= p.id %>"<%= e && e.place_id === p.id ? ' selected' : '' %>><%= p.name %></option><% } %></select>
+  </div>
+  <div class="row">
+    <label>Fällig <select name="due" data-due>
+      <% for (const [k, l] of [['none', 'ohne Termin'], ['today', 'heute'], ['date', 'am Datum'], ['gday', 'am Spieltag'], ['gmonth', 'im Spielmonat']]) { %><option value="<%= k %>"<%= dueKind === k ? ' selected' : '' %>><%= l %></option><% } %></select></label>
+    <input type="date" name="due_date" value="<%= e && e.due_date ? e.due_date : '' %>" data-for="date" aria-label="Datum">
+    <input type="number" name="due_day" min="1" value="<%= e && e.due_day ? e.due_day : (m.day || '') %>" data-for="gday" aria-label="Spieltag" style="width:80px">
+    <select name="due_month" data-for="gmonth" aria-label="Spielmonat"><% N.MONTHS.forEach((mo, i) => { %><option value="<%= i %>"<%= m.date && m.date.month === i ? ' selected' : '' %>><%= mo %></option><% }) %></select>
+    <label>Wiederholen <select name="repeat" data-repeat>
+      <% for (const [k, l] of [['', 'nein'], ['days', 'alle … Tage'], ['weekly', 'jede Woche'], ['gdays', 'alle … Spieltage'], ['gmonths', 'alle … Spielmonate']]) { %><option value="<%= k %>"<%= e && e.repeat === k ? ' selected' : '' %>><%= l %></option><% } %></select></label>
+    <input type="number" name="repeat_n" min="1" max="365" value="<%= e ? e.repeat_n : 1 %>" aria-label="Abstand" style="width:60px" data-for="n">
+    <select name="weekday" aria-label="Wochentag" data-for="weekly"><option value="">Wochentag?</option><% ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'].forEach((d, i) => { %><option value="<%= i %>"><%= d %></option><% }) %></select>
+  </div>
+  <div class="row">
+    <input name="note" maxlength="1000" placeholder="Notiz (optional)" value="<%= e && e.note ? e.note : '' %>" aria-label="Notiz" class="grow">
+    <label class="inline"><input type="checkbox" name="all_farms" value="1"<%= e && e.farm_id === 0 ? ' checked' : '' %>> für alle Höfe</label>
+    <button class="def"><%= e ? 'Speichern' : 'Anlegen' %></button><% if (e) { %> <a href="/farming/hof/<%= f.id %>?tab=aufgaben">Abbrechen</a><% } %>
+  </div>
+</form>

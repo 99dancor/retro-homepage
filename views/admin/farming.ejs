@@ -1,0 +1,147 @@
+<%- include('../partials/head') %>
+<%# Seitenverwaltung → Farming Simulator: Zugänge zum Spieleserver (fünf Webinterface-Adressen und FTP), Höfe, Orte, Feldfrüchte, Zugriff.
+    Adressen und Passwort werden nie ausgegeben, nur gekürzt angezeigt. Routen: src/routes/admin.js, Abruf: src/fsfeeds.js %>
+<% const de = n => Number(n).toLocaleString('de-DE'); %>
+<% const ago = t => { if (!t) return 'nie'; const s = Math.floor(Date.now() / 1000) - t; return s < 90 ? 'vor ' + s + ' s' : s < 5400 ? 'vor ' + Math.round(s / 60) + ' min' : s < 172800 ? 'vor ' + Math.round(s / 3600) + ' Std.' : 'vor ' + Math.round(s / 86400) + ' Tagen'; }; %>
+<% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+<% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+<p>🚜 <a href="/farming" target="_blank">Farming Simulator Hub öffnen</a> · Die Website holt alles selbst vom Spieleserver ab. Adressen, Codes und das FTP-Passwort bleiben auf dem Server, kein Browser sieht sie.</p>
+<div class="tabs" role="tablist" data-reiter>
+  <% [['server', '🖥️ Server'], ['hoefe', '🏡 Höfe'], ['orte', '📍 Orte'], ['fruechte', '🌱 Feldfrüchte'], ['zugriff', '🔑 Zugriff und Vorschläge']].forEach(([k, l], i) => { %><button type="button" role="tab" id="t-<%= k %>" aria-controls="<%= k %>" aria-selected="<%= i === 0 %>"<%- i ? ' tabindex="-1"' : '' %>><%= l %></button><% }) %>
+</div>
+
+<section class="tab-page" id="server" role="tabpanel" aria-labelledby="t-server">
+  <form method="post" action="/admin/farming/server">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <fieldset class="groupbox"><legend>Webinterface des Servers (dedicated server → Webinterface → Links)</legend>
+      <p class="muted">Adresse samt <code>?code=…</code> aus dem Webinterface einfügen. Leer lassen behält die gespeicherte, „entfernen“ schaltet den Teil ab. Abstand in Sekunden.</p>
+      <table class="list fs-admin-feeds">
+        <tr><th>Zugang</th><th>Adresse</th><th>Abstand</th><th>Stand</th></tr>
+        <% for (const f of feedRows.filter(x => x.key !== 'ftp')) { %>
+          <tr><td><b><%= f.name %></b></td>
+            <td><input name="url_<%= f.key %>" class="w100" autocomplete="off" spellcheck="false" placeholder="<%= f.set ? f.masked : 'http://…/' + f.hint %>" aria-label="Adresse <%= f.name %>">
+              <% if (f.set) { %><label class="inline"><input type="checkbox" name="clear_<%= f.key %>" value="1"> entfernen</label><% } %></td>
+            <td><input type="number" name="int_<%= f.key %>" min="<%= f.min %>" value="<%= f.every %>" style="width:80px" aria-label="Abstand <%= f.name %>"></td>
+            <td><small><% if (!f.set) { %>aus<% } else if (f.st.error) { %><span style="color:#a00">⚠ <%= f.st.error %></span><br>zuletzt ok <%= ago(f.st.ok_at) %><% } else if (f.st.ok_at) { %>✔ <%= ago(f.st.ok_at) %><br><%= f.st.info && f.st.info.summary %><% } else { %>noch nicht abgefragt<% } %></small></td></tr>
+        <% } %>
+      </table>
+    </fieldset>
+    <% const ft = feedRows.find(x => x.key === 'ftp'); %>
+    <fieldset class="groupbox"><legend>FTP zum Spielstand (z. B. GPORTAL)</legend>
+      <p class="muted">Ergänzt, was das Webinterface nicht hat: Geld je Hof (farms.xml), Silos, Produktionen und Ställe (placeables.xml), Ballen (items.xml), Datum und Wetter (environment.xml). Ist oben eine Adresse leer, liest der Hub careerSavegame.xml, vehicles.xml und economy.xml auch von hier. Die Dateien sind so aktuell wie der letzte Autosave. Die Website verbindet sich nur nach draußen, am Reverse Proxy und an Unraid ändert sich nichts.</p>
+      <div class="fs-admin-ftp">
+        <label>Server <input name="ftp_host" value="<%= ftp.host %>" placeholder="z. B. 176.57.181.181" autocomplete="off"></label>
+        <label>Port <input type="number" name="ftp_port" value="<%= ftp.port %>" min="1" max="65535" style="width:80px"></label>
+        <label>Benutzer <input name="ftp_user" value="<%= ftp.user %>" autocomplete="off"></label>
+        <label>Passwort <input type="password" name="ftp_pass" placeholder="<%= ftp.pass_set ? '•••••• (gespeichert)' : '' %>" autocomplete="new-password"></label>
+        <% if (ftp.pass_set) { %><label class="inline"><input type="checkbox" name="ftp_pass_clear" value="1"> Passwort löschen</label><% } %>
+        <label>Ordner des Spielstands <input name="ftp_path" value="<%= ftp.dir %>" placeholder="z. B. /profile/savegame1" class="w100"></label>
+        <label>Verschlüsselung <select name="ftp_secure"><option value="0"<%= ftp.secure === '0' ? ' selected' : '' %>>keine (FTP)</option><option value="1"<%= ftp.secure === '1' ? ' selected' : '' %>>FTPS</option><option value="2"<%= ftp.secure === '2' ? ' selected' : '' %>>FTPS, Zertifikat nicht prüfen</option></select></label>
+        <label>Abstand <input type="number" name="int_ftp" min="<%= ft.min %>" value="<%= ft.every %>" style="width:80px"> Sekunden</label>
+      </div>
+      <p><small><% if (!ft.set) { %>aus<% } else if (ft.st.error) { %><span style="color:#a00">⚠ <%= ft.st.error %></span> · zuletzt ok <%= ago(ft.st.ok_at) %><% } else if (ft.st.ok_at) { %>✔ <%= ago(ft.st.ok_at) %> · <%= ft.st.info && ft.st.info.summary %><% } else { %>noch nicht abgefragt<% } %></small></p>
+      <p class="muted">Bietet der Hoster FTPS an, nimm das: normales FTP schickt das Passwort unverschlüsselt. Ein Zugang, der nur lesen darf, reicht.</p>
+    </fieldset>
+    <div class="actions"><button>Speichern</button></div>
+  </form>
+  <form method="post" action="/admin/farming/testen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>🔌 Alle testen</button> <small class="muted">fragt alle eingetragenen Zugänge sofort ab</small></form>
+
+  <fieldset class="groupbox"><legend>Kartenbild</legend>
+    <p>Das Bild vom Server ist klein (meist 512 × 512, die Karte liegt in der Mitte). Schöner wird es mit einem eigenen Bild, zum Beispiel der overview.png aus der Karten-Mod: Das zeigt die ganze Karte ohne Rand.</p>
+    <p><%= customMap ? '✔ Eigenes Bild aktiv (' + customMap + ')' : hasServerMap ? '✔ Bild vom Server' : 'Noch kein Bild' %></p>
+    <form method="post" action="/admin/farming/karte" enctype="multipart/form-data" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="file" name="map" accept="image/png,image/jpeg,image/webp" required><button>Eigenes Bild hochladen</button></form>
+    <% if (customMap) { %><form method="post" action="/admin/farming/karte/loeschen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">Eigenes Bild entfernen</button></form><% } %>
+  </fieldset>
+
+  <fieldset class="groupbox"><legend>Datum im Spiel</legend>
+    <% const d = m.date; %>
+    <p>Jetzt: <b><%= d ? (d.dpp > 1 ? d.dom + '. ' : '') + d.monthName + ', Jahr ' + d.year + ' (Spieltag ' + d.day + ')' : 'unbekannt' %></b> · <%= { ftp: 'aus environment.xml (FTP)', admin: 'von dir gesetzt, zählt selbst weiter', estimate: 'geschätzt aus den großen Nachfragen' }[m.dateSource] || 'ohne Quelle' %></p>
+    <form method="post" action="/admin/farming/datum" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>">
+      <% if (hub.daysPerPeriod() > 1) { %><label>Tag <input type="number" name="dom" min="1" max="<%= hub.daysPerPeriod() %>" value="<%= d ? d.dom : 1 %>" style="width:60px"></label><% } %>
+      <label>Monat <select name="month"><% N.MONTHS.forEach((mo, i) => { %><option value="<%= i %>"<%= d && d.month === i ? ' selected' : '' %>><%= mo %></option><% }) %></select></label>
+      <label>Jahr <input type="number" name="year" min="1" value="<%= d ? d.year : 1 %>" style="width:70px"></label>
+      <button>Datum setzen</button></form>
+    <p class="muted">Mit FTP liest der Hub das Datum bei jedem Autosave aus dem Spielstand, dann ist das hier nicht nötig.</p>
+  </fieldset>
+</section>
+
+<section class="tab-page" id="hoefe" role="tabpanel" aria-labelledby="t-hoefe" hidden>
+  <form method="post" action="/admin/farming/hoefe"><input type="hidden" name="_csrf" value="<%= csrf %>">
+    <p class="muted">Höfe heißen nach ihrer Farm-Nummer im Spiel. Mitglieder treten im Hub selbst bei und geben ihrem Hof einen Namen, hier kannst du beides auch setzen.</p>
+    <table class="list"><tr><th>Farm</th><th>Name</th><th>Farbe</th><th>Im Spiel</th><th>Fahrzeuge</th><th>Land</th></tr>
+      <% for (const f of m.farms) { %><tr><td><%= f.id %></td><td><input name="name_<%= f.id %>" value="<%= f.name %>" maxlength="40"></td><td><input type="color" name="color_<%= f.id %>" value="<%= f.color %>"></td>
+        <td><small><%= f.gameName || '–' %><%= f.players.length ? ' · ' + f.players.map(p => p.name).join(', ') : '' %></small></td><td><%= f.vehicles.length %></td><td><%= f.land.lands %> Grundstücke</td></tr><% } %>
+      <% if (!m.farms.length) { %><tr><td colspan="6" class="muted">Noch keine Höfe bekannt. Sie erscheinen, sobald Vehicles- oder Stats-Feed Besitzer nennen.</td></tr><% } %>
+    </table>
+    <h3>Mitglieder</h3>
+    <table class="list"><tr><th>Konto</th><th>Hof</th><th>Online (30 Tage)</th></tr>
+      <% for (const u of users) { const st = sessions.find(x => x.name.toLowerCase() === u.username.toLowerCase() || (u.display_name && x.name.toLowerCase() === u.display_name.toLowerCase())); %>
+        <tr><td><%= u.display_name || u.username %><% if (u.display_name) { %> <small class="muted">(<%= u.username %>)</small><% } %></td>
+          <td><select name="farm_<%= u.id %>"><option value="">–</option><% for (const f of m.farms) { %><option value="<%= f.id %>"<%= u.farm_id === f.id ? ' selected' : '' %>><%= f.name %></option><% } %></select></td>
+          <td><small><%= st ? Math.round(st.secs / 3600) + ' Std. in ' + st.n + ' Sitzungen' : '' %></small></td></tr>
+      <% } %>
+    </table>
+    <p class="muted">Spielername = Kontoname: Wer im Spiel so heißt wie sein Konto (oder sein Anzeigename), wird im Hub erkannt.</p>
+    <div class="actions"><button>Speichern</button></div>
+  </form>
+</section>
+
+<section class="tab-page" id="orte" role="tabpanel" aria-labelledby="t-orte" hidden>
+  <p class="muted">Benannte Stellen auf der Karte (Fischzucht, Ziegenstall, Weingut …). Paletten in diesem Umkreis zählen zum Ort, Fahrzeuge „stehen“ dort. Am leichtesten legt man sie im Hub an (Hof → Produktion → Paletten ohne Ort). Koordinaten wie im Spiel (x, z in Metern, Mitte = 0).</p>
+  <table class="list"><tr><th>Name</th><th>Hof</th><th>x</th><th>z</th><th>Umkreis</th><th></th></tr>
+    <% for (const p of m.places) { %>
+      <tr><td colspan="6"><form method="post" action="/admin/farming/orte" class="fs-admin-row"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="id" value="<%= p.id %>">
+        <input name="name" value="<%= p.name %>" maxlength="40" required aria-label="Name"><select name="farm_id" aria-label="Hof"><option value="0">alle</option><% for (const f of m.farms) { %><option value="<%= f.id %>"<%= p.farm_id === f.id ? ' selected' : '' %>><%= f.name %></option><% } %></select>
+        <input type="number" name="x" value="<%= p.x %>" step="1" style="width:80px" aria-label="x"><input type="number" name="z" value="<%= p.z %>" step="1" style="width:80px" aria-label="z"><input type="number" name="radius" value="<%= p.radius %>" min="5" max="300" style="width:70px" aria-label="Umkreis">
+        <button class="small">Speichern</button></form>
+        <form method="post" action="/admin/farming/orte/<%= p.id %>/loeschen" class="inline" data-confirm="Ort „<%= p.name %>“ löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Löschen</button></form></td></tr>
+    <% } %>
+    <tr><td colspan="6"><form method="post" action="/admin/farming/orte" class="fs-admin-row"><input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input name="name" maxlength="40" required placeholder="Neuer Ort" aria-label="Name"><select name="farm_id" aria-label="Hof"><option value="0">alle</option><% for (const f of m.farms) { %><option value="<%= f.id %>"><%= f.name %></option><% } %></select>
+      <input type="number" name="x" required step="1" placeholder="x" style="width:80px" aria-label="x"><input type="number" name="z" required step="1" placeholder="z" style="width:80px" aria-label="z"><input type="number" name="radius" value="30" min="5" max="300" style="width:70px" aria-label="Umkreis">
+      <button class="small">Anlegen</button></form></td></tr>
+  </table>
+</section>
+
+<section class="tab-page" id="fruechte" role="tabpanel" aria-labelledby="t-fruechte" hidden>
+  <p class="muted">Vorlage für den Hofkalender und die Karte. Monate wie im Spiel, das Jahr beginnt im März. Bitte einmal gegen den Kalender im Spiel prüfen. „Ware“ ist der Name im Economy-Feed (für Preise), z. B. WHEAT.</p>
+  <% const MONTHS = N.MONTHS_SHORT; %>
+  <table class="list fs-admin-crops"><tr><th>Frucht</th><th>Säen</th><th>Ernten</th><th></th></tr>
+    <% for (const c of [...crops, { id: '', name: '', fill: '', color: '#8fd16a', sowM: [], harvestM: [], kind: 'field' }]) { %>
+      <tr><td colspan="4"><form method="post" action="/admin/farming/fruechte" class="fs-admin-row"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="id" value="<%= c.id %>">
+        <input type="color" name="color" value="<%= c.color %>" aria-label="Farbe"><input name="name" value="<%= c.name %>" maxlength="40" required placeholder="Neue Frucht" style="width:120px" aria-label="Name"><input name="fill" value="<%= c.fill || '' %>" maxlength="40" placeholder="Ware" style="width:100px" aria-label="Ware">
+        <select name="kind" aria-label="Art"><option value="field"<%= c.kind === 'field' ? ' selected' : '' %>>Feldfrucht</option><option value="grass"<%= c.kind === 'grass' ? ' selected' : '' %>>wächst nach</option><option value="perm"<%= c.kind === 'perm' ? ' selected' : '' %>>Dauerkultur</option></select>
+        <span class="fs-months" title="Säen">🌱<% MONTHS.forEach((mo, i) => { %><label><input type="checkbox" name="sow" value="<%= i %>"<%= c.sowM.includes(i) ? ' checked' : '' %>><%= mo %></label><% }) %></span>
+        <span class="fs-months" title="Ernten">🌾<% MONTHS.forEach((mo, i) => { %><label><input type="checkbox" name="harvest" value="<%= i %>"<%= c.harvestM.includes(i) ? ' checked' : '' %>><%= mo %></label><% }) %></span>
+        <button class="small"><%= c.id ? 'Speichern' : 'Anlegen' %></button></form>
+        <% if (c.id) { %><form method="post" action="/admin/farming/fruechte/<%= c.id %>/loeschen" class="inline" data-confirm="„<%= c.name %>“ löschen? Pläne mit dieser Frucht verschwinden auch."><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Löschen</button></form><% } %></td></tr>
+    <% } %>
+  </table>
+  <form method="post" action="/admin/farming/fruechte/zuruecksetzen" class="actions" data-confirm="Alle Feldfrüchte auf die Vorlage zurücksetzen? Pläne gehen dabei verloren."><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">Auf Vorlage zurücksetzen</button></form>
+</section>
+
+<section class="tab-page" id="zugriff" role="tabpanel" aria-labelledby="t-zugriff" hidden>
+  <form method="post" action="/admin/farming/allgemein"><input type="hidden" name="_csrf" value="<%= csrf %>">
+    <fieldset class="groupbox"><legend>Zugriff</legend>
+      <label class="inline"><input type="checkbox" name="fs_enabled" value="1"<%= s.fs_enabled === '1' ? ' checked' : '' %>> Hub im Startmenü</label><br>
+      <label>Sehen dürfen <select name="fs_view"><option value="members"<%= s.fs_view !== 'public' ? ' selected' : '' %>>nur angemeldete Mitglieder</option><option value="public"<%= s.fs_view === 'public' ? ' selected' : '' %>>alle, auch Gäste (nur lesen)</option></select></label>
+      <label>Planen, melden und Aufgaben anlegen <select name="fs_edit"><option value="farm"<%= s.fs_edit !== 'members' ? ' selected' : '' %>>Mitglieder des jeweiligen Hofs (und Admins)</option><option value="members"<%= s.fs_edit === 'members' ? ' selected' : '' %>>alle Mitglieder</option></select></label>
+      <p class="muted">Notizen und Vorschläge schreibt jedes Mitglied; bearbeiten und löschen nur die eigenen, Admins alle.</p>
+    </fieldset>
+    <fieldset class="groupbox"><legend>Vorschläge vom Server (automatische Aufgaben)</legend>
+      <label>Werkstatt ab <input type="number" name="fs_auto_wear" min="1" max="100" value="<%= s.fs_auto_wear %>" style="width:60px"> % Verschleiß</label>
+      <label>Tanken unter <input type="number" name="fs_auto_diesel" min="0" value="<%= s.fs_auto_diesel %>" style="width:70px"> Litern Diesel</label>
+      <label>Paletten abholen ab <input type="number" name="fs_auto_pallets" min="1" value="<%= s.fs_auto_pallets %>" style="width:60px"> Paletten an einem Ort</label>
+      <label class="inline"><input type="checkbox" name="fs_auto_food" value="1"<%= s.fs_auto_food === '1' ? ' checked' : '' %>> Futter auffüllen, wenn ein Stall leer ist (nur mit FTP)</label>
+    </fieldset>
+    <fieldset class="groupbox"><legend>Modliste und Karte</legend>
+      <label>Verknüpfte Modliste <select name="fs_modlist"><option value="">keine</option><% for (const l of lists) { %><option value="<%= l.slug %>"<%= s.fs_modlist === l.slug ? ' selected' : '' %>><%= l.game ? l.game + ' – ' : '' %><%= l.title %></option><% } %></select></label>
+      <label>Rand des Server-Kartenbilds <input type="number" name="fs_map_border" min="0" max="45" value="<%= s.fs_map_border %>" style="width:60px"> % je Seite</label>
+      <p class="muted">Das Webinterface zeigt die Karte in der Mitte eines größeren Bilds (bei Bilk 25 %). Ein eigenes Bild gilt immer ohne Rand.</p>
+    </fieldset>
+    <div class="actions"><button>Speichern</button></div>
+  </form>
+</section>
+<script src="<%= asset('reiter.js') %>"></script>
+<script src="<%= asset('admin.js') %>"></script>
+<%- include('../partials/foot') %>

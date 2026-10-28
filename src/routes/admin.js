@@ -319,6 +319,130 @@ router.post('/werwolf/statistik/loeschen', (req, res) => {
   res.redirect('/admin/werwolf?ok=1');
 });
 
+// ---------- Farming Simulator Hub ----------
+// Adressen und FTP-Zugang bleiben auf dem Server: Die Seite zeigt sie nur gekürzt (Code als ••••), leer lassen = unverändert.
+const FS_KEYS = ['stats', 'savegame', 'vehicles', 'economy', 'map'];
+const fsMapUpload = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 15 * 1024 * 1024, files: 1 } });
+function maskUrl(u) {
+  if (!u) return '';
+  try {
+    const x = new URL(u);
+    for (const k of [...x.searchParams.keys()]) if (/code|key|token|pass/i.test(k)) x.searchParams.set(k, '••••••••');
+    return decodeURI(x.toString());
+  } catch { return '••••••••'; }
+}
+router.get('/farming', (req, res) => {
+  const hub = require('../fshub'), feeds = require('../fsfeeds');
+  const fsfiles = require('node:fs').readdirSync(feeds.FS_DIR);
+  const feedRows = [...FS_KEYS, 'ftp'].map(k => ({ key: k, ...feeds.FEEDS[k], set: feeds.configured(k), masked: k === 'ftp' ? '' : maskUrl(feeds.url(k)),
+    every: feeds.interval(k), st: feeds.status(k) }));
+  const ftp = feeds.ftpConfig();
+  const m = hub.model();
+  res.render('admin/farming', {
+    title: 'Farming Simulator', N: require('../fsnames'), feedRows, ftp: { ...ftp, password: undefined, pass_set: !!ftp.password }, m, hub,
+    s: Object.fromEntries(['fs_enabled', 'fs_view', 'fs_edit', 'fs_map_border', 'fs_auto_wear', 'fs_auto_diesel', 'fs_auto_pallets', 'fs_auto_food', 'fs_modlist'].map(k => [k, getSetting(k, '')])),
+    customMap: fsfiles.find(f => /^map-custom\./.test(f)) || null, hasServerMap: fsfiles.includes('map-server'),
+    users: db.prepare('SELECT u.id, u.username, u.display_name, m.farm_id FROM users u LEFT JOIN fs_members m ON m.user_id = u.id WHERE u.disabled = 0 ORDER BY u.username COLLATE NOCASE').all(),
+    lists: db.prepare('SELECT slug, title, game FROM modlists ORDER BY game, title').all(), crops: hub.crops(), sessions: hub.sessionTotals(30),
+    msg: { testen: 'Alle Zugänge abgefragt, die Ergebnisse stehen unten.', datum: 'Datum gesetzt.', karte: 'Kartenbild gespeichert.' }[req.query.ok] || (req.query.ok ? 'Gespeichert.' : null),
+    err: req.query.err || null,
+  });
+});
+router.post('/farming/server', (req, res) => {
+  const feeds = require('../fsfeeds'), b = req.body;
+  for (const k of FS_KEYS) {
+    const v = String(b['url_' + k] || '').trim();
+    if (b['clear_' + k] === '1') { setSetting('fs_url_' + k, ''); feeds.forget(k); }
+    else if (v) {
+      if (!/^https?:\/\/[^\s]+$/i.test(v)) return res.redirect('/admin/farming?err=' + encodeURIComponent(`${feeds.FEEDS[k].name}: Bitte eine Adresse mit http:// oder https:// eintragen.`));
+      setSetting('fs_url_' + k, v.slice(0, 1000));
+    }
+  }
+  for (const k of [...FS_KEYS, 'ftp']) {
+    const n = Math.round(Number(b['int_' + k]));
+    setSetting('fs_int_' + k, Number.isFinite(n) && n > 0 ? String(Math.max(feeds.FEEDS[k].min, Math.min(7 * 86400, n))) : '');
+    feeds.reschedule(k);
+  }
+  setSetting('fs_ftp_host', String(b.ftp_host || '').trim().replace(/^ftps?:\/\//i, '').replace(/\/.*$/, '').slice(0, 200));
+  setSetting('fs_ftp_port', String(Math.max(1, Math.min(65535, Math.round(Number(b.ftp_port)) || 21))));
+  setSetting('fs_ftp_user', String(b.ftp_user || '').trim().slice(0, 200));
+  setSetting('fs_ftp_path', String(b.ftp_path || '').trim().slice(0, 500) || '/');
+  setSetting('fs_ftp_secure', ['0', '1', '2'].includes(b.ftp_secure) ? b.ftp_secure : '0');
+  if (b.ftp_pass) setSetting('fs_ftp_pass', String(b.ftp_pass).slice(0, 500));
+  if (b.ftp_pass_clear === '1') setSetting('fs_ftp_pass', '');
+  if (!getSetting('fs_ftp_host')) feeds.forget('ftp');
+  res.redirect('/admin/farming?ok=1');
+});
+router.post('/farming/testen', async (req, res) => {
+  await require('../fsfeeds').runAll();
+  require('../fshub').record(true);
+  res.redirect('/admin/farming?ok=testen#server');
+});
+router.post('/farming/allgemein', (req, res) => {
+  const b = req.body, n = (v, d, lo, hi) => String(Math.max(lo, Math.min(hi, Math.round(Number(v)) || d)));
+  setSetting('fs_enabled', b.fs_enabled === '1' ? '1' : '0');
+  setSetting('fs_view', b.fs_view === 'public' ? 'public' : 'members');
+  setSetting('fs_edit', b.fs_edit === 'members' ? 'members' : 'farm');
+  setSetting('fs_auto_wear', n(b.fs_auto_wear, 50, 1, 100));
+  setSetting('fs_auto_diesel', n(b.fs_auto_diesel, 50, 0, 10000));
+  setSetting('fs_auto_pallets', n(b.fs_auto_pallets, 6, 1, 500));
+  setSetting('fs_auto_food', b.fs_auto_food === '1' ? '1' : '0');
+  setSetting('fs_modlist', db.prepare('SELECT 1 FROM modlists WHERE slug = ?').get(String(b.fs_modlist || '')) ? String(b.fs_modlist) : '');
+  setSetting('fs_map_border', n(b.fs_map_border, 0, 0, 45));
+  require('../fshub').invalidate();
+  res.redirect('/admin/farming?ok=1#zugriff');
+});
+router.post('/farming/karte', fsMapUpload.single('map'), multipartCsrf, (req, res) => {
+  const fsx = require('node:fs'), feeds = require('../fsfeeds');
+  const f = req.file;
+  const ext = f && ({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' })[f.mimetype];
+  if (!ext) return res.redirect('/admin/farming?err=' + encodeURIComponent('Bitte ein PNG-, JPEG- oder WebP-Bild wählen.') + '#server');
+  for (const old of fsx.readdirSync(feeds.FS_DIR).filter(x => /^map-custom\./.test(x))) fsx.rmSync(path.join(feeds.FS_DIR, old), { force: true });
+  fsx.writeFileSync(path.join(feeds.FS_DIR, 'map-custom.' + ext), f.buffer);
+  res.redirect('/admin/farming?ok=karte#server');
+});
+router.post('/farming/karte/loeschen', (req, res) => {
+  const fsx = require('node:fs'), feeds = require('../fsfeeds');
+  for (const old of fsx.readdirSync(feeds.FS_DIR).filter(x => /^map-custom\./.test(x))) fsx.rmSync(path.join(feeds.FS_DIR, old), { force: true });
+  res.redirect('/admin/farming?ok=1#server');
+});
+// Datum korrigieren: Tag im Monat, Monat und Jahr wie im Spiel → absoluter Spieltag
+router.post('/farming/datum', (req, res) => {
+  const hub = require('../fshub'), b = req.body;
+  const dpp = hub.daysPerPeriod();
+  const month = Math.max(0, Math.min(11, Math.round(Number(b.month)) || 0)), year = Math.max(1, Math.round(Number(b.year)) || 1);
+  const dom = Math.max(1, Math.min(dpp, Math.round(Number(b.dom)) || 1));
+  hub.setDay(hub.dayOfMonth(month, year, dpp) + dom - 1, 'admin');
+  res.redirect('/admin/farming?ok=datum#server');
+});
+router.post('/farming/hoefe', (req, res) => {
+  const hub = require('../fshub'), b = req.body;
+  for (const f of hub.model().farms) if (`name_${f.id}` in b) hub.saveFarm(f.id, req.user, { name: b['name_' + f.id], color: b['color_' + f.id] });
+  for (const u of db.prepare('SELECT id FROM users').all()) if (`farm_${u.id}` in b) hub.setMember(u.id, b['farm_' + u.id]);
+  res.redirect('/admin/farming?ok=1#hoefe');
+});
+router.post('/farming/orte', (req, res) => {
+  const hub = require('../fshub');
+  hub.savePlace(Number(req.body.id) || null, req.body);
+  res.redirect('/admin/farming?ok=1#orte');
+});
+router.post('/farming/orte/:id/loeschen', (req, res) => {
+  require('../fshub').removePlace(req.params.id);
+  res.redirect('/admin/farming?ok=1#orte');
+});
+router.post('/farming/fruechte', (req, res) => {
+  require('../fshub').saveCrop(Number(req.body.id) || null, req.body);
+  res.redirect('/admin/farming?ok=1#fruechte');
+});
+router.post('/farming/fruechte/:id/loeschen', (req, res) => {
+  require('../fshub').removeCrop(req.params.id);
+  res.redirect('/admin/farming?ok=1#fruechte');
+});
+router.post('/farming/fruechte/zuruecksetzen', (req, res) => {
+  require('../fshub').resetCrops();
+  res.redirect('/admin/farming?ok=1#fruechte');
+});
+
 // ---------- Modlisten ----------
 // Angelegt und bearbeitet werden Modlisten im Fenster selbst (src/routes/mods.js), hier nur die Übersicht aller Listen
 router.get('/mods', (req, res) => res.render('admin/mods', {
@@ -605,7 +729,7 @@ router.post('/desktop/freigabe/:id', (req, res) => {
 const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days',
   'ks_buyin', 'ks_rebuy_below', 'bj_decks', 'bj_turn', 'pk_turn', 'dk_turn', 'uno_turn', 'f7_turn', 'pp_turn', 'cw_words'];
 const SETTING_FLAGS = ['registration_open', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure', 'lobby_enabled', 'youtube_enabled', 'bj_enabled', 'bj_h17', 'pk_enabled', 'dk_enabled', 'uno_enabled', 'f7_enabled', 'pp_enabled'];
-const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Andere Games', haustier: 'Pixelpfoten', musik: 'Mediaplayer', zufall: 'Zufallsgenerator', kartenspiele: 'Kartenspiele', quiz: 'Quiz', werwolf: 'Werwolf', minesweeper: 'Minesweeper', kreuzwortraetsel: 'Kreuzworträtsel', sudoku: 'Sudoku', paint: 'Paint', galerie: 'Galerie', board: 'Forum', nutzer: 'Messenger und Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
+const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Andere Games', haustier: 'Pixelpfoten', farming: 'Farming Simulator', musik: 'Mediaplayer', zufall: 'Zufallsgenerator', kartenspiele: 'Kartenspiele', quiz: 'Quiz', werwolf: 'Werwolf', minesweeper: 'Minesweeper', kreuzwortraetsel: 'Kreuzworträtsel', sudoku: 'Sudoku', paint: 'Paint', galerie: 'Galerie', board: 'Forum', nutzer: 'Messenger und Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
 router.get('/settings', (req, res) => {
   const s = Object.fromEntries([...SETTING_KEYS, ...SETTING_FLAGS, 'nav_hidden', 'music_upload'].map(k => [k, getSetting(k, '')]));
   s.smtp_pass_set = !!getSetting('smtp_pass');

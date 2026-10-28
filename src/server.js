@@ -69,6 +69,7 @@ app.use((req, res, next) => {
     quizEnabled: getSetting('quiz_enabled', '1') === '1',
     werwolfEnabled: getSetting('ww_enabled', '1') === '1',
     galleryEnabled: getSetting('paint_enabled', '1') === '1' && getSetting('paint_gallery', '1') === '1',
+    farmingVisible: require('./fshub').canView(req.user),
     navHidden: (getSetting('nav_hidden') || '').split(','),
     marquee: getSetting('theme_marquee'),
     // Design ohne eigene Wahl (Seitenverwaltung → Design): 98, xp, xp-oliv oder xp-silber; display.js liest es aus <html data-design>
@@ -125,6 +126,7 @@ app.use('/forum', require('./routes/board'));
 app.use('/musik', require('./routes/music').router);
 app.use('/eigene-dateien', require('./routes/ownfiles'));
 app.use('/mods', require('./routes/mods'));
+app.use('/farming', require('./routes/fshub'));
 app.use('/kartenspiele', require('./routes/kartenspiele'));
 app.use('/blackjack', require('./routes/blackjack'));
 app.use('/poker', require('./routes/poker'));
@@ -168,6 +170,8 @@ if (!db.prepare('SELECT 1 FROM users LIMIT 1').get()) {
   console.log('='.repeat(60));
 }
 
+// Farming Simulator Hub: Feeds des Spieleservers im Hintergrund abholen (src/fsfeeds.js)
+require('./fshub').start();
 // Haustier-Erinnerungen und alte Benachrichtigungen aufräumen
 require('./petwatch').start();
 setInterval(notify.cleanup, 6 * 3600e3).unref();

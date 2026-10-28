@@ -1,0 +1,839 @@
+'use strict';
+// Farming Simulator Hub (Startmenü → 🚜 Farming Simulator): ein Fenster für alles rund um den FS25-Server.
+// Die Feeds holt src/fsfeeds.js ab, hier wird daraus ein Bild des Servers (model): Uhrzeit, Datum, Wetter, Spieler, Höfe
+// mit Land, Fahrzeugen, Paletten, Lager und Bilanz, Karte und Preise. Dazu kommen die Daten der Mitglieder: Höfe und
+// Mitglieder, Notizen, Aufgaben, Anbauplan, Feldmeldungen, Orte, Changelog und Vorschläge (Tabellen fs_* in src/db.js).
+//
+// Was kein Feed liefert, sagt der Hub ehrlich: Frucht und Zustand der Felder kommen aus den Meldungen der Mitglieder,
+// das Datum zählt er selbst mit (genauer mit environment.xml per FTP), Geld je Hof gibt es nur über FTP (farms.xml).
+const { db, now, getSetting, setSetting, tx } = require('./db');
+const feeds = require('./fsfeeds');
+const N = require('./fsnames');
+const notify = require('./notify');
+
+const DEFAULT_COLORS = ['#2e8b2e', '#2f6fd8', '#c0392b', '#d4a017', '#8e44ad', '#16a085', '#d35400', '#7f8c8d'];
+const STATUS = { offen: '💡 Offen', geplant: '📅 Geplant', umgesetzt: '✔ Umgesetzt', abgelehnt: '✖ Abgelehnt' };
+const REPEAT = { '': 'einmalig', days: 'alle … Tage', weekly: 'jede Woche', gdays: 'alle … Spieltage', gmonths: 'alle … Spielmonate' };
+const MAX = { note: 2000, title: 120, body: 4000, name: 40 };
+// Betriebsmittel (werden verbraucht, nicht verkauft) und Tank-Inhalte von Fahrzeugen
+const SUPPLIES = new Set(['SEEDS', 'FERTILIZER', 'LIQUIDFERTILIZER', 'HERBICIDE', 'LIME', 'DIESEL', 'DEF', 'SILAGE_ADDITIVE', 'FISHFOOD', 'MINERAL_FEED',
+  'PIGFOOD', 'CHICKENFOOD', 'BALE_TWINE', 'BALE_NET', 'BALE_WRAP', 'TREESAPLINGS', 'RICESAPLINGS', 'WATER', 'ROADSALT', 'LIQUIDSEEDTREATMENT', 'METHANE',
+  'ELECTRICCHARGE', 'TARP', 'TROUTYOUNG', 'SALMONYOUNG', 'COMPOST']);
+const TANK = new Set(['DIESEL', 'DEF', 'AIR', 'ELECTRICCHARGE', 'METHANE']);
+const PALLET_CATS = new Set(['PALLETS', 'PALLETSILAGE', 'BIGBAGS', 'IBC', 'BARRELS']);
+// Selbstfahrend (eigener Tank): nach Art im Stats-Feed oder nach Fahrzeugart
+const DRIVABLE = /drivable|tractor|truck|^car|combine|harvester|telehandler|wheelloader|motor|selfpropelled|skidsteer|forklift/i;
+const DRIVABLE_CATS = /^(TRACTORS[SML]?|TRUCKS|CARS|HARVESTERS|FORAGEHARVESTERS|GRAPEHARVESTERS|OLIVEHARVESTERS|RICEHARVESTERS|POTATOHARVESTING|BEETHARVESTING|TELELOADERVEHICLES|WHEELLOADERVEHICLES|FRONTLOADERVEHICLES|SKIDSTEERVEHICLES|FORKLIFTS|SPRAYERS)$/;
+// Waren, die im Economy-Feed stehen, aber keine Ware im Preis-Menü sind (Tiere, Ballen-Arten, Hilfsmittel)
+const NOT_GOODS = /^(UNKNOWN|AIR|WEED|SNOW|TREE|ELECTRICCHARGE|METHANE|ROUNDBALE.*|SQUAREBALE.*|(COW|PIG|SHEEP|HORSE|CHICKEN)(_.*)?|GOAT|.*_CUT|FORAGE_MIXING|MEADOW)$/;
+const CROPS = new Set(['WHEAT', 'BARLEY', 'OAT', 'CANOLA', 'SORGHUM', 'SUNFLOWER', 'SOYBEAN', 'MAIZE', 'POTATO', 'SUGARBEET', 'BEETROOT', 'CARROT', 'PARSNIP',
+  'COTTON', 'RICE', 'RICELONGGRAIN', 'GREENBEAN', 'PEA', 'SPINACH', 'SUGARCANE', 'GRASS_WINDROW', 'DRYGRASS_WINDROW', 'STRAW', 'GRAPE', 'OLIVE', 'SILAGE',
+  'RYE', 'TRITICALE', 'SPELT', 'WINTERWHEAT', 'WINTERBARLEY', 'ONION', 'ALFALFA', 'CLOVER', 'WOODCHIPS', 'WOOD', 'CHAFF']);
+const ANIMAL_GOODS = new Set(['MILK', 'GOATMILK', 'BUFFALOMILK', 'WOOL', 'EGG', 'HONEY', 'MANURE', 'LIQUIDMANURE', 'TROUT', 'SALMON']);
+
+// Kalendervorlage (FS25-Kalender, in der Seitenverwaltung änderbar). Monate 0 = März … 11 = Februar.
+const CROP_PRESET = [
+  ['Weizen', 'WHEAT', '#e2c044', [6, 7], [4, 5]], ['Gerste', 'BARLEY', '#d9b25a', [6, 7], [3, 4]], ['Hafer', 'OAT', '#e8d48a', [0, 1], [4, 5]],
+  ['Raps', 'CANOLA', '#f1e04a', [5, 6], [4, 5]], ['Mais', 'MAIZE', '#f0a830', [1, 2], [7, 8]], ['Sonnenblumen', 'SUNFLOWER', '#f5c518', [0, 1], [7, 8]],
+  ['Sojabohnen', 'SOYBEAN', '#b5a642', [1, 2], [7, 8]], ['Kartoffeln', 'POTATO', '#c49a6c', [0, 1], [5, 6, 7]], ['Zuckerrüben', 'SUGARBEET', '#d8d0c0', [0, 1], [7, 8]],
+  ['Sorghum', 'SORGHUM', '#b8562b', [1, 2], [5, 6]], ['Reis', 'RICE', '#9fd3c7', [1, 2], [6, 7]], ['Erbsen', 'PEA', '#7cc05a', [0, 1], [4, 5]],
+  ['Grüne Bohnen', 'GREENBEAN', '#5aa83c', [1, 2], [5, 6]], ['Karotten', 'CARROT', '#ef8a2c', [0, 1, 2], [5, 6, 7]], ['Pastinaken', 'PARSNIP', '#efe2b8', [0, 1], [6, 7, 8]],
+  ['Rote Bete', 'BEETROOT', '#a0304a', [0, 1, 2], [5, 6, 7]], ['Spinat', 'SPINACH', '#3f8a3c', [0, 1, 2, 3, 4, 5, 6], [2, 3, 4, 5, 6, 7, 8]],
+  ['Gras', 'GRASS_WINDROW', '#6cc04a', [0, 1, 2, 3, 4, 5, 6, 7], [2, 3, 4, 5, 6, 7], 'grass'], ['Weinberg', 'GRAPE', '#7b3f8c', [], [6, 7], 'perm'],
+  ['Oliven', 'OLIVE', '#7f8f3a', [], [7, 8], 'perm'],
+];
+
+// ---------- Kleinigkeiten ----------
+const clean = (v, max) => String(v ?? '').replace(/\r\n?/g, '\n').trim().slice(0, max);
+const oneLine = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+const intOr = (v, d = null) => { const n = Math.round(Number(v)); return v === '' || v === undefined || v === null || !Number.isFinite(n) ? d : n; };
+const today = (t = Date.now()) => new Date(t).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+const addDays = (day, n) => { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const validDay = d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d));
+const months = s => String(s || '').split(',').map(Number).filter(m => Number.isInteger(m) && m >= 0 && m < 12);
+const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+
+function enabled() { return getSetting('fs_enabled', '1') === '1'; }
+function canView(user) { return enabled() && (!!user || getSetting('fs_view', 'members') === 'public'); }
+function farmOf(userId) { const r = userId && db.prepare('SELECT farm_id FROM fs_members WHERE user_id = ?').get(userId); return r ? r.farm_id : null; }
+function canEditFarm(user, farmId) {
+  if (!user) return false;
+  if (user.isAdmin || getSetting('fs_edit', 'farm') === 'members') return true;
+  return farmOf(user.id) === Number(farmId);
+}
+
+// Feed mit Ersatz aus dem FTP-Ordner (Seitenverwaltung: Webinterface-Adresse leer, FTP eingetragen)
+function feed(key) {
+  const d = feeds.get(key);
+  if (d) return d;
+  const name = feeds.FTP_FALLBACK[key];
+  return (name && ftpFile(name)) || null;
+}
+function ftpFile(name) { const f = feeds.get('ftp'); return (f && f.files && f.files[name]) || null; }
+
+// ---------- Uhr und Datum ----------
+// Der Stats-Feed nennt nur die Uhrzeit (Millisekunden seit Mitternacht). Ob sie läuft, sieht der Hub am Vergleich zweier
+// Abrufe; den Spieltag zählt er selbst weiter, wenn die Uhr über Mitternacht springt. Startwert: environment.xml (FTP),
+// sonst die Korrektur aus der Seitenverwaltung, sonst eine Schätzung aus den großen Nachfragen (die nennen ihren Spieltag).
+const clock = { dayTime: null, at: 0, running: false };
+function dayState() { try { return JSON.parse(getSetting('fs_day', 'null')); } catch { return null; } }
+function setDay(day, source) {
+  const st = feeds.get('stats');
+  setSetting('fs_day', JSON.stringify({ day: Math.max(1, Math.round(day)), last: st ? st.dayTime : null, source, at: now() }));
+  invalidate();
+}
+function daysPerPeriod() {
+  const sg = feed('savegame'), env = ftpFile('environment.xml');
+  return Math.max(1, Math.round((env && env.daysPerPeriod) || (sg && sg.daysPerPeriod) || 1));
+}
+function estimateDay() {
+  const ec = feed('economy');
+  const d = ec && ec.demands.filter(x => x.day).map(x => (x.running ? x.day : x.day - 1));
+  return d && d.length ? Math.max(1, Math.min(...d)) : null;
+}
+function currentDay() {
+  const st = dayState();
+  if (st && st.day) return st.day;
+  return estimateDay();
+}
+// Absoluter Spieltag → Monat, Tag im Monat, Jahr
+function dateOf(day, dpp = daysPerPeriod()) {
+  if (!day) return null;
+  const i = day - 1;
+  const month = Math.floor(i / dpp) % 12;
+  return { day, month, monthName: N.MONTHS[month], dom: (i % dpp) + 1, year: Math.floor(i / (dpp * 12)) + 1, dpp };
+}
+// Erster Spieltag eines Monats in einem Spieljahr
+function dayOfMonth(month, year, dpp = daysPerPeriod()) { return (year - 1) * 12 * dpp + month * dpp + 1; }
+function fmtDay(day) {
+  const d = dateOf(day);
+  return d ? `${d.dpp > 1 ? d.dom + '. ' : ''}${d.monthName} J${d.year}` : '';
+}
+const hhmm = ms => { if (ms === null || ms === undefined) return '–'; const m = Math.floor(ms / 60000) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+
+function weatherNow(day, dayTime) {
+  const env = ftpFile('environment.xml');
+  if (!env || !env.weather.length || !day) return null;
+  const t = (day * 86400000) + (dayTime || 0);
+  const w = env.weather.find(x => { const s = x.day * 86400000 + x.time; return t >= s && t < s + x.duration; }) || env.weather[0];
+  const [icon, label] = N.WEATHER[w.type] || ['🌡️', N.pretty(w.type)];
+  return { icon, label, forecast: env.weather.filter(x => x.day >= day).slice(0, 4).map(x => ({ day: x.day, ...{ icon: (N.WEATHER[x.type] || ['🌡️'])[0], label: (N.WEATHER[x.type] || [0, N.pretty(x.type)])[1] } })) };
+}
+
+// ---------- Bild des Servers ----------
+let cached = null;
+function invalidate() { cached = null; }
+
+function farmRows() { return new Map(db.prepare('SELECT * FROM fs_farms').all().map(r => [r.id, r])); }
+function membersByFarm() {
+  const out = new Map();
+  for (const r of db.prepare('SELECT m.farm_id, u.id, u.username, u.display_name, u.avatar FROM fs_members m JOIN users u ON u.id = m.user_id WHERE u.disabled = 0 ORDER BY u.username').all()) {
+    if (!out.has(r.farm_id)) out.set(r.farm_id, []);
+    out.get(r.farm_id).push(r);
+  }
+  return out;
+}
+function priceOf(ec, fill, month) {
+  const p = ec && ec.prices[fill];
+  if (!p) return null;
+  if (month !== null && month !== undefined && p[month]) return p[month];
+  const v = p.filter(Boolean);
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+}
+
+function model() {
+  if (cached) return cached;
+  const st = feeds.get('stats'), sg = feed('savegame'), vf = feed('vehicles'), ec = feed('economy');
+  const farmsX = ftpFile('farms.xml'), plc = ftpFile('placeables.xml'), items = ftpFile('items.xml');
+  const size = (st && st.mapSize) || 2048;
+  const day = currentDay();
+  const date = dateOf(day);
+  const month = date ? date.month : null;
+  const places = db.prepare('SELECT * FROM fs_places ORDER BY name').all();
+  const price = fill => priceOf(ec, fill, month);
+  const valueOf = (fill, amount) => { const p = price(fill); return p ? amount / 1000 * p : 0; };
+
+  // Grundstücke und Felder: Feldnummer = Grundstücksnummer
+  const lands = new Map(((st && st.farmlands) || []).map(f => [f.id, f]));
+  const fields = ((st && st.fields) || []).map(f => {
+    const land = lands.get(f.id);
+    return { id: f.id, x: f.x, z: f.z, owner: land ? land.owner : 0, area: land ? land.area : 0, price: land ? land.price : 0 };
+  });
+  function where(x, z) {
+    if (x === null || z === null || x === undefined) return { label: '–' };
+    const p = { x, z };
+    let best = null;
+    for (const pl of places) { const d = dist(pl, p); if (d <= pl.radius && (!best || d < best.d)) best = { d, pl }; }
+    if (best) return { label: best.pl.name, place: best.pl.id };
+    let bf = null;
+    for (const f of fields) { const d = dist(f, p); if (!bf || d < bf.d) bf = { d, f }; }
+    if (bf && bf.d < 150) return { label: `bei Feld ${bf.f.id}`, field: bf.f.id };
+    return { label: `${Math.round(x)} / ${Math.round(z)}` };
+  }
+
+  // Fahrzeuge: Vehicles kennt Farm, Preis und Verschleiß, Stats Name, Art und Fahrer. Verbunden über die Position.
+  const sv = ((st && st.vehicles) || []).map(v => ({ ...v, used: false }));
+  const vehicles = [];
+  const make = (s, v) => {
+    const cat = s ? s.category : (v.pallet ? 'PALLETS' : '');
+    const fill = (v && v.fill.length ? v.fill : (s ? s.fill : []));
+    const isPallet = PALLET_CATS.has(cat) || (s && /pallet|bigBag/i.test(s.type)) || (!s && v && v.pallet);
+    const parts = String((v && v.file) || '').split('/');
+    const name = s ? s.name : [parts.length > 2 ? N.pretty(parts[parts.length - 3]) : '', parts.pop().replace(/\.xml$/i, '')].filter(Boolean).join(' ');
+    const x = s ? s.x : v.x, z = s ? s.z : v.z;
+    const drivable = !!s && !isPallet && (DRIVABLE.test(s.type || '') || (DRIVABLE_CATS.test(cat) && /selfPropelled|drivable/i.test(s.type || '')) || /^(TRACTORS|TRUCKS|CARS)/.test(cat));
+    const diesel = drivable ? (fill.find(([t]) => t === 'DIESEL') || [0, null])[1] : null;
+    return {
+      name, category: cat, catName: N.category(cat), type: s ? s.type : '', farmId: v ? v.farmId : 0, price: v ? v.price : 0, age: v ? v.age : null,
+      hours: v ? v.hours : null, damage: v && v.damage !== null ? Math.round(v.damage * 100) : null, dirt: v && v.dirt !== null ? Math.round(v.dirt * 100) : null,
+      x, z, fill, pallet: !!isPallet, drivable, diesel, ai: !!(s && s.ai), driver: s ? s.controller : null, where: where(x, z), uid: v ? v.uid : '',
+    };
+  };
+  if (vf) {
+    for (const v of vf) {
+      let best = null;
+      for (const s of sv) {
+        if (s.used || v.x === null) continue;
+        const d = Math.hypot(s.x - v.x, s.z - v.z, (s.y ?? 0) - (v.y ?? 0));
+        if (d < 1.5 && (!best || d < best.d)) best = { d, s };
+      }
+      if (best) best.s.used = true;
+      vehicles.push(make(best ? best.s : null, v));
+    }
+  }
+  for (const s of sv) if (!s.used) vehicles.push(make(s, null));
+
+  // Höfe: alle Farm-Nummern, die irgendwo vorkommen
+  const rows = farmRows(), members = membersByFarm();
+  const ids = new Set([...rows.keys()]);
+  for (const v of vehicles) if (v.farmId > 0) ids.add(v.farmId);
+  for (const f of lands.values()) if (f.owner > 0) ids.add(f.owner);
+  for (const f of farmsX || []) if (f.id > 0) ids.add(f.id);
+  const farms = [...ids].filter(id => id > 0 && id < 100).sort((a, b) => a - b).map((id, i) => {
+    const r = rows.get(id) || {}, fx = (farmsX || []).find(f => f.id === id);
+    const own = [...lands.values()].filter(f => f.owner === id);
+    const fv = vehicles.filter(v => v.farmId === id);
+    const fleet = fv.filter(v => !v.pallet);
+    // Lager: Paletten, Big Bags, Silos, Produktionslager, Ballen; dazu was in Anhängern und Fässern unterwegs ist
+    const stock = new Map();
+    const put = (fill, amount, label, kind) => {
+      if (!(amount > 0.5)) return;
+      if (!stock.has(fill)) stock.set(fill, { fill, name: N.fill(fill), amount: 0, value: 0, where: new Map(), supply: SUPPLIES.has(fill) });
+      const s = stock.get(fill);
+      s.amount += amount;
+      s.value += valueOf(fill, amount);
+      const k = label + '|' + kind;
+      s.where.set(k, { label, kind, amount: ((s.where.get(k) || {}).amount || 0) + amount });
+    };
+    const cargo = [];
+    for (const v of fv) {
+      if (v.pallet) for (const [t, l] of v.fill) put(t, l, v.where.label, 'Palette');
+      else for (const [t, l] of v.fill) if (!(v.drivable && TANK.has(t))) cargo.push({ vehicle: v.name, fill: t, name: N.fill(t), amount: l, value: valueOf(t, l), where: v.where.label });
+    }
+    const buildings = (plc || []).filter(p => p.farmId === id).map((p, k) => {
+      const name = p.name || N.pretty(String(p.file).split('/').pop().replace(/\.xml$/i, '').replace(/([a-z])([A-Z])/g, '$1 $2'));
+      const loc = where(p.x, p.z);
+      const label = loc.place ? loc.label : name;
+      const fills = p.fills.map(([sec, t, l]) => ({ sec, fill: t, name: N.fill(t), amount: l, food: /food/i.test(sec), value: valueOf(t, l) }));
+      for (const f of fills) if (!f.food && !/water|straw|milk|manure|liquidManure/i.test(f.sec)) put(f.fill, f.amount, label, p.kind === 'production' ? 'Produktion' : 'Silo');
+      const animals = {};
+      for (const [t, n] of p.animals) animals[t] = (animals[t] || 0) + n;
+      return { idx: k, name, kind: p.kind, where: loc.label, x: p.x, z: p.z, fills, animals: Object.entries(animals).map(([t, n]) => ({ type: t, name: N.pretty(t), n })),
+        productions: p.productions, food: fills.filter(f => f.food).reduce((a, f) => a + f.amount, 0), hasFood: fills.some(f => f.food) };
+    });
+    const bales = (items || []).filter(b => b.farmId === id);
+    for (const b of bales) put(b.fill, b.level, where(b.x, b.z).label, 'Ballen');
+    const stockList = [...stock.values()].map(s => ({ ...s, where: [...s.where.values()].sort((a, b) => b.amount - a.amount) })).sort((a, b) => b.value - a.value || b.amount - a.amount);
+    const land = { ha: own.reduce((a, f) => a + f.area, 0), value: own.reduce((a, f) => a + f.price, 0), lands: own.length, fields: fields.filter(f => f.owner === id).length };
+    const stockValue = stockList.reduce((a, s) => a + s.value, 0);
+    const fleetValue = fleet.reduce((a, v) => a + v.price, 0);
+    const money = fx && fx.money !== null ? fx.money : null;
+    return {
+      id, name: r.name || (fx && fx.name) || `Farm ${id}`, gameName: fx ? fx.name : '', color: r.color || DEFAULT_COLORS[(id - 1) % DEFAULT_COLORS.length] || DEFAULT_COLORS[i % 8],
+      members: members.get(id) || [], players: fx ? fx.players : [], money, loan: fx ? fx.loan : 0, finances: fx ? fx.finances : [],
+      land, vehicles: fv, fleet, fleetValue, stock: stockList, stockValue, cargo, buildings, bales: bales.length,
+      pallets: fv.filter(v => v.pallet), bilanz: (money || 0) - ((fx && fx.loan) || 0) + land.value + fleetValue + stockValue,
+    };
+  });
+
+  const dayTime = st ? st.dayTime : null;
+  const ok = feeds.status('stats');
+  const stale = !ok.ok_at || (now() - ok.ok_at) > Math.max(120, feeds.interval('stats') * 4);
+  cached = {
+    configured: feeds.configured('stats'), stats: st, savegame: sg, economy: ec, size,
+    online: !!st && !stale, paused: !!st && !stale && !clock.running && clock.at > 0, statsAt: ok.ok_at, statsError: ok.error,
+    dayTime, clock: { ...clock }, time: hhmm(dayTime), timeScale: sg ? sg.timeScale : null,
+    day, date, dateSource: (dayState() || {}).source || (day ? 'estimate' : null), weather: weatherNow(day, dayTime),
+    money: sg && sg.money !== null ? sg.money : (farmsX ? farmsX.reduce((a, f) => a + (f.money || 0), 0) : null),
+    perFarmMoney: !!farmsX, ftp: !!feeds.get('ftp'),
+    farms, fields, lands: [...lands.values()], vehicles, places, players: st ? st.players : [], mods: st ? st.mods : [],
+    demands: ec ? ec.demands : [], month,
+  };
+  return cached;
+}
+feeds.on(() => invalidate());
+
+// Spieler auf der Seite: Spielername = Benutzername oder Anzeigename
+function accountFor(name) {
+  return db.prepare('SELECT id, username, display_name, avatar FROM users WHERE disabled = 0 AND (username = ? COLLATE NOCASE OR display_name = ? COLLATE NOCASE) LIMIT 1').get(name, name) || null;
+}
+
+// ---------- Was beim Abruf passiert ----------
+feeds.on((key, prev) => {
+  if (key === 'stats') onStats(prev, feeds.get('stats'));
+  if (key === 'ftp') {
+    const env = ftpFile('environment.xml');
+    const before = prev && prev.files && prev.files['environment.xml'];
+    if (env && env.day && (!before || before.day !== env.day || !dayState())) setDay(env.day, 'ftp');
+  }
+  record();
+});
+feeds.onError((key, st) => {
+  if (key !== 'stats' || st.fails < 3) return;
+  if (getSetting('fs_online', '0') === '1') {
+    setSetting('fs_online', '0');
+    closeSessions();
+    announce('fs-offline', '🚜 Server nicht erreichbar', `${(feeds.get('stats') || {}).name || 'Der Server'} antwortet seit ein paar Minuten nicht.`);
+  }
+});
+
+function onStats(prev, st) {
+  if (!st) return;
+  const t = Date.now();
+  clock.running = !!(prev && prev.dayTime !== null && st.dayTime !== null && st.dayTime !== prev.dayTime);
+  clock.dayTime = st.dayTime;
+  clock.at = t;
+  // Spieltag: über Mitternacht weiterzählen, sonst Startwert setzen
+  const ds = dayState();
+  if (ds && ds.day) {
+    if (ds.last !== null && st.dayTime !== null && st.dayTime + 3600000 < ds.last) ds.day++;
+    ds.last = st.dayTime;
+    setSetting('fs_day', JSON.stringify(ds));
+  } else {
+    const est = estimateDay();
+    if (est) setDay(est, 'estimate');
+  }
+  if (getSetting('fs_online', '0') !== '1') {
+    const was = getSetting('fs_online', null);
+    setSetting('fs_online', '1');
+    if (was === '0') announce('fs-online', '🚜 Server wieder da', `${st.name || 'Der Server'} ist wieder erreichbar.`);
+  }
+  trackSessions(st.players.map(p => p.name));
+  trackMods(st);
+}
+function trackSessions(names) {
+  const open = db.prepare('SELECT id, name FROM fs_sessions WHERE end_at IS NULL').all();
+  const lower = new Set(names.map(n => n.toLowerCase()));
+  const t = now();
+  for (const s of open) if (!lower.has(s.name.toLowerCase())) db.prepare('UPDATE fs_sessions SET end_at = ? WHERE id = ?').run(t, s.id);
+  const openNames = new Set(open.map(s => s.name.toLowerCase()));
+  for (const n of names) if (!openNames.has(n.toLowerCase())) db.prepare('INSERT INTO fs_sessions(name, start_at) VALUES (?, ?)').run(n, t);
+  // Mitgeschrieben wird ein halbes Jahr
+  db.prepare('DELETE FROM fs_sessions WHERE start_at < ?').run(t - 183 * 86400);
+}
+function closeSessions() { db.prepare('UPDATE fs_sessions SET end_at = ? WHERE end_at IS NULL').run(now()); }
+function trackMods(st) {
+  const seen = (() => { try { return JSON.parse(getSetting('fs_mods_seen', 'null')); } catch { return null; } })();
+  const cur = Object.fromEntries(st.mods.map(m => [m.name, m.version]));
+  const titles = Object.fromEntries(st.mods.map(m => [m.name, m.title]));
+  if (seen && seen.mods) {
+    const added = Object.keys(cur).filter(k => !(k in seen.mods));
+    const removed = Object.keys(seen.mods).filter(k => !(k in cur));
+    const updated = Object.keys(cur).filter(k => k in seen.mods && seen.mods[k] !== cur[k]);
+    if (added.length || removed.length || updated.length) {
+      const lines = [...added.map(k => `➕ ${titles[k]} (${cur[k]})`), ...updated.map(k => `🔄 ${titles[k]}: ${seen.mods[k]} → ${cur[k]}`),
+        ...removed.map(k => `➖ ${(seen.titles || {})[k] || k}`)];
+      const parts = [added.length && `${added.length} neu`, updated.length && `${updated.length} aktualisiert`, removed.length && `${removed.length} entfernt`].filter(Boolean);
+      db.prepare("INSERT INTO fs_changelog(kind, title, body, created_at) VALUES ('mods', ?, ?, ?)").run('Mods geändert: ' + parts.join(', '), lines.join('\n'), now());
+      announce('fs-mods-' + now(), '🧩 Server-Mods geändert', parts.join(', '));
+    }
+    if (seen.version && st.version && seen.version !== st.version) {
+      db.prepare("INSERT INTO fs_changelog(kind, title, body, created_at) VALUES ('server', ?, ?, ?)").run(`Server-Version ${st.version}`, `Vorher ${seen.version}`, now());
+    }
+  }
+  setSetting('fs_mods_seen', JSON.stringify({ mods: cur, titles, version: st.version }));
+}
+// Benachrichtigung an alle, die einem Hof angehören
+function announce(key, title, body, url = '/farming') {
+  for (const r of db.prepare('SELECT user_id FROM fs_members').all()) notify.send(r.user_id, 'fshub', { key, title, body, url });
+}
+
+// Verläufe je Tag (höchstens alle 10 Minuten neu): Kontostand, Bilanz und Paletten je Hof, Paletten je Ort
+let lastRecord = 0;
+function record(force = false) {
+  if (!force && Date.now() - lastRecord < 600e3) return;
+  lastRecord = Date.now();
+  const m = model();
+  if (!m.stats) return;
+  const d = today();
+  const put = db.prepare('INSERT INTO fs_hist(series, day, value) VALUES (?, ?, ?) ON CONFLICT(series, day) DO UPDATE SET value = excluded.value');
+  tx(() => {
+    if (m.money !== null) put.run('money:0', d, m.money);
+    for (const f of m.farms) {
+      if (f.money !== null) put.run('money:' + f.id, d, f.money);
+      put.run('bilanz:' + f.id, d, Math.round(f.bilanz));
+      put.run('pallets:' + f.id, d, Math.round(f.pallets.reduce((a, v) => a + v.fill.reduce((b, [, l]) => b + l, 0), 0)));
+    }
+    const per = {};
+    for (const v of m.vehicles) if (v.pallet && v.where.place) per[v.where.place] = (per[v.where.place] || 0) + v.fill.reduce((b, [, l]) => b + l, 0);
+    for (const p of m.places) put.run('place:' + p.id, d, Math.round(per[p.id] || 0));
+    db.prepare('DELETE FROM fs_hist WHERE day < ?').run(addDays(d, -400));
+  });
+  dueReminders();
+}
+function history(series, days = 30) {
+  return db.prepare('SELECT day, value FROM fs_hist WHERE series = ? AND day >= ? ORDER BY day').all(series, addDays(today(), -days));
+}
+
+// ---------- Höfe und Mitglieder ----------
+function farm(id) { return model().farms.find(f => f.id === Number(id)) || null; }
+function join(userId, farmId) {
+  const id = intOr(farmId);
+  if (!id || id < 1 || id > 99) return false;
+  db.prepare('INSERT INTO fs_members(user_id, farm_id, joined_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET farm_id = excluded.farm_id, joined_at = excluded.joined_at').run(userId, id, now());
+  if (!db.prepare('SELECT 1 FROM fs_farms WHERE id = ?').get(id)) db.prepare('INSERT INTO fs_farms(id, updated_at) VALUES (?, ?)').run(id, now());
+  invalidate();
+  return true;
+}
+function leave(userId) { db.prepare('DELETE FROM fs_members WHERE user_id = ?').run(userId); invalidate(); }
+function setMember(userId, farmId) { if (intOr(farmId)) join(userId, farmId); else leave(userId); }
+function saveFarm(id, user, { name, color }) {
+  const nm = oneLine(name, MAX.name);
+  const col = /^#[0-9a-f]{6}$/i.test(String(color || '')) ? color : null;
+  db.prepare(`INSERT INTO fs_farms(id, name, color, updated_by, updated_at) VALUES (?, ?, ?, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET name = excluded.name, color = COALESCE(excluded.color, fs_farms.color), updated_by = excluded.updated_by, updated_at = excluded.updated_at`)
+    .run(Number(id), nm || null, col, user ? user.id : null, now());
+  invalidate();
+}
+
+// ---------- Notizen ----------
+function notes() {
+  return db.prepare('SELECT n.*, u.username, u.display_name, u.avatar FROM fs_notes n LEFT JOIN users u ON u.id = n.user_id ORDER BY n.created_at DESC, n.id DESC LIMIT 100').all();
+}
+function addNote(user, body) {
+  const b = clean(body, MAX.note);
+  if (!b) return null;
+  return Number(db.prepare('INSERT INTO fs_notes(user_id, body, created_at) VALUES (?, ?, ?)').run(user.id, b, now()).lastInsertRowid);
+}
+function note(id) { return db.prepare('SELECT * FROM fs_notes WHERE id = ?').get(Number(id)) || null; }
+const canChangeNote = (user, n) => !!user && !!n && (user.isAdmin || n.user_id === user.id);
+function editNote(id, body) { const b = clean(body, MAX.note); if (b) db.prepare('UPDATE fs_notes SET body = ?, updated_at = ? WHERE id = ?').run(b, now(), Number(id)); }
+function removeNote(id) { db.prepare('DELETE FROM fs_notes WHERE id = ?').run(Number(id)); }
+
+// ---------- Aufgaben ----------
+// Fällig „heute“: Datum bis heute oder Spieltag bis zum aktuellen
+function isDue(t, day = currentDay(), d = today()) {
+  if (t.done_at) return false;
+  if (t.due_date) return t.due_date <= d;
+  if (t.due_day) return !!day && t.due_day <= day;
+  return false;
+}
+function isOverdue(t, day = currentDay(), d = today()) {
+  if (t.done_at) return false;
+  if (t.due_date) return t.due_date < d;
+  if (t.due_day) return !!day && t.due_day < day;
+  return false;
+}
+function dueLabel(t) {
+  if (t.due_date) {
+    const d = today();
+    if (t.due_date === d) return 'heute';
+    if (t.due_date === addDays(d, 1)) return 'morgen';
+    if (t.due_date === addDays(d, -1)) return 'gestern';
+    return new Date(t.due_date + 'T12:00:00Z').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: 'UTC' });
+  }
+  if (t.due_day) return fmtDay(t.due_day) || `Spieltag ${t.due_day}`;
+  return '';
+}
+function repeatLabel(t) {
+  const n = t.repeat_n || 1;
+  switch (t.repeat) {
+    case 'days': return n === 1 ? 'täglich' : `alle ${n} Tage`;
+    case 'weekly': return n === 1 ? 'wöchentlich' : `alle ${n} Wochen`;
+    case 'gdays': return n === 1 ? 'jeden Spieltag' : `alle ${n} Spieltage`;
+    case 'gmonths': return n === 1 ? 'jeden Spielmonat' : `alle ${n} Spielmonate`;
+    default: return '';
+  }
+}
+const TASK_SQL = `SELECT t.*, a.username AS assignee, a.display_name AS assignee_display, c.username AS creator, d.username AS doner, p.name AS place
+  FROM fs_tasks t LEFT JOIN users a ON a.id = t.assignee_id LEFT JOIN users c ON c.id = t.created_by LEFT JOIN users d ON d.id = t.done_by
+  LEFT JOIN fs_places p ON p.id = t.place_id`;
+function decorate(t, day, d) {
+  return { ...t, due: dueLabel(t), repeatText: repeatLabel(t), isDue: isDue(t, day, d), overdue: isOverdue(t, day, d) };
+}
+function tasks(farmId, { done = false } = {}) {
+  const day = currentDay(), d = today();
+  const rows = db.prepare(`${TASK_SQL} WHERE (t.farm_id = ? OR t.farm_id = 0) AND ${done ? 't.done_at IS NOT NULL' : 't.done_at IS NULL'}
+    ORDER BY ${done ? 't.done_at DESC LIMIT 15' : "COALESCE(t.due_date, '9999'), COALESCE(t.due_day, 1e9), t.id"}`).all(Number(farmId));
+  return rows.map(t => decorate(t, day, d));
+}
+function openTasks() {
+  const day = currentDay(), d = today();
+  return db.prepare(`${TASK_SQL} WHERE t.done_at IS NULL ORDER BY COALESCE(t.due_date, '9999'), COALESCE(t.due_day, 1e9), t.id`).all().map(t => decorate(t, day, d));
+}
+function task(id) { return db.prepare('SELECT * FROM fs_tasks WHERE id = ?').get(Number(id)) || null; }
+// Formular → Felder einer Aufgabe. due: none | date | gday | gmonth
+function taskFields(b, farmId) {
+  const out = {
+    title: oneLine(b.title, MAX.title), note: clean(b.note, 1000) || null, field: intOr(b.field), place_id: intOr(b.place_id),
+    assignee_id: intOr(b.assignee_id), due_date: null, due_day: null, repeat: Object.hasOwn(REPEAT, b.repeat) ? b.repeat : '',
+    repeat_n: Math.max(1, Math.min(365, intOr(b.repeat_n, 1))), farm_id: b.all_farms === '1' ? 0 : Number(farmId),
+  };
+  const day = currentDay();
+  if (b.due === 'date' && validDay(b.due_date)) out.due_date = b.due_date;
+  else if (b.due === 'today') out.due_date = today();
+  else if (b.due === 'gday' && intOr(b.due_day) > 0) out.due_day = intOr(b.due_day);
+  else if (b.due === 'gmonth' && intOr(b.due_month) !== null && day) {
+    // Nächster Beginn dieses Monats (dieses oder nächstes Spieljahr)
+    const cur = dateOf(day), m = Math.max(0, Math.min(11, intOr(b.due_month)));
+    let first = dayOfMonth(m, cur.year);
+    if (first + cur.dpp - 1 < day) first = dayOfMonth(m, cur.year + 1);
+    out.due_day = first;
+  }
+  if (out.repeat && !out.due_date && !out.due_day) {
+    if (out.repeat === 'days' || out.repeat === 'weekly') out.due_date = today();
+    else if (day) out.due_day = day;
+  }
+  if (out.repeat === 'weekly' && out.due_date && /^[0-6]$/.test(String(b.weekday ?? ''))) {
+    // Wochentag gewählt: nächster solcher Tag ab dem Datum
+    let d = out.due_date;
+    for (let i = 0; i < 7 && new Date(d + 'T12:00:00Z').getUTCDay() !== Number(b.weekday); i++) d = addDays(d, 1);
+    out.due_date = d;
+  }
+  return out;
+}
+function addTask(user, farmId, b, autoKey = null) {
+  const f = taskFields(b, farmId);
+  if (!f.title) return null;
+  const id = Number(db.prepare(`INSERT INTO fs_tasks(farm_id, title, note, field, place_id, assignee_id, due_date, due_day, repeat, repeat_n, auto_key, created_by, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(f.farm_id, f.title, f.note, f.field, f.place_id, f.assignee_id, f.due_date, f.due_day, f.repeat, f.repeat_n,
+    autoKey, user ? user.id : null, now()).lastInsertRowid);
+  if (f.assignee_id && (!user || f.assignee_id !== user.id)) {
+    notify.send(f.assignee_id, 'fshub', { key: 'fs-task-' + id, title: '🚜 Neue Aufgabe für dich', body: `${f.title}${f.due_date || f.due_day ? ' · fällig ' + dueLabel(f) : ''}`, url: `/farming/hof/${f.farm_id || farmId}?tab=aufgaben` });
+  }
+  return id;
+}
+function editTask(id, b) {
+  const t = task(id);
+  if (!t) return;
+  const f = taskFields(b, t.farm_id || b.farm_id);
+  if (!f.title) return;
+  db.prepare(`UPDATE fs_tasks SET title = ?, note = ?, field = ?, place_id = ?, assignee_id = ?, due_date = ?, due_day = ?, repeat = ?, repeat_n = ?, farm_id = ? WHERE id = ?`)
+    .run(f.title, f.note, f.field, f.place_id, f.assignee_id, f.due_date, f.due_day, f.repeat, f.repeat_n, b.all_farms === '1' ? 0 : t.farm_id || Number(b.farm_id) || 0, t.id);
+}
+// Abhaken: regelmäßige Aufgaben bekommen gleich die nächste Runde
+function completeTask(id, user) {
+  const t = task(id);
+  if (!t || t.done_at) return;
+  tx(() => {
+    db.prepare('UPDATE fs_tasks SET done_at = ?, done_by = ? WHERE id = ?').run(now(), user.id, t.id);
+    if (!t.repeat) return;
+    const n = t.repeat_n || 1;
+    let dd = null, dy = null;
+    const base = t.due_date && t.due_date > today() ? t.due_date : today();
+    if (t.repeat === 'days') dd = addDays(base, n);
+    else if (t.repeat === 'weekly') dd = addDays(t.due_date || base, 7 * n);
+    else {
+      const day = Math.max(t.due_day || 0, currentDay() || 0) || 1;
+      dy = t.repeat === 'gdays' ? day + n : day + n * daysPerPeriod();
+    }
+    if (dd && dd <= today()) dd = addDays(today(), 1);
+    db.prepare(`INSERT INTO fs_tasks(farm_id, title, note, field, place_id, assignee_id, due_date, due_day, repeat, repeat_n, created_by, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(t.farm_id, t.title, t.note, t.field, t.place_id, t.assignee_id, dd, dy, t.repeat, n, t.created_by, now());
+  });
+}
+function reopenTask(id) { db.prepare('UPDATE fs_tasks SET done_at = NULL, done_by = NULL WHERE id = ?').run(Number(id)); }
+function removeTask(id) { db.prepare('DELETE FROM fs_tasks WHERE id = ?').run(Number(id)); }
+// Einmal am Tag: wer eine fällige Aufgabe hat, bekommt eine Erinnerung
+function dueReminders() {
+  const d = today(), day = currentDay();
+  for (const t of db.prepare('SELECT * FROM fs_tasks WHERE done_at IS NULL AND assignee_id IS NOT NULL').all()) {
+    if (!isDue(t, day, d)) continue;
+    notify.send(t.assignee_id, 'fshub', { key: `fs-due-${t.id}-${t.due_date || t.due_day}`, once: true, title: '🚜 Aufgabe fällig', body: t.title, url: `/farming/hof/${t.farm_id || farmOf(t.assignee_id) || ''}?tab=aufgaben` });
+  }
+}
+
+// ---------- Vorschläge des Hubs (automatische Aufgaben) ----------
+function suggestions(farmId) {
+  const m = model();
+  const f = m.farms.find(x => x.id === Number(farmId));
+  if (!f) return [];
+  const out = [];
+  const wear = Number(getSetting('fs_auto_wear', '50')), diesel = Number(getSetting('fs_auto_diesel', '50')), pal = Number(getSetting('fs_auto_pallets', '6'));
+  // Paletten im Ausgang: je Ort (oder Stelle bei einem Feld)
+  const spots = new Map();
+  for (const v of f.pallets) {
+    const k = v.where.place ? 'p' + v.where.place : v.where.field ? 'f' + v.where.field : null;
+    if (!k) continue;
+    if (!spots.has(k)) spots.set(k, { label: v.where.label, n: 0, fills: {} });
+    const s = spots.get(k);
+    s.n++;
+    for (const [t, l] of v.fill) s.fills[t] = (s.fills[t] || 0) + l;
+  }
+  for (const [k, s] of spots) {
+    if (s.n < pal) continue;
+    const what = Object.entries(s.fills).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t]) => N.fill(t)).join(', ');
+    out.push({ key: `pal:${f.id}:${k}`, sig: String(Math.floor(s.n / 2)), icon: '📦', title: `${s.n} Paletten ${what} abholen (${s.label})`, why: `Ab ${pal} Paletten an einem Ort` });
+  }
+  const worn = f.fleet.filter(v => v.damage !== null && v.damage >= wear);
+  if (worn.length) out.push({ key: `wear:${f.id}`, sig: worn.map(v => v.uid || v.name).sort().join(','), icon: '🔧', title: `Werkstatt: ${worn.length} ${worn.length === 1 ? 'Fahrzeug' : 'Fahrzeuge'} über ${wear} % Verschleiß`, why: worn.slice(0, 4).map(v => `${v.name} ${v.damage} %`).join(', ') + (worn.length > 4 ? ' …' : '') });
+  const dry = f.fleet.filter(v => v.diesel !== null && v.diesel < diesel);
+  if (dry.length) out.push({ key: `diesel:${f.id}`, sig: dry.map(v => v.uid || v.name).sort().join(','), icon: '⛽', title: `Tanken: ${dry.length} ${dry.length === 1 ? 'Fahrzeug' : 'Fahrzeuge'} unter ${diesel} l Diesel`, why: dry.slice(0, 4).map(v => `${v.name} ${Math.round(v.diesel)} l`).join(', ') });
+  if (m.date) {
+    for (const p of plans(f.id)) {
+      const where = p.field ? `Feld ${p.field}` : (p.label || 'Plan');
+      if (p.sow_month === m.date.month && p.kind !== 'perm') out.push({ key: `sow:${p.id}:${m.date.year}`, sig: '1', icon: '🌱', title: `${where}: ${p.crop} säen`, why: 'Laut Hofkalender', field: p.field });
+      if (p.harvest_month === m.date.month) out.push({ key: `harvest:${p.id}:${m.date.year}`, sig: '1', icon: '🌾', title: `${where}: ${p.crop} ernten`, why: 'Laut Hofkalender', field: p.field });
+    }
+  }
+  for (const d of m.demands) {
+    const s = f.stock.find(x => x.fill === d.fill && !x.supply);
+    if (!s) continue;
+    out.push({ key: `demand:${d.fill}:${d.day}`, sig: '1', icon: '📈', title: `Große Nachfrage ${N.fill(d.fill)} +${Math.round((d.mult - 1) * 100)} %${d.running ? ' (läuft)' : d.day ? ' ab ' + (fmtDay(d.day) || 'Tag ' + d.day) : ''}`, why: `Ihr habt ${Math.round(s.amount).toLocaleString('de-DE')} l` });
+  }
+  if (getSetting('fs_auto_food', '1') === '1') {
+    for (const b of f.buildings) if (b.kind === 'husbandry' && b.hasFood && b.food < 1) out.push({ key: `food:${f.id}:${b.idx}`, sig: String((feeds.get('ftp') || {}).at || ''), icon: '🐄', title: `Futter auffüllen: ${b.name}`, why: 'Laut letztem Autosave leer' });
+  }
+  // Ausgeblendete (gleicher Anlass) und schon übernommene weglassen
+  const hidden = new Map(db.prepare('SELECT key, sig FROM fs_hidden').all().map(r => [r.key, r.sig]));
+  const taken = new Set(db.prepare('SELECT auto_key FROM fs_tasks WHERE auto_key IS NOT NULL AND (done_at IS NULL OR done_at > ?)').all(now() - 86400).map(r => r.auto_key));
+  return out.filter(s => hidden.get(s.key) !== s.sig && !taken.has(s.key));
+}
+function hideSuggestion(key, sig) {
+  db.prepare('INSERT INTO fs_hidden(key, sig, hidden_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET sig = excluded.sig, hidden_at = excluded.hidden_at').run(String(key).slice(0, 200), String(sig).slice(0, 2000), now());
+  db.prepare('DELETE FROM fs_hidden WHERE hidden_at < ?').run(now() - 90 * 86400);
+}
+function takeSuggestion(user, farmId, key) {
+  const s = suggestions(farmId).find(x => x.key === key);
+  if (!s) return null;
+  return addTask(user, farmId, { title: s.title, note: s.why, field: s.field, due: 'today' }, s.key);
+}
+
+// ---------- Kalender ----------
+function crops() {
+  if (!db.prepare('SELECT 1 FROM fs_crops LIMIT 1').get()) {
+    const ins = db.prepare('INSERT INTO fs_crops(name, fill, color, sow, harvest, kind, position) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    tx(() => CROP_PRESET.forEach(([n, f, c, s, h, k], i) => ins.run(n, f, c, s.join(','), h.join(','), k || 'field', i)));
+  }
+  return db.prepare('SELECT * FROM fs_crops ORDER BY position, name').all().map(c => ({ ...c, sowM: months(c.sow), harvestM: months(c.harvest) }));
+}
+function crop(id) { return crops().find(c => c.id === Number(id)) || null; }
+function saveCrop(id, b) {
+  const name = oneLine(b.name, MAX.name);
+  if (!name) return;
+  const vals = [name, oneLine(b.fill, 40).toUpperCase() || null, /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#8fd16a',
+    months([].concat(b.sow || []).join(',')).join(','), months([].concat(b.harvest || []).join(',')).join(','), ['field', 'grass', 'perm'].includes(b.kind) ? b.kind : 'field'];
+  if (id) db.prepare('UPDATE fs_crops SET name = ?, fill = ?, color = ?, sow = ?, harvest = ?, kind = ? WHERE id = ?').run(...vals, Number(id));
+  else db.prepare('INSERT INTO fs_crops(name, fill, color, sow, harvest, kind, position) VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM fs_crops))').run(...vals);
+}
+function removeCrop(id) { db.prepare('DELETE FROM fs_crops WHERE id = ?').run(Number(id)); }
+function resetCrops() { db.prepare('DELETE FROM fs_crops').run(); crops(); }
+function plans(farmId) {
+  crops();
+  return db.prepare(`SELECT p.*, c.name AS crop, c.color, c.kind, c.fill FROM fs_plans p LEFT JOIN fs_crops c ON c.id = p.crop_id
+    WHERE p.farm_id = ? ORDER BY p.field IS NULL, p.field, p.id`).all(Number(farmId));
+}
+function plan(id) { return db.prepare('SELECT * FROM fs_plans WHERE id = ?').get(Number(id)) || null; }
+function addPlan(user, farmId, b) {
+  const c = crop(b.crop_id);
+  if (!c) return null;
+  const field = intOr(b.field), label = oneLine(b.label, MAX.name) || null;
+  const sow = intOr(b.sow_month) ?? c.sowM[0] ?? 0, harvest = intOr(b.harvest_month) ?? c.harvestM[0] ?? 0;
+  return Number(db.prepare('INSERT INTO fs_plans(farm_id, field, label, crop_id, sow_month, harvest_month, note, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(Number(farmId), field, field ? null : (label || c.name), c.id, Math.max(0, Math.min(11, sow)), Math.max(0, Math.min(11, harvest)), clean(b.note, 300) || null, user.id, now()).lastInsertRowid);
+}
+function removePlan(id) { db.prepare('DELETE FROM fs_plans WHERE id = ?').run(Number(id)); }
+// Zellen einer Planzeile: s = säen, g = wächst, h = ernten; über den Jahreswechsel geht es vorne weiter
+function planCells(p) {
+  const cells = Array(12).fill('');
+  if (p.kind === 'perm') { for (let i = 0; i < 12; i++) cells[i] = 'g'; cells[p.harvest_month] = 'h'; return cells; }
+  cells[p.sow_month] = 's';
+  for (let i = (p.sow_month + 1) % 12, k = 0; i !== p.harvest_month && k < 12; i = (i + 1) % 12, k++) cells[i] = 'g';
+  cells[p.harvest_month] = p.harvest_month === p.sow_month ? 's' : 'h';
+  return cells;
+}
+// Kalender eines Spieljahrs: Planzeilen mit Aufgabenpunkten und eine Zeile mit der Zahl der Aufgaben je Monat
+function calendar(farmId, year, withRepeat = false) {
+  const dpp = daysPerPeriod();
+  const all = db.prepare(`${TASK_SQL} WHERE (t.farm_id = ? OR t.farm_id = 0) AND t.due_day IS NOT NULL`).all(Number(farmId))
+    .filter(t => withRepeat || !t.repeat).map(t => decorate(t));
+  const inYear = all.filter(t => { const d = dateOf(t.due_day, dpp); return d && d.year === year; });
+  const byMonth = Array.from({ length: 12 }, () => []);
+  for (const t of inYear) byMonth[dateOf(t.due_day, dpp).month].push(t);
+  const rows = plans(farmId).map(p => {
+    const dots = Array.from({ length: 12 }, () => []);
+    if (p.field) for (const t of inYear) if (t.field === p.field) dots[dateOf(t.due_day, dpp).month].push(t);
+    return { ...p, cells: planCells(p), dots };
+  });
+  return { rows, byMonth, year };
+}
+
+// ---------- Felder und Orte ----------
+function fieldReports() {
+  return new Map(db.prepare('SELECT f.*, u.username, c.name AS crop, c.color AS crop_color FROM fs_fields f LEFT JOIN users u ON u.id = f.user_id LEFT JOIN fs_crops c ON c.id = f.crop_id').all().map(r => [r.field, r]));
+}
+function reportField(user, field, b) {
+  const id = intOr(field);
+  if (!id) return;
+  const cropId = intOr(b.crop_id), state = Object.hasOwn(N.STATES, b.state) ? b.state : null;
+  db.prepare(`INSERT INTO fs_fields(field, crop_id, state, user_id, game_day, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+              ON CONFLICT(field) DO UPDATE SET crop_id = excluded.crop_id, state = excluded.state, user_id = excluded.user_id, game_day = excluded.game_day, updated_at = excluded.updated_at`)
+    .run(id, cropId && crop(cropId) ? cropId : null, state, user.id, currentDay(), now());
+}
+function fieldOwner(fieldId) { const f = model().fields.find(x => x.id === Number(fieldId)); return f ? f.owner : 0; }
+function savePlace(id, b) {
+  const name = oneLine(b.name, MAX.name), x = Number(b.x), z = Number(b.z);
+  if (!name || !Number.isFinite(x) || !Number.isFinite(z)) return null;
+  const r = Math.max(5, Math.min(300, Number(b.radius) || 30)), farmId = intOr(b.farm_id, 0) || 0;
+  if (id) db.prepare('UPDATE fs_places SET name = ?, farm_id = ?, x = ?, z = ?, radius = ? WHERE id = ?').run(name, farmId, x, z, r, Number(id));
+  else id = Number(db.prepare('INSERT INTO fs_places(name, farm_id, x, z, radius) VALUES (?, ?, ?, ?, ?)').run(name, farmId, x, z, r).lastInsertRowid);
+  invalidate();
+  return id;
+}
+function place(id) { return db.prepare('SELECT * FROM fs_places WHERE id = ?').get(Number(id)) || null; }
+function removePlace(id) {
+  db.prepare('UPDATE fs_tasks SET place_id = NULL WHERE place_id = ?').run(Number(id));
+  db.prepare('DELETE FROM fs_places WHERE id = ?').run(Number(id));
+  invalidate();
+}
+// Paletten eines Hofs, die an keinem Ort stehen, in Haufen (50 m um die Mitte) – daraus lassen sich Orte anlegen
+function palletSpots(f) {
+  const spots = [];
+  for (const v of f.pallets) {
+    if (v.where.place || v.x === null) continue;
+    let s = spots.find(p => Math.hypot(p.sx / p.n - v.x, p.sz / p.n - v.z) < 50);
+    if (!s) spots.push(s = { n: 0, fills: {}, label: v.where.label, sx: 0, sz: 0 });
+    s.n++; s.sx += v.x; s.sz += v.z;
+    for (const [t, l] of v.fill) s.fills[t] = (s.fills[t] || 0) + l;
+  }
+  return spots.map(s => ({ ...s, x: Math.round(s.sx / s.n), z: Math.round(s.sz / s.n), fills: Object.entries(s.fills).map(([t, l]) => ({ fill: t, name: N.fill(t), amount: l })) }))
+    .sort((a, b) => b.n - a.n);
+}
+
+// ---------- Online-Zeiten ----------
+function sessionsToday() {
+  const start = Math.floor(new Date(today() + 'T00:00:00').getTime() / 1000) - 7200;
+  const rows = db.prepare('SELECT name, start_at, end_at FROM fs_sessions WHERE COALESCE(end_at, ?) >= ? ORDER BY start_at').all(now(), start);
+  const by = new Map();
+  for (const r of rows) {
+    const k = r.name.toLowerCase();
+    if (!by.has(k)) by.set(k, { name: r.name, minutes: 0, last: 0, online: false });
+    const e = by.get(k);
+    e.minutes += Math.max(0, ((r.end_at || now()) - Math.max(r.start_at, start)) / 60);
+    e.last = Math.max(e.last, r.end_at || now());
+    if (!r.end_at) e.online = true;
+  }
+  return [...by.values()].sort((a, b) => b.last - a.last);
+}
+function sessionTotals(days = 30) {
+  return db.prepare(`SELECT name, COUNT(*) AS n, SUM(COALESCE(end_at, ?) - start_at) AS secs, MAX(COALESCE(end_at, ?)) AS last FROM fs_sessions
+    WHERE start_at >= ? GROUP BY name COLLATE NOCASE ORDER BY secs DESC`).all(now(), now(), now() - days * 86400);
+}
+
+// ---------- Changelog und Vorschläge ----------
+function changelog(limit = 100) {
+  return db.prepare('SELECT c.*, u.username, u.display_name FROM fs_changelog c LEFT JOIN users u ON u.id = c.user_id ORDER BY c.created_at DESC, c.id DESC LIMIT ?').all(limit);
+}
+function addChange(user, b) {
+  const title = oneLine(b.title, MAX.title);
+  if (!title) return null;
+  return Number(db.prepare("INSERT INTO fs_changelog(user_id, kind, title, body, created_at) VALUES (?, 'note', ?, ?, ?)").run(user.id, title, clean(b.body, MAX.body) || null, now()).lastInsertRowid);
+}
+function removeChange(id) { db.prepare('DELETE FROM fs_changelog WHERE id = ?').run(Number(id)); }
+function ideas(userId, status = null) {
+  const rows = db.prepare(`SELECT s.*, u.username, u.display_name, u.avatar, (SELECT COUNT(*) FROM fs_votes v WHERE v.suggestion_id = s.id) AS votes,
+      EXISTS(SELECT 1 FROM fs_votes v WHERE v.suggestion_id = s.id AND v.user_id = ?) AS voted
+    FROM fs_suggestions s LEFT JOIN users u ON u.id = s.user_id ${status ? 'WHERE s.status = ?' : ''}
+    ORDER BY CASE s.status WHEN 'offen' THEN 0 WHEN 'geplant' THEN 1 WHEN 'umgesetzt' THEN 2 ELSE 3 END, votes DESC, s.created_at DESC`).all(...[userId || 0, ...(status ? [status] : [])]);
+  return rows;
+}
+function idea(id) { return db.prepare('SELECT * FROM fs_suggestions WHERE id = ?').get(Number(id)) || null; }
+function addIdea(user, b) {
+  const title = oneLine(b.title, MAX.title);
+  if (!title) return null;
+  const id = Number(db.prepare('INSERT INTO fs_suggestions(user_id, title, body, created_at) VALUES (?, ?, ?, ?)').run(user.id, title, clean(b.body, MAX.body) || null, now()).lastInsertRowid);
+  notify.toAdmins('🚜 Neuer Vorschlag zum Farming Hub', title, '/farming/vorschlaege#v' + id, 'fs-idea');
+  return id;
+}
+function editIdea(id, b) {
+  const title = oneLine(b.title, MAX.title);
+  if (title) db.prepare('UPDATE fs_suggestions SET title = ?, body = ?, updated_at = ? WHERE id = ?').run(title, clean(b.body, MAX.body) || null, now(), Number(id));
+}
+function answerIdea(id, b) {
+  const s = idea(id);
+  if (!s) return;
+  const status = Object.hasOwn(STATUS, b.status) ? b.status : s.status;
+  db.prepare('UPDATE fs_suggestions SET status = ?, answer = ?, updated_at = ? WHERE id = ?').run(status, clean(b.answer, 1000) || null, now(), s.id);
+  if (status !== s.status && s.user_id) notify.send(s.user_id, 'fshub', { key: 'fs-idea-' + s.id, title: `🚜 Dein Vorschlag: ${STATUS[status]}`, body: s.title, url: '/farming/vorschlaege#v' + s.id });
+}
+function removeIdea(id) { db.prepare('DELETE FROM fs_suggestions WHERE id = ?').run(Number(id)); }
+function vote(id, userId) {
+  if (db.prepare('SELECT 1 FROM fs_votes WHERE suggestion_id = ? AND user_id = ?').get(Number(id), userId)) db.prepare('DELETE FROM fs_votes WHERE suggestion_id = ? AND user_id = ?').run(Number(id), userId);
+  else if (idea(id)) db.prepare('INSERT INTO fs_votes(suggestion_id, user_id) VALUES (?, ?)').run(Number(id), userId);
+}
+
+// ---------- Preise ----------
+function goods(m = model()) {
+  const ec = m.economy;
+  if (!ec) return [];
+  const have = new Map();
+  for (const f of m.farms) for (const s of f.stock) have.set(s.fill, (have.get(s.fill) || 0) + s.amount);
+  for (const f of m.farms) for (const c of f.cargo) have.set(c.fill, (have.get(c.fill) || 0) + c.amount);
+  const cur = m.month;
+  return Object.entries(ec.prices).filter(([k]) => !NOT_GOODS.test(k)).map(([k, p]) => {
+    const vals = p.map(v => v || 0);
+    const best = vals.indexOf(Math.max(...vals));
+    const nowP = cur !== null ? vals[cur] : null;
+    const next = cur !== null ? vals[(cur + 1) % 12] : null;
+    return { fill: k, name: N.fill(k), prices: vals, now: nowP, trend: nowP && next ? Math.round((next - nowP) / nowP * 100) : null, best, bestPrice: vals[best],
+      group: CROPS.has(k) ? 'feld' : ANIMAL_GOODS.has(k) ? 'tiere' : 'produkte', have: have.get(k) || 0, demand: ec.demands.find(d => d.fill === k) || null };
+  }).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+
+// ---------- Modliste ----------
+const modKey = s => String(s || '').toLowerCase().replace(/^fs\d\d_/, '').replace(/[^a-z0-9]/g, '');
+function modCompare(m = model()) {
+  const ml = require('./modlists');
+  const slug = getSetting('fs_modlist', '');
+  const list = slug ? ml.bySlug(slug) : null;
+  const items = list ? ml.categories(list.id).flatMap(c => c.rows.map(r => ({ ...r, category: c.name }))) : [];
+  const keys = new Map(items.map(i => [modKey(i.name), i]));
+  const mods = m.mods.map(x => {
+    const it = keys.get(modKey(x.title)) || keys.get(modKey(x.name)) || null;
+    if (it) it.matched = true;
+    return { ...x, dlc: /^pdlc_/.test(x.name), item: it };
+  });
+  return { list, mods, missing: items.filter(i => !i.matched) };
+}
+// Server-Haken der verknüpften Modliste nach dem Server setzen
+function syncModlist(m = model()) {
+  const { list, mods, missing } = modCompare(m);
+  if (!list) return 0;
+  const on = new Set(mods.filter(x => x.item).map(x => x.item.id));
+  let changed = 0;
+  tx(() => {
+    for (const it of [...mods.filter(x => x.item).map(x => x.item), ...missing]) {
+      const want = on.has(it.id) ? 1 : 0;
+      if (!!it.on_server !== !!want) { db.prepare('UPDATE mod_items SET on_server = ? WHERE id = ?').run(want, it.id); changed++; }
+    }
+  });
+  return changed;
+}
+
+// Konto gelöscht: Mitgliedschaft geht mit (Fremdschlüssel), Aufgaben bleiben ohne Zuständigen
+function start() {
+  crops();
+  feeds.start();
+  // Uhr: erst nach dem zweiten Abruf weiß der Hub, ob sie läuft
+}
+
+module.exports = {
+  STATUS, REPEAT, MAX, SUPPLIES, DEFAULT_COLORS, enabled, canView, canEditFarm, farmOf, model, invalidate, farm, feed, ftpFile,
+  currentDay, setDay, estimateDay, dateOf, dayOfMonth, fmtDay, hhmm, daysPerPeriod, today, accountFor, history, record,
+  join, leave, setMember, saveFarm, notes, addNote, note, canChangeNote, editNote, removeNote,
+  tasks, openTasks, task, addTask, editTask, completeTask, reopenTask, removeTask, isDue, dueLabel, repeatLabel,
+  suggestions, hideSuggestion, takeSuggestion, crops, crop, saveCrop, removeCrop, resetCrops, plans, plan, addPlan, removePlan, planCells, calendar,
+  fieldReports, reportField, fieldOwner, savePlace, place, removePlace, palletSpots, sessionsToday, sessionTotals,
+  changelog, addChange, removeChange, ideas, idea, addIdea, editIdea, answerIdea, removeIdea, vote, goods, modCompare, syncModlist, start,
+  _clock: clock, _onStats: onStats,
+};

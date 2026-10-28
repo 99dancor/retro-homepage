@@ -15,7 +15,7 @@
   <li>Was du schreibst, kann der Admin lesen, auch „anonyme“ Forenbeiträge. Nachrichten im Messenger zeigt die Seite ihm nicht an, sie liegen aber unverschlüsselt auf dem Server.</li>
 </ul>
 <p>Springe zu: <a href="#besuch">Besuch</a> · <a href="#cookies">Cookies</a> · <a href="#browser">Im Browser</a> ·
-  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#pixelpfoten">Pixelpfoten</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#kartenspiele">UNO, Flip 7, Pilli Pilli</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#sudoku">Sudoku</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#werwolf">Werwolf</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
+  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#pixelpfoten">Pixelpfoten</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#kartenspiele">UNO, Flip 7, Pilli Pilli</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#sudoku">Sudoku</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#werwolf">Werwolf</a> · <a href="#farming">Farming Simulator</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
 </fieldset>
 
 <h2 id="besuch">👣 Wenn du die Seite besuchst</h2>
@@ -416,6 +416,20 @@
   <%- code('wwView', 'So entscheidet der Server, wessen Rolle du sehen darfst.') %>
   <%- code('wwChat', 'Der Chat im Online-Modus: wer wo schreiben darf, steht in <code>channels</code> direkt darüber.') %>
   <%- code('wwResults', 'Diese Spalten speichert die Seite pro Mitglied und Spiel.') %>
+</details>
+
+<h2 id="farming">🚜 Farming Simulator Hub</h2>
+<ul>
+  <li><b>Daten vom Spieleserver:</b> Die Website holt Stand, Spieler, Mods, Felder, Fahrzeuge, Preise und das Kartenbild selbst vom Spieleserver ab (über das Webinterface und, wenn eingerichtet, per FTP aus dem Savegame-Ordner). Dein Browser spricht nie mit dem Spieleserver. Die Adressen mit ihren Codes und das FTP-Passwort stehen nur in der Seitenverwaltung, werden dort verdeckt angezeigt und nie an einen Browser geschickt.</li>
+  <li><b>Spielernamen und Online-Zeiten:</b> Der Spieleserver meldet, wer gerade spielt, mit dem Namen im Spiel. Die Seite merkt sich pro Name, wann er auf den Server kam und wann er ging, und zeigt daraus in der Übersicht, wer heute wie lange da war. Die Seitenverwaltung zeigt dem Admin zusätzlich die Spielzeit der letzten 30 Tage pro Name. Aufgehoben wird das ein halbes Jahr, dann gelöscht. Heißt dein Konto oder dein Anzeigename so wie dein Name im Spiel, verlinkt die Übersicht auf dein Profil.</li>
+  <li><b>Was du im Hub einträgst:</b> zu welchem Hof du gehörst, Hofname und Farbe, Notizen (mit deinem Namen), Aufgaben (wer sie angelegt hat, wem sie zugewiesen sind, wer sie erledigt hat), Feldmeldungen zu Frucht und Zustand, Anbaupläne, Orte, Vorschläge und deine Stimmen dazu. Das sehen alle, die den Hub sehen dürfen (je nach Seitenverwaltung Mitglieder oder alle). Löschst du dein Konto, verschwinden deine Hof-Zugehörigkeit, deine Notizen, Vorschläge und Stimmen; bei Aufgaben, Plänen und Feldmeldungen bleibt der Eintrag ohne deinen Namen stehen.</li>
+  <li><b>Benachrichtigungen:</b> Wird dir eine Aufgabe zugewiesen, ändern sich die Mods auf dem Server oder antwortet der Admin auf deinen Vorschlag, bekommst du eine Nachricht in der Seite. Abschalten kannst du das unter <a href="/konto?reiter=benachrichtigungen#benachrichtigungen">Konto und Passwort → Benachrichtigungen</a>.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('fsSecret', 'So verdeckt die Seitenverwaltung Codes in den Adressen. Das FTP-Passwort wird gar nicht erst angezeigt.') %>
+  <%- code('fsSessions', 'So schreibt der Hub die Online-Zeiten mit: neu, wer dazukommt, beendet, wer fehlt, gelöscht nach einem halben Jahr.') %>
+  <%- code('fsSessionTable', 'Mehr steht pro Besuch auf dem Spieleserver nicht in der Datenbank.') %>
+  <%- code('fsMembers', 'Hof-Zugehörigkeit: verschwindet mit deinem Konto.') %>
 </details>
 
 <h2 id="fragen">🗑 Löschen und Fragen</h2>

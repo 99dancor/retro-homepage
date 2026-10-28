@@ -1,5 +1,15 @@
 # Changelog
 
+## 28.10.2026 – Farming Simulator Hub
+
+- **Neu im Startmenü:** 🚜 Farming Simulator, ein Fenster für unseren Server. Links die Leiste mit Übersicht, Karte, Preisen, Mods, den Höfen und ganz unten Changelog und Vorschläge.
+- **Übersicht:** Servername, Spieldatum, Uhrzeit und Wetter, wer gerade spielt und wer heute da war, große Nachfragen, „Heute erledigen“ mit einer Spalte je Hof und Notizen für alle.
+- **Karte:** alle Felder mit Besitz, Früchten und Zustand wie im Spiel, dazu Fahrzeuge, Paletten und eigene Orte. Frucht und Zustand melden Mitglieder per Klick aufs Feld.
+- **Höfe:** Trag dich bei deinem Hof ein und gib ihm einen Namen. Pro Hof Land, Bilanz und offene Aufgaben, dazu Inventar, Produktion, Fahrzeuge, Finanzen, Hofkalender und Aufgaben mit Vorschlägen (Paletten abholen, Werkstatt, Diesel, Säen und Ernten, Futter).
+- **Preise:** jede Ware mit Verlauf übers Jahr, bestem Monat und was die Höfe davon auf Lager haben.
+- **Mods:** was auf dem Server läuft, abgeglichen mit der Modliste. Ändern sich die Mods, steht es im Changelog und die Hofmitglieder bekommen eine Nachricht.
+- **Seitenverwaltung → Farming:** Adressen aus dem Webinterface und der FTP-Zugang (Codes und Passwort bleiben verdeckt), Höfe, Orte, Früchte, Spieldatum und wer was sehen und ändern darf.
+
 ## 25.10.2026 – Pixelpfoten: Flecken auch, während du weg bist
 
 - **Pixelpfoten:** Die Tiere machen ihr Geschäft auch, wenn du offline bist. Beim Zurückkommen wird die Zeit nachgerechnet und die Flecken liegen zufällig verteilt; das Tagebuch sagt, was passiert ist.

@@ -1,0 +1,24 @@
+<%- include('../partials/head') %>
+<%# Farming Simulator Hub: links die Bereiche (Server, Höfe, unten Changelog und Vorschläge), rechts der Inhalt. Routen: src/routes/fshub.js %>
+<div class="fs" id="fs" data-csrf="<%= csrf %>">
+  <nav class="fs-side panel" aria-label="Bereiche">
+    <div class="grp">Server</div>
+    <a class="it<%= section === 'overview' ? ' sel' : '' %>" href="/farming">🏠 Übersicht</a>
+    <a class="it<%= section === 'map' ? ' sel' : '' %>" href="/farming/karte">🗺️ Karte</a>
+    <a class="it<%= section === 'prices' ? ' sel' : '' %>" href="/farming/preise">📈 Preise</a>
+    <a class="it<%= section === 'mods' ? ' sel' : '' %>" href="/farming/mods">🧩 Modliste<% if (m.mods.length) { %> <span class="cnt"><%= m.mods.length %></span><% } %></a>
+    <div class="grp">Höfe</div>
+    <% for (const f of m.farms) { %>
+      <a class="it<%= section === 'farm' && locals.f && locals.f.id === f.id ? ' sel' : '' %>" href="/farming/hof/<%= f.id %>"><span class="dot" style="background:<%= f.color %>"></span><span class="nm"><%= f.name %></span><% if (myFarm === f.id) { %><span class="me" title="Dein Hof">★</span><% } %><% if (due.get(f.id)) { %><span class="n" title="heute fällig"><%= due.get(f.id) %></span><% } %></a>
+    <% } %>
+    <% if (!m.farms.length) { %><div class="it muted">Noch keine Höfe</div><% } %>
+    <div class="spacer"></div>
+    <a class="it<%= section === 'changelog' ? ' sel' : '' %>" href="/farming/changelog">📋 Changelog</a>
+    <a class="it<%= section === 'ideas' ? ' sel' : '' %>" href="/farming/vorschlaege">💡 Vorschläge</a>
+    <% if (isAdmin) { %><a class="it" href="/admin/farming" target="_top">⚙️ Einstellungen</a><% } %>
+  </nav>
+  <main class="fs-main">
+    <% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
+    <% if (!m.configured && section !== 'changelog' && section !== 'ideas') { %>
+      <div class="msg">🚜 Der Hub kennt den Server noch nicht. <% if (isAdmin) { %>Trag in der <a href="/admin/farming" target="_top">Seitenverwaltung → Farming</a> die Adressen aus dem Webinterface ein.<% } else { %>Ein Admin trägt die Adressen des Servers bald ein.<% } %></div>
+    <% } %>

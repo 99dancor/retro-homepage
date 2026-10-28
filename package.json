@@ -6,11 +6,12 @@
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning src/server.js",
     "dev": "node --watch --disable-warning=ExperimentalWarning src/server.js",
-    "test": "node --disable-warning=ExperimentalWarning test/smoke.js && node --test --disable-warning=ExperimentalWarning test/blackjack.test.js test/poker.test.js test/durak.test.js test/cardgames.test.js test/kartenspiele.test.js test/crossword.test.js test/sudoku.test.js test/quiz.test.js test/werwolf.test.js test/paint.test.js test/paintlobby.test.js test/webpush.test.js games/haustier/test/*.test.js"
+    "test": "node --disable-warning=ExperimentalWarning test/smoke.js && node --test --disable-warning=ExperimentalWarning test/blackjack.test.js test/poker.test.js test/durak.test.js test/cardgames.test.js test/kartenspiele.test.js test/crossword.test.js test/sudoku.test.js test/quiz.test.js test/werwolf.test.js test/fshub.test.js test/paint.test.js test/paintlobby.test.js test/webpush.test.js games/haustier/test/*.test.js"
   },
   "license": "UNLICENSED",
   "dependencies": {
     "adm-zip": "^0.6.1",
+    "basic-ftp": "^6.2.3",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "ejs": "^7.0.1",

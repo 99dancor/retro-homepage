@@ -2478,6 +2478,149 @@ async function main() {
       sql.close();
     });
 
+    await step('Farming Simulator Hub: Feeds abholen, Höfe, Notizen, Aufgaben, Kalender, Karte, Preise, Changelog, Vorschläge', async () => {
+      const { anna, bernd } = members;
+      const http = require('node:http');
+      // Kleiner Spieleserver mit den echten Beispiel-Feeds (test/fixtures/fs). over: Inhalte zum Austauschen im Test.
+      const FX = path.join(__dirname, 'fixtures', 'fs'), over = {};
+      const fx = http.createServer((req, res) => {
+        const name = req.url.split('?')[0].slice(1);
+        if (!/^[a-z]+\.(xml|jpg)$/.test(name)) { res.writeHead(404); return res.end(); }
+        res.writeHead(200, { 'content-type': name.endsWith('.jpg') ? 'image/jpeg' : 'text/xml' });
+        res.end(over[name] ?? fs.readFileSync(path.join(FX, name)));
+      });
+      await new Promise(r => fx.listen(0, '127.0.0.1', r));
+      const FXU = `http://127.0.0.1:${fx.address().port}`;
+      const SECRET = 'GeHeIm4711code';
+      try {
+        assert.equal((await guest.req('/farming')).status, 302, 'Gäste sehen den Hub nur, wenn der Admin es erlaubt');
+        assert.doesNotMatch((await guest.req('/', { top: true })).text_, /🚜 Farming Simulator/);
+        assert.match((await anna.req('/', { top: true })).text_, /href="\/farming">🚜 Farming Simulator/);
+        assert.match((await anna.req('/farming')).text_, /Der Hub kennt den Server noch nicht/);
+        // Seitenverwaltung: Adressen eintragen, sofort abfragen; der Code taucht nirgends auf
+        let t = await admin.csrf('/admin/farming');
+        const urls = Object.fromEntries(['stats', 'savegame', 'vehicles', 'economy'].map(k => ['url_' + k, `${FXU}/${k}.xml?code=${SECRET}`]));
+        assert.equal((await admin.form('/admin/farming/server', { _csrf: t, ...urls, url_map: `${FXU}/map.jpg?code=${SECRET}`, int_stats: '30', ftp_host: '', ftp_port: '21' })).status, 302);
+        assert.equal((await admin.form('/admin/farming/server', { _csrf: t, url_stats: 'ftp://falsch' })).headers.get('location').includes('err='), true);
+        assert.equal((await admin.form('/admin/farming/testen', { _csrf: t })).status, 302);
+        const adm = (await admin.req('/admin/farming')).text_;
+        assert.match(adm, /Chaosfarm · Bilk · 0\/4 Spieler · 56 Mods/);
+        assert.match(adm, /141 Einträge · Farm 1: 87, Farm 2: 54/);
+        assert.match(adm, /Bild 512 × 512 Pixel/);
+        assert.doesNotMatch(adm, new RegExp(SECRET), 'Code bleibt auf dem Server');
+        let page = (await anna.req('/farming')).text_;
+        assert.doesNotMatch(page, new RegExp(SECRET));
+        assert.match(page, /<b>Chaosfarm<\/b>/);
+        assert.match(page, /Version 1\.25\.0\.0 · Karte „Bilk“/);
+        assert.match(page, /483\.362 €/);
+        assert.match(page, /Große Nachfrage ab 1\. Juni J8, 7 Uhr: <a href="\/farming\/preise\?w=STONE"><b>Steine \+30 %/);
+        assert.match(page, /Spieltag 174 · geschätzt/);
+        assert.match(page, /Werkstatt: 4 Fahrzeuge über 50 % Verschleiß <span class="chip"/);
+        assert.equal((await anna.req('/farming/karte.bild')).headers.get('content-type'), 'image/jpeg');
+
+        // Hof beitreten, Namen geben; Fremde dürfen das nicht
+        t = anna.jar.get('csrf');
+        assert.equal((await anna.form('/farming/hof/1/beitreten', { _csrf: t })).headers.get('location'), '/farming/hof/1?ok=beigetreten');
+        assert.equal((await anna.form('/farming/hof/1/name', { _csrf: t, name: 'Hof Anna', color: '#aa5500' })).status, 302);
+        assert.equal((await bernd.form('/farming/hof/1/name', { _csrf: bernd.jar.get('csrf'), name: 'Meins' })).status, 403);
+        assert.equal((await bernd.form('/farming/hof/2/beitreten', { _csrf: bernd.jar.get('csrf') })).status, 302);
+        page = (await anna.req('/farming/hof/1')).text_;
+        assert.match(page, /<b>Hof Anna<\/b>/);
+        assert.match(page, /57,2 ha/);
+        assert.match(page, /Wert des Landes 4,46 Mio €/);
+        assert.match(page, /Felder: 18 · Grundstücke: 20/);
+        assert.match(page, /Forelle<\/a><\/b>/);
+        assert.match((await anna.req('/farming/hof/1?tab=fahrzeuge&sort=preis')).text_, /JAGUAR 990 TERRA TRAC/);
+        assert.match((await anna.req('/farming/hof/1?tab=finanzen')).text_, /Fuhrpark \(59 Stück, Neupreis\)/);
+
+        // Notizen: alle schreiben, nur eigene bearbeiten und löschen
+        assert.equal((await anna.form('/farming/notizen', { _csrf: t, body: 'Ballen <b>nicht</b> verkaufen' })).status, 302);
+        const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'));
+        const noteId = sql.prepare('SELECT id FROM fs_notes ORDER BY id DESC').get().id;
+        assert.equal((await bernd.form(`/farming/notizen/${noteId}/loeschen`, { _csrf: bernd.jar.get('csrf') })).status, 403);
+        assert.equal((await anna.form(`/farming/notizen/${noteId}`, { _csrf: t, body: 'Ballen nicht verkaufen!' })).status, 302);
+        page = (await bernd.req('/farming')).text_;
+        assert.match(page, /Ballen nicht verkaufen!/);
+        assert.doesNotMatch(page, /<b>nicht<\/b>/);
+
+        // Aufgaben: regelmäßig, heute fällig, abhaken legt die nächste Runde an; andere Höfe dürfen nicht
+        assert.equal((await bernd.form('/farming/hof/1/aufgaben', { _csrf: bernd.jar.get('csrf'), title: 'Fremd' })).status, 403);
+        assert.equal((await anna.form('/farming/hof/1/aufgaben', { _csrf: t, title: 'Ziegen füttern', due: 'today', repeat: 'days', repeat_n: '1' })).status, 302);
+        page = (await anna.req('/farming')).text_;
+        assert.match(page, /Ziegen füttern[\s\S]*?heute · 🔁 täglich/);
+        const taskId = sql.prepare("SELECT id FROM fs_tasks WHERE title = 'Ziegen füttern'").get().id;
+        assert.equal((await anna.form(`/farming/aufgaben/${taskId}/erledigt`, { _csrf: t })).status, 302);
+        const next = sql.prepare("SELECT * FROM fs_tasks WHERE title = 'Ziegen füttern' AND done_at IS NULL").get();
+        assert.ok(next && next.due_date > sql.prepare('SELECT due_date FROM fs_tasks WHERE id = ?').get(taskId).due_date, 'nächste Runde morgen');
+        // Vorschläge vom Server übernehmen und ausblenden
+        page = (await anna.req('/farming/hof/1?tab=aufgaben')).text_;
+        assert.match(page, /Vorschläge vom Server/);
+        assert.equal((await anna.form('/farming/hof/1/vorschlag', { _csrf: t, key: 'wear:1' })).status, 302);
+        assert.ok(sql.prepare("SELECT 1 FROM fs_tasks WHERE auto_key = 'wear:1'").get());
+        const dieselSig = page.match(/name="key" value="diesel:1"><input type="hidden" name="sig" value="([^"]*)"/)[1];
+        assert.equal((await anna.form('/farming/hof/1/ausblenden', { _csrf: t, key: 'diesel:1', sig: dieselSig })).status, 302);
+        page = (await anna.req('/farming/hof/1?tab=aufgaben')).text_;
+        assert.doesNotMatch(page, /value="wear:1"|value="diesel:1"/);
+
+        // Hofkalender, Feld melden, Karte
+        const weizen = sql.prepare("SELECT id FROM fs_crops WHERE name = 'Weizen'").get().id;
+        assert.equal((await anna.form('/farming/hof/1/plan', { _csrf: t, field: '7', crop_id: String(weizen), sow_month: '', harvest_month: '' })).status, 302);
+        assert.match((await anna.req('/farming/hof/1?tab=kalender')).text_, /Feld 7 · Weizen[\s\S]*?säen/);
+        assert.equal((await bernd.form('/farming/feld/7', { _csrf: bernd.jar.get('csrf'), crop_id: String(weizen), state: 'reif' })).status, 403);
+        assert.equal((await anna.form('/farming/feld/7', { _csrf: t, crop_id: String(weizen), state: 'reif' })).status, 302);
+        page = (await anna.req('/farming/karte?feld=7&ansicht=zustand')).text_;
+        assert.match(page, /<legend>Feld 7<\/legend>/);
+        assert.match(page, /Zustand: <b>Erntereif<\/b>/);
+        assert.match(page, /gemeldet von anna/);
+        // Ort aus einem Palettenhaufen
+        const spot = (await anna.req('/farming/hof/1?tab=produktion')).text_.match(/name="x" value="(-?\d+)"><input type="hidden" name="z" value="(-?\d+)"/);
+        assert.ok(spot, 'Palettenhaufen ohne Ort');
+        assert.equal((await anna.form('/farming/hof/1/ort', { _csrf: t, name: 'Fischzucht', x: spot[1], z: spot[2], radius: '40' })).status, 302);
+        assert.match((await anna.req('/farming/hof/1?tab=produktion')).text_, /📍 Fischzucht<\/b> <span class="hint">\d+ Paletten/);
+
+        // Preise und Modliste
+        page = (await anna.req('/farming/preise?w=WHEAT')).text_;
+        assert.match(page, /<legend>Weizen – € je 1 000 l<\/legend>/);
+        assert.match(page, /bester Monat <b>Dezember<\/b>/);
+        page = (await anna.req('/farming/mods')).text_;
+        assert.match(page, /Bunker Silo Set Modular/);
+        assert.match(page, /Kastor \[D-S-Agrarservice\]/);
+
+        // Mods ändern sich auf dem Server: Changelog von selbst, Benachrichtigung an die Höfe
+        over['stats.xml'] = fs.readFileSync(path.join(FX, 'stats.xml'), 'utf8').replace(/\s*<Mod name="FS25_CutOpenBale"[^\n]*/, '').replace('version="1.0.2.0"', 'version="1.0.3.0"');
+        await admin.form('/admin/farming/testen', { _csrf: admin.jar.get('csrf') });
+        page = (await anna.req('/farming/changelog')).text_;
+        assert.match(page, /Mods geändert: 1 aktualisiert, 1 entfernt/);
+        assert.match(page, /Additional Field Info: 1\.0\.2\.0 → 1\.0\.3\.0/);
+        assert.ok(sql.prepare("SELECT 1 FROM notifications n JOIN users u ON u.id = n.user_id WHERE u.username = 'anna' AND n.kind = 'fshub'").get());
+        assert.equal((await anna.form('/farming/changelog', { _csrf: t, title: 'Ich' })).status, 403);
+        assert.equal((await admin.form('/farming/changelog', { _csrf: admin.jar.get('csrf'), title: 'Neue Regeln für den Hof', body: 'Bitte lesen' })).status, 302);
+        assert.match((await anna.req('/farming/changelog')).text_, /Neue Regeln für den Hof/);
+
+        // Vorschläge: schreiben, abstimmen, Admin setzt den Stand
+        assert.equal((await anna.form('/farming/vorschlaege', { _csrf: t, title: 'Biogasanlage bauen', body: 'Gülle loswerden' })).status, 302);
+        const idea = sql.prepare("SELECT id FROM fs_suggestions WHERE title = 'Biogasanlage bauen'").get().id;
+        assert.equal((await bernd.form(`/farming/vorschlaege/${idea}/stimme`, { _csrf: bernd.jar.get('csrf') })).status, 302);
+        assert.equal((await bernd.form(`/farming/vorschlaege/${idea}/antwort`, { _csrf: bernd.jar.get('csrf'), status: 'geplant' })).status, 403);
+        assert.equal((await admin.form(`/farming/vorschlaege/${idea}/antwort`, { _csrf: admin.jar.get('csrf'), status: 'geplant', answer: 'Machen wir im Herbst' })).status, 302);
+        page = (await anna.req('/farming/vorschlaege')).text_;
+        assert.match(page, /▲ 1/);
+        assert.match(page, /📅 Geplant/);
+        assert.match(page, /Machen wir im Herbst/);
+
+        // Datum korrigieren, Gäste zulassen
+        assert.equal((await admin.form('/admin/farming/datum', { _csrf: admin.jar.get('csrf'), dom: '2', month: '3', year: '8' })).status, 302);
+        assert.match((await anna.req('/farming')).text_, /<b>2\. Juni<\/b>[\s\S]*?Jahr 8 · Spieltag 176 · korrigiert/);
+        assert.equal((await admin.form('/admin/farming/allgemein', { _csrf: admin.jar.get('csrf'), fs_enabled: '1', fs_view: 'public', fs_edit: 'farm', fs_auto_wear: '50', fs_auto_diesel: '50', fs_auto_pallets: '6', fs_map_border: '25' })).status, 302);
+        page = (await guest.req('/farming')).text_;
+        assert.match(page, /<b>Chaosfarm<\/b>/);
+        assert.match(page, /Melde dich an/);
+        assert.equal((await guest.form('/farming/notizen', { _csrf: await guest.csrf('/login'), body: 'Gast' })).status, 302);
+        assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM fs_notes WHERE body = 'Gast'").get().n, 0);
+        sql.close();
+      } finally { fx.close(); }
+    });
+
     await step('Gelöschtes Konto verliert seine Statistik-Einträge', async () => {
       const { DatabaseSync } = require('node:sqlite');
       const sql = new DatabaseSync(path.join(DATA, 'site.db'));

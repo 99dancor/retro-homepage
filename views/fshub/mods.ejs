@@ -1,0 +1,27 @@
+<%- include('_top') %>
+<%# Mods des Servers (Stats-Feed) mit Abgleich gegen die verknüpfte Modliste (Seitenverwaltung → Farming → Modliste) %>
+<div class="fs-maphead"><h2>🧩 Modliste</h2><span class="spacer"></span>
+  <% if (cmp.list) { %><a href="/mods/<%= cmp.list.slug %>" target="_top">Zur Modliste „<%= cmp.list.title %>“</a><% } %>
+  <% if (canSync) { %><form method="post" action="/farming/mods/abgleichen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" title="Setzt in der Modliste den Haken „Server“ bei allem, was gerade auf dem Server läuft">✔ Server-Haken abgleichen</button></form><% } %>
+</div>
+<% if (!cmp.list) { %><p class="hint">Keine Modliste verknüpft. <%= isAdmin ? 'In der Seitenverwaltung → Farming lässt sich eine Modliste wählen, dann zeigt der Hub, was fehlt.' : '' %></p><% } %>
+<% if (changes.length) { %>
+  <fieldset class="groupbox"><legend>Zuletzt geändert</legend>
+    <% for (const c of changes.slice(0, 3)) { %><div><b><%= when(c.created_at) %></b> · <%= c.title %><div class="hint pre"><%= c.body %></div></div><% } %>
+  </fieldset>
+<% } %>
+<div class="fs-scroll">
+<table class="list tight">
+  <tr><th>Mod</th><th>Autor</th><th>Version</th><% if (cmp.list) { %><th>In der Modliste</th><% } %></tr>
+  <% for (const x of cmp.mods) { %>
+    <tr><td><b><%= x.title %></b><br><small class="hint"><%= x.name %></small><%= x.dlc ? ' ' : '' %><% if (x.dlc) { %><span class="tag">DLC</span><% } %></td><td><%= x.author %></td><td><%= x.version %></td>
+      <% if (cmp.list) { %><td><%= x.item ? '✔ ' + (x.item.category || '') : x.dlc ? '' : '' %><% if (!x.item && !x.dlc) { %><span class="warn">fehlt</span><% } %></td><% } %></tr>
+  <% } %>
+</table>
+<% if (cmp.missing.length) { %>
+  <h3>In der Modliste, aber nicht auf dem Server</h3>
+  <table class="list tight"><% for (const it of cmp.missing) { %><tr><td><b><%= it.name %></b></td><td><%= it.category %></td><td><%= it.notes %></td></tr><% } %></table>
+<% } %>
+</div>
+<p class="hint"><%= cmp.mods.length %> Mods und DLCs auf dem Server<%= cmp.list ? ' · ' + cmp.mods.filter(x => x.item).length + ' davon in der Liste' : '' %></p>
+<%- include('_bottom') %>

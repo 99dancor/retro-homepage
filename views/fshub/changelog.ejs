@@ -1,0 +1,22 @@
+<%- include('_top') %>
+<%# Changelog des Hubs: Einträge der Admins und was der Hub selbst bemerkt (Mods geändert, neue Server-Version) %>
+<div class="fs-maphead"><h2>📋 Changelog</h2></div>
+<% if (isAdmin) { %>
+  <form method="post" action="/farming/changelog" class="fs-form groupbox"><input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Titel <input name="title" maxlength="120" required placeholder="Was hat sich geändert?"></label>
+    <label>Beschreibung <textarea name="body" maxlength="4000" rows="3" placeholder="Optional"></textarea></label>
+    <button class="def">Eintragen</button>
+  </form>
+<% } %>
+<div class="fs-scroll">
+<% if (!entries.length) { %><p class="hint">Noch keine Einträge. Ändern sich die Mods auf dem Server, schreibt der Hub das selbst hier hinein.</p><% } %>
+<% for (const e of entries) { %>
+  <div class="fs-entry">
+    <span class="ic" aria-hidden="true"><%= { mods: '🧩', server: '🖥️' }[e.kind] || '📝' %></span>
+    <div><b><%= e.title %></b> <span class="hint">· <%= when(e.created_at) %> · <%= e.user_id ? (e.display_name || e.username) : 'vom Hub' %></span>
+      <% if (e.body) { %><div class="pre"><%= e.body %></div><% } %></div>
+    <% if (isAdmin) { %><form method="post" action="/farming/changelog/<%= e.id %>/loeschen" class="inline" data-confirm="Eintrag löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="link" aria-label="Löschen">🗑️</button></form><% } %>
+  </div>
+<% } %>
+</div>
+<%- include('_bottom') %>

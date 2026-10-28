@@ -3,7 +3,7 @@
   <%# Einträge aus src/programs.js: [Schlüssel, Adresse, Beschriftung] oder [Gruppe, Beschriftung, [Einträge]] → Untermenü wie bei Windows 98, auch verschachtelt.
       Jeden Eintrag kann man auf den Desktop ziehen, dann entsteht dort eine Verknüpfung (public/desk.js). %>
   <% const entries = programs.menu(user);
-     const off = programs.off({ guestbookEnabled, boardEnabled, cardsEnabled, paintEnabled, quizEnabled, werwolfEnabled, galleryEnabled, contactEnabled });
+     const off = programs.off({ guestbookEnabled, boardEnabled, cardsEnabled, paintEnabled, quizEnabled, werwolfEnabled, galleryEnabled, contactEnabled, farmingVisible });
      const shown = ([key, , b]) => Array.isArray(b) ? b.some(shown) : !(navHidden.includes(key) || off[key]);
      function menu(list) { for (const [key, a, b] of list.filter(shown)) {
        if (Array.isArray(b)) { %>

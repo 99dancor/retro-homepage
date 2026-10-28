@@ -1,0 +1,81 @@
+<%- include('_top') %>
+<%# Karte für alle Höfe: Kartenbild des Servers, darüber die Felder (Kreis = Mittelpunkt, Größe = Fläche). Ansicht wie im Spiel umschalten:
+    Besitz (live), Früchte und Zustand (aus Meldungen und Plänen). Ohne JavaScript gehen Ansicht und Feldwahl über die Adresse. %>
+<% const S = m.size || 2048, P = v => ((v + S / 2) / S * 1000).toFixed(1); %>
+<%# Radius: halb so groß wie ein Kreis gleicher Fläche, sonst überdecken sich die Felder %>
+<% const R = a => Math.max(6, 0.55 * Math.sqrt((a || 0.5) * 10000 / Math.PI) / S * 1000).toFixed(1); %>
+<% const w = 1000 / (1 - 2 * border / 100), off = -border / 100 * w; %>
+<% const cropList = crops.filter(c => fields.some(f => f.crop === c.name)); %>
+<div class="fs-maphead">
+  <h2>🗺️ Karte<%= st && st.map ? ' – ' + st.map : '' %></h2>
+  <div class="layer" role="group" aria-label="Ansicht">
+    <% for (const [k, l] of [['besitz', 'Besitz'], ['fruechte', 'Früchte'], ['zustand', 'Zustand']]) { %>
+      <a class="btn small<%= layer === k ? ' on' : '' %>" href="/farming/karte?ansicht=<%= k %><%= sel ? '&feld=' + sel.id : '' %>" data-layer="<%= k %>"><%= l %></a>
+    <% } %>
+  </div>
+  <span class="spacer"></span>
+  <label class="inline"><input type="checkbox" data-show="nr" checked> Feldnummern</label>
+  <label class="inline"><input type="checkbox" data-show="veh"> Fahrzeuge</label>
+  <label class="inline"><input type="checkbox" data-show="pal"> Paletten</label>
+  <label class="inline"><input type="checkbox" data-show="orte" checked> Orte</label>
+</div>
+<div class="map-wrap">
+  <div class="fs-map sunken" id="fs-map" data-layer="<%= layer %>" data-size="<%= S %>">
+    <svg viewBox="0 0 1000 1000" role="img" aria-label="Karte mit Feldern">
+      <rect width="1000" height="1000" fill="#5d7a3a"/>
+      <% if (hasImage) { %><image href="/farming/karte.bild" x="<%= off.toFixed(1) %>" y="<%= off.toFixed(1) %>" width="<%= w.toFixed(1) %>" height="<%= w.toFixed(1) %>" preserveAspectRatio="none"/><% } %>
+      <% for (const lay of ['besitz', 'fruechte', 'zustand']) { %>
+        <g class="l l-<%= lay %>">
+          <% for (const f of fields) { %>
+            <% let fill = 'rgba(255,255,255,.18)', stroke = 'rgba(0,0,0,.45)'; %>
+            <% if (lay === 'besitz' && f.farm) fill = f.farm.color; %>
+            <% if (lay === 'fruechte' && f.crop) fill = f.cropColor || '#8fd16a'; %>
+            <% if (lay === 'zustand' && f.state) fill = (N.STATES[f.state] || [0, '#ccc'])[1]; %>
+            <a href="/farming/karte?ansicht=<%= lay %>&amp;feld=<%= f.id %>" data-field="<%= f.id %>"><circle cx="<%= P(f.x) %>" cy="<%= P(f.z) %>" r="<%= R(f.area) %>" fill="<%= fill %>" fill-opacity="<%= fill.startsWith('rgba') ? 1 : .8 %>" stroke="<%= sel && sel.id === f.id ? '#fff' : stroke %>" stroke-width="<%= sel && sel.id === f.id ? 4 : 1.5 %>"<%- sel && sel.id === f.id ? ' stroke-dasharray="6 4"' : '' %> data-crop="<%= lay === 'fruechte' ? (f.crop || '') : '' %>"><title>Feld <%= f.id %><%= f.farm ? ' · ' + f.farm.name : f.price ? ' · zu kaufen ' + eur(f.price) : '' %><%= f.crop ? ' · ' + f.crop : '' %></title></circle></a>
+          <% } %>
+        </g>
+      <% } %>
+      <g class="nr"><% for (const f of fields) { %><text x="<%= P(f.x) %>" y="<%= (Number(P(f.z)) + 6).toFixed(1) %>"><%= f.id %></text><% } %></g>
+      <g class="orte"><% for (const p of m.places) { %><g><circle cx="<%= P(p.x) %>" cy="<%= P(p.z) %>" r="<%= Math.max(5, p.radius / S * 1000).toFixed(1) %>" class="ort"/><text x="<%= P(p.x) %>" y="<%= (Number(P(p.z)) - Math.max(6, p.radius / S * 1000) - 3).toFixed(1) %>" class="ort-t"><%= p.name %></text></g><% } %></g>
+      <g class="veh"><% for (const v of m.vehicles.filter(v => !v.pallet && v.x !== null)) { %><rect x="<%= (P(v.x) - 4).toFixed(1) %>" y="<%= (P(v.z) - 4).toFixed(1) %>" width="8" height="8" fill="<%= v.driver || v.ai ? '#ffd400' : '#fff' %>" stroke="#000"><title><%= v.name %><%= v.driver ? ' · ' + v.driver : v.ai ? ' · Helfer' : '' %></title></rect><% } %></g>
+      <g class="pal"><% for (const v of m.vehicles.filter(v => v.pallet && v.x !== null)) { %><circle cx="<%= P(v.x) %>" cy="<%= P(v.z) %>" r="3" fill="#c8a165" stroke="#000"><title><%= v.name %> · <%= v.fill.map(([t, l]) => N.fill(t) + ' ' + liters(l)).join(', ') %></title></circle><% } %></g>
+    </svg>
+    <% if (!hasImage) { %><p class="fs-map-hint">Kein Kartenbild. <%= isAdmin ? 'In der Seitenverwaltung die Map-Image-Adresse eintragen oder ein eigenes Bild hochladen.' : '' %></p><% } %>
+  </div>
+  <div class="map-side">
+    <% if (sel) { %>
+      <fieldset class="groupbox"><legend>Feld <%= sel.id %></legend>
+        <div><%= ha(sel.area) %> · <%= sel.farm ? '' : 'zu kaufen für ' + eur(sel.price) %><% if (sel.farm) { %><span class="dot" style="background:<%= sel.farm.color %>"></span> <a href="/farming/hof/<%= sel.farm.id %>"><%= sel.farm.name %></a><% } %></div>
+        <div>🌱 Frucht: <b><%= sel.crop || 'unbekannt' %></b><% if (!sel.report && sel.plan && !sel.plan.future) { %> <span class="hint">(laut Plan)</span><% } %></div>
+        <div>🚜 Zustand: <b><%= sel.state ? N.STATES[sel.state][0] : 'unbekannt' %></b></div>
+        <% if (sel.report) { %><div class="hint">gemeldet von <%= sel.report.username || '–' %><%= sel.report.game_day ? ' am ' + (fmtDay(sel.report.game_day) || 'Spieltag ' + sel.report.game_day) : '' %>, <%= when(sel.report.updated_at) %></div><% } %>
+        <% if (sel.plan) { %><div>📅 Plan: <%= sel.plan.crop %>, säen <%= N.MONTHS[sel.plan.sow_month] %>, ernten <%= N.MONTHS[sel.plan.harvest_month] %></div><% } %>
+        <% if (user && (!sel.farm || canEdit(sel.farm.id))) { %>
+          <form method="post" action="/farming/feld/<%= sel.id %>" class="fs-form"><input type="hidden" name="_csrf" value="<%= csrf %>">
+            <label>Frucht <select name="crop_id"><option value="">unbekannt</option><% for (const c of crops) { %><option value="<%= c.id %>"<%= sel.report && sel.report.crop_id === c.id ? ' selected' : '' %>><%= c.name %></option><% } %></select></label>
+            <label>Zustand <select name="state"><option value="">unbekannt</option><% for (const [k, [l]] of Object.entries(N.STATES)) { %><option value="<%= k %>"<%= sel.state === k ? ' selected' : '' %>><%= l %></option><% } %></select></label>
+            <button class="def">Melden</button>
+            <% if (sel.farm) { %><a class="btn small" href="/farming/hof/<%= sel.farm.id %>?tab=kalender&amp;feld=<%= sel.id %>#plan">📅 Plan</a> <a class="btn small" href="/farming/hof/<%= sel.farm.id %>?tab=aufgaben&amp;feld=<%= sel.id %>#neu">✅ Aufgabe</a><% } %>
+          </form>
+        <% } %>
+      </fieldset>
+    <% } else { %><p class="hint">Klick auf ein Feld zeigt Größe, Besitzer, Frucht und Zustand. Frucht und Zustand liefert der Server nicht, die melden Mitglieder hier.</p><% } %>
+    <div class="fs-legend" data-for="besitz">
+      <div class="grp">Besitz</div>
+      <% for (const f of m.farms) { %><div class="lg"><span class="sw" style="background:<%= f.color %>"></span><a href="/farming/hof/<%= f.id %>"><%= f.name %></a><span><%= f.land.fields %> Felder · <%= ha(f.land.ha) %></span></div><% } %>
+      <div class="lg"><span class="sw free"></span><span>zu kaufen</span><span><%= fields.filter(f => !f.farm).length %></span></div>
+    </div>
+    <div class="fs-legend" data-for="fruechte">
+      <div class="grp">Früchte <span class="hint">(Klick blendet aus)</span></div>
+      <% for (const c of cropList) { const fs_ = fields.filter(f => f.crop === c.name); %>
+        <button type="button" class="lg linkish" data-crop="<%= c.name %>"><span class="sw" style="background:<%= c.color %>"></span><span><%= c.name %></span><span><%= fs_.length %> · <%= ha(fs_.reduce((a, f) => a + f.area, 0)) %></span></button>
+      <% } %>
+      <% if (!cropList.length) { %><p class="hint">Noch nichts gemeldet oder geplant.</p><% } %>
+    </div>
+    <div class="fs-legend" data-for="zustand">
+      <div class="grp">Zustand</div>
+      <% for (const [k, [l, col]] of Object.entries(N.STATES)) { %><div class="lg"><span class="sw" style="background:<%= col %>"></span><span><%= l %></span><span><%= fields.filter(f => f.state === k).length %></span></div><% } %>
+    </div>
+  </div>
+</div>
+<%- include('_bottom') %>

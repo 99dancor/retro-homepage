@@ -115,7 +115,7 @@
   var deskEl = document.getElementById('desk'), tasks = document.getElementById('tasks');
   var siteTitle = body.dataset.title, me = body.dataset.user;
   var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
-    contact: '✉️', changelog: '📋', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', konto: '🔑', messenger: '🌼', musik: '🎵', zufall: '🎲', kartenspiele: '🂡', blackjack: '🃏', poker: '♠️', durak: '🎴', uno: '🟥', flip7: '7️⃣', pilli: '🌶️', quiz: '❓', werwolf: '🐺', minesweeper: '💣', kreuzwortraetsel: '📰', sudoku: '🔢',
+    contact: '✉️', changelog: '📋', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', konto: '🔑', messenger: '🌼', musik: '🎵', zufall: '🎲', kartenspiele: '🂡', blackjack: '🃏', poker: '♠️', durak: '🎴', uno: '🟥', flip7: '7️⃣', pilli: '🌶️', quiz: '❓', werwolf: '🐺', minesweeper: '💣', kreuzwortraetsel: '📰', sudoku: '🔢', farming: '🚜',
     nutzer: '👤', paint: '🎨', galerie: '🖼️', admin: '⚙️', 'eigene-dateien': '🗂️', einstellungen: '🛠️', notizblock: '🗒️', suche: '🔍',
     ordner: '📁', ansehen: '🖼️', benachrichtigungen: '🔔' };
   var mobile = window.matchMedia('(max-width: 760px)');
@@ -396,7 +396,7 @@
   }
 
   // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Mediaplayer brauchen etwas mehr Platz
-  var SIZES = { haustier: [1000, 720], musik: [1080, 700], zufall: [760, 620], kartenspiele: [1080, 760], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], werwolf: [1000, 720], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], sudoku: [720, 640], konto: [700, 620], paint: [1000, 700], galerie: [900, 640], admin: [1100, 740], 'eigene-dateien': [900, 620],
+  var SIZES = { haustier: [1000, 720], musik: [1080, 700], zufall: [760, 620], kartenspiele: [1080, 760], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], werwolf: [1000, 720], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], sudoku: [720, 640], farming: [1120, 760], konto: [700, 620], paint: [1000, 700], galerie: [900, 640], admin: [1100, 740], 'eigene-dateien': [900, 620],
     einstellungen: [860, 640], notizblock: [660, 500], suche: [760, 580], ansehen: [800, 600], ordner: [820, 580] };
   // Vergrößerte Fensterinhalte (🖥️ → Größe der Oberfläche mit „Fensterinhalte mitskalieren“) brauchen größere Fenster
   function contentZoom() {

@@ -15,6 +15,7 @@ const KINDS = {
   besuch: { label: '🏘️ Besuch bei deinen Pixelpfoten', site: true, push: false },
   modliste: { label: '💡 Vorschläge zu deinen Modlisten', site: true, push: false },
   daily: { label: '📅 Tägliche Aktionen (Besuchsserie, Tagesfrage)', site: true, push: false },
+  fshub: { label: '🚜 Farming Simulator Hub (Aufgaben, Server, Vorschläge)', site: true, push: false },
   admin: { label: '⚙️ Admin-Hinweise (Freigaben, Kontakt, Registrierungen)', site: true, push: true, admin: true },
 };
 const KEEP = 100;            // so viele Benachrichtigungen bleiben je Konto höchstens

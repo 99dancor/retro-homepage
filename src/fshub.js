@@ -145,6 +145,7 @@ function model() {
   if (cached) return cached;
   const st = feeds.get('stats'), sg = feed('savegame'), vf = feed('vehicles'), ec = feed('economy');
   const farmsX = ftpFile('farms.xml'), plc = ftpFile('placeables.xml'), items = ftpFile('items.xml');
+  const bank = ftpFile('bankCredit.xml');
   const size = (st && st.mapSize) || 2048;
   const day = currentDay();
   const date = dateOf(day);
@@ -248,11 +249,14 @@ function model() {
     const stockValue = stockList.reduce((a, s) => a + s.value, 0);
     const fleetValue = fleet.reduce((a, v) => a + v.price, 0);
     const money = fx && fx.money !== null ? fx.money : null;
+    const credits = bank ? bank.loans.filter(l => l.farmId === id && !l.paidOff) : [];
+    const creditRest = credits.reduce((a, l) => a + l.rest, 0);
     return {
       id, name: r.name || (fx && fx.name) || `Farm ${id}`, gameName: fx ? fx.name : '', color: r.color || DEFAULT_COLORS[(id - 1) % DEFAULT_COLORS.length] || DEFAULT_COLORS[i % 8],
       members: members.get(id) || [], players: fx ? fx.players : [], money, loan: fx ? fx.loan : 0, finances: fx ? fx.finances : [],
       land, vehicles: fv, fleet, fleetValue, stock: stockList, stockValue, cargo, buildings, bales: bales.length,
-      pallets: fv.filter(v => v.pallet), bilanz: (money || 0) - ((fx && fx.loan) || 0) + land.value + fleetValue + stockValue,
+      pallets: fv.filter(v => v.pallet), credits, creditRest, creditYears: bank ? bank.years.filter(y => y.farmId === id).sort((a, b) => b.year - a.year) : [],
+      bilanz: (money || 0) - ((fx && fx.loan) || 0) - creditRest + land.value + fleetValue + stockValue,
     };
   });
 
@@ -594,6 +598,24 @@ function suggestions(farmId) {
   if (getSetting('fs_auto_food', '1') === '1') {
     for (const b of f.buildings) if (b.kind === 'husbandry' && b.hasFood && b.food < 1) out.push({ key: `food:${f.id}:${b.idx}`, sig: String((feeds.get('ftp') || {}).at || ''), icon: '🐄', title: `Futter auffüllen: ${b.name}`, why: 'Laut letztem Autosave leer' });
   }
+  // Felder laut letztem Autosave: ernten je Frucht, kalken, pflügen, düngen
+  if (getSetting('fs_auto_fields', '1') === '1') {
+    const mine = fieldStates().filter(x => x.owner === f.id && x.source === 'auto');
+    const list = xs => xs.map(x => x.id).sort((a, b) => a - b);
+    const names = ids => (ids.length === 1 ? 'Feld ' : 'Felder ') + ids.join(', ');
+    const ripe = new Map();
+    for (const x of mine) if (x.state === 'reif') { const k = x.auto.fruit || '?'; if (!ripe.has(k)) ripe.set(k, []); ripe.get(k).push(x); }
+    for (const [fruit, xs] of ripe) {
+      const ids = list(xs);
+      out.push({ key: `ernte:${f.id}:${fruit}`, sig: ids.join(','), icon: '🌾', title: `${xs[0].crop || N.fill(fruit)} ernten: ${names(ids)}`, why: 'Laut letztem Autosave erntereif', field: ids.length === 1 ? ids[0] : null });
+    }
+    for (const [k, icon, verb] of [['kalk', '🪨', 'Kalken'], ['pflug', '🚜', 'Pflügen'], ['duenger', '💧', 'Düngen']]) {
+      const xs = mine.filter(x => x.care.some(c => c.key === k));
+      if (!xs.length) continue;
+      const ids = list(xs);
+      out.push({ key: `${k}:${f.id}`, sig: ids.join(','), icon, title: `${verb}: ${names(ids)}`, why: 'Laut letztem Autosave', field: ids.length === 1 ? ids[0] : null });
+    }
+  }
   // Ausgeblendete (gleicher Anlass) und schon übernommene weglassen
   const hidden = new Map(db.prepare('SELECT key, sig FROM fs_hidden').all().map(r => [r.key, r.sig]));
   const taken = new Set(db.prepare('SELECT auto_key FROM fs_tasks WHERE auto_key IS NOT NULL AND (done_at IS NULL OR done_at > ?)').all(now() - 86400).map(r => r.auto_key));
@@ -679,6 +701,55 @@ function reportField(user, field, b) {
   db.prepare(`INSERT INTO fs_fields(field, crop_id, state, user_id, game_day, updated_at) VALUES (?, ?, ?, ?, ?, ?)
               ON CONFLICT(field) DO UPDATE SET crop_id = excluded.crop_id, state = excluded.state, user_id = excluded.user_id, game_day = excluded.game_day, updated_at = excluded.updated_at`)
     .run(id, cropId && crop(cropId) ? cropId : null, state, user.id, currentDay(), now());
+}
+// Was auf den Feldern steht. Quellen: der letzte Autosave (fields.xml per FTP), Meldungen der Mitglieder und der Hofkalender.
+// Ist eine Meldung neuer als der Autosave, gilt sie; sonst gilt der Autosave; ohne beides zeigt der Plan, was gerade wachsen müsste.
+const GRASS_FRUITS = new Set(['GRASS', 'MEADOW']);
+function cropFor(fruit, cs) {
+  if (!fruit) return null;
+  const c = cs.find(x => x.fill === fruit) || (GRASS_FRUITS.has(fruit) && cs.find(x => x.kind === 'grass'));
+  if (c) return { name: c.name, color: c.color };
+  let h = 0;
+  for (const ch of fruit) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return { name: N.fill(fruit), color: `hsl(${h}, 55%, 55%)` };
+}
+function fieldCare(a, state) {
+  const out = [];
+  if (!a || state === 'gras' || state === 'gemaeht') return out;
+  if (a.lime === 0) out.push({ key: 'kalk', label: 'Kalk nötig' });
+  if (a.plow === 0) out.push({ key: 'pflug', label: 'Pflügen fällig' });
+  if ((state === 'gesaet' || state === 'waechst') && a.spray < 2) out.push({ key: 'duenger', label: a.spray === 0 ? 'Nicht gedüngt' : 'Einmal gedüngt' });
+  if ((state === 'gesaet' || state === 'waechst') && a.weed > 0) out.push({ key: 'unkraut', label: 'Unkraut' });
+  if (a.stone > 0) out.push({ key: 'steine', label: 'Steine' });
+  return out;
+}
+function fieldStates() {
+  const m = model(), reports = fieldReports(), cs = crops();
+  const fx = ftpFile('fields.xml'), autoAt = fx ? fx.at : 0;
+  const auto = new Map(((fx && fx.list) || []).map(f => [f.id, f]));
+  const planned = new Map();
+  for (const f of m.farms) for (const p of plans(f.id)) {
+    if (!p.field) continue;
+    const cells = planCells(p);
+    if (m.month !== null && cells[m.month]) planned.set(p.field, p);
+    else if (!planned.has(p.field)) planned.set(p.field, { ...p, future: true });
+  }
+  return m.fields.map(f => {
+    const r = reports.get(f.id) || null, p = planned.get(f.id) || null, a = auto.get(f.id) || null;
+    const farm = m.farms.find(x => x.id === f.owner) || null;
+    let crop = null, state = null, source = null;
+    if (r && (!a || r.updated_at > autoAt)) { crop = r.crop ? { name: r.crop, color: r.crop_color } : null; state = r.state; source = 'report'; }
+    else if (a) {
+      crop = cropFor(a.fruit, cs);
+      state = N.GROUND[a.ground] || null;
+      if (state === 'gesaet' && a.growth >= 2) state = 'waechst';
+      source = 'auto';
+    }
+    if (!crop && p && !p.future) { crop = { name: p.crop, color: p.color }; source = source || 'plan'; }
+    const care = source === 'auto' ? fieldCare(a, state) : [];
+    return { ...f, farm, report: r, plan: p, auto: a, autoAt, source, crop: crop ? crop.name : null, cropColor: crop ? crop.color : null, state, care,
+      ground: a && a.ground ? N.GROUND_LABEL[a.ground] || N.pretty(a.ground) : null };
+  });
 }
 function fieldOwner(fieldId) { const f = model().fields.find(x => x.id === Number(fieldId)); return f ? f.owner : 0; }
 function savePlace(id, b) {
@@ -833,7 +904,7 @@ module.exports = {
   join, leave, setMember, saveFarm, notes, addNote, note, canChangeNote, editNote, removeNote,
   tasks, openTasks, task, addTask, editTask, completeTask, reopenTask, removeTask, isDue, dueLabel, repeatLabel,
   suggestions, hideSuggestion, takeSuggestion, crops, crop, saveCrop, removeCrop, resetCrops, plans, plan, addPlan, removePlan, planCells, calendar,
-  fieldReports, reportField, fieldOwner, savePlace, place, removePlace, palletSpots, sessionsToday, sessionTotals,
+  fieldReports, fieldStates, reportField, fieldOwner, savePlace, place, removePlace, palletSpots, sessionsToday, sessionTotals,
   changelog, addChange, removeChange, ideas, idea, addIdea, editIdea, answerIdea, removeIdea, vote, goods, modCompare, syncModlist, start,
   _clock: clock, _onStats: onStats,
 };

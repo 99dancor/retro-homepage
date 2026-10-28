@@ -50,12 +50,24 @@ const WEATHER = { SUN: ['☀️', 'Sonnig'], CLOUDY: ['☁️', 'Bewölkt'], RAI
   THUNDER: ['⛈️', 'Gewitter'], TWISTER: ['🌪️', 'Sturm'], HAIL: ['🌨️', 'Hagel'] };
 // Zustände eines Felds für die Karte (gemeldet von Mitgliedern)
 const STATES = {
-  gepfluegt: ['Gepflügt / gegrubbert', '#8b5a2b'], gesaet: ['Gesät', '#c9e39a'], waechst: ['Wächst', '#5aa83c'], reif: ['Erntereif', '#f2c94c'],
-  geerntet: ['Geerntet', '#d9c79e'], kalk: ['Kalk nötig', '#e8e8e8'], brach: ['Brach', '#a0a0a0'],
+  gepfluegt: ['Gepflügt', '#8b5a2b'], gegrubbert: ['Gegrubbert / Saatbett', '#b07a46'], gesaet: ['Gesät', '#c9e39a'], waechst: ['Wächst', '#5aa83c'],
+  reif: ['Erntereif', '#f2c94c'], geerntet: ['Geerntet', '#d9c79e'], gras: ['Grünland', '#3f9a3a'], gemaeht: ['Gemäht', '#b5d98a'],
+  kalk: ['Kalk nötig', '#e8e8e8'], brach: ['Brach', '#a0a0a0'],
+};
+// Bodenart aus fields.xml (groundType) → Zustand auf der Karte; gesät wird ab Wachstumsstufe 2 zu „wächst“
+const GROUND = {
+  PLOWED: 'gepfluegt', CULTIVATED: 'gegrubbert', STUBBLE_TILLAGE: 'gegrubbert', SEEDBED: 'gegrubbert', ROLLED_SEEDBED: 'gegrubbert', RIDGE: 'gegrubbert',
+  ROLLER_LINES: 'gegrubbert', SOWN: 'gesaet', DIRECT_SOWN: 'gesaet', PLANTED: 'gesaet', RIDGE_SOWN: 'gesaet',
+  HARVEST_READY: 'reif', HARVEST_READY_OTHER: 'reif', GRASS: 'gras', GRASS_CUT: 'gemaeht',
+};
+const GROUND_LABEL = {
+  PLOWED: 'gepflügt', CULTIVATED: 'gegrubbert', STUBBLE_TILLAGE: 'Stoppeln bearbeitet', SEEDBED: 'Saatbett', ROLLED_SEEDBED: 'Saatbett gewalzt', RIDGE: 'Dämme',
+  ROLLER_LINES: 'gewalzt', SOWN: 'gesät', DIRECT_SOWN: 'direkt gesät', PLANTED: 'gepflanzt', RIDGE_SOWN: 'Dämme gesät',
+  HARVEST_READY: 'erntereif', HARVEST_READY_OTHER: 'erntereif', GRASS: 'Grünland', GRASS_CUT: 'gemäht',
 };
 
 const pretty = code => String(code || '').toLowerCase().split('_').filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
 const fill = code => FILL[code] || pretty(code);
 const category = code => CATEGORY[code] || pretty(code);
 
-module.exports = { FILL, CATEGORY, MONTHS, MONTHS_SHORT, PERIODS, WEATHER, STATES, fill, category, pretty };
+module.exports = { FILL, CATEGORY, MONTHS, MONTHS_SHORT, PERIODS, WEATHER, STATES, GROUND, GROUND_LABEL, fill, category, pretty };

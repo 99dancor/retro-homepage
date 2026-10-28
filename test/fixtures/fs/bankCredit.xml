@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<bankcredit version="1" nextId="2" periodCounter="0">
+    <ledger equity="500000.000000" initialCapital="500000.000000" totalInterestEarned="0.000000" totalOutstanding="1000000.000000" portfolioLow="1000000.000000" portfolioModerate="0.000000" portfolioHigh="0.000000" portfolioCritical="0.000000"/>
+    <settings initialCapital="500000.000000" baseInterestRate="3.500000" leverageRatio="10.000000" earlyRepaymentPenalty="3.000000" dynamicRate="1"/>
+    <incomeTracker>
+        <farm farmId="1">
+            <period index="18" amount="560.000000"/>
+        </farm>
+    </incomeTracker>
+    <rateModel currentRate="3.500000"/>
+    <loan id="1" farmId="1" type="1" amount="1000000.000000" restAmount="1000000.000000" interestRate="3.500000" riskLevel="1" duration="120" restDuration="120" dscr="-1.000000" ltv="0.202247" paidOff="false" createdDay="6" monthlyPayment="9888.586914"/>
+    <annualReport>
+        <entry farmId="1" year="1" interestPaid="0.000000" principalPaid="0.000000" loansOpened="1" loansClosed="0"/>
+    </annualReport>
+</bankcredit>

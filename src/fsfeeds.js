@@ -5,7 +5,8 @@
 //   Webinterface (HTTP): Stats (live: Uhrzeit, Spieler, Mods, Grundstücke, Fahrzeuge), Savegame (careerSavegame),
 //                        Vehicles (Farm, Preis, Verschleiß), Economy (Preise, große Nachfragen), Map Image (Kartenbild)
 //   FTP (z. B. GPORTAL): farms.xml (Geld je Hof), placeables.xml (Silos, Produktionen, Ställe), items.xml (Ballen),
-//                        environment.xml (Datum, Wetter). Ist eine Webinterface-Adresse leer, liest er careerSavegame.xml,
+//                        environment.xml (Datum, Wetter), fields.xml (Frucht, Wachstum und Boden je Feld),
+//                        bankCredit.xml (Kredite aus dem Mod „Bank Credit“, wenn vorhanden). Ist eine Webinterface-Adresse leer, liest er careerSavegame.xml,
 //                        vehicles.xml und economy.xml auch von dort. Die Dateien sind so aktuell wie der letzte Autosave.
 //
 // Jeder Zugang hat seinen eigenen Abstand. Klappt ein Abruf nicht, wartet er länger (bis 10 Minuten) und behält den
@@ -29,7 +30,9 @@ const FEEDS = {
   map: { name: 'Map Image', every: 86400, min: 600, hint: 'dedicated-server-stats-map.jpg' },
   ftp: { name: 'FTP', every: 300, min: 60, hint: 'Savegame-Ordner beim Hoster' },
 };
-const FTP_FILES = ['farms.xml', 'placeables.xml', 'items.xml', 'environment.xml'];
+const FTP_FILES = ['farms.xml', 'placeables.xml', 'items.xml', 'environment.xml', 'fields.xml', 'bankCredit.xml'];
+// Dateien von Mods: fehlen sie, ist das kein Fehler
+const FTP_OPTIONAL = new Set(['bankCredit.xml']);
 // Diese drei liest der FTP-Abruf zusätzlich, wenn die Webinterface-Adresse dafür leer ist
 const FTP_FALLBACK = { savegame: 'careerSavegame.xml', vehicles: 'vehicles.xml', economy: 'economy.xml' };
 const TIMEOUT = 15000;
@@ -192,6 +195,33 @@ function readEnvironment(xml) {
       .filter(w => w.type),
   };
 }
+// fields.xml: Stand jedes Felds beim Autosave (Frucht, Wachstum, Boden, Kalk, Dünger, Pflug, Unkraut, Steine)
+function readFields(xml) {
+  const s = X.parse(xml);
+  const code = v => (v && v !== 'UNKNOWN' && v !== 'NONE' ? v : null);
+  return X.all(s, 'field').filter(f => num(f.a.id) !== null).map(f => ({
+    id: num(f.a.id), fruit: code(f.a.fruitType), growth: num(f.a.growthState, 0), ground: code(f.a.groundType), planned: code(f.a.plannedFruit),
+    spray: num(f.a.sprayLevel, 0), lime: num(f.a.limeLevel, 0), plow: num(f.a.plowLevel, 0), roller: num(f.a.rollerLevel, 0),
+    stubble: num(f.a.stubbleShredLevel, 0), weed: num(f.a.weedState, 0), stone: num(f.a.stoneLevel, 0),
+  }));
+}
+// bankCredit.xml (Mod „Bank Credit“): laufende Kredite je Hof mit Zins, Rate und Restlaufzeit, Jahresberichte
+function readBankCredit(xml) {
+  const s = X.parse(xml);
+  const rm = X.all(s, 'rateModel')[0], st = X.all(s, 'settings')[0];
+  return {
+    rate: num(rm && rm.a.currentRate) ?? num(st && st.a.baseInterestRate),
+    loans: X.all(s, 'loan').map(l => ({
+      id: num(l.a.id), farmId: num(l.a.farmId, 0), type: num(l.a.type), amount: num(l.a.amount, 0), rest: num(l.a.restAmount, 0),
+      rate: num(l.a.interestRate), months: num(l.a.duration), restMonths: num(l.a.restDuration), monthly: num(l.a.monthlyPayment, 0),
+      risk: num(l.a.riskLevel), day: num(l.a.createdDay), paidOff: l.a.paidOff === 'true',
+    })),
+    years: X.all(s, 'entry').filter(e => e.a.farmId !== undefined).map(e => ({
+      farmId: num(e.a.farmId, 0), year: num(e.a.year), interest: num(e.a.interestPaid, 0), principal: num(e.a.principalPaid, 0),
+      opened: num(e.a.loansOpened, 0), closed: num(e.a.loansClosed, 0),
+    })),
+  };
+}
 const READ = { stats: readStats, savegame: readSavegame, vehicles: readVehicles, economy: readEconomy };
 
 // ---------- Zwischenspeicher ----------
@@ -282,7 +312,7 @@ async function runFtp(force = false) {
     const byName = new Map(list.filter(f => f.isFile).map(f => [f.name, f]));
     for (const name of wanted) {
       const f = byName.get(name);
-      if (!f) { notes.push(`${name} fehlt`); delete files[name]; continue; }
+      if (!f) { if (!FTP_OPTIONAL.has(name)) notes.push(`${name} fehlt`); delete files[name]; continue; }
       const sig = `${f.size}:${f.rawModifiedAt || ''}`;
       if (!force && seen[name] === sig && files[name] !== undefined) continue;
       if (f.size > MAX_BYTES) { notes.push(`${name} ist zu groß`); continue; }
@@ -304,6 +334,8 @@ function readFtpFile(name, xml) {
     case 'placeables.xml': return readPlaceables(xml);
     case 'items.xml': return readItems(xml);
     case 'environment.xml': return readEnvironment(xml);
+    case 'fields.xml': return { at: now(), list: readFields(xml) };
+    case 'bankCredit.xml': return readBankCredit(xml);
     case 'careerSavegame.xml': return readSavegame(xml);
     case 'vehicles.xml': return readVehicles(xml);
     case 'economy.xml': return readEconomy(xml);
@@ -332,6 +364,10 @@ function summarizeFtp(files, notes) {
   if (i) parts.push(`items.xml: ${i.length} Ballen und Gegenstände`);
   const e = files['environment.xml'];
   if (e) parts.push(`environment.xml: Tag ${e.day ?? '?'}`);
+  const fl = files['fields.xml'];
+  if (fl) parts.push(`fields.xml: ${fl.list.length} Felder`);
+  const bc = files['bankCredit.xml'];
+  if (bc) { const open = bc.loans.filter(l => !l.paidOff).length; parts.push(`bankCredit.xml: ${open} ${open === 1 ? 'laufender Kredit' : 'laufende Kredite'}`); }
   for (const [k, n] of Object.entries(FTP_FALLBACK)) if (files[n]) parts.push(`${n} statt ${FEEDS[k].name}-Adresse`);
   return parts.concat(notes).join(' · ');
 }
@@ -385,5 +421,5 @@ function reschedule(key) { nextAt.delete(key); }
 
 module.exports = {
   FEEDS, FTP_FILES, FTP_FALLBACK, MAP_FILE, FS_DIR, url, interval, ftpConfig, configured, get, status, on, onError, run, runAll, start, reschedule, forget,
-  readStats, readSavegame, readVehicles, readEconomy, readFarms, readPlaceables, readItems, readEnvironment, imageSize, load,
+  readStats, readSavegame, readVehicles, readEconomy, readFarms, readPlaceables, readItems, readEnvironment, readFields, readBankCredit, imageSize, load,
 };

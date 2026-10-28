@@ -791,7 +791,7 @@ async function main() {
     await step('Messenger: schreiben, gelesen, nur von Freunden, löschen', async () => {
       const { anna, bernd } = members;
       const { DatabaseSync } = require('node:sqlite');
-      const sql = new DatabaseSync(path.join(DATA, 'site.db'));
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
       const send = async (b, to, body) => { const t = await b.csrf('/konto'); return b.form('/messenger/mit/' + to, { _csrf: t, body }); };
       const sent = await send(bernd, 'anna', 'Hallo Anna!\nWie geht es dir?');
       assert.equal(sent.status, 302, 'Freunde dürfen schreiben');
@@ -2176,7 +2176,7 @@ async function main() {
     await step('Eigene Dateien: Upload nur für Freunde, umbenennen, Sichtbarkeit, löschen', async () => {
       const { anna, bernd } = members;
       const { DatabaseSync } = require('node:sqlite');
-      const sql = new DatabaseSync(path.join(DATA, 'site.db'));
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
       const id = name => sql.prepare('SELECT id FROM users WHERE username = ?').get(name).id;
       sql.prepare('DELETE FROM friends WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)').run(id('admin'), id('anna'), id('anna'), id('admin'));
       sql.prepare('INSERT INTO friends(user_id, friend_id, accepted, created_at) VALUES (?, ?, 1, 0)').run(id('admin'), id('anna'));
@@ -2322,7 +2322,7 @@ async function main() {
     await step('Seitenverwaltung → Desktop: readme.txt, Symbole, Grenzen, Freigaben; Profilbild quadratisch', async () => {
       const { anna } = members;
       const { DatabaseSync } = require('node:sqlite');
-      const sql = new DatabaseSync(path.join(DATA, 'site.db'));
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
       const setting = k => sql.prepare('SELECT value FROM settings WHERE key = ?').get(k).value;
       assert.equal((await anna.req('/admin/desktop')).status, 403);
       const page = (await admin.req('/admin/desktop')).text_;
@@ -2375,7 +2375,7 @@ async function main() {
     await step('Modlisten: Mitglieder legen an, Kategorien, Haken, Vorschläge mit Gästen, Übernehmen, Verlauf', async () => {
       const { anna, bernd } = members;
       const { DatabaseSync } = require('node:sqlite');
-      const sql = new DatabaseSync(path.join(DATA, 'site.db'));
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
       sql.prepare("UPDATE users SET notify_prefs = NULL WHERE username = 'anna'").run();   // vorher abgeschaltet, hier Vorgaben
       assert.equal((await guest.req('/mods/neu')).status, 302, 'anlegen nur mit Konto');
       assert.equal((await admin.req('/admin/mods/new')).headers.get('location'), '/mods/neu');
@@ -2623,7 +2623,7 @@ async function main() {
 
     await step('Gelöschtes Konto verliert seine Statistik-Einträge', async () => {
       const { DatabaseSync } = require('node:sqlite');
-      const sql = new DatabaseSync(path.join(DATA, 'site.db'));
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
       let t = await admin.csrf('/admin/users');
       const created = await admin.form('/admin/users/create', { _csrf: t, username: 'carla', password: 'passwort123' });
       const id = Number(created.headers.get('location').split('/').pop());

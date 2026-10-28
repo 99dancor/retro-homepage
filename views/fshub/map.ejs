@@ -1,15 +1,17 @@
 <%- include('_top') %>
 <%# Karte für alle Höfe: Kartenbild des Servers, darüber die Felder (Kreis = Mittelpunkt, Größe = Fläche). Ansicht wie im Spiel umschalten:
-    Besitz (live), Früchte und Zustand (aus Meldungen und Plänen). Ohne JavaScript gehen Ansicht und Feldwahl über die Adresse. %>
+    Besitz (live), Früchte, Zustand und Pflege (letzter Autosave per FTP, Meldungen, Pläne). Ohne JavaScript gehen Ansicht und Feldwahl über die Adresse. %>
+<% const CARE = [['kalk', 'Kalk nötig', '#e05a4f'], ['pflug', 'Pflügen fällig', '#9a5b2e'], ['duenger', 'Düngen', '#f2c94c']]; %>
+<% const careOf = f => f.source !== 'auto' ? null : (CARE.find(([k]) => f.care.some(c => c.key === k)) || ['ok', 'Alles erledigt', '#5aa83c']); %>
 <% const S = m.size || 2048, P = v => ((v + S / 2) / S * 1000).toFixed(1); %>
 <%# Radius: halb so groß wie ein Kreis gleicher Fläche, sonst überdecken sich die Felder %>
 <% const R = a => Math.max(6, 0.55 * Math.sqrt((a || 0.5) * 10000 / Math.PI) / S * 1000).toFixed(1); %>
 <% const w = 1000 / (1 - 2 * border / 100), off = -border / 100 * w; %>
-<% const cropList = crops.filter(c => fields.some(f => f.crop === c.name)); %>
+<% const cropList = [...new Map(fields.filter(f => f.crop).map(f => [f.crop, { name: f.crop, color: f.cropColor || '#8fd16a' }])).values()].sort((a, b) => a.name.localeCompare(b.name, 'de')); %>
 <div class="fs-maphead">
   <h2>🗺️ Karte<%= st && st.map ? ' – ' + st.map : '' %></h2>
   <div class="layer" role="group" aria-label="Ansicht">
-    <% for (const [k, l] of [['besitz', 'Besitz'], ['fruechte', 'Früchte'], ['zustand', 'Zustand']]) { %>
+    <% for (const [k, l] of [['besitz', 'Besitz'], ['fruechte', 'Früchte'], ['zustand', 'Zustand'], ['pflege', 'Pflege']]) { %>
       <a class="btn small<%= layer === k ? ' on' : '' %>" href="/farming/karte?ansicht=<%= k %><%= sel ? '&feld=' + sel.id : '' %>" data-layer="<%= k %>"><%= l %></a>
     <% } %>
   </div>
@@ -24,13 +26,14 @@
     <svg viewBox="0 0 1000 1000" role="img" aria-label="Karte mit Feldern">
       <rect width="1000" height="1000" fill="#5d7a3a"/>
       <% if (hasImage) { %><image href="/farming/karte.bild" x="<%= off.toFixed(1) %>" y="<%= off.toFixed(1) %>" width="<%= w.toFixed(1) %>" height="<%= w.toFixed(1) %>" preserveAspectRatio="none"/><% } %>
-      <% for (const lay of ['besitz', 'fruechte', 'zustand']) { %>
+      <% for (const lay of ['besitz', 'fruechte', 'zustand', 'pflege']) { %>
         <g class="l l-<%= lay %>">
           <% for (const f of fields) { %>
             <% let fill = 'rgba(255,255,255,.18)', stroke = 'rgba(0,0,0,.45)'; %>
             <% if (lay === 'besitz' && f.farm) fill = f.farm.color; %>
             <% if (lay === 'fruechte' && f.crop) fill = f.cropColor || '#8fd16a'; %>
             <% if (lay === 'zustand' && f.state) fill = (N.STATES[f.state] || [0, '#ccc'])[1]; %>
+            <% if (lay === 'pflege' && careOf(f)) fill = careOf(f)[2]; %>
             <a href="/farming/karte?ansicht=<%= lay %>&amp;feld=<%= f.id %>" data-field="<%= f.id %>"><circle cx="<%= P(f.x) %>" cy="<%= P(f.z) %>" r="<%= R(f.area) %>" fill="<%= fill %>" fill-opacity="<%= fill.startsWith('rgba') ? 1 : .8 %>" stroke="<%= sel && sel.id === f.id ? '#fff' : stroke %>" stroke-width="<%= sel && sel.id === f.id ? 4 : 1.5 %>"<%- sel && sel.id === f.id ? ' stroke-dasharray="6 4"' : '' %> data-crop="<%= lay === 'fruechte' ? (f.crop || '') : '' %>"><title>Feld <%= f.id %><%= f.farm ? ' · ' + f.farm.name : f.price ? ' · zu kaufen ' + eur(f.price) : '' %><%= f.crop ? ' · ' + f.crop : '' %></title></circle></a>
           <% } %>
         </g>
@@ -46,9 +49,14 @@
     <% if (sel) { %>
       <fieldset class="groupbox"><legend>Feld <%= sel.id %></legend>
         <div><%= ha(sel.area) %> · <%= sel.farm ? '' : 'zu kaufen für ' + eur(sel.price) %><% if (sel.farm) { %><span class="dot" style="background:<%= sel.farm.color %>"></span> <a href="/farming/hof/<%= sel.farm.id %>"><%= sel.farm.name %></a><% } %></div>
-        <div>🌱 Frucht: <b><%= sel.crop || 'unbekannt' %></b><% if (!sel.report && sel.plan && !sel.plan.future) { %> <span class="hint">(laut Plan)</span><% } %></div>
-        <div>🚜 Zustand: <b><%= sel.state ? N.STATES[sel.state][0] : 'unbekannt' %></b></div>
-        <% if (sel.report) { %><div class="hint">gemeldet von <%= sel.report.username || '–' %><%= sel.report.game_day ? ' am ' + (fmtDay(sel.report.game_day) || 'Spieltag ' + sel.report.game_day) : '' %>, <%= when(sel.report.updated_at) %></div><% } %>
+        <div>🌱 Frucht: <b><%= sel.crop || (sel.source === 'auto' ? 'nichts' : 'unbekannt') %></b><% if (sel.source === 'plan') { %> <span class="hint">(laut Plan)</span><% } %></div>
+        <div>🚜 Zustand: <b><%= sel.state ? N.STATES[sel.state][0] : 'unbekannt' %></b><% if (sel.source === 'auto' && sel.ground && sel.auto.growth) { %> <span class="hint">(<%= sel.ground %>, Wachstumsstufe <%= sel.auto.growth %>)</span><% } %></div>
+        <% if (sel.source === 'auto') { const a = sel.auto; %>
+          <div>🧪 Kalk <%= a.lime %>/3 · Dünger <%= a.spray %>/2 · Pflug <%= a.plow ? '✔' : '–' %> · Walze <%= a.roller ? '✔' : '–' %> · Mulchen <%= a.stubble ? '✔' : '–' %><%= a.weed ? ' · Unkraut ' + a.weed : '' %><%= a.stone ? ' · Steine ' + a.stone : '' %></div>
+          <% if (sel.care.length) { %><div>⚠️ <%= sel.care.map(c => c.label).join(' · ') %></div><% } %>
+          <div class="hint">laut letztem Autosave, abgeholt <%= when(sel.autoAt) %></div>
+        <% } %>
+        <% if (sel.report) { %><div class="hint"><%= sel.source === 'report' ? '' : 'Ältere Meldung: ' %>gemeldet von <%= sel.report.username || '–' %><%= sel.report.game_day ? ' am ' + (fmtDay(sel.report.game_day) || 'Spieltag ' + sel.report.game_day) : '' %>, <%= when(sel.report.updated_at) %></div><% } %>
         <% if (sel.plan) { %><div>📅 Plan: <%= sel.plan.crop %>, säen <%= N.MONTHS[sel.plan.sow_month] %>, ernten <%= N.MONTHS[sel.plan.harvest_month] %></div><% } %>
         <% if (user && (!sel.farm || canEdit(sel.farm.id))) { %>
           <form method="post" action="/farming/feld/<%= sel.id %>" class="fs-form"><input type="hidden" name="_csrf" value="<%= csrf %>">
@@ -59,7 +67,7 @@
           </form>
         <% } %>
       </fieldset>
-    <% } else { %><p class="hint">Klick auf ein Feld zeigt Größe, Besitzer, Frucht und Zustand. Frucht und Zustand liefert der Server nicht, die melden Mitglieder hier.</p><% } %>
+    <% } else { %><p class="hint">Klick auf ein Feld zeigt Größe, Besitzer, Frucht und Zustand. Frucht und Zustand kommen mit FTP aus dem letzten Autosave, sonst melden Mitglieder sie hier.</p><% } %>
     <div class="fs-legend" data-for="besitz">
       <div class="grp">Besitz</div>
       <% for (const f of m.farms) { %><div class="lg"><span class="sw" style="background:<%= f.color %>"></span><a href="/farming/hof/<%= f.id %>"><%= f.name %></a><span><%= f.land.fields %> Felder · <%= ha(f.land.ha) %></span></div><% } %>
@@ -71,6 +79,11 @@
         <button type="button" class="lg linkish" data-crop="<%= c.name %>"><span class="sw" style="background:<%= c.color %>"></span><span><%= c.name %></span><span><%= fs_.length %> · <%= ha(fs_.reduce((a, f) => a + f.area, 0)) %></span></button>
       <% } %>
       <% if (!cropList.length) { %><p class="hint">Noch nichts gemeldet oder geplant.</p><% } %>
+    </div>
+    <div class="fs-legend" data-for="pflege">
+      <div class="grp">Pflege <span class="hint">(letzter Autosave)</span></div>
+      <% for (const [k, l, col] of [...CARE, ['ok', 'Alles erledigt', '#5aa83c']]) { %><div class="lg"><span class="sw" style="background:<%= col %>"></span><span><%= l %></span><span><%= fields.filter(f => careOf(f) && careOf(f)[0] === k).length %></span></div><% } %>
+      <% if (!fields.some(f => f.source === 'auto')) { %><p class="hint">Braucht den FTP-Zugang (fields.xml).</p><% } %>
     </div>
     <div class="fs-legend" data-for="zustand">
       <div class="grp">Zustand</div>

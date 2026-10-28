@@ -340,7 +340,7 @@ router.get('/farming', (req, res) => {
   const m = hub.model();
   res.render('admin/farming', {
     title: 'Farming Simulator', N: require('../fsnames'), feedRows, ftp: { ...ftp, password: undefined, pass_set: !!ftp.password }, m, hub,
-    s: Object.fromEntries(['fs_enabled', 'fs_view', 'fs_edit', 'fs_map_border', 'fs_auto_wear', 'fs_auto_diesel', 'fs_auto_pallets', 'fs_auto_food', 'fs_modlist'].map(k => [k, getSetting(k, '')])),
+    s: Object.fromEntries(['fs_enabled', 'fs_view', 'fs_edit', 'fs_map_border', 'fs_auto_wear', 'fs_auto_diesel', 'fs_auto_pallets', 'fs_auto_food', 'fs_auto_fields', 'fs_modlist'].map(k => [k, getSetting(k, '')])),
     customMap: fsfiles.find(f => /^map-custom\./.test(f)) || null, hasServerMap: fsfiles.includes('map-server'),
     users: db.prepare('SELECT u.id, u.username, u.display_name, m.farm_id FROM users u LEFT JOIN fs_members m ON m.user_id = u.id WHERE u.disabled = 0 ORDER BY u.username COLLATE NOCASE').all(),
     lists: db.prepare('SELECT slug, title, game FROM modlists ORDER BY game, title').all(), crops: hub.crops(), sessions: hub.sessionTotals(30),
@@ -387,6 +387,7 @@ router.post('/farming/allgemein', (req, res) => {
   setSetting('fs_auto_diesel', n(b.fs_auto_diesel, 50, 0, 10000));
   setSetting('fs_auto_pallets', n(b.fs_auto_pallets, 6, 1, 500));
   setSetting('fs_auto_food', b.fs_auto_food === '1' ? '1' : '0');
+  setSetting('fs_auto_fields', b.fs_auto_fields === '1' ? '1' : '0');
   setSetting('fs_modlist', db.prepare('SELECT 1 FROM modlists WHERE slug = ?').get(String(b.fs_modlist || '')) ? String(b.fs_modlist) : '');
   setSetting('fs_map_border', n(b.fs_map_border, 0, 0, 45));
   require('../fshub').invalidate();

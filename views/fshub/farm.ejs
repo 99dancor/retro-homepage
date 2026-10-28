@@ -20,7 +20,7 @@
   <div class="kpi"><span class="ic" aria-hidden="true">🌾</span><small>Land</small><b><%= ha(f.land.ha) %></b>
     <span class="sub">Wert des Landes <%= big(f.land.value) %></span><span class="sub">Felder: <%= f.land.fields %> · Grundstücke: <%= f.land.lands %></span></div>
   <div class="kpi"><span class="ic" aria-hidden="true">💶</span><small>Bilanz</small><b><%= big(f.bilanz) %></b>
-    <span class="sub"><%= f.money !== null ? 'Konto ' + big(f.money) + ' · ' : 'ohne Konto (nur mit FTP) · ' %>Land, Fuhrpark, Lager</span>
+    <span class="sub"><%= f.money !== null ? 'Konto ' + big(f.money) + ' · ' : 'ohne Konto (nur mit FTP) · ' %>Land, Fuhrpark, Lager<%= f.creditRest ? ' · minus Kredite ' + big(f.creditRest) : '' %></span>
     <% if (yesterday) { const d = f.bilanz - yesterday.value; %><span class="sub <%= d >= 0 ? 'ok' : 'bad' %>"><%= d >= 0 ? '▲ +' : '▼ ' %><%= big(d) %> seit gestern</span><% } %></div>
   <div class="kpi"><span class="ic" aria-hidden="true">✅</span><small>Offene Aufgaben</small><b><%= open.length %></b>
     <span class="sub"><%= overdue ? overdue + ' überfällig · ' : '' %><%= open.filter(t => t.isDue).length %> heute fällig</span><span class="sub"><%= auto.length %> Vorschläge vom Server</span></div>
@@ -117,6 +117,7 @@
       <table class="list tight">
         <tr><td>💶 Kontostand<%= f.money === null ? '' : ' (farms.xml)' %></td><td class="num"><%= f.money !== null ? eur(f.money) : '–' %></td></tr>
         <% if (f.loan) { %><tr><td>🏦 Kredit</td><td class="num bad">− <%= eur(f.loan) %></td></tr><% } %>
+        <% if (f.creditRest) { %><tr><td>🏦 Bankkredite (<%= f.credits.length %>, Restschuld)</td><td class="num bad">− <%= eur(f.creditRest) %></td></tr><% } %>
         <tr><td>🌾 Land (<%= f.land.lands %> Grundstücke, Kaufpreis)</td><td class="num"><%= eur(f.land.value) %></td></tr>
         <tr><td>🚜 Fuhrpark (<%= f.fleet.length %> Stück, Neupreis)</td><td class="num"><%= eur(f.fleetValue) %></td></tr>
         <tr><td>📦 Lager (zum Preis von <%= m.date ? m.date.monthName : 'heute' %>)</td><td class="num"><%= eur(f.stockValue) %></td></tr>
@@ -131,6 +132,24 @@
       <% } else { %><p class="hint">Der Hub schreibt den Stand einmal am Tag auf. Nach ein paar Tagen steht hier der Verlauf.</p><% } %>
     </fieldset>
   </div>
+  <% if (f.credits.length || f.creditYears.length) { %>
+    <fieldset class="groupbox"><legend>Laufende Kredite (bankCredit.xml)</legend>
+      <% if (f.credits.length) { %>
+        <div class="fs-scroll"><table class="list tight">
+          <tr><th>Kredit</th><th class="num">Betrag</th><th class="num">Restschuld</th><th class="num">Zins</th><th class="num">Rate im Monat</th><th>Laufzeit</th></tr>
+          <% for (const l of f.credits) { %>
+            <tr><td>Nr. <%= l.id %><%= l.day ? ' · seit ' + (fmtDay(l.day) || 'Spieltag ' + l.day) : '' %></td><td class="num"><%= eur(l.amount) %></td><td class="num bad"><%= eur(l.rest) %></td>
+              <td class="num"><%= l.rate !== null ? de(l.rate, 2) + ' %' : '–' %></td><td class="num"><%= eur(l.monthly) %></td>
+              <td><%= l.restMonths !== null ? l.restMonths + ' von ' + l.months + ' Monaten' : '–' %><% if (l.months) { %><div class="bar" title="<%= Math.round((1 - l.rest / (l.amount || 1)) * 100) %> % getilgt"><i style="width:<%= Math.round((1 - l.rest / (l.amount || 1)) * 100) %>%"></i></div><% } %></td></tr>
+          <% } %>
+          <tr><th>Zusammen</th><th class="num"><%= eur(f.credits.reduce((a, l) => a + l.amount, 0)) %></th><th class="num"><%= eur(f.creditRest) %></th><th></th><th class="num"><%= eur(f.credits.reduce((a, l) => a + l.monthly, 0)) %></th><th></th></tr>
+        </table></div>
+      <% } else { %><p class="hint">Kein laufender Kredit.</p><% } %>
+      <% if (f.creditYears.length) { %>
+        <p class="hint">Je Spieljahr: <%= f.creditYears.map(y => `Jahr ${y.year}: Zinsen ${eur(y.interest)}, getilgt ${eur(y.principal)}, ${y.opened} neu, ${y.closed} abbezahlt`).join(' · ') %></p>
+      <% } %>
+    </fieldset>
+  <% } %>
   <% if (f.finances.length) { const days = f.finances.slice(0, 5), keys = [...new Set(days.flatMap(d => Object.keys(d.v)))]; %>
     <fieldset class="groupbox"><legend>Einnahmen und Ausgaben (wie im Spiel)</legend>
       <div class="fs-scroll"><table class="list tight"><tr><th></th><% for (const d of days) { %><th class="num"><%= d.day === 0 ? 'Heute' : d.day === 1 ? 'Gestern' : 'vor ' + d.day + ' Tagen' %></th><% } %></tr>
@@ -146,6 +165,20 @@
 
 <% if (tab === 'kalender') { %>
   <% const curM = m.date && m.date.year === cal.year ? m.date.month : null; %>
+  <% if (fieldList.length) { %>
+    <fieldset class="groupbox"><legend>Auf den Feldern<%= fieldList.some(x => x.source === 'auto') ? ' (letzter Autosave, abgeholt ' + when(fieldList.find(x => x.autoAt).autoAt) + ')' : '' %></legend>
+      <div class="fs-scroll"><table class="list tight">
+        <tr><th>Feld</th><th class="num">Größe</th><th>Frucht</th><th>Zustand</th><th>Zu tun</th></tr>
+        <% for (const x of fieldList) { %>
+          <tr><td><a href="/farming/karte?ansicht=zustand&amp;feld=<%= x.id %>">Feld <%= x.id %></a></td><td class="num"><%= ha(x.area) %></td>
+            <td><% if (x.crop) { %><span class="dot" style="background:<%= x.cropColor %>"></span> <%= x.crop %><% } else { %><span class="hint"><%= x.source === 'auto' ? 'nichts' : 'unbekannt' %></span><% } %><%= x.source === 'plan' ? ' (Plan)' : x.source === 'report' ? ' (gemeldet)' : '' %></td>
+            <td><%= x.state ? N.STATES[x.state][0] : '–' %><%= x.source === 'auto' && x.auto.growth && (x.state === 'gesaet' || x.state === 'waechst') ? ', Stufe ' + x.auto.growth : '' %></td>
+            <td><%= x.care.map(c => c.label).join(' · ') || (x.source === 'auto' ? '✔' : '') %></td></tr>
+        <% } %>
+      </table></div>
+      <% if (!fieldList.some(x => x.source === 'auto')) { %><p class="hint">Mit FTP-Zugang füllt der Hub diese Liste selbst aus dem letzten Autosave (fields.xml).</p><% } %>
+    </fieldset>
+  <% } %>
   <div class="toolbar">
     <a class="btn small" href="/farming/hof/<%= f.id %>?tab=kalender&amp;jahr=<%= Math.max(1, cal.year - 1) %><%= withRepeat ? '&amp;wdh=1' : '' %>">◀</a><b>Jahr <%= cal.year %></b><a class="btn small" href="/farming/hof/<%= f.id %>?tab=kalender&amp;jahr=<%= cal.year + 1 %><%= withRepeat ? '&amp;wdh=1' : '' %>">▶</a>
     <span class="sep"></span><a class="btn small<%= withRepeat ? ' on' : '' %>" href="/farming/hof/<%= f.id %>?tab=kalender&amp;jahr=<%= cal.year %><%= withRepeat ? '' : '&amp;wdh=1' %>">🔁 Regelmäßige Aufgaben <%= withRepeat ? 'ausblenden' : 'zeigen' %></a>

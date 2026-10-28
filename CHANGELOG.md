@@ -1,5 +1,13 @@
 # Changelog
 
+## 28.10.2026 – Farming Hub: Felder und Kredite aus dem Spielstand
+
+- **Felder von selbst:** Mit FTP liest der Hub nach jedem Autosave, was auf jedem Feld steht: Frucht, Wachstumsstufe, Bodenzustand, Kalk, Dünger, Pflug, Unkraut und Steine. Karte, Hofkalender und Feld-Infos füllen sich damit allein. Eine Meldung von Hand gilt, bis der nächste Autosave kommt.
+- **Neue Kartenansicht „Pflege“:** zeigt, wo Kalk nötig ist, wo gepflügt oder gedüngt werden muss und wo alles erledigt ist.
+- **Hofkalender:** Oben steht jetzt „Auf den Feldern“ mit Frucht, Zustand und was zu tun ist.
+- **Vorschläge:** Ernten je Frucht, Kalken, Pflügen und Düngen schlägt der Hub für jeden Hof selbst vor. Abschaltbar in der Seitenverwaltung.
+- **Kredite:** Läuft der Mod „Bank Credit“, zeigt der Finanzen-Reiter jeden Kredit mit Restschuld, Zins, Monatsrate und Laufzeit. Die Restschuld geht in die Bilanz ein.
+
 ## 28.10.2026 – Farming Simulator Hub
 
 - **Neu im Startmenü:** 🚜 Farming Simulator, ein Fenster für unseren Server. Links die Leiste mit Übersicht, Karte, Preisen, Mods, den Höfen und ganz unten Changelog und Vorschläge.

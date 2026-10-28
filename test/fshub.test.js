@@ -97,3 +97,54 @@ test('Beispiel-Feeds: Stats, Fahrzeuge, Preise', () => {
   const eco = F.readEconomy(fs.readFileSync(path.join(dir, 'economy.xml'), 'utf8'));
   assert.ok(Object.keys(eco.prices).includes('WHEAT'));
 });
+
+test('fields.xml: Frucht, Wachstum, Boden und Pflege je Feld', () => {
+  const list = F.readFields(fs.readFileSync(path.join(__dirname, 'fixtures', 'fs', 'fields.xml'), 'utf8'));
+  assert.equal(list.length, 70);
+  assert.deepEqual(list.find(f => f.id === 7), { id: 7, fruit: 'WHEAT', growth: 8, ground: 'HARVEST_READY', planned: 'FALLOW', spray: 0, lime: 0, plow: 0, roller: 0, stubble: 0, weed: 0, stone: 0 });
+  const plowed = list.find(f => f.id === 30);
+  assert.equal(plowed.fruit, null, 'UNKNOWN heißt: nichts drauf');
+  assert.equal(plowed.ground, 'PLOWED');
+});
+
+test('bankCredit.xml: laufende Kredite und Jahresberichte je Hof', () => {
+  const bc = F.readBankCredit(fs.readFileSync(path.join(__dirname, 'fixtures', 'fs', 'bankCredit.xml'), 'utf8'));
+  assert.equal(bc.rate, 3.5);
+  assert.equal(bc.loans.length, 1);
+  assert.deepEqual(bc.loans[0], { id: 1, farmId: 1, type: 1, amount: 1000000, rest: 1000000, rate: 3.5, months: 120, restMonths: 120, monthly: 9888.586914, risk: 1, day: 6, paidOff: false });
+  assert.deepEqual(bc.years, [{ farmId: 1, year: 1, interest: 0, principal: 0, opened: 1, closed: 0 }]);
+});
+
+test('Hub: Felder und Kredite aus dem FTP-Ordner landen auf Karte, Hof und Vorschlägen', () => {
+  const { db, now } = require('../src/db');
+  const hub = require('../src/fshub');
+  const dir = path.join(__dirname, 'fixtures', 'fs');
+  const read = n => fs.readFileSync(path.join(dir, n), 'utf8');
+  const put = db.prepare('INSERT INTO fs_cache(feed, data, ok_at, tried_at, error, info) VALUES (?, ?, ?, ?, NULL, NULL) ON CONFLICT(feed) DO UPDATE SET data = excluded.data');
+  put.run('stats', JSON.stringify(F.readStats(read('stats.xml'))), now(), now());
+  put.run('ftp', JSON.stringify({ files: { 'fields.xml': { at: now(), list: F.readFields(read('fields.xml')) }, 'bankCredit.xml': F.readBankCredit(read('bankCredit.xml')) }, at: now() }), now(), now());
+  F.load();
+  hub.invalidate();
+  const st = hub.fieldStates();
+  const f7 = st.find(f => f.id === 7);
+  assert.equal(f7.source, 'auto');
+  assert.equal(f7.crop, 'Weizen');
+  assert.equal(f7.state, 'reif');
+  assert.deepEqual(f7.care.map(c => c.key), ['kalk', 'pflug']);
+  assert.equal(st.find(f => f.id === 3).state, 'gras');
+  assert.equal(st.find(f => f.id === 4).crop, 'Zwiebeln', 'Früchte ohne Vorlage heißen wie im Spiel');
+  assert.equal(st.find(f => f.id === 12).state, 'waechst');
+  assert.equal(st.find(f => f.id === 30).state, 'gepfluegt');
+
+  // Eine Meldung nach dem Autosave gilt, bis der nächste Autosave kommt
+  const uid = Number(db.prepare("INSERT INTO users(username, password_hash, role, created_at) VALUES ('melder', 'x', 'user', ?)").run(now()).lastInsertRowid);
+  db.prepare('INSERT INTO fs_fields(field, crop_id, state, user_id, game_day, updated_at) VALUES (7, NULL, ?, ?, NULL, ?)').run('geerntet', uid, now() + 5);
+  assert.equal(hub.fieldStates().find(f => f.id === 7).state, 'geerntet');
+
+  const farm = hub.model().farms.find(x => x.id === 1);
+  assert.equal(farm.creditRest, 1000000);
+  assert.equal(farm.credits[0].monthly, 9888.586914);
+  const owner = st.find(f => f.id === 11).owner;
+  const sug = hub.suggestions(owner).map(s => s.title);
+  assert.ok(sug.some(t => /^Weizen ernten: Feld/.test(t)), sug.join(' | '));
+});

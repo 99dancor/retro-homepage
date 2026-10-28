@@ -949,6 +949,7 @@ const DEFAULT_SETTINGS = {
   fs_auto_diesel: '50',         // Vorschlag Tanken unter so vielen Litern Diesel
   fs_auto_pallets: '6',         // Vorschlag Paletten abholen ab so vielen an einem Ort
   fs_auto_food: '1',            // Vorschlag Futter, wenn ein Stall (FTP) leer ist
+  fs_auto_fields: '1',          // Vorschläge aus fields.xml (FTP): ernten, kalken, pflügen, düngen
 };
 // Das Freundebuch der Seite heißt seit den Profil-Freundebüchern „Besucherbuch“: unveränderte Standardtexte mitziehen
 for (const k of ['home_md', 'theme_marquee']) {

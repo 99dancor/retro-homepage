@@ -28,7 +28,7 @@
     </fieldset>
     <% const ft = feedRows.find(x => x.key === 'ftp'); %>
     <fieldset class="groupbox"><legend>FTP zum Spielstand (z. B. GPORTAL)</legend>
-      <p class="muted">Ergänzt, was das Webinterface nicht hat: Geld je Hof (farms.xml), Silos, Produktionen und Ställe (placeables.xml), Ballen (items.xml), Datum und Wetter (environment.xml). Ist oben eine Adresse leer, liest der Hub careerSavegame.xml, vehicles.xml und economy.xml auch von hier. Die Dateien sind so aktuell wie der letzte Autosave. Die Website verbindet sich nur nach draußen, am Reverse Proxy und an Unraid ändert sich nichts.</p>
+      <p class="muted">Ergänzt, was das Webinterface nicht hat: Geld je Hof (farms.xml), Silos, Produktionen und Ställe (placeables.xml), Ballen (items.xml), Datum und Wetter (environment.xml), Frucht und Zustand jedes Felds (fields.xml) und, falls der Mod „Bank Credit“ läuft, die Kredite (bankCredit.xml). Ist oben eine Adresse leer, liest der Hub careerSavegame.xml, vehicles.xml und economy.xml auch von hier. Die Dateien sind so aktuell wie der letzte Autosave. Die Website verbindet sich nur nach draußen, am Reverse Proxy und an Unraid ändert sich nichts.</p>
       <div class="fs-admin-ftp">
         <label>Server <input name="ftp_host" value="<%= ftp.host %>" placeholder="z. B. 176.57.181.181" autocomplete="off"></label>
         <label>Port <input type="number" name="ftp_port" value="<%= ftp.port %>" min="1" max="65535" style="width:80px"></label>
@@ -133,6 +133,7 @@
       <label>Tanken unter <input type="number" name="fs_auto_diesel" min="0" value="<%= s.fs_auto_diesel %>" style="width:70px"> Litern Diesel</label>
       <label>Paletten abholen ab <input type="number" name="fs_auto_pallets" min="1" value="<%= s.fs_auto_pallets %>" style="width:60px"> Paletten an einem Ort</label>
       <label class="inline"><input type="checkbox" name="fs_auto_food" value="1"<%= s.fs_auto_food === '1' ? ' checked' : '' %>> Futter auffüllen, wenn ein Stall leer ist (nur mit FTP)</label>
+      <label class="inline"><input type="checkbox" name="fs_auto_fields" value="1"<%= s.fs_auto_fields === '1' ? ' checked' : '' %>> Felder ernten, kalken, pflügen und düngen (nur mit FTP, aus fields.xml)</label>
     </fieldset>
     <fieldset class="groupbox"><legend>Modliste und Karte</legend>
       <label>Verknüpfte Modliste <select name="fs_modlist"><option value="">keine</option><% for (const l of lists) { %><option value="<%= l.slug %>"<%= s.fs_modlist === l.slug ? ' selected' : '' %>><%= l.game ? l.game + ' – ' : '' %><%= l.title %></option><% } %></select></label>

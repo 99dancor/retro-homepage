@@ -117,26 +117,12 @@ router.get('/karte.bild', (req, res) => {
 
 router.get('/karte', (req, res) => {
   const m = hub.model();
-  const reports = hub.fieldReports();
   const crops = hub.crops();
-  // Was laut Plan gerade auf dem Feld steht (Saat bis Ernte), falls niemand etwas gemeldet hat
-  const planned = new Map();
-  for (const f of m.farms) for (const p of hub.plans(f.id)) {
-    if (!p.field) continue;
-    const cells = hub.planCells(p);
-    if (m.month !== null && cells[m.month]) planned.set(p.field, p);
-    else if (!planned.has(p.field)) planned.set(p.field, { ...p, future: true });
-  }
-  const fields = m.fields.map(f => {
-    const r = reports.get(f.id) || null, p = planned.get(f.id) || null;
-    const cropName = r && r.crop ? r.crop : (p && !p.future ? p.crop : null);
-    const cropColor = r && r.crop ? r.crop_color : (p && !p.future ? p.color : null);
-    return { ...f, report: r, plan: p, crop: cropName, cropColor, state: r ? r.state : null, farm: m.farms.find(x => x.id === f.owner) || null };
-  });
+  const fields = hub.fieldStates();
   const sel = fields.find(f => f.id === Number(req.query.feld)) || null;
   const border = m.configured && !fs.readdirSync(feeds.FS_DIR).some(f => /^map-custom\./.test(f)) ? Number(getSetting('fs_map_border', '25')) || 0 : 0;
   const hasImage = fs.existsSync(feeds.MAP_FILE) || fs.readdirSync(feeds.FS_DIR).some(f => /^map-custom\./.test(f));
-  page(req, res, 'map', { title: 'Karte – Farming Simulator', fields, sel, crops, border, hasImage, layer: ['besitz', 'fruechte', 'zustand'].includes(req.query.ansicht) ? req.query.ansicht : 'besitz' });
+  page(req, res, 'map', { title: 'Karte – Farming Simulator', fields, sel, crops, border, hasImage, layer: ['besitz', 'fruechte', 'zustand', 'pflege'].includes(req.query.ansicht) ? req.query.ansicht : 'besitz' });
 });
 
 router.get('/preise', (req, res) => {
@@ -199,6 +185,7 @@ router.get('/hof/:id', farmParam, (req, res) => {
     data.withRepeat = req.query.wdh === '1';
     data.crops = hub.crops();
     data.curYear = cur;
+    data.fieldList = hub.fieldStates().filter(x => x.owner === f.id).sort((a, b) => a.id - b.id);
   }
   if (tab === 'aufgaben') {
     data.done = hub.tasks(f.id, { done: true });

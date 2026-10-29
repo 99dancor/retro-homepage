@@ -2597,6 +2597,25 @@ async function main() {
         assert.equal(JSON.parse((await admin.form('/farming/umrisse', { _csrf: ak, data: sq })).text_).n, 1);
         assert.match((await admin.req('/farming/karte')).text_, /"id":7,[^}]*"src":"hand"/);
         assert.equal((await admin.form('/farming/umrisse/7/loeschen', { _csrf: ak })).status, 200);
+        // Bodenverteilung von Hand: nur Admins, Infokarte zeigt sie
+        assert.equal((await anna.form('/farming/boden/7', { _csrf: t, loam: '50' })).status, 403);
+        assert.equal((await admin.form('/farming/boden/7', { _csrf: ak, loamy_sand: '17', sandy_loam: '53', loam: '28', yield: '101' })).status, 302);
+        page = (await anna.req('/farming/karte?feld=7&ansicht=bodenart')).text_;
+        assert.match(page, /data-bodenart="soil:sandy_loam"/);
+        assert.match(page, /Sandiger Lehm 53 %/);
+        assert.match(page, /Ertragspotenzial<\/span><span class="v">101 %/);
+        // Produktionsplaner: alle sehen ihn, Admins tragen Gebäude und Rezepte ein, der Rechner läuft über die Adresse
+        assert.match((await anna.req('/farming/produktion')).text_, /<h1>Produktionsplaner<\/h1>/);
+        assert.equal((await anna.form('/farming/produktion/gebaeude', { _csrf: t, name: 'Ich' })).status, 403);
+        const nb = await admin.form('/farming/produktion/gebaeude', { _csrf: ak, name: 'Bananenwäsche', price: '370.000', mode: 'parallel' });
+        const gk = new URL('http://x' + nb.headers.get('location')).searchParams.get('g');
+        const nr = await admin.form(`/farming/produktion/${gk}/rezept`, { _csrf: ak, name: 'Bananen-Wäsche', cycles: '408', cost: '360', in_amount_0: '15', in_fill_0: 'Bananen', out_amount_0: '15', out_fill_0: 'Bananen Kartons' });
+        const rk = new URL('http://x' + nr.headers.get('location')).searchParams.get('p');
+        page = (await anna.req(`/farming/produktion?g=${gk}&p=${rk}&rechnen=1&in0=1500`)).text_;
+        assert.match(page, /370\.000 €/);
+        assert.match(page, /<b>100<\/b> Zyklen/);
+        assert.match(page, /<b>1\.500<\/b> Bananen Kartons/);
+        assert.match(page, /<small>pro Jahr<\/small><b>4\.896<\/b>/);
         // Ort aus einem Palettenhaufen
         const spot = (await anna.req('/farming/hof/1?tab=produktion')).text_.match(/name="x" value="(-?\d+)"><input type="hidden" name="z" value="(-?\d+)"/);
         assert.ok(spot, 'Palettenhaufen ohne Ort');

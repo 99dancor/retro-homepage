@@ -11,6 +11,7 @@ const feeds = require('./fsfeeds');
 const fsmap = require('./fsmap');
 const saves = require('./fssaves');
 const N = require('./fsnames');
+const prod = require('./fsprod');
 const notify = require('./notify');
 
 const DEFAULT_COLORS = ['#2e8b2e', '#2f6fd8', '#c0392b', '#d4a017', '#8e44ad', '#16a085', '#d35400', '#7f8c8d'];
@@ -172,6 +173,24 @@ function model() {
   const noList = !fields.length;
   for (const l of lands.values()) if (!known.has(l.id) && l.id < 255 && l.area > 0 && Number.isFinite(l.x)) fromLand(l, !noList);
   fields.sort((a, b) => a.id - b.id);
+  // Plantagen (Kaffee, Bananen) aus placeables.xml: jede Reihe gehört zum Feld oder Grundstück, dessen Mitte am nächsten liegt
+  const orchards = (plc || []).filter(p => p.kind === 'orchard').map(o => ({ type: o.type, farmId: o.farmId, rows: o.rows }));
+  const votes = new Map();
+  for (const o of orchards) {
+    for (const r of o.rows) {
+      const mx = (r[0] + r[2]) / 2, mz = (r[1] + r[3]) / 2;
+      let best = null;
+      for (const f of fields) {
+        const d = Math.hypot(f.x - mx, f.z - mz), reach = Math.max(40, 1.4 * Math.sqrt((f.area || 0.5) * 10000 / Math.PI));
+        if (d < reach && (!best || d / reach < best.k)) best = { k: d / reach, f };
+      }
+      if (!best) continue;
+      const v = votes.get(best.f) || {};
+      v[o.type] = (v[o.type] || 0) + 1;
+      votes.set(best.f, v);
+    }
+  }
+  for (const [f, v] of votes) f.orchard = Object.entries(v).sort((a, b) => b[1] - a[1])[0][0];
   function where(x, z) {
     if (x === null || z === null || x === undefined) return { label: '–' };
     const p = { x, z };
@@ -244,8 +263,8 @@ function model() {
       if (v.pallet) for (const [t, l] of v.fill) put(t, l, v.where.label, 'Palette');
       else for (const [t, l] of v.fill) if (!(v.drivable && TANK.has(t))) cargo.push({ vehicle: v.name, fill: t, name: N.fill(t), amount: l, value: valueOf(t, l), where: v.where.label });
     }
-    const buildings = (plc || []).filter(p => p.farmId === id).map((p, k) => {
-      const name = p.name || N.pretty(String(p.file).split('/').pop().replace(/\.xml$/i, '').replace(/([a-z])([A-Z])/g, '$1 $2'));
+    const buildings = (plc || []).filter(p => p.farmId === id && p.kind !== 'orchard').map((p, k) => {
+      const name = p.name || prod.buildingName(prod.typeOf(p));
       const loc = where(p.x, p.z);
       const label = loc.place ? loc.label : name;
       const fills = p.fills.map(([sec, t, l]) => ({ sec, fill: t, name: N.fill(t), amount: l, food: /food/i.test(sec), value: valueOf(t, l) }));
@@ -283,7 +302,7 @@ function model() {
     day, date, dateSource: (dayState() || {}).source || (day ? 'estimate' : null), weather: weatherNow(day, dayTime),
     money: sg && sg.money !== null ? sg.money : (farmsX ? farmsX.reduce((a, f) => a + (f.money || 0), 0) : null),
     perFarmMoney: !!farmsX, ftp: !!feeds.get('ftp'),
-    farms, fields, lands: [...lands.values()], vehicles, places, players: st ? st.players : [], mods: st ? st.mods : [],
+    farms, fields, orchards, where, lands: [...lands.values()], vehicles, places, players: st ? st.players : [], mods: st ? st.mods : [],
     demands: ec ? ec.demands : [], month,
   };
   return cached;
@@ -749,6 +768,12 @@ function cropFor(fruit, cs) {
   for (const ch of fruit) h = (h * 31 + ch.charCodeAt(0)) % 360;
   return { name: N.fill(fruit), color: `hsl(${h}, 55%, 55%)`, fill: fruit };
 }
+// Plantage als Frucht: Vorlage im Kalender, sonst Farbe wie im Spiel
+const ORCHARD = { COFFEE: '#9b3b2c', BANANA: '#e3cf3f' };
+function orchardCrop(type, cs) {
+  const c = cs.find(x => x.fill === type);
+  return c ? { name: c.name, color: c.color, fill: type } : { name: N.fill(type), color: ORCHARD[type] || '#8f6a3a', fill: type };
+}
 function fieldCare(a, state) {
   const out = [];
   if (!a || state === 'gras' || state === 'gemaeht') return out;
@@ -760,7 +785,7 @@ function fieldCare(a, state) {
   return out;
 }
 function fieldStates() {
-  const m = model(), reports = fieldReports(), cs = crops();
+  const m = model(), reports = fieldReports(), cs = crops(), soil = soils();
   const fx = ftpFile('fields.xml'), autoAt = fx ? fx.at : 0;
   const auto = new Map(((fx && fx.list) || []).map(f => [f.id, f]));
   const planned = new Map();
@@ -781,11 +806,19 @@ function fieldStates() {
       if (state === 'gesaet' && a.growth >= 2) state = 'waechst';
       source = 'auto';
     }
+    if (!crop && f.orchard) { crop = orchardCrop(f.orchard, cs); source = source || 'orchard'; }
     if (!crop && p && !p.future) { crop = { name: p.crop, color: p.color, fill: p.fill }; source = source || 'plan'; }
     const care = source === 'auto' ? fieldCare(a, state) : [];
-    return { ...f, farm, report: r, plan: p, auto: a, autoAt, source, crop: crop ? crop.name : null, cropColor: crop ? crop.color : null, cropFill: crop ? crop.fill || null : null, state, care,
+    return { ...f, farm, report: r, plan: p, auto: a, autoAt, source, soil: soil.get(f.id) || null, crop: crop ? crop.name : null, cropColor: crop ? crop.color : null, cropFill: crop ? crop.fill || null : null, state, care,
       ground: a && a.ground ? N.GROUND_LABEL[a.ground] || N.pretty(a.ground) : null };
   });
+}
+// Produktionsplaner: Gebäude aus placeables.xml plus nachgetragene Rezepte (src/fsprod.js)
+function planner() {
+  const m = model();
+  const list = prod.buildings(ftpFile('placeables.xml'), (x, z) => (x === undefined || x === null ? null : m.where(x, z).label));
+  for (const b of list) for (const i of b.instances) i.farm = m.farms.find(f => f.id === i.farmId) || null;
+  return list;
 }
 // Echte Feldformen aus der Dichtekarte (src/fsmap.js); null ohne FTP-Datei oder wenn abgeschaltet
 function shapes(m = model()) {
@@ -800,6 +833,26 @@ function ownOutlines() {
   const polys = {};
   for (const r of rows) { try { polys[r.field] = { pts: JSON.parse(r.pts), source: r.source }; } catch { /* kaputt: ignorieren */ } }
   return { sig: rows.length + ':' + Math.max(...rows.map(r => r.updated_at)) + ':' + rows.reduce((a, r) => a + r.pts.length, 0), polys };
+}
+// Bodenverteilung je Grundstück (von Hand aus dem Spiel abgeschrieben): Prozent je Bodenart und Ertragspotenzial
+const SOILS = [['loamy_sand', 'Lehmiger Sand', '#e6be3c'], ['sandy_loam', 'Sandiger Lehm', '#86b56a'], ['loam', 'Lehm', '#a89a8c'], ['silty_clay', 'Schluffiger Ton', '#8f74b8']];
+function soils() {
+  return new Map(db.prepare('SELECT * FROM fs_soil').all().map(r => {
+    const parts = SOILS.map(([k, label, color]) => ({ key: k, label, color, pct: r[k] })).filter(x => x.pct > 0);
+    const top = parts.slice().sort((a, b) => b.pct - a.pct)[0] || null;
+    return [r.field, { parts, top: top ? top.key : null, yield: r.yield, at: r.updated_at }];
+  }));
+}
+function saveSoil(field, b, userId) {
+  const id = intOr(field);
+  if (!id || !model().fields.some(f => f.id === id)) return false;
+  const pct = v => { const n = Number(String(v ?? '').replace(',', '.').replace('%', '').replace('~', '').trim()); return v === '' || v == null || !Number.isFinite(n) ? null : Math.max(0, Math.min(n, 300)); };
+  const vals = [...SOILS.map(([k]) => pct(b[k])), pct(b.yield)];
+  if (vals.every(v => v === null)) { db.prepare('DELETE FROM fs_soil WHERE field = ?').run(id); return true; }
+  db.prepare(`INSERT INTO fs_soil(field, loamy_sand, sandy_loam, loam, silty_clay, yield, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(field) DO UPDATE SET loamy_sand = excluded.loamy_sand, sandy_loam = excluded.sandy_loam, loam = excluded.loam, silty_clay = excluded.silty_clay,
+              yield = excluded.yield, updated_by = excluded.updated_by, updated_at = excluded.updated_at`).run(id, ...vals, userId || null, now());
+  return true;
 }
 // fields: { id: [[x, z], …] } in Weltkoordinaten; source bild | hand
 function saveOutlines(fields, source, userId) {
@@ -996,7 +1049,7 @@ module.exports = {
   join, leave, setMember, saveFarm, notes, addNote, note, canChangeNote, editNote, removeNote,
   tasks, openTasks, task, addTask, editTask, completeTask, reopenTask, removeTask, isDue, dueLabel, repeatLabel,
   suggestions, hideSuggestion, takeSuggestion, crops, crop, saveCrop, removeCrop, resetCrops, plans, plan, addPlan, removePlan, planCells, calendar,
-  fieldReports, fieldStates, reportField, fieldOwner, savePlace, place, removePlace, palletSpots, sessionsToday, sessionTotals,
+  planner, prod, SOILS, soils, saveSoil, fieldReports, fieldStates, reportField, fieldOwner, savePlace, place, removePlace, palletSpots, sessionsToday, sessionTotals,
   changelog, addChange, removeChange, importUpdates, shapes, saveOutlines, removeOutline, removeOutlines, ideas, idea, addIdea, editIdea, answerIdea, removeIdea, vote, goods, modCompare, syncModlist, start,
   _clock: clock, _onStats: onStats,
 };

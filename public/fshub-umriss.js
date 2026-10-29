@@ -97,6 +97,16 @@
     say('sel', sel ? ((byId[sel] || {}).parcel ? 'Grundstück ' : 'Feld ') + sel + ': ' + NAMES[(byId[sel] || {}).src || 'kreis'] : 'Erst ein Feld auf der Karte anklicken.');
     ['bearbeiten', 'zeichnen'].forEach(function (k) { $(k).disabled = !sel || !!mode; });
     $('auto').disabled = !sel || !!mode || ['hand', 'bild'].indexOf((byId[sel] || {}).src) < 0;
+    // Bodenverteilung des gewählten Felds
+    var sf = part('boden');
+    if (sf) {
+      sf.hidden = !sel || !!mode;
+      if (sel) {
+        sf.action = '/farming/boden/' + sel;
+        var soil = (byId[sel] || {}).soil || {};
+        [].forEach.call(sf.querySelectorAll('[data-soil]'), function (i) { var v = soil[i.dataset.soil]; i.value = v === null || v === undefined ? '' : v; });
+      }
+    }
   };
   var down = null;   // Klick nach Verschieben der Karte ist kein neuer Punkt
   map.addEventListener('pointerdown', function (e) { down = [e.clientX, e.clientY]; }, true);

@@ -1,5 +1,12 @@
 # Changelog
 
+## 29.10.2026 – Farming Hub: Produktionsplaner, Bodenart, Plantagen
+
+- **Produktionsplaner:** Neuer Reiter links. Alle Produktionsgebäude mit Kaufpreis, ihre Produktionen und ob sie parallel oder seriell laufen. Eine Produktion zeigt ihr Rezept, die Zyklen pro Monat und Jahr und die Kosten. „Produktion rechnen“ sagt, wie viel Output aus eurem Input wird, in wie vielen Zyklen, wie lange das dauert und was es kostet.
+- **Daten nachtragen:** Gebäude und Produktionen kommen aus dem Spielstand, vorplatzierte mit Preis. Rezepte, Zyklen und Kosten stehen nur in den Spieldateien, die tragen Admins im Planer ein. Eigene Gebäude, etwa aus dem Shop, lassen sich anlegen.
+- **Bodenart:** Für jedes Feld und Grundstück lässt sich die Bodenverteilung aus dem Spiel eintragen (Admins, Karte → Feldumrisse und Boden). Die Karte hat dafür die Ansicht „Bodenart“, die Infokarte zeigt die Verteilung und das Ertragspotenzial.
+- **Plantagen:** Kaffee- und Bananenplantagen aus dem Spielstand stehen mit ihren Reihen auf der Karte, und ihre Grundstücke zeigen die Frucht.
+
 ## 29.10.2026 – Farming Hub: alle Grundstücke auf der Karte
 
 - **Alle Nummern wie im Spiel:** Die Karte im Spiel nummeriert jedes Grundstück, auch Wiesen, Wald und Plantagen wie die Kaffeefelder der neuen Karte. Der Hub zeigte bisher nur die echten Felder. Jetzt sind alle Grundstücke da: Felder wie bisher, Grundstücke ohne Feld als gestrichelte Kreise in passender Größe, mit Größe, Preis und Besitzer beim Anklicken.

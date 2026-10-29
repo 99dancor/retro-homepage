@@ -171,7 +171,13 @@
         row('Besitzer', c.farm ? '<a href="/farming/hof/' + c.farm.id + '">' + esc(c.farm.name) + '</a>' : 'zu kaufen' + (c.price ? ' für ' + de(Math.round(c.price)) + ' €' : '')) +
         row('Frucht', c.crop ? '<span class="fs-name">' + c.icon + esc(c.crop) + '</span>' + (c.src === 'plan' ? ' (laut Plan)' : '') : (c.src === 'auto' ? 'nichts' : 'unbekannt')) +
         row('Zustand', '<b>' + esc(c.state || 'unbekannt') + '</b>' + (c.growth ? ', Stufe ' + c.growth : '')) +
+        (c.orchard ? row('Plantage', esc(c.orchard)) : '') +
+        (c.soilType && c.soilType.yield ? row('Ertragspotenzial', de(c.soilType.yield) + ' %') : '') +
         (c.soil ? row('Boden', 'Kalk ' + c.soil.lime + '/3 · Dünger ' + c.soil.spray + '/2 · Pflug ' + (c.soil.plow ? '✔' : '–')) : '') + '</div>';
+      if (c.soilType && c.soilType.parts.length) {
+        h += '<div class="fs-soil"><div class="bar">' + c.soilType.parts.map(function (x) { return '<i style="flex:' + x.pct + ';background:' + x.color + '"></i>'; }).join('') + '</div>' +
+          c.soilType.parts.map(function (x) { return '<span><i style="background:' + x.color + '"></i>' + esc(x.label) + ' ' + de(x.pct) + ' %</span>'; }).join('') + '</div>';
+      }
       if (c.care.length) h += '<div class="chips">' + c.care.map(function (t) { return '<span class="chip">' + esc(t) + '</span>'; }).join('') + '</div>';
       if (c.autoAt) h += '<div class="hint">laut letztem Autosave, abgeholt ' + esc(c.autoAt) + '</div>';
       if (c.report) h += '<div class="hint">' + (c.report.cur ? '' : 'Ältere Meldung: ') + 'gemeldet von ' + esc(c.report.by) + (c.report.day ? ' am ' + esc(c.report.day) : '') + ', ' + esc(c.report.at) + '</div>';

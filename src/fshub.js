@@ -12,6 +12,7 @@ const fsmap = require('./fsmap');
 const saves = require('./fssaves');
 const N = require('./fsnames');
 const prod = require('./fsprod');
+const fsst = require('./fsstations');
 const notify = require('./notify');
 
 const DEFAULT_COLORS = ['#2e8b2e', '#2f6fd8', '#c0392b', '#d4a017', '#8e44ad', '#16a085', '#d35400', '#7f8c8d'];
@@ -263,7 +264,7 @@ function model() {
       if (v.pallet) for (const [t, l] of v.fill) put(t, l, v.where.label, 'Palette');
       else for (const [t, l] of v.fill) if (!(v.drivable && TANK.has(t))) cargo.push({ vehicle: v.name, fill: t, name: N.fill(t), amount: l, value: valueOf(t, l), where: v.where.label });
     }
-    const buildings = (plc || []).filter(p => p.farmId === id && p.kind !== 'orchard').map((p, k) => {
+    const buildings = (plc || []).filter(p => p.farmId === id && p.kind !== 'orchard' && p.kind !== 'station').map((p, k) => {
       const name = p.name || prod.buildingName(prod.typeOf(p));
       const loc = where(p.x, p.z);
       const label = loc.place ? loc.label : name;
@@ -292,6 +293,10 @@ function model() {
     };
   });
 
+  // Stationen der Karte (src/fsstations.js), mit Lage und großer Nachfrage (economy.xml nennt die uniqueId der Station)
+  const stations = fsst.list(plc).map(s => ({ ...s, where: s.placed ? where(s.x, s.z).label : null,
+    demands: (ec ? ec.demands : []).filter(d => d.place === s.uid) }));
+
   const dayTime = st ? st.dayTime : null;
   const ok = feeds.status('stats');
   const stale = !ok.ok_at || (now() - ok.ok_at) > Math.max(120, feeds.interval('stats') * 4);
@@ -302,7 +307,7 @@ function model() {
     day, date, dateSource: (dayState() || {}).source || (day ? 'estimate' : null), weather: weatherNow(day, dayTime),
     money: sg && sg.money !== null ? sg.money : (farmsX ? farmsX.reduce((a, f) => a + (f.money || 0), 0) : null),
     perFarmMoney: !!farmsX, ftp: !!feeds.get('ftp'),
-    farms, fields, orchards, where, lands: [...lands.values()], vehicles, places, players: st ? st.players : [], mods: st ? st.mods : [],
+    farms, fields, orchards, stations, where, lands: [...lands.values()], vehicles, places, players: st ? st.players : [], mods: st ? st.mods : [],
     demands: ec ? ec.demands : [], month,
   };
   return cached;
@@ -816,7 +821,10 @@ function fieldStates() {
 // Produktionsplaner: Gebäude aus placeables.xml plus nachgetragene Rezepte (src/fsprod.js)
 function planner() {
   const m = model();
-  const list = prod.buildings(ftpFile('placeables.xml'), (x, z) => (x === undefined || x === null ? null : m.where(x, z).label));
+  // Vorplatzierte Gebäude haben keine Position im Spielstand, dann gilt die von Hand gesetzte (Stationen auf der Karte)
+  const pos = fsst.positions(), raw = ftpFile('placeables.xml');
+  const plc = raw && raw.map(p => (p.x === null || p.x === undefined) && pos.has(p.uid) ? { ...p, x: pos.get(p.uid).x, z: pos.get(p.uid).z } : p);
+  const list = prod.buildings(plc, (x, z) => (x === undefined || x === null ? null : m.where(x, z).label));
   for (const b of list) for (const i of b.instances) i.farm = m.farms.find(f => f.id === i.farmId) || null;
   return list;
 }
@@ -1044,7 +1052,7 @@ function start() {
 }
 
 module.exports = {
-  STATUS, REPEAT, MAX, SUPPLIES, DEFAULT_COLORS, enabled, canView, canEditFarm, farmOf, model, invalidate, farm, feed, ftpFile,
+  STATUS, stations: fsst, REPEAT, MAX, SUPPLIES, DEFAULT_COLORS, enabled, canView, canEditFarm, farmOf, model, invalidate, farm, feed, ftpFile,
   currentDay, setDay, estimateDay, calendarYear, dateOf, dayOfMonth, fmtDay, hhmm, daysPerPeriod, today, accountFor, history, record,
   join, leave, setMember, saveFarm, notes, addNote, note, canChangeNote, editNote, removeNote,
   tasks, openTasks, task, addTask, editTask, completeTask, reopenTask, removeTask, isDue, dueLabel, repeatLabel,

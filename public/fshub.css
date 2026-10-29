@@ -320,6 +320,30 @@ details.fs-fold > .in { padding: 0 12px 12px; }
 .fs-map .ort { fill: rgba(255,255,255,.1); stroke: #fff; stroke-dasharray: 4 3; stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; }
 .fs-map .ort-t { font: 600 14px var(--g-body); fill: #fff; text-anchor: middle; paint-order: stroke; stroke: #000; stroke-width: 3px; pointer-events: none; }
 .fs-map.hide-nr .nr, .fs-map.hide-veh .veh, .fs-map.hide-pal .pal, .fs-map.hide-orte .orte { display: none; }
+/* Stationen wie die Hotspots im Spiel: farbiges Kästchen mit Symbol, immer etwa 20 px groß (--z = Kartenmaß je Bildpunkt, public/fshub.js) */
+.fs-map .st .sc { transform: scale(var(--z, 1)); }
+.fs-map .st rect { stroke: rgba(0,0,0,.55); stroke-width: 1; }
+.fs-map .st:hover .sc, .fs-map .st.sel .sc { transform: scale(calc(var(--z, 1) * 1.3)); }
+.fs-map .st.sel rect { stroke: var(--g-accent); stroke-width: 2; }
+.fs-map .st.unplaced { display: none; }
+.fs-map.st-placing .st.unplaced.sel { display: inline; opacity: .55; }
+.fs-map.st-placing { cursor: crosshair; }
+.fs-map.hide-st-verkauf .st-verkauf, .fs-map.hide-st-einkauf .st-einkauf, .fs-map.hide-st-produktion .st-produktion,
+.fs-map.hide-st-tanken .st-tanken, .fs-map.hide-st-haendler .st-haendler, .fs-map.hide-st-sonstiges .st-sonstiges { display: none; }
+.fs-stfilter { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--g-line); }
+.fs-stfilter h3 { font: 600 13px var(--g-display); letter-spacing: .08em; text-transform: uppercase; color: var(--g-muted); margin: 0; }
+.fs-stfilter label.inline { gap: 8px; }
+.fs-stfilter .lb { flex: 1; }
+.fs-stfilter .n { color: var(--g-muted); font-size: 12px; }
+.fs-stfilter .stsw { width: 20px; height: 20px; border-radius: 4px; display: inline-grid; place-items: center; flex: none; }
+.fs-stfilter .stsw svg { width: 14px; height: 14px; }
+.fs-stset > summary { padding: 10px 12px; font-size: 14px; }
+.fs-stset > .in { display: grid; gap: 8px; }
+.fs-stset select { width: 100%; }
+.fs-stset .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.fs-sells { max-height: 160px; overflow: auto; }
+.fs-sells a.chip { text-decoration: none; color: inherit; }
+.fs-sells a.chip:hover { background: var(--g-accent); color: var(--g-ink); }
 .fs-zoom { position: absolute; right: 14px; top: 14px; display: grid; gap: 4px; }
 .fsg .fs-zoom button { width: 40px; height: 40px; padding: 0; background: rgba(0,0,0,.65); font-size: 20px; }
 .fsg .fs-zoom button:hover { background: var(--g-accent); color: var(--g-ink); }

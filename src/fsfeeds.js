@@ -157,7 +157,8 @@ function readFarms(xml) {
   });
 }
 // placeables.xml: alles mit Füllständen (Silos, Produktionen, Lager) und Tieren. Jeder Füllstand gehört zu dem Bereich,
-// in dem er steht (silo, productionPoint, husbandryFood …), so lässt sich Futter von Lager unterscheiden.
+// in dem er steht (silo, productionPoint, husbandryFood …), so lässt sich Futter von Lager unterscheiden. Dazu die Stationen
+// der Karte ohne Füllstand (kind 'station': Verkaufsstellen, Tankstellen, Händler). Vorplatzierte haben keine Position.
 function readPlaceables(xml) {
   const s = X.parse(xml);
   const out = [];
@@ -183,11 +184,22 @@ function readPlaceables(xml) {
       if (a && b) (rows[m[1]] = rows[m[1]] || []).push([round(a[0]), round(a[2]), round(b[0]), round(b[2])]);
     }
     for (const [type, list] of Object.entries(rows)) out.push({ farmId: num(p.a.farmId, 0), name: '', file: p.a.filename || '', kind: 'orchard', type, rows: list, fills: [], animals: [], productions: [] });
-    if (!fills.length && !animals.length && !productions.length) continue;
+    // Stationen der Karte (Verkauf, Tankstelle, Händler …): Kartensymbol (customImage mapIcon_<art>.png) und was sie annehmen
+    let icon = '';
+    const sells = new Set();
+    for (const sec of p.c) {
+      if (sec.n === 'customImage') icon = (/mapIcon_([A-Za-z0-9]+)\.png$/.exec(sec.a.filename || '') || [])[1] || icon;
+      if (sec.n === 'sellingStation') for (const el of X.kids(sec, 'stats')) if (el.a.fillType) sells.add(el.a.fillType);
+    }
+    const base = { farmId: num(p.a.farmId, 0), name: p.a.name || '', file: p.a.filename || '', uid: p.a.uniqueId || '', price: num(p.a.price), x: pos && pos[0], z: pos && pos[2], icon, sells: [...sells] };
+    if (!fills.length && !animals.length && !productions.length) {
+      if (icon || sells.size) out.push({ ...base, kind: 'station', fills, animals, productions });
+      continue;
+    }
     const secs = new Set(p.c.map(c => c.n));
     const kind = [...secs].some(n => /^husbandry/i.test(n)) ? 'husbandry' : secs.has('productionPoint') ? 'production'
       : [...secs].some(n => /silo|storage/i.test(n)) ? 'silo' : 'other';
-    out.push({ farmId: num(p.a.farmId, 0), name: p.a.name || '', file: p.a.filename || '', uid: p.a.uniqueId || '', price: num(p.a.price), x: pos && pos[0], z: pos && pos[2], kind, fills, animals, productions });
+    out.push({ ...base, kind, fills, animals, productions });
   }
   return out;
 }

@@ -508,6 +508,42 @@ test('Produktionsplaner: Gebäude aus placeables.xml, Rezept eintragen, Rechner'
   assert.equal(P.building('bakery').mode, 'seriell');
 });
 
+test('Stationen der Karte: aus placeables.xml, Position von Hand', () => {
+  const ST = require('../src/fsstations');
+  const plc = F.readPlaceables(`<placeables>
+    <placeable isPreplaced="true" uniqueId="preplaced_gasStation02_0b4aef7a1913e51d2724bd482c754db24" price="0" farmId="0">
+      <customImage filename="$pdlcdir$beansAndAlpacasPack/map/mapIcons/mapIcon_gasStation.png"/></placeable>
+    <placeable isPreplaced="true" uniqueId="preplaced_siloConcrete01_1359881b3aef5ffc573f398828793ac41" price="0" farmId="0">
+      <customImage filename="$pdlcdir$beansAndAlpacasPack/map/mapIcons/mapIcon_grainElevator.png"/>
+      <sellingStation><stats fillType="WHEAT" received="0"/><stats fillType="BARLEY" received="0"/></sellingStation></placeable>
+    <placeable isPreplaced="true" uniqueId="preplaced_siloConcrete01_2359881b3aef5ffc573f398828793ac41" price="0" farmId="0">
+      <customImage filename="$pdlcdir$beansAndAlpacasPack/map/mapIcons/mapIcon_GCHBGrainElevator.png"/>
+      <sellingStation><stats fillType="WHEAT" received="0"/></sellingStation></placeable>
+    <placeable isPreplaced="true" uniqueId="preplaced_buyingStationManure_aa33770270cb54ad38d785dd9adf13d6" price="0" farmId="0">
+      <customImage filename="data/placeables/shared/buyingStations/buyingStationManure/mapIcon_buyingStationManure.png"/>
+      <sellingStation><stats fillType="MANURE"/></sellingStation></placeable>
+    <placeable isPreplaced="true" uniqueId="preplaced_bakery_9110d7de511c929e2cf101b72b5310af" price="150000" farmId="0">
+      <customImage filename="$pdlcdir$beansAndAlpacasPack/map/mapIcons/mapIcon_bakery.png"/>
+      <productionPoint><production id="bread" isEnabled="true"/><storage><node fillType="FLOUR" fillLevel="10"/></storage></productionPoint></placeable>
+    <placeable isPreplaced="true" uniqueId="preplaced_fence02_ab56d0493b074f03225c1e451c2ef846" farmId="0"/>
+    <placeable isPreplaced="true" uniqueId="preplaced_farmStorage01_3d833770270cb54ad38d785dd9adf13d6" farmId="15"><silo><node fillType="WHEAT" fillLevel="5"/></silo></placeable>
+  </placeables>`);
+  assert.equal(plc.find(p => p.icon === 'gasStation').kind, 'station');
+  assert.deepEqual(plc.find(p => p.icon === 'grainElevator').sells, ['WHEAT', 'BARLEY']);
+  const L = ST.list(plc);
+  assert.deepEqual(L.map(s => [s.cat, s.name]), [['verkauf', 'Getreidesilo 1'], ['verkauf', 'Getreidesilo 2'], ['einkauf', 'Mist kaufen'], ['produktion', 'Bäckerei'], ['tanken', 'Tankstelle']]);
+  assert.equal(L.find(s => s.cat === 'produktion').planner, 'bakery');
+  assert.ok(L.every(s => !s.placed), 'vorplatzierte haben keine Position');
+  const uid = L.find(s => s.cat === 'tanken').uid;
+  assert.equal(ST.place(uid, 120.44, -300, null), true);
+  assert.equal(ST.place(uid, NaN, 1, null), false);
+  const t = ST.list(plc).find(s => s.uid === uid);
+  assert.deepEqual([t.x, t.z, t.placed, t.fixed], [120.4, -300, true, false]);
+  ST.place(uid, null, null);
+  assert.equal(ST.list(plc).find(s => s.uid === uid).placed, false);
+  assert.ok(require('../src/fssaves').TABLES.includes('fs_stations'));
+});
+
 test('Bodenverteilung: von Hand je Feld, gehört zum Spielstand', () => {
   const hub = require('../src/fshub');
   const id = hub.model().fields[0].id;

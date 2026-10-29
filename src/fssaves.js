@@ -10,7 +10,7 @@ const crypto = require('node:crypto');
 const { db, now, getSetting, setSetting, tx } = require('./db');
 const feeds = require('./fsfeeds');
 
-const TABLES = ['fs_farms', 'fs_members', 'fs_tasks', 'fs_hidden', 'fs_places', 'fs_plans', 'fs_fields', 'fs_hist', 'fs_outlines', 'fs_soil'];
+const TABLES = ['fs_farms', 'fs_members', 'fs_tasks', 'fs_hidden', 'fs_places', 'fs_plans', 'fs_fields', 'fs_hist', 'fs_outlines', 'fs_soil', 'fs_stations'];
 const SETTINGS = ['fs_day', 'fs_map_fit'];
 // Spalten mit Konten; gibt es das Konto beim Zurückholen nicht mehr, wird die Spalte leer (fs_members: Zeile fällt weg)
 const USER_COLS = ['updated_by', 'user_id', 'assignee_id', 'created_by', 'done_by'];

@@ -1,8 +1,8 @@
   </main>
 </div>
-<div class="statusbar fs-status">
+<div class="fsg-status">
   <span><% if (m.statsAt) { %>Zuletzt abgefragt <%= ago(m.statsAt) %><% if (m.statsError) { %> · <span class="bad">Fehler: <%= m.statsError %></span><% } %><% } else { %>Noch keine Daten vom Server<% } %></span>
-  <span class="fixed"><%= m.online ? (m.paused ? '● Online · pausiert' : '● Online') : (m.stats ? '○ Offline' : '○ Kein Server') %></span>
+  <span class="fixed<%= m.online ? '' : ' off' %>"><%= m.online ? (m.paused ? '● Online · pausiert' : '● Online') : (m.stats ? '○ Offline' : '○ Kein Server') %></span>
 </div>
 <script src="<%= asset('fshub.js') %>"></script>
 <%- include('../partials/foot') %>

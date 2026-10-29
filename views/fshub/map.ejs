@@ -1,94 +1,101 @@
 <%- include('_top') %>
-<%# Karte für alle Höfe: Kartenbild des Servers, darüber die Felder (Kreis = Mittelpunkt, Größe = Fläche). Ansicht wie im Spiel umschalten:
-    Besitz (live), Früchte, Zustand und Pflege (letzter Autosave per FTP, Meldungen, Pläne). Ohne JavaScript gehen Ansicht und Feldwahl über die Adresse. %>
-<% const CARE = [['kalk', 'Kalk nötig', '#e05a4f'], ['pflug', 'Pflügen fällig', '#9a5b2e'], ['duenger', 'Düngen', '#f2c94c']]; %>
-<% const careOf = f => f.source !== 'auto' ? null : (CARE.find(([k]) => f.care.some(c => c.key === k)) || ['ok', 'Alles erledigt', '#5aa83c']); %>
-<% const S = m.size || 2048, P = v => ((v + S / 2) / S * 1000).toFixed(1); %>
-<%# Radius: halb so groß wie ein Kreis gleicher Fläche, sonst überdecken sich die Felder %>
-<% const R = a => Math.max(6, 0.55 * Math.sqrt((a || 0.5) * 10000 / Math.PI) / S * 1000).toFixed(1); %>
-<% const w = 1000 / (1 - 2 * border / 100), off = -border / 100 * w; %>
-<% const cropList = [...new Map(fields.filter(f => f.crop).map(f => [f.crop, { name: f.crop, color: f.cropColor || '#8fd16a' }])).values()].sort((a, b) => a.name.localeCompare(b.name, 'de')); %>
-<div class="fs-maphead">
-  <h2>🗺️ Karte<%= st && st.map ? ' – ' + st.map : '' %></h2>
-  <div class="layer" role="group" aria-label="Ansicht">
-    <% for (const [k, l] of [['besitz', 'Besitz'], ['fruechte', 'Früchte'], ['zustand', 'Zustand'], ['pflege', 'Pflege']]) { %>
-      <a class="btn small<%= layer === k ? ' on' : '' %>" href="/farming/karte?ansicht=<%= k %><%= sel ? '&feld=' + sel.id : '' %>" data-layer="<%= k %>"><%= l %></a>
-    <% } %>
-  </div>
-  <span class="spacer"></span>
-  <label class="inline"><input type="checkbox" data-show="nr" checked> Feldnummern</label>
-  <label class="inline"><input type="checkbox" data-show="veh"> Fahrzeuge</label>
-  <label class="inline"><input type="checkbox" data-show="pal"> Paletten</label>
-  <label class="inline"><input type="checkbox" data-show="orte" checked> Orte</label>
+<%# Karte über das ganze Fenster: links die Ansichten wie im Spielmenü (◀ ▶ blättert, Linksklick blendet einen Eintrag aus, Rechtsklick zeigt nur ihn),
+    rechts die Karte mit den echten Feldformen (sonst Kreisen), zoombar und verschiebbar. Ohne JavaScript gehen Ansicht und Feldwahl über die Adresse. %>
+<% const keys = Object.keys(LAYERS), li = keys.indexOf(layer), prevL = keys[(li + keys.length - 1) % keys.length], nextL = keys[(li + 1) % keys.length]; %>
+<% const w = 1000 / (1 - 2 * border / 100), off = -border / 100 * w, S = m.size || 2048, P = v => ((v + S / 2) / S * 1000).toFixed(1); %>
+<div class="fs-title fs-maptitle">
+  <h1>Karte<%= st && st.map ? ' · ' + st.map : '' %></h1>
+  <% if (m.money !== null) { %><div class="fs-money">Kontostand: <b><%= eur(m.money) %></b></div><% } %>
 </div>
-<div class="map-wrap">
-  <div class="fs-map sunken" id="fs-map" data-layer="<%= layer %>" data-size="<%= S %>">
-    <svg viewBox="0 0 1000 1000" role="img" aria-label="Karte mit Feldern">
-      <rect width="1000" height="1000" fill="#5d7a3a"/>
+<div class="fs-mapview">
+  <aside class="fs-legend" id="fs-legend" aria-label="Ansichten der Karte">
+    <div class="fs-pager">
+      <a class="arr" href="/farming/karte?ansicht=<%= prevL %>" data-step="-1" aria-label="Vorige Ansicht">◀</a>
+      <h2 id="fs-ltitle"><%= LAYERS[layer] %></h2>
+      <a class="arr" href="/farming/karte?ansicht=<%= nextL %>" data-step="1" aria-label="Nächste Ansicht">▶</a>
+    </div>
+    <div class="fs-dots"><% keys.forEach(k => { %><a href="/farming/karte?ansicht=<%= k %>" data-layer="<%= k %>" title="<%= LAYERS[k] %>" aria-label="<%= LAYERS[k] %>"><i class="<%= k === layer ? 'on' : '' %>"></i></a><% }) %></div>
+    <% for (const k of keys) { %>
+      <div class="fs-items" data-group="<%= k %>" data-title="<%= LAYERS[k] %>"<%= k === layer ? '' : ' hidden' %>>
+        <% for (const it of groups[k]) { %>
+          <button type="button" class="fs-item" data-item="<%= it.key %>"<%- it.raster ? ` data-raster="${it.raster}"` : '' %> title="Klick blendet aus, Rechtsklick zeigt nur diesen Eintrag">
+            <span class="sw" style="background:<%= it.color %>"></span>
+            <span class="lb"><% if (it.fill) { %><span class="fs-name"><%- icon(it.fill, it.label, 's') %><%= it.label %></span><% } else { %><%= it.label %><% } %></span>
+            <span class="n"><%= it.n === null ? '' : it.n %></span>
+          </button>
+        <% } %>
+        <% if (k === 'boden' && raster.length) { %><p class="note">Genau je Fleck aus der Dichtekarte im letzten Autosave. Dünger: hell einmal, dunkel zweimal.</p><% } %>
+        <% if (k !== 'besitz' && !gs.some(f => f.source === 'auto')) { %><p class="note"><%= k === 'boden' ? 'Braucht den FTP-Zugang (fields.xml).' : 'Ohne FTP nur, was Mitglieder melden oder planen.' %></p><% } %>
+      </div>
+    <% } %>
+    <p class="note">Linksklick blendet ein oder aus · Rechtsklick: nur dieser Eintrag (noch mal: alle)</p>
+    <div class="shows">
+      <label class="inline"><input type="checkbox" data-show="nr" checked> Feldnummern</label>
+      <label class="inline"><input type="checkbox" data-show="veh"> Fahrzeuge</label>
+      <label class="inline"><input type="checkbox" data-show="pal"> Paletten</label>
+      <label class="inline"><input type="checkbox" data-show="orte" checked> Orte</label>
+    </div>
+  </aside>
+  <div class="fs-mapbox" id="fs-mapbox">
+    <svg class="fs-map" id="fs-map" viewBox="0 0 1000 1000" data-layer="<%= layer %>" role="img" aria-label="Karte mit Feldern">
+      <rect x="-5000" y="-5000" width="11000" height="11000" fill="#262c22"/>
+      <rect width="1000" height="1000" fill="#4f6a33"/>
       <% if (hasImage) { %><image href="/farming/karte.bild" x="<%= off.toFixed(1) %>" y="<%= off.toFixed(1) %>" width="<%= w.toFixed(1) %>" height="<%= w.toFixed(1) %>" preserveAspectRatio="none"/><% } %>
-      <% for (const lay of ['besitz', 'fruechte', 'zustand', 'pflege']) { %>
-        <g class="l l-<%= lay %>">
-          <% for (const f of fields) { %>
-            <% let fill = 'rgba(255,255,255,.18)', stroke = 'rgba(0,0,0,.45)'; %>
-            <% if (lay === 'besitz' && f.farm) fill = f.farm.color; %>
-            <% if (lay === 'fruechte' && f.crop) fill = f.cropColor || '#8fd16a'; %>
-            <% if (lay === 'zustand' && f.state) fill = (N.STATES[f.state] || [0, '#ccc'])[1]; %>
-            <% if (lay === 'pflege' && careOf(f)) fill = careOf(f)[2]; %>
-            <a href="/farming/karte?ansicht=<%= lay %>&amp;feld=<%= f.id %>" data-field="<%= f.id %>"><circle cx="<%= P(f.x) %>" cy="<%= P(f.z) %>" r="<%= R(f.area) %>" fill="<%= fill %>" fill-opacity="<%= fill.startsWith('rgba') ? 1 : .8 %>" stroke="<%= sel && sel.id === f.id ? '#fff' : stroke %>" stroke-width="<%= sel && sel.id === f.id ? 4 : 1.5 %>"<%- sel && sel.id === f.id ? ' stroke-dasharray="6 4"' : '' %> data-crop="<%= lay === 'fruechte' ? (f.crop || '') : '' %>"><title>Feld <%= f.id %><%= f.farm ? ' · ' + f.farm.name : f.price ? ' · zu kaufen ' + eur(f.price) : '' %><%= f.crop ? ' · ' + f.crop : '' %></title></circle></a>
-          <% } %>
-        </g>
-      <% } %>
-      <g class="nr"><% for (const f of fields) { %><text x="<%= P(f.x) %>" y="<%= (Number(P(f.z)) + 6).toFixed(1) %>"><%= f.id %></text><% } %></g>
+      <g class="flds">
+        <% for (const g of gs) { const L = g.layer; %>
+          <a href="/farming/karte?ansicht=<%= layer %>&amp;feld=<%= g.id %>" data-field="<%= g.id %>"><<%= g.d ? 'path' : 'circle' %> class="fld<%= sel && sel.id === g.id ? ' sel' : '' %>" <%- g.d ? `d="${g.d}"` : `cx="${g.cx}" cy="${g.cy}" r="${g.r}"` %>
+            style="--c-fruechte:<%= L.fruechte[1] %>;--c-wachstum:<%= L.wachstum[1] %>;--c-boden:<%= L.boden[1] %>;--c-besitz:<%= L.besitz[1] %>"
+            data-fruechte="<%= L.fruechte[0] %>" data-wachstum="<%= L.wachstum[0] %>" data-boden="<%= L.boden[0] %>" data-besitz="<%= L.besitz[0] %>"><title>Feld <%= g.id %> · <%= ha(g.area) %><%= g.farm ? ' · ' + g.farm.name : g.price ? ' · zu kaufen ' + eur(g.price) : '' %><%= g.crop ? ' · ' + g.crop : '' %></title></<%= g.d ? 'path' : 'circle' %>></a>
+        <% } %>
+      </g>
+      <g class="ras"><% for (const k of raster) { %><image href="/farming/karte/ebene/<%= k %>.png?v=<%= shp.at %>" x="0" y="0" width="1000" height="1000" preserveAspectRatio="none" data-raster="<%= k %>"/><% } %></g>
+      <g class="nr"><% for (const g of gs) { %><text x="<%= g.cx %>" y="<%= g.cy %>"><%= g.id %></text><% } %></g>
       <g class="orte"><% for (const p of m.places) { %><g><circle cx="<%= P(p.x) %>" cy="<%= P(p.z) %>" r="<%= Math.max(5, p.radius / S * 1000).toFixed(1) %>" class="ort"/><text x="<%= P(p.x) %>" y="<%= (Number(P(p.z)) - Math.max(6, p.radius / S * 1000) - 3).toFixed(1) %>" class="ort-t"><%= p.name %></text></g><% } %></g>
-      <g class="veh"><% for (const v of m.vehicles.filter(v => !v.pallet && v.x !== null)) { %><rect x="<%= (P(v.x) - 4).toFixed(1) %>" y="<%= (P(v.z) - 4).toFixed(1) %>" width="8" height="8" fill="<%= v.driver || v.ai ? '#ffd400' : '#fff' %>" stroke="#000"><title><%= v.name %><%= v.driver ? ' · ' + v.driver : v.ai ? ' · Helfer' : '' %></title></rect><% } %></g>
+      <g class="veh"><% for (const v of m.vehicles.filter(v => !v.pallet && v.x !== null)) { %><rect x="<%= (P(v.x) - 4).toFixed(1) %>" y="<%= (P(v.z) - 4).toFixed(1) %>" width="8" height="8" rx="1.5" fill="<%= v.driver || v.ai ? '#ffd400' : '#fff' %>" stroke="#000"><title><%= v.name %><%= v.driver ? ' · ' + v.driver : v.ai ? ' · Helfer' : '' %></title></rect><% } %></g>
       <g class="pal"><% for (const v of m.vehicles.filter(v => v.pallet && v.x !== null)) { %><circle cx="<%= P(v.x) %>" cy="<%= P(v.z) %>" r="3" fill="#c8a165" stroke="#000"><title><%= v.name %> · <%= v.fill.map(([t, l]) => N.fill(t) + ' ' + liters(l)).join(', ') %></title></circle><% } %></g>
     </svg>
-    <% if (!hasImage) { %><p class="fs-map-hint">Kein Kartenbild. <%= isAdmin ? 'In der Seitenverwaltung die Map-Image-Adresse eintragen oder ein eigenes Bild hochladen.' : '' %></p><% } %>
-  </div>
-  <div class="map-side">
-    <% if (sel) { %>
-      <fieldset class="groupbox"><legend>Feld <%= sel.id %></legend>
-        <div><%= ha(sel.area) %> · <%= sel.farm ? '' : 'zu kaufen für ' + eur(sel.price) %><% if (sel.farm) { %><span class="dot" style="background:<%= sel.farm.color %>"></span> <a href="/farming/hof/<%= sel.farm.id %>"><%= sel.farm.name %></a><% } %></div>
-        <div>🌱 Frucht: <b><%= sel.crop || (sel.source === 'auto' ? 'nichts' : 'unbekannt') %></b><% if (sel.source === 'plan') { %> <span class="hint">(laut Plan)</span><% } %></div>
-        <div>🚜 Zustand: <b><%= sel.state ? N.STATES[sel.state][0] : 'unbekannt' %></b><% if (sel.source === 'auto' && sel.ground && sel.auto.growth) { %> <span class="hint">(<%= sel.ground %>, Wachstumsstufe <%= sel.auto.growth %>)</span><% } %></div>
-        <% if (sel.source === 'auto') { const a = sel.auto; %>
-          <div>🧪 Kalk <%= a.lime %>/3 · Dünger <%= a.spray %>/2 · Pflug <%= a.plow ? '✔' : '–' %> · Walze <%= a.roller ? '✔' : '–' %> · Mulchen <%= a.stubble ? '✔' : '–' %><%= a.weed ? ' · Unkraut ' + a.weed : '' %><%= a.stone ? ' · Steine ' + a.stone : '' %></div>
-          <% if (sel.care.length) { %><div>⚠️ <%= sel.care.map(c => c.label).join(' · ') %></div><% } %>
-          <div class="hint">laut letztem Autosave, abgeholt <%= when(sel.autoAt) %></div>
-        <% } %>
+    <div class="fs-zoom">
+      <button type="button" data-zoom="1.4" aria-label="Hineinzoomen" title="Hineinzoomen"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
+      <button type="button" data-zoom="0.7" aria-label="Herauszoomen" title="Herauszoomen">−</button>
+      <button type="button" data-zoom="0" aria-label="Ganze Karte" title="Ganze Karte"><svg aria-hidden="true"><use href="#i-fit"/></svg></button>
+    </div>
+    <div class="fs-maphint">Mausrad zoomt · Ziehen verschiebt · Klick auf ein Feld</div>
+    <% if (!hasImage) { %><p class="fs-nomap">Kein Kartenbild. <%= isAdmin ? 'In der Seitenverwaltung die Map-Image-Adresse eintragen oder ein eigenes Bild hochladen.' : '' %></p><% } %>
+
+    <div class="fs-finfo" id="fs-finfo"<%= sel ? '' : ' hidden' %>>
+      <% if (sel) { const a = sel.source === 'auto' ? sel.auto : null; %>
+        <a class="x" href="/farming/karte?ansicht=<%= layer %>" data-close aria-label="Schließen">✕</a>
+        <h2>Feld <%= sel.id %></h2>
+        <div class="fs-rows">
+          <div class="fs-row"><span class="t">Größe</span><span class="v"><%= ha(sel.area) %></span></div>
+          <div class="fs-row"><span class="t">Besitzer</span><span class="v"><% if (sel.farm) { %><a href="/farming/hof/<%= sel.farm.id %>"><%= sel.farm.name %></a><% } else { %>zu kaufen für <%= eur(sel.price) %><% } %></span></div>
+          <div class="fs-row"><span class="t">Frucht</span><span class="v"><% if (sel.crop) { %><span class="fs-name"><%- icon(sel.cropFill, sel.crop, 's') %><%= sel.crop %></span><% } else { %><%= sel.source === 'auto' ? 'nichts' : 'unbekannt' %><% } %><%= sel.source === 'plan' ? ' (laut Plan)' : '' %></span></div>
+          <div class="fs-row"><span class="t">Zustand</span><span class="v"><b><%= sel.state ? N.STATES[sel.state][0] : 'unbekannt' %></b><%= a && a.growth ? ', Stufe ' + a.growth : '' %></span></div>
+          <% if (a) { %><div class="fs-row"><span class="t">Boden</span><span class="v">Kalk <%= a.lime %>/3 · Dünger <%= a.spray %>/2 · Pflug <%= a.plow ? '✔' : '–' %></span></div><% } %>
+        </div>
+        <% if (sel.care.length) { %><div class="chips"><% for (const c of sel.care) { const k = CARE_COLORS[c.key]; %><span class="chip"><i style="background:<%= k || '#999' %>"></i><%= c.label %></span><% } %></div><% } %>
+        <% if (a) { %><div class="hint">laut letztem Autosave, abgeholt <%= when(sel.autoAt) %></div><% } %>
         <% if (sel.report) { %><div class="hint"><%= sel.source === 'report' ? '' : 'Ältere Meldung: ' %>gemeldet von <%= sel.report.username || '–' %><%= sel.report.game_day ? ' am ' + (fmtDay(sel.report.game_day) || 'Spieltag ' + sel.report.game_day) : '' %>, <%= when(sel.report.updated_at) %></div><% } %>
-        <% if (sel.plan) { %><div>📅 Plan: <%= sel.plan.crop %>, säen <%= N.MONTHS[sel.plan.sow_month] %>, ernten <%= N.MONTHS[sel.plan.harvest_month] %></div><% } %>
+        <% if (sel.plan) { %><div class="hint">Plan: <%= sel.plan.crop %>, säen <%= N.MONTHS[sel.plan.sow_month] %>, ernten <%= N.MONTHS[sel.plan.harvest_month] %></div><% } %>
         <% if (user && (!sel.farm || canEdit(sel.farm.id))) { %>
           <form method="post" action="/farming/feld/<%= sel.id %>" class="fs-form"><input type="hidden" name="_csrf" value="<%= csrf %>">
             <label>Frucht <select name="crop_id"><option value="">unbekannt</option><% for (const c of crops) { %><option value="<%= c.id %>"<%= sel.report && sel.report.crop_id === c.id ? ' selected' : '' %>><%= c.name %></option><% } %></select></label>
             <label>Zustand <select name="state"><option value="">unbekannt</option><% for (const [k, [l]] of Object.entries(N.STATES)) { %><option value="<%= k %>"<%= sel.state === k ? ' selected' : '' %>><%= l %></option><% } %></select></label>
-            <button class="def">Melden</button>
-            <% if (sel.farm) { %><a class="btn small" href="/farming/hof/<%= sel.farm.id %>?tab=kalender&amp;feld=<%= sel.id %>#plan">📅 Plan</a> <a class="btn small" href="/farming/hof/<%= sel.farm.id %>?tab=aufgaben&amp;feld=<%= sel.id %>#neu">✅ Aufgabe</a><% } %>
+            <div class="row"><button class="def">Melden</button>
+            <% if (sel.farm) { %><a class="btn small" href="/farming/hof/<%= sel.farm.id %>?tab=kalender&amp;feld=<%= sel.id %>#plan">Plan</a> <a class="btn small" href="/farming/hof/<%= sel.farm.id %>?tab=aufgaben&amp;feld=<%= sel.id %>#neu">Aufgabe</a><% } %></div>
           </form>
         <% } %>
-      </fieldset>
-    <% } else { %><p class="hint">Klick auf ein Feld zeigt Größe, Besitzer, Frucht und Zustand. Frucht und Zustand kommen mit FTP aus dem letzten Autosave, sonst melden Mitglieder sie hier.</p><% } %>
-    <div class="fs-legend" data-for="besitz">
-      <div class="grp">Besitz</div>
-      <% for (const f of m.farms) { %><div class="lg"><span class="sw" style="background:<%= f.color %>"></span><a href="/farming/hof/<%= f.id %>"><%= f.name %></a><span><%= f.land.fields %> Felder · <%= ha(f.land.ha) %></span></div><% } %>
-      <div class="lg"><span class="sw free"></span><span>zu kaufen</span><span><%= fields.filter(f => !f.farm).length %></span></div>
-    </div>
-    <div class="fs-legend" data-for="fruechte">
-      <div class="grp">Früchte <span class="hint">(Klick blendet aus)</span></div>
-      <% for (const c of cropList) { const fs_ = fields.filter(f => f.crop === c.name); %>
-        <button type="button" class="lg linkish" data-crop="<%= c.name %>"><span class="sw" style="background:<%= c.color %>"></span><span><%= c.name %></span><span><%= fs_.length %> · <%= ha(fs_.reduce((a, f) => a + f.area, 0)) %></span></button>
       <% } %>
-      <% if (!cropList.length) { %><p class="hint">Noch nichts gemeldet oder geplant.</p><% } %>
-    </div>
-    <div class="fs-legend" data-for="pflege">
-      <div class="grp">Pflege <span class="hint">(letzter Autosave)</span></div>
-      <% for (const [k, l, col] of [...CARE, ['ok', 'Alles erledigt', '#5aa83c']]) { %><div class="lg"><span class="sw" style="background:<%= col %>"></span><span><%= l %></span><span><%= fields.filter(f => careOf(f) && careOf(f)[0] === k).length %></span></div><% } %>
-      <% if (!fields.some(f => f.source === 'auto')) { %><p class="hint">Braucht den FTP-Zugang (fields.xml).</p><% } %>
-    </div>
-    <div class="fs-legend" data-for="zustand">
-      <div class="grp">Zustand</div>
-      <% for (const [k, [l, col]] of Object.entries(N.STATES)) { %><div class="lg"><span class="sw" style="background:<%= col %>"></span><span><%= l %></span><span><%= fields.filter(f => f.state === k).length %></span></div><% } %>
     </div>
   </div>
 </div>
+<%# Für die Infokarte beim Klick: Daten je Feld und ein leeres Meldeformular %>
+<script type="application/json" id="fs-cards"><%- JSON.stringify(cards).replace(/</g, '\\u003c') %></script>
+<template id="fs-reportform">
+  <form method="post" class="fs-form"><input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Frucht <select name="crop_id"><option value="">unbekannt</option><% for (const c of crops) { %><option value="<%= c.id %>"><%= c.name %></option><% } %></select></label>
+    <label>Zustand <select name="state"><option value="">unbekannt</option><% for (const [k, [l]] of Object.entries(N.STATES)) { %><option value="<%= k %>"><%= l %></option><% } %></select></label>
+    <div class="row"><button class="def">Melden</button><a class="btn small" data-plan>Plan</a> <a class="btn small" data-task>Aufgabe</a></div>
+  </form>
+</template>
 <%- include('_bottom') %>

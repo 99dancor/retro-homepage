@@ -28,7 +28,7 @@
     </fieldset>
     <% const ft = feedRows.find(x => x.key === 'ftp'); %>
     <fieldset class="groupbox"><legend>FTP zum Spielstand (z. B. GPORTAL)</legend>
-      <p class="muted">Ergänzt, was das Webinterface nicht hat: Geld je Hof (farms.xml), Silos, Produktionen und Ställe (placeables.xml), Ballen (items.xml), Datum und Wetter (environment.xml), Frucht und Zustand jedes Felds (fields.xml) und, falls der Mod „Bank Credit“ läuft, die Kredite (bankCredit.xml). Ist oben eine Adresse leer, liest der Hub careerSavegame.xml, vehicles.xml und economy.xml auch von hier. Die Dateien sind so aktuell wie der letzte Autosave. Die Website verbindet sich nur nach draußen, am Reverse Proxy und an Unraid ändert sich nichts.</p>
+      <p class="muted">Ergänzt, was das Webinterface nicht hat: Geld je Hof (farms.xml), Silos, Produktionen und Ställe (placeables.xml), Ballen (items.xml), Datum und Wetter (environment.xml), Frucht und Zustand jedes Felds (fields.xml) und, falls der Mod „Bank Credit“ läuft, die Kredite (bankCredit.xml). Für die echten Feldformen holt er densityMap_ground.gdm und die Kalk-, Dünger- und Pflug-Ebenen (infoLayer_*.grle). Ist oben eine Adresse leer, liest der Hub careerSavegame.xml, vehicles.xml und economy.xml auch von hier. Die Dateien sind so aktuell wie der letzte Autosave. Die Website verbindet sich nur nach draußen, am Reverse Proxy und an Unraid ändert sich nichts.</p>
       <div class="fs-admin-ftp">
         <label>Server <input name="ftp_host" value="<%= ftp.host %>" placeholder="z. B. 176.57.181.181" autocomplete="off"></label>
         <label>Port <input type="number" name="ftp_port" value="<%= ftp.port %>" min="1" max="65535" style="width:80px"></label>
@@ -51,6 +51,13 @@
     <p><%= customMap ? '✔ Eigenes Bild aktiv (' + customMap + ')' : hasServerMap ? '✔ Bild vom Server' : 'Noch kein Bild' %></p>
     <form method="post" action="/admin/farming/karte" enctype="multipart/form-data" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="file" name="map" accept="image/png,image/jpeg,image/webp" required><button>Eigenes Bild hochladen</button></form>
     <% if (customMap) { %><form method="post" action="/admin/farming/karte/loeschen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">Eigenes Bild entfernen</button></form><% } %>
+  </fieldset>
+
+  <fieldset class="groupbox" id="symbole"><legend>Symbole der Erzeugnisse</legend>
+    <p>Der Hub zeichnet eigene Symbole im Stil des Spiels. Mit den Originalen sieht es aus wie im Spiel: Die liegen als PNG im Spiel unter <code>dataS/menu/hud/fillTypes/</code> (z. B. <code>hud_fill_wheat</code>, in der dataS.gar, zum Entpacken gibt es Werkzeuge der Community). Im Spiel liegen sie meist als .dds, dann vorher in PNG umwandeln (z. B. mit Paint.NET oder GIMP). Lade sie hier hoch, einzeln oder als ZIP, der Name ordnet sie zu (<code>hud_fill_wheat.png</code> oder <code>wheat.png</code>). Sie bleiben im Datenordner des Servers, nur der Hub zeigt sie an.</p>
+    <p><%= iconCount ? '✔ ' + iconCount + ' Originalsymbole hochgeladen' : 'Noch keine Originale, der Hub nutzt seine eigenen Symbole.' %></p>
+    <form method="post" action="/admin/farming/symbole" enctype="multipart/form-data" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="file" name="icons" accept="image/png,.zip,application/zip" multiple required><button>Symbole hochladen</button></form>
+    <% if (iconCount) { %><form method="post" action="/admin/farming/symbole/loeschen" class="actions" data-confirm="Alle hochgeladenen Symbole löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">Alle hochgeladenen Symbole löschen</button></form><% } %>
   </fieldset>
 
   <fieldset class="groupbox"><legend>Datum im Spiel</legend>
@@ -137,6 +144,7 @@
     </fieldset>
     <fieldset class="groupbox"><legend>Modliste und Karte</legend>
       <label>Verknüpfte Modliste <select name="fs_modlist"><option value="">keine</option><% for (const l of lists) { %><option value="<%= l.slug %>"<%= s.fs_modlist === l.slug ? ' selected' : '' %>><%= l.game ? l.game + ' – ' : '' %><%= l.title %></option><% } %></select></label>
+      <label class="inline"><input type="checkbox" name="fs_shapes" value="1"<%= s.fs_shapes === '1' ? ' checked' : '' %>> Echte Feldformen (nur mit FTP: holt densityMap_ground.gdm und die Kalk-, Dünger- und Pflug-Ebenen, je Autosave etwa 1–2 MB)</label><br>
       <label>Rand des Server-Kartenbilds <input type="number" name="fs_map_border" min="0" max="45" value="<%= s.fs_map_border %>" style="width:60px"> % je Seite</label>
       <p class="muted">Das Webinterface zeigt die Karte in der Mitte eines größeren Bilds (bei Bilk 25 %). Ein eigenes Bild gilt immer ohne Rand.</p>
     </fieldset>

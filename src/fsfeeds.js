@@ -6,7 +6,8 @@
 //                        Vehicles (Farm, Preis, Verschleiß), Economy (Preise, große Nachfragen), Map Image (Kartenbild)
 //   FTP (z. B. GPORTAL): farms.xml (Geld je Hof), placeables.xml (Silos, Produktionen, Ställe), items.xml (Ballen),
 //                        environment.xml (Datum, Wetter), fields.xml (Frucht, Wachstum und Boden je Feld),
-//                        bankCredit.xml (Kredite aus dem Mod „Bank Credit“, wenn vorhanden). Ist eine Webinterface-Adresse leer, liest er careerSavegame.xml,
+//                        bankCredit.xml (Kredite aus dem Mod „Bank Credit“, wenn vorhanden), densityMap_ground.gdm und die
+//                        Kalk-, Dünger- und Pflug-Ebenen (echte Feldformen, src/fsmap.js). Ist eine Webinterface-Adresse leer, liest er careerSavegame.xml,
 //                        vehicles.xml und economy.xml auch von dort. Die Dateien sind so aktuell wie der letzte Autosave.
 //
 // Jeder Zugang hat seinen eigenen Abstand. Klappt ein Abruf nicht, wartet er länger (bis 10 Minuten) und behält den
@@ -31,8 +32,10 @@ const FEEDS = {
   ftp: { name: 'FTP', every: 300, min: 60, hint: 'Savegame-Ordner beim Hoster' },
 };
 const FTP_FILES = ['farms.xml', 'placeables.xml', 'items.xml', 'environment.xml', 'fields.xml', 'bankCredit.xml'];
-// Dateien von Mods: fehlen sie, ist das kein Fehler
-const FTP_OPTIONAL = new Set(['bankCredit.xml']);
+// Dichtekarten für die Feldformen: werden nur gespeichert (sg-<Name> im Datenordner), nicht ausgelesen
+const FTP_BINARY = ['densityMap_ground.gdm', 'infoLayer_limeLevel.grle', 'infoLayer_sprayLevel.grle', 'infoLayer_plowLevel.grle'];
+// Dateien von Mods und Dichtekarten: fehlen sie, ist das kein Fehler
+const FTP_OPTIONAL = new Set(['bankCredit.xml', ...FTP_BINARY]);
 // Diese drei liest der FTP-Abruf zusätzlich, wenn die Webinterface-Adresse dafür leer ist
 const FTP_FALLBACK = { savegame: 'careerSavegame.xml', vehicles: 'vehicles.xml', economy: 'economy.xml' };
 const TIMEOUT = 15000;
@@ -303,7 +306,9 @@ async function runFtp(force = false) {
   const prev = status('ftp');
   const files = { ...((prev.data && prev.data.files) || {}) };
   const seen = { ...((prev.info && prev.info.seen) || {}) };
-  const wanted = [...FTP_FILES, ...Object.entries(FTP_FALLBACK).filter(([k]) => !url(k)).map(([, f]) => f)];
+  const shapes = getSetting('fs_shapes', '1') === '1';
+  const wanted = [...FTP_FILES, ...(shapes ? FTP_BINARY : []), ...Object.entries(FTP_FALLBACK).filter(([k]) => !url(k)).map(([, f]) => f)];
+  if (!shapes) for (const n of FTP_BINARY) { delete files[n]; fs.rmSync(path.join(FS_DIR, 'sg-' + n), { force: true }); }
   const notes = [];
   try {
     await client.access({ host: cfg.host, port: cfg.port, user: cfg.user, password: cfg.password,
@@ -312,12 +317,24 @@ async function runFtp(force = false) {
     const byName = new Map(list.filter(f => f.isFile).map(f => [f.name, f]));
     for (const name of wanted) {
       const f = byName.get(name);
-      if (!f) { if (!FTP_OPTIONAL.has(name)) notes.push(`${name} fehlt`); delete files[name]; continue; }
+      if (!f) {
+        if (!FTP_OPTIONAL.has(name)) notes.push(`${name} fehlt`);
+        delete files[name];
+        if (FTP_BINARY.includes(name)) fs.rmSync(path.join(FS_DIR, 'sg-' + name), { force: true });
+        continue;
+      }
       const sig = `${f.size}:${f.rawModifiedAt || ''}`;
       if (!force && seen[name] === sig && files[name] !== undefined) continue;
       if (f.size > MAX_BYTES) { notes.push(`${name} ist zu groß`); continue; }
       const chunks = [];
       await client.downloadTo(new Writable({ write(c, e, cb) { chunks.push(c); cb(); } }), path.posix.join(cfg.dir, name));
+      if (FTP_BINARY.includes(name)) {
+        const buf = Buffer.concat(chunks);
+        fs.writeFileSync(path.join(FS_DIR, 'sg-' + name), buf);
+        files[name] = { bytes: buf.length, at: now(), sig };
+        seen[name] = sig;
+        continue;
+      }
       const xml = Buffer.concat(chunks).toString('utf8');
       try {
         files[name] = readFtpFile(name, xml);
@@ -368,6 +385,7 @@ function summarizeFtp(files, notes) {
   if (fl) parts.push(`fields.xml: ${fl.list.length} Felder`);
   const bc = files['bankCredit.xml'];
   if (bc) { const open = bc.loans.filter(l => !l.paidOff).length; parts.push(`bankCredit.xml: ${open} ${open === 1 ? 'laufender Kredit' : 'laufende Kredite'}`); }
+  if (files['densityMap_ground.gdm']) parts.push(`Dichtekarte: Feldformen${FTP_BINARY.slice(1).some(n => files[n]) ? ' und Boden-Ebenen' : ''}`);
   for (const [k, n] of Object.entries(FTP_FALLBACK)) if (files[n]) parts.push(`${n} statt ${FEEDS[k].name}-Adresse`);
   return parts.concat(notes).join(' · ');
 }
@@ -420,6 +438,6 @@ function start() {
 function reschedule(key) { nextAt.delete(key); }
 
 module.exports = {
-  FEEDS, FTP_FILES, FTP_FALLBACK, MAP_FILE, FS_DIR, url, interval, ftpConfig, configured, get, status, on, onError, run, runAll, start, reschedule, forget,
+  FEEDS, FTP_FILES, FTP_BINARY, FTP_FALLBACK, MAP_FILE, FS_DIR, url, interval, ftpConfig, configured, get, status, on, onError, run, runAll, start, reschedule, forget,
   readStats, readSavegame, readVehicles, readEconomy, readFarms, readPlaceables, readItems, readEnvironment, readFields, readBankCredit, imageSize, load,
 };

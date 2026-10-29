@@ -1,73 +1,158 @@
 <%- include('_top') %>
-<%# Hofübersicht: Kopf mit Mitgliedern, drei Kacheln (Land, Bilanz, offene Aufgaben), darunter die Reiter %>
+<%# Hof: Kopf mit ◀ ▶ durch die Höfe und Kontostand, Reiter, darunter je Reiter der Inhalt. Übersicht = Kacheln mit einer Vorschau jedes Reiters %>
 <% const mine = myFarm === f.id, editable = canEdit(f.id); %>
 <% const myFields = m.fields.filter(x => x.owner === f.id); %>
-<div class="fs-head" style="background:linear-gradient(90deg, <%= f.color %>, <%= f.color %>99)">
-  <span class="big" aria-hidden="true">🏡</span>
-  <div><b><%= f.name %></b>
-    <small>Farm <%= f.id %><%= f.gameName && f.gameName !== f.name ? ' · im Spiel „' + f.gameName + '“' : '' %> · <%= f.members.length ? f.members.map(u => u.display_name || u.username).join(', ') : 'noch keine Mitglieder auf der Seite' %></small></div>
-  <span class="spacer"></span>
-  <% if (user && !mine) { %><form method="post" action="/farming/hof/<%= f.id %>/beitreten" class="inline"<%- myFarm ? ' data-confirm="Du gehörst schon einem anderen Hof an. Wechseln?"' : '' %>><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small">➕ Diesem Hof beitreten</button></form><% } %>
-  <% if (mine) { %><details class="fs-rename"><summary class="btn small">✏️ Hof</summary>
-    <form method="post" action="/farming/hof/<%= f.id %>/name" class="fs-pop"><input type="hidden" name="_csrf" value="<%= csrf %>">
-      <label>Name <input name="name" maxlength="40" value="<%= f.name %>" placeholder="Farm <%= f.id %>"></label>
-      <label>Farbe <input type="color" name="color" value="<%= f.color %>"></label>
-      <button class="def">Speichern</button></form>
-    <form method="post" action="/farming/austreten" class="fs-pop" data-confirm="Diesen Hof verlassen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="/farming/hof/<%= f.id %>"><button class="small danger">Hof verlassen</button></form>
-  </details><% } %>
+<% const fi = m.farms.findIndex(x => x.id === f.id), prev = m.farms[fi - 1], next = m.farms[fi + 1], tq = tab === 'uebersicht' ? '' : '?tab=' + tab; %>
+<div class="fs-title">
+  <div class="fs-pager">
+    <a class="arr<%= prev ? '' : ' off' %>" href="<%= prev ? '/farming/hof/' + prev.id + tq : '#' %>" title="<%= prev ? prev.name : '' %>" aria-label="Voriger Hof">◀</a>
+    <h1><b><%= f.name %></b></h1>
+    <a class="arr<%= next ? '' : ' off' %>" href="<%= next ? '/farming/hof/' + next.id + tq : '#' %>" title="<%= next ? next.name : '' %>" aria-label="Nächster Hof">▶</a>
+  </div>
+  <div class="acts">
+    <% if (user && !mine) { %><form method="post" action="/farming/hof/<%= f.id %>/beitreten" class="inline"<%- myFarm ? ' data-confirm="Du gehörst schon einem anderen Hof an. Wechseln?"' : '' %>><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small"><svg width="16" height="16" aria-hidden="true"><use href="#i-plus"/></svg>Beitreten</button></form><% } %>
+    <% if (mine) { %><details class="fs-rename"><summary class="btn small">Hof bearbeiten</summary>
+      <form method="post" action="/farming/hof/<%= f.id %>/name" class="fs-pop"><input type="hidden" name="_csrf" value="<%= csrf %>">
+        <label>Name <input name="name" maxlength="40" value="<%= f.name %>" placeholder="Farm <%= f.id %>"></label>
+        <label>Farbe <input type="color" name="color" value="<%= f.color %>"></label>
+        <button class="def">Speichern</button></form>
+      <form method="post" action="/farming/austreten" class="fs-pop" data-confirm="Diesen Hof verlassen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="/farming/hof/<%= f.id %>"><button class="small danger">Hof verlassen</button></form>
+    </details><% } %>
+  </div>
+  <div class="fs-money"><%= f.money !== null ? 'Kontostand' : 'Bilanz' %>: <b><%= f.money !== null ? eur(f.money) : big(f.bilanz) %></b></div>
+  <div class="sub">Farm <%= f.id %><%= f.gameName && f.gameName !== f.name ? ' · im Spiel „' + f.gameName + '“' : '' %> · <%= f.members.length ? f.members.map(u => u.display_name || u.username).join(', ') : 'noch keine Mitglieder auf der Seite' %></div>
 </div>
-<div class="kpis fs-k k3">
-  <div class="kpi"><span class="ic" aria-hidden="true">🌾</span><small>Land</small><b><%= ha(f.land.ha) %></b>
-    <span class="sub">Wert des Landes <%= big(f.land.value) %></span><span class="sub">Felder: <%= f.land.fields %> · Grundstücke: <%= f.land.lands %></span></div>
-  <div class="kpi"><span class="ic" aria-hidden="true">💶</span><small>Bilanz</small><b><%= big(f.bilanz) %></b>
-    <span class="sub"><%= f.money !== null ? 'Konto ' + big(f.money) + ' · ' : 'ohne Konto (nur mit FTP) · ' %>Land, Fuhrpark, Lager<%= f.creditRest ? ' · minus Kredite ' + big(f.creditRest) : '' %></span>
-    <% if (yesterday) { const d = f.bilanz - yesterday.value; %><span class="sub <%= d >= 0 ? 'ok' : 'bad' %>"><%= d >= 0 ? '▲ +' : '▼ ' %><%= big(d) %> seit gestern</span><% } %></div>
-  <div class="kpi"><span class="ic" aria-hidden="true">✅</span><small>Offene Aufgaben</small><b><%= open.length %></b>
-    <span class="sub"><%= overdue ? overdue + ' überfällig · ' : '' %><%= open.filter(t => t.isDue).length %> heute fällig</span><span class="sub"><%= auto.length %> Vorschläge vom Server</span></div>
-</div>
-<div class="tabs fs-tabs" role="tablist">
-  <% for (const [k, l] of Object.entries(TABS)) { %><a role="tab" aria-selected="<%= tab === k %>" class="btn<%= tab === k ? ' on' : '' %>" href="/farming/hof/<%= f.id %>?tab=<%= k %>"><%= l %><%= k === 'aufgaben' && auto.length ? ' (' + auto.length + ')' : '' %></a><% } %>
-</div>
-<div class="hof-page">
+<nav class="fs-tabs" aria-label="Bereiche des Hofs">
+  <% for (const [k, l] of Object.entries(TABS)) { %><a href="/farming/hof/<%= f.id %><%= k === 'uebersicht' ? '' : '?tab=' + k %>"<%- tab === k ? ' class="on" aria-current="page"' : '' %>><%= l %><% if (k === 'aufgaben' && open.length + auto.length) { %> <span class="n"><%= open.length + auto.length %></span><% } %></a><% } %>
+</nav>
+
+<% if (tab === 'uebersicht') { %>
+  <% const goods = f.stock.filter(s => !s.supply).slice().sort((a, b) => b.value - a.value || b.amount - a.amount); %>
+  <% const ripe = fieldList.filter(x => x.state === 'reif'), lime = fieldList.filter(x => x.care.some(c => c.key === 'kalk')), plow = fieldList.filter(x => x.care.some(c => c.key === 'pflug')), grow = fieldList.filter(x => x.state === 'gesaet' || x.state === 'waechst'); %>
+  <% const worn = f.fleet.filter(v => v.damage !== null).slice().sort((a, b) => b.damage - a.damage).slice(0, 3); %>
+  <% const go = (t, ic, title) => `<div class="th"><svg aria-hidden="true"><use href="#i-${ic}"/></svg>${title}<span class="go" aria-hidden="true">›</span></div>`; %>
+  <div class="fs-tiles">
+    <a class="fs-tile" href="/farming/hof/<%= f.id %>?tab=finanzen"><%- go('finanzen', 'bank', 'Konto und Bilanz') %>
+      <div class="fs-big"><%= f.money !== null ? de(Math.round(f.money)) : de(Math.round(f.bilanz)) %> <small>€<%= f.money !== null ? '' : ' Bilanz' %></small></div>
+      <div class="fs-rows">
+        <div class="fs-row"><span class="t">Bilanz mit Land und Fuhrpark</span><span class="v"><%= eur(f.bilanz) %></span></div>
+        <% if (f.creditRest || f.loan) { %><div class="fs-row bad"><span class="t">Kredite offen</span><span class="v">−<%= eur((f.creditRest || 0) + (f.loan || 0)) %></span></div><% } %>
+        <% if (yesterday) { const d = f.bilanz - yesterday.value; %><div class="fs-row"><span class="t">Seit gestern</span><span class="v <%= d >= 0 ? 'ok' : 'bad' %>"><%= d >= 0 ? '+' : '' %><%= big(d) %></span></div><% } %>
+      </div>
+      <% if (f.credits.length) { const paid = f.credits.reduce((a, l) => a + l.amount - l.rest, 0) / (f.credits.reduce((a, l) => a + l.amount, 0) || 1); %><span class="bar wide" title="<%= Math.round(paid * 100) %> % der Kredite getilgt"><i style="width:<%= Math.round(paid * 100) %>%;background:var(--g-warn)"></i></span><% } %>
+    </a>
+
+    <a class="fs-tile wide" href="/farming/karte"><%- go('karte', 'field', 'Felder') %>
+      <div class="fs-minimap">
+        <% const gs = geo(allFields, m, shp), own = gs.filter(g => g.owner === f.id); %>
+        <svg viewBox="<%= frame(own.length ? own : gs) %>" aria-hidden="true">
+          <% for (const g of gs) { const c = g.owner === f.id ? (g.cropColor || f.color) : 'rgba(255,255,255,.1)'; %>
+            <% if (g.d) { %><path d="<%= g.d %>" fill="<%= c %>" stroke="#0007" stroke-width="1" vector-effect="non-scaling-stroke"/><% } else { %><circle cx="<%= g.cx %>" cy="<%= g.cy %>" r="<%= g.r %>" fill="<%= c %>" stroke="#0007" vector-effect="non-scaling-stroke"/><% } %>
+          <% } %>
+        </svg>
+        <div class="fs-rows">
+          <div class="fs-big"><%= f.land.fields %> <small>Felder · <%= ha(f.land.ha) %></small></div>
+          <div class="chips">
+            <% if (ripe.length) { %><span class="chip"><i style="background:#f2a51d"></i><%= ripe.length %> erntereif</span><% } %>
+            <% if (lime.length) { %><span class="chip"><i style="background:#e0c52c"></i><%= lime.length %> brauchen Kalk</span><% } %>
+            <% if (plow.length) { %><span class="chip"><i style="background:#c8693a"></i><%= plow.length %> pflügen</span><% } %>
+            <% if (grow.length) { %><span class="chip"><i style="background:#5aa83c"></i><%= grow.length %> im Wachstum</span><% } %>
+            <% if (!fieldList.some(x => x.source === 'auto')) { %><span class="hint">Stand der Felder kommt mit FTP aus dem Autosave.</span><% } %>
+          </div>
+          <% const byCrop = new Map(); for (const x of ripe) { if (!byCrop.has(x.crop)) byCrop.set(x.crop, { fill: x.cropFill, ids: [] }); byCrop.get(x.crop).ids.push(x.id); } %>
+          <% for (const [name, r] of [...byCrop].slice(0, 2)) { %><div class="fs-row"><%- icon(r.fill, name, 's') %><span class="t"><%= name || 'Frucht' %> auf Feld <%= r.ids.join(', ') %> ist reif</span></div><% } %>
+        </div>
+      </div>
+    </a>
+
+    <a class="fs-tile" href="/farming/hof/<%= f.id %>?tab=aufgaben"><%- go('aufgaben', 'check', 'Nächste Aufgaben') %>
+      <div class="fs-rows">
+        <% for (const t of open.slice(0, 5)) { %><div class="fs-row<%= t.overdue ? ' bad' : '' %>"><span class="fi fi-s" style="--c:var(--g-tile-hi);color:var(--g-accent)"><svg><use href="#i-check"/></svg></span><span class="t"><%= t.title %></span><span class="v"><%= t.due || '' %></span></div><% } %>
+        <% for (const a of auto.slice(0, Math.max(0, 5 - open.length))) { %><div class="fs-row"><span class="fi fi-s" style="--c:#26301a;color:var(--g-accent)"><svg><use href="#i-bulb"/></svg></span><span class="t"><%= a.title %></span><span class="v">Vorschlag</span></div><% } %>
+        <% if (!open.length && !auto.length) { %><p class="fs-empty">Nichts offen.</p><% } %>
+      </div>
+    </a>
+
+    <a class="fs-tile" href="/farming/hof/<%= f.id %>?tab=inventar"><%- go('inventar', 'box', 'Inventar') %>
+      <div class="fs-rows">
+        <% for (const s of goods.slice(0, 5)) { %><div class="fs-row"><%- icon(s.fill, s.name, 's') %><span class="t"><%= s.name %></span><span class="v"><%= liters(s.amount) %></span></div><% } %>
+        <% if (!goods.length) { %><p class="fs-empty">Nichts auf Lager<%= m.ftp ? '' : ' (Silos und Ballen nur mit FTP)' %>.</p><% } %>
+      </div>
+    </a>
+
+    <a class="fs-tile" href="/farming/hof/<%= f.id %>?tab=fahrzeuge"><%- go('fahrzeuge', 'tractor', 'Fahrzeuge') %>
+      <div class="fs-big"><%= f.fleet.length %> <small>Fahrzeuge und Geräte</small></div>
+      <div class="fs-rows">
+        <% for (const v of worn) { %><div><div class="fs-row"><span class="t"><%= v.name %></span><span class="v"><%= v.damage %> % Verschleiß</span></div>
+          <span class="bar wide"><i style="width:<%= v.damage %>%;background:<%= v.damage >= 60 ? 'var(--g-bad)' : 'var(--g-warn)' %>"></i></span></div><% } %>
+      </div>
+    </a>
+
+    <% const prods = f.buildings.filter(b => b.kind === 'production'), stalls = f.buildings.filter(b => b.kind === 'husbandry'); %>
+    <a class="fs-tile" href="/farming/hof/<%= f.id %>?tab=produktion"><%- go('produktion', 'factory', 'Produktion') %>
+      <div class="fs-rows">
+        <% for (const b of prods.slice(0, 3)) { const on = b.productions.some(p => p.on), top = b.fills.filter(x => x.amount > 0.5).sort((a, c) => c.amount - a.amount)[0]; %>
+          <div class="fs-row"><%- top ? icon(top.fill, top.name, 's') : '<span class="fi fi-s" style="--c:var(--g-tile-hi);color:var(--g-accent)"><svg><use href="#i-factory"/></svg></span>' %><span class="t"><%= b.name %></span><span class="v"><%= on ? 'läuft' : 'steht' %></span></div>
+        <% } %>
+        <% for (const b of stalls.slice(0, 2)) { %>
+          <div class="fs-row<%= b.hasFood && b.food < 1 ? ' bad' : '' %>"><%- icon(b.animals[0] && /kuh|cow/i.test(b.animals[0].name) ? 'MILK' : 'FORAGE', b.name, 's') %><span class="t"><%= b.name %><%= b.animals.length ? ' · ' + b.animals.map(a => a.n + ' ' + a.name).join(', ') : '' %></span><span class="v"><%= b.hasFood ? (b.food < 1 ? 'Futter leer' : 'Futter da') : '' %></span></div>
+        <% } %>
+        <% if (!prods.length && !stalls.length) { %><div class="fs-row"><span class="t"><%= f.pallets.length %> Paletten</span><span class="v"><%= m.places.filter(p => !p.farm_id || p.farm_id === f.id).length %> Orte</span></div><p class="fs-empty">Gebäude und Ställe kommen mit FTP.</p><% } %>
+      </div>
+    </a>
+
+    <% const mo = m.date ? m.date.month : null, sow = mo === null ? [] : cal.rows.filter(r => r.sow_month === mo), har = mo === null ? [] : cal.rows.filter(r => r.harvest_month === mo); %>
+    <% const soon = cal.tasks.filter(t => !t.done_at && t.due_day >= (cal.today || 0)).slice(0, 3); %>
+    <a class="fs-tile" href="/farming/hof/<%= f.id %>?tab=kalender"><%- go('kalender', 'cal', 'Kalender') %>
+      <div class="fs-rows">
+        <% if (mo !== null) { %><div class="hint"><%= m.date.dpp > 1 ? m.date.dom + '. ' : '' %><%= m.date.monthName %>, Jahr <%= m.date.year %></div><% } %>
+        <% for (const r of sow) { %><div class="fs-row"><%- icon(r.fill, r.crop, 's') %><span class="t"><%= r.crop %> säen</span><span class="v"><%= r.field ? 'Feld ' + r.field : r.label %></span></div><% } %>
+        <% for (const r of har) { %><div class="fs-row"><%- icon(r.fill, r.crop, 's') %><span class="t"><%= r.crop %> ernten</span><span class="v"><%= r.field ? 'Feld ' + r.field : r.label %></span></div><% } %>
+        <% for (const t of soon) { %><div class="fs-row"><span class="fi fi-s" style="--c:var(--g-tile-hi);color:var(--g-accent)"><svg><use href="#i-cal"/></svg></span><span class="t"><%= t.title %></span><span class="v"><%= t.due %></span></div><% } %>
+        <% if (!sow.length && !har.length && !soon.length) { %><p class="fs-empty">Diesen Monat steht im Kalender nichts an.</p><% } %>
+      </div>
+    </a>
+  </div>
+<% } %>
 
 <% if (tab === 'inventar') { %>
   <% const goods = f.stock.filter(s => !s.supply), sup = f.stock.filter(s => s.supply); %>
   <div class="two">
     <fieldset class="groupbox"><legend>Erzeugnisse und Lager · <%= eur(goods.reduce((a, s) => a + s.value, 0)) %></legend>
       <% if (!goods.length) { %><p class="hint">Keine Paletten, Silos oder Ballen<%= m.ftp ? '' : ' (Silos und Ballen nur mit FTP)' %>.</p><% } %>
-      <table class="list tight"><% for (const s of goods) { %><tr><td><b><a href="/farming/preise?w=<%= s.fill %>"><%= s.name %></a></b><br><small class="hint"><%= s.where.slice(0, 3).map(w => w.kind + ' ' + w.label).join(' · ') %><%= s.where.length > 3 ? ' …' : '' %></small></td><td class="num"><%= liters(s.amount) %></td><td class="num"><%= s.value ? eur(s.value) : '' %></td></tr><% } %></table>
+      <table class="list tight"><% for (const s of goods) { %><tr><td><span class="fs-name"><%- icon(s.fill, s.name) %><span><b><a href="/farming/preise?w=<%= s.fill %>"><%= s.name %></a></b><br><small class="hint"><%= s.where.slice(0, 3).map(w => w.kind + ' ' + w.label).join(' · ') %><%= s.where.length > 3 ? ' …' : '' %></small></span></span></td><td class="num"><%= liters(s.amount) %></td><td class="num"><%= s.value ? eur(s.value) : '' %></td></tr><% } %></table>
     </fieldset>
     <fieldset class="groupbox"><legend>Betriebsmittel</legend>
       <% if (!sup.length) { %><p class="hint">Kein Saatgut, Dünger oder Diesel auf Lager.</p><% } %>
-      <table class="list tight"><% for (const s of sup) { %><tr><td><b><%= s.name %></b><br><small class="hint"><%= s.where.slice(0, 3).map(w => w.label).join(' · ') %></small></td><td class="num"><%= liters(s.amount) %></td></tr><% } %></table>
+      <table class="list tight"><% for (const s of sup) { %><tr><td><span class="fs-name"><%- icon(s.fill, s.name) %><span><b><%= s.name %></b><br><small class="hint"><%= s.where.slice(0, 3).map(w => w.label).join(' · ') %></small></span></span></td><td class="num"><%= liters(s.amount) %></td></tr><% } %></table>
     </fieldset>
   </div>
   <fieldset class="groupbox"><legend>Unterwegs in Anhängern, Fässern und Maschinen</legend>
     <% if (!f.cargo.length) { %><p class="hint">Alles leer.</p><% } %>
-    <table class="list tight"><% for (const c of f.cargo.slice().sort((a, b) => b.amount - a.amount)) { %><tr><td><%= c.name %></td><td class="num"><%= liters(c.amount) %></td><td><%= c.vehicle %></td><td class="hint"><%= c.where %></td></tr><% } %></table>
+    <table class="list tight"><% for (const c of f.cargo.slice().sort((a, b) => b.amount - a.amount)) { %><tr><td><span class="fs-name"><%- icon(c.fill, c.name, 's') %><%= c.name %></span></td><td class="num"><%= liters(c.amount) %></td><td><%= c.vehicle %></td><td class="hint"><%= c.where %></td></tr><% } %></table>
   </fieldset>
   <% if (!m.ftp) { %><p class="hint">Silos, Produktionslager und Ballen stehen nicht im Webinterface. Mit dem FTP-Zugang (Seitenverwaltung) kommen sie dazu.</p><% } %>
 <% } %>
 
 <% if (tab === 'produktion') { %>
   <% const prods = f.buildings.filter(b => b.kind === 'production'), stalls = f.buildings.filter(b => b.kind === 'husbandry'); %>
-  <% if (auto.filter(a => a.key.startsWith('pal:') || a.key.startsWith('food:')).length) { %><div class="auto"><% for (const a of auto.filter(a => a.key.startsWith('pal:') || a.key.startsWith('food:'))) { %><div class="r"><span><%= a.icon %> <%= a.title %></span><a href="/farming/hof/<%= f.id %>?tab=aufgaben">→ Aufgaben</a></div><% } %></div><% } %>
+  <% if (auto.filter(a => a.key.startsWith('pal:') || a.key.startsWith('food:')).length) { %><div class="auto"><% for (const a of auto.filter(a => a.key.startsWith('pal:') || a.key.startsWith('food:'))) { %><div class="r"><span><%= a.title %></span><a href="/farming/hof/<%= f.id %>?tab=aufgaben">→ Aufgaben</a></div><% } %></div><% } %>
   <div class="two">
     <fieldset class="groupbox"><legend>Orte und was dort steht</legend>
       <% if (!placeRows.length) { %><p class="hint">Noch keine Orte. Leg unten aus einem Palettenhaufen einen an (z. B. „Fischzucht“), dann ordnen sich die Paletten selbst zu.</p><% } %>
       <% for (const p of placeRows) { %>
-        <div class="fs-place"><b>📍 <%= p.name %></b> <span class="hint"><%= p.n %> Paletten</span>
+        <div class="fs-place"><b><%= p.name %></b> <span class="hint"><%= p.n %> Paletten</span>
           <% if (p.hist.length > 1) { %><svg class="mini-spark" viewBox="0 0 60 14" aria-label="Verlauf"><path d="<%= spark(p.hist.map(h => h.value), 60, 14) %>" fill="none" stroke="currentColor"/></svg><% } %>
-          <% if (editable && p.farm_id) { %><form method="post" action="/farming/ort/<%= p.id %>/loeschen" class="inline" data-confirm="Ort „<%= p.name %>“ löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= backUrl %>"><button class="link" aria-label="Ort löschen">🗑️</button></form><% } %>
-          <div class="hint"><%= p.fills.map(x => x.name + ' ' + liters(x.amount)).join(' · ') || 'leer' %></div></div>
+          <% if (editable && p.farm_id) { %><form method="post" action="/farming/ort/<%= p.id %>/loeschen" class="inline" data-confirm="Ort „<%= p.name %>“ löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= backUrl %>"><button class="link" aria-label="Ort löschen" title="Ort löschen">✕</button></form><% } %>
+          <div class="chips"><% for (const x of p.fills) { %><span class="chip"><%- icon(x.fill, x.name, 's') %><%= x.name %> <%= liters(x.amount) %></span><% } %><%= p.fills.length ? '' : 'leer' %></div></div>
       <% } %>
     </fieldset>
     <fieldset class="groupbox"><legend>Paletten ohne Ort</legend>
       <% if (!spots.length) { %><p class="hint">Alle Paletten stehen an bekannten Orten.</p><% } %>
       <% for (const s of spots.slice(0, 8)) { %>
-        <div class="fs-place"><b><%= s.n %> Paletten</b> <span class="hint"><%= s.label %></span><div class="hint"><%= s.fills.map(x => x.name + ' ' + liters(x.amount)).join(' · ') %></div>
+        <div class="fs-place"><b><%= s.n %> Paletten</b> <span class="hint"><%= s.label %></span><div class="chips"><% for (const x of s.fills) { %><span class="chip"><%- icon(x.fill, x.name, 's') %><%= x.name %> <%= liters(x.amount) %></span><% } %></div>
           <% if (editable) { %><form method="post" action="/farming/hof/<%= f.id %>/ort" class="fs-form row"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="x" value="<%= s.x %>"><input type="hidden" name="z" value="<%= s.z %>"><input type="hidden" name="radius" value="30">
-            <input name="name" maxlength="40" required placeholder="Name des Orts, z. B. Fischzucht" aria-label="Name des Orts"><button class="small">📍 Als Ort anlegen</button></form><% } %></div>
+            <input name="name" maxlength="40" required placeholder="Name des Orts, z. B. Fischzucht" aria-label="Name des Orts"><button class="small">Als Ort anlegen</button></form><% } %></div>
       <% } %>
     </fieldset>
   </div>
@@ -75,15 +160,15 @@
     <div class="two">
       <fieldset class="groupbox"><legend>Produktionen (letzter Autosave)</legend>
         <% if (!prods.length) { %><p class="hint">Keine.</p><% } %>
-        <% for (const b of prods) { %><div class="fs-place"><b>🏭 <%= b.name %></b> <span class="hint"><%= b.where %></span>
+        <% for (const b of prods) { %><div class="fs-place"><b><%= b.name %></b> <span class="hint"><%= b.where %></span>
           <% if (b.productions.length) { %><div class="hint"><%= b.productions.map(p => (p.on ? '▶ ' : '⏸ ') + N.pretty(p.id.replace(/([a-z])([A-Z])/g, '$1_$2'))).join(' · ') %></div><% } %>
-          <div><%= b.fills.filter(x => x.amount > 0.5).map(x => x.name + ' ' + liters(x.amount)).join(' · ') || 'leer' %></div></div><% } %>
+          <div class="chips"><% for (const x of b.fills.filter(x => x.amount > 0.5)) { %><span class="chip"><%- icon(x.fill, x.name, 's') %><%= x.name %> <%= liters(x.amount) %></span><% } %><%= b.fills.some(x => x.amount > 0.5) ? '' : 'leer' %></div></div><% } %>
       </fieldset>
       <fieldset class="groupbox"><legend>Ställe (letzter Autosave)</legend>
         <% if (!stalls.length) { %><p class="hint">Keine.</p><% } %>
-        <% for (const b of stalls) { %><div class="fs-place"><b>🐄 <%= b.name %></b> <span class="hint"><%= b.animals.map(a => a.n + ' ' + a.name).join(', ') %></span>
-          <div class="<%= b.hasFood && b.food < 1 ? 'bad' : '' %>">Futter: <%= b.hasFood ? (b.fills.filter(x => x.food && x.amount > 0.5).map(x => x.name + ' ' + liters(x.amount)).join(' · ') || 'leer') : '–' %></div>
-          <div class="hint"><%= b.fills.filter(x => !x.food && x.amount > 0.5).map(x => x.name + ' ' + liters(x.amount)).join(' · ') %></div></div><% } %>
+        <% for (const b of stalls) { %><div class="fs-place"><b><%= b.name %></b> <span class="hint"><%= b.animals.map(a => a.n + ' ' + a.name).join(', ') %></span>
+          <div class="<%= b.hasFood && b.food < 1 ? 'bad' : '' %>">Futter: <%= b.hasFood ? '' : '–' %><% if (b.hasFood && !b.fills.some(x => x.food && x.amount > 0.5)) { %>leer<% } %></div>
+          <div class="chips"><% for (const x of b.fills.filter(x => x.amount > 0.5)) { %><span class="chip"><%- icon(x.fill, x.name, 's') %><%= x.name %> <%= liters(x.amount) %></span><% } %></div></div><% } %>
       </fieldset>
     </div>
   <% } %>
@@ -93,41 +178,41 @@
 <% if (tab === 'fahrzeuge') { %>
   <div class="toolbar">Sortieren:
     <% for (const [k, l] of [['zustand', 'Verschleiß'], ['diesel', 'Diesel'], ['preis', 'Preis'], ['stunden', 'Stunden'], ['art', 'Art'], ['name', 'Name']]) { %><a class="btn small<%= sort === k ? ' on' : '' %>" href="/farming/hof/<%= f.id %>?tab=fahrzeuge&amp;sort=<%= k %><%= withPallets ? '&amp;paletten=1' : '' %>"><%= l %></a><% } %>
-    <span class="sep"></span><a class="btn small<%= withPallets ? ' on' : '' %>" href="/farming/hof/<%= f.id %>?tab=fahrzeuge&amp;sort=<%= sort %><%= withPallets ? '' : '&amp;paletten=1' %>">📦 Paletten <%= withPallets ? 'ausblenden' : 'zeigen' %></a>
+    <span class="sep"></span><a class="btn small<%= withPallets ? ' on' : '' %>" href="/farming/hof/<%= f.id %>?tab=fahrzeuge&amp;sort=<%= sort %><%= withPallets ? '' : '&amp;paletten=1' %>">Paletten <%= withPallets ? 'ausblenden' : 'zeigen' %></a>
     <span class="spacer"></span><span class="hint"><%= f.fleet.length %> Fahrzeuge und Geräte · <%= big(f.fleetValue) %> Neupreis</span>
   </div>
   <div class="fs-scroll">
   <table class="list tight fs-veh">
     <tr><th>Fahrzeug</th><th>Art</th><th>Verschleiß</th><th class="num">Stunden</th><th class="num">Diesel</th><th>Ladung</th><th>Steht</th></tr>
     <% for (const v of list) { %>
-      <tr><td><b><%= v.name %></b><%= v.driver ? ' 👤 ' + v.driver : v.ai ? ' 🤖' : '' %></td><td><%= v.catName %></td>
-        <td><% if (v.damage !== null) { %><span class="bar" title="<%= v.damage %> %"><i style="width:<%= v.damage %>%;<%= v.damage >= 60 ? 'background:#c0392b' : v.damage >= wear ? 'background:#d4a017' : '' %>"></i></span> <%= v.damage %> %<% } %></td>
+      <tr><td><b><%= v.name %></b><%= v.driver ? ' · ' + v.driver : v.ai ? ' · Helfer' : '' %></td><td><%= v.catName %></td>
+        <td><% if (v.damage !== null) { %><span class="bar" title="<%= v.damage %> %"><i style="width:<%= v.damage %>%;<%= v.damage >= 60 ? 'background:var(--g-bad)' : v.damage >= wear ? 'background:var(--g-warn)' : '' %>"></i></span> <%= v.damage %> %<% } %></td>
         <td class="num"><%= v.hours !== null ? de(v.hours, 1) : '' %></td><td class="num"><%= v.diesel !== null ? liters(v.diesel) : '' %></td>
-        <td><%= v.fill.filter(([t]) => !(v.drivable && ['DIESEL', 'DEF', 'AIR'].includes(t))).map(([t, l]) => N.fill(t) + ' ' + liters(l)).join(', ') %></td><td class="hint"><%= v.where.label %></td></tr>
+        <td><% for (const [t, l] of v.fill.filter(([t]) => !(v.drivable && ['DIESEL', 'DEF', 'AIR'].includes(t)))) { %><span class="fs-name"><%- icon(t, N.fill(t), 's') %><%= N.fill(t) %> <%= liters(l) %></span> <% } %></td><td class="hint"><%= v.where.label %></td></tr>
     <% } %>
   </table>
   </div>
   <% const worn = f.fleet.filter(v => v.damage !== null && v.damage >= wear); %>
-  <% if (worn.length) { %><div class="auto"><div class="r"><span>🔧 <%= worn.length %> Fahrzeuge über <%= wear %> % Verschleiß</span><a href="/farming/hof/<%= f.id %>?tab=aufgaben">→ Werkstatt-Aufgabe</a></div></div><% } %>
+  <% if (worn.length) { %><div class="auto"><div class="r"><span><%= worn.length %> Fahrzeuge über <%= wear %> % Verschleiß</span><a href="/farming/hof/<%= f.id %>?tab=aufgaben">→ Werkstatt-Aufgabe</a></div></div><% } %>
 <% } %>
 
 <% if (tab === 'finanzen') { %>
   <div class="two">
     <fieldset class="groupbox"><legend>Bilanz</legend>
       <table class="list tight">
-        <tr><td>💶 Kontostand<%= f.money === null ? '' : ' (farms.xml)' %></td><td class="num"><%= f.money !== null ? eur(f.money) : '–' %></td></tr>
-        <% if (f.loan) { %><tr><td>🏦 Kredit</td><td class="num bad">− <%= eur(f.loan) %></td></tr><% } %>
-        <% if (f.creditRest) { %><tr><td>🏦 Bankkredite (<%= f.credits.length %>, Restschuld)</td><td class="num bad">− <%= eur(f.creditRest) %></td></tr><% } %>
-        <tr><td>🌾 Land (<%= f.land.lands %> Grundstücke, Kaufpreis)</td><td class="num"><%= eur(f.land.value) %></td></tr>
-        <tr><td>🚜 Fuhrpark (<%= f.fleet.length %> Stück, Neupreis)</td><td class="num"><%= eur(f.fleetValue) %></td></tr>
-        <tr><td>📦 Lager (zum Preis von <%= m.date ? m.date.monthName : 'heute' %>)</td><td class="num"><%= eur(f.stockValue) %></td></tr>
+        <tr><td>Kontostand<%= f.money === null ? '' : ' (farms.xml)' %></td><td class="num"><%= f.money !== null ? eur(f.money) : '–' %></td></tr>
+        <% if (f.loan) { %><tr><td>Kredit</td><td class="num bad">− <%= eur(f.loan) %></td></tr><% } %>
+        <% if (f.creditRest) { %><tr><td>Bankkredite (<%= f.credits.length %>, Restschuld)</td><td class="num bad">− <%= eur(f.creditRest) %></td></tr><% } %>
+        <tr><td>Land (<%= f.land.lands %> Grundstücke, Kaufpreis)</td><td class="num"><%= eur(f.land.value) %></td></tr>
+        <tr><td>Fuhrpark (<%= f.fleet.length %> Stück, Neupreis)</td><td class="num"><%= eur(f.fleetValue) %></td></tr>
+        <tr><td>Lager (zum Preis von <%= m.date ? m.date.monthName : 'heute' %>)</td><td class="num"><%= eur(f.stockValue) %></td></tr>
         <tr><th>Zusammen</th><th class="num"><%= eur(f.bilanz) %></th></tr>
       </table>
       <% if (f.money === null) { %><p class="hint">Das Geld je Hof steht nur in farms.xml (FTP). Das Webinterface kennt nur das Gesamtkonto aller Höfe: <%= eur(m.money) %>.</p><% } %>
     </fieldset>
     <fieldset class="groupbox"><legend><%= f.money !== null ? 'Kontostand' : 'Bilanz' %> der letzten Tage</legend>
       <% if (hist.length > 1) { const lo = Math.min(...hist.map(h => h.value)), hi = Math.max(...hist.map(h => h.value)); %>
-        <svg class="fs-line" viewBox="0 0 300 120" role="img" aria-label="Verlauf"><path d="<%= spark(hist.map(h => h.value), 300, 110, 4) %>" fill="none" stroke="#2f6fd8" stroke-width="2"/></svg>
+        <svg class="fs-line" viewBox="0 0 300 120" role="img" aria-label="Verlauf"><path d="<%= spark(hist.map(h => h.value), 300, 110, 4) %>" fill="none" stroke="currentColor" stroke-width="2"/></svg>
         <div class="hint">von <%= big(lo) %> bis <%= big(hi) %> · <%= hist[0].day.split('-').reverse().slice(0, 2).join('.') %>. bis heute</div>
       <% } else { %><p class="hint">Der Hub schreibt den Stand einmal am Tag auf. Nach ein paar Tagen steht hier der Verlauf.</p><% } %>
     </fieldset>
@@ -164,51 +249,90 @@
 <% } %>
 
 <% if (tab === 'kalender') { %>
-  <% const curM = m.date && m.date.year === cal.year ? m.date.month : null; %>
-  <% if (fieldList.length) { %>
-    <fieldset class="groupbox"><legend>Auf den Feldern<%= fieldList.some(x => x.source === 'auto') ? ' (letzter Autosave, abgeholt ' + when(fieldList.find(x => x.autoAt).autoAt) + ')' : '' %></legend>
+  <% const curIm = m.date ? m.date.month : null, curGy = m.date ? m.date.year : null, dpp = cal.dpp; %>
+  <% const calUrl = `/farming/hof/${f.id}?tab=kalender&jahr=${cal.year}${withRepeat ? '&wdh=1' : ''}`; %>
+  <% const cells = cal.cols.flatMap(c => c.days.map((d, i) => ({ ...d, c, first: i === 0 }))); %>
+  <% const dayLabel = x => (dpp > 1 ? x.c.short + ', Tag ' + x.dom : x.c.name) + ' · Jahr ' + x.c.gy; %>
+  <div class="toolbar">
+    <div class="fs-pager">
+      <a class="arr<%= cal.year > 1 ? '' : ' off' %>" href="/farming/hof/<%= f.id %>?tab=kalender&amp;jahr=<%= Math.max(1, cal.year - 1) %><%= withRepeat ? '&amp;wdh=1' : '' %>" aria-label="Voriges Jahr">◀</a>
+      <h2>Jahr <%= cal.year %></h2>
+      <a class="arr" href="/farming/hof/<%= f.id %>?tab=kalender&amp;jahr=<%= cal.year + 1 %><%= withRepeat ? '&amp;wdh=1' : '' %>" aria-label="Nächstes Jahr">▶</a>
+    </div>
+    <a class="btn small<%= withRepeat ? ' on' : '' %>" href="/farming/hof/<%= f.id %>?tab=kalender&amp;jahr=<%= cal.year %><%= withRepeat ? '' : '&amp;wdh=1' %>">Regelmäßige Aufgaben <%= withRepeat ? 'ausblenden' : 'zeigen' %></a>
+    <span class="spacer"></span>
+    <span class="hint"><%= dpp %> <%= dpp === 1 ? 'Tag' : 'Tage' %> pro Monat (vom Server)<%= editable ? ' · Klick auf einen Tag legt eine Aufgabe an' : '' %></span>
+  </div>
+  <div class="fs-cal">
+    <table style="min-width:<%= 200 + 12 * Math.max(dpp * 18, 56) %>px">
+      <colgroup><col style="width:200px"><% for (const x of cells) { %><col><% } %></colgroup>
+      <thead>
+        <tr><th class="lab"></th><% for (const c of cal.cols) { %><th colspan="<%= dpp %>" class="<%= c.im === curIm && c.gy === curGy ? 'now' : '' %>"><%= c.short %></th><% } %></tr>
+        <% if (dpp > 1) { %><tr class="days"><th class="lab"></th><% for (const x of cells) { %><th class="<%= x.first ? 'm0' : '' %>"><%= dpp <= 7 || x.dom % 7 === 1 ? x.dom : '' %></th><% } %></tr><% } %>
+      </thead>
+      <tbody>
+        <% const cell = (x, inner, field) => { const cls = ['d', x.first ? 'm0' : '', x.gday ? '' : 'x', x.gday && x.gday === cal.today ? 'today' : ''].filter(Boolean).join(' ');
+             const link = editable && x.gday ? `<a href="/farming/hof/${f.id}?tab=aufgaben&amp;tag=${x.gday}${field ? '&amp;feld=' + field : ''}#neu" data-day="${x.gday}" data-label="${dayLabel(x)}"${field ? ` data-field="${field}"` : ''} aria-label="Aufgabe am ${dayLabel(x)}"></a>` : '';
+             return `<td class="${cls}">${inner}${link}</td>`; }; %>
+        <% for (const r of cal.rows) { %>
+          <tr><th class="lab" title="<%= r.note || '' %>"><span class="fs-name"><%- icon(r.fill, r.crop, 's') %><span><%= r.crop %><small><%= r.field ? 'Feld ' + r.field : r.label %></small></span>
+            <% if (editable) { %><form method="post" action="/farming/plan/<%= r.id %>/loeschen" class="inline del" data-confirm="Plan löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= calUrl %>"><button class="link" aria-label="Plan löschen" title="Plan löschen">✕</button></form><% } %></span></th>
+            <% cells.forEach((x, i) => { const k = r.cells[i], n = x.gday ? r.dots.get(x.gday) : 0; %><%- cell(x, (k ? `<span class="seg ${k}"></span>` : '') + (n ? `<span class="dotx">${n > 1 ? n : ''}</span>` : ''), r.field) %><% }) %>
+          </tr>
+        <% } %>
+        <% if (!cal.rows.length) { %><tr><th class="lab hint">Noch nichts geplant</th><% for (const x of cells) { %><%- cell(x, '') %><% } %></tr><% } %>
+        <tr class="tasks"><th class="lab"><span class="fs-name"><span class="fi fi-s" style="--c:var(--g-tile-hi);color:var(--g-accent)"><svg><use href="#i-check"/></svg></span>Aufgaben</span></th>
+          <% for (const x of cells) { const ts = (x.gday && cal.byDay.get(x.gday)) || []; %><%- cell(x, ts.length ? `<span class="dotx${ts.every(t => t.done_at) ? ' done' : ''}" title="${ts.map(t => t.title.replace(/[&<>"]/g, '')).join(', ')}">${ts.length > 1 ? ts.length : ''}</span>` : '') %><% } %></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="fs-callegend"><span><i style="background:#5fa72a"></i>Säen</span><span><i style="height:4px;background:#5fa72a99"></i>Wächst</span><span><i style="background:var(--g-warn)"></i>Ernten</span><span><i style="width:10px;height:10px;border-radius:50%;background:var(--g-accent)"></i>Aufgabe</span>
+    <% if (cal.today) { const d = fmtDay(cal.today); %><span>Grüne Linie: heute (<%= d %>)</span><% } %></div>
+  <% if (cal.tasks.length) { %>
+    <div class="fs-rows">
+      <% for (const t of cal.tasks.slice(0, 12)) { %><div class="fs-month"><b><%= t.due %></b> · <%= t.title %><%= t.field ? ' (Feld ' + t.field + ')' : '' %><%= t.done_at ? ' ✔' : '' %></div><% } %>
+    </div>
+  <% } %>
+
+  <% if (editable) { %>
+    <form method="post" action="/farming/hof/<%= f.id %>/aufgaben" class="fs-calpop" id="fs-calpop" hidden>
+      <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= calUrl %>">
+      <input type="hidden" name="due" value="gday"><input type="hidden" name="due_day" value="">
+      <b data-title>Neue Aufgabe</b>
+      <label>Was ist zu tun <input name="title" maxlength="120" required></label>
+      <label>Feld <select name="field"><option value="">ohne Feld</option><% for (const x of myFields) { %><option value="<%= x.id %>">Feld <%= x.id %></option><% } %></select></label>
+      <label>Wiederholen <select name="repeat"><option value="">nein</option><option value="gmonths:1">jeden Spielmonat</option><option value="gmonths:12">jedes Spieljahr</option></select></label>
+      <div class="btns"><button type="button" data-close>Abbrechen</button><button class="def">Anlegen</button></div>
+    </form>
+  <% } %>
+
+  <details class="fs-fold" id="felder" data-remember="fs-fold-felder">
+    <summary>Auf den Feldern <small><%= fieldList.length %> Felder<%= fieldList.some(x => x.source === 'auto') ? ' · laut Autosave ' + ago(fieldList.find(x => x.autoAt).autoAt) : '' %></small></summary>
+    <div class="in">
+      <% if (!fieldList.length) { %><p class="fs-empty">Dieser Hof hat noch keine Felder.</p><% } else { %>
       <div class="fs-scroll"><table class="list tight">
         <tr><th>Feld</th><th class="num">Größe</th><th>Frucht</th><th>Zustand</th><th>Zu tun</th></tr>
         <% for (const x of fieldList) { %>
-          <tr><td><a href="/farming/karte?ansicht=zustand&amp;feld=<%= x.id %>">Feld <%= x.id %></a></td><td class="num"><%= ha(x.area) %></td>
-            <td><% if (x.crop) { %><span class="dot" style="background:<%= x.cropColor %>"></span> <%= x.crop %><% } else { %><span class="hint"><%= x.source === 'auto' ? 'nichts' : 'unbekannt' %></span><% } %><%= x.source === 'plan' ? ' (Plan)' : x.source === 'report' ? ' (gemeldet)' : '' %></td>
+          <tr><td><a href="/farming/karte?feld=<%= x.id %>">Feld <%= x.id %></a></td><td class="num"><%= ha(x.area) %></td>
+            <td><% if (x.crop) { %><span class="fs-name"><%- icon(x.cropFill, x.crop, 's') %><%= x.crop %><%= x.source === 'plan' ? ' (Plan)' : x.source === 'report' ? ' (gemeldet)' : '' %></span><% } else { %><span class="hint"><%= x.source === 'auto' ? 'nichts' : 'unbekannt' %></span><% } %></td>
             <td><%= x.state ? N.STATES[x.state][0] : '–' %><%= x.source === 'auto' && x.auto.growth && (x.state === 'gesaet' || x.state === 'waechst') ? ', Stufe ' + x.auto.growth : '' %></td>
             <td><%= x.care.map(c => c.label).join(' · ') || (x.source === 'auto' ? '✔' : '') %></td></tr>
         <% } %>
       </table></div>
       <% if (!fieldList.some(x => x.source === 'auto')) { %><p class="hint">Mit FTP-Zugang füllt der Hub diese Liste selbst aus dem letzten Autosave (fields.xml).</p><% } %>
-    </fieldset>
-  <% } %>
-  <div class="toolbar">
-    <a class="btn small" href="/farming/hof/<%= f.id %>?tab=kalender&amp;jahr=<%= Math.max(1, cal.year - 1) %><%= withRepeat ? '&amp;wdh=1' : '' %>">◀</a><b>Jahr <%= cal.year %></b><a class="btn small" href="/farming/hof/<%= f.id %>?tab=kalender&amp;jahr=<%= cal.year + 1 %><%= withRepeat ? '&amp;wdh=1' : '' %>">▶</a>
-    <span class="sep"></span><a class="btn small<%= withRepeat ? ' on' : '' %>" href="/farming/hof/<%= f.id %>?tab=kalender&amp;jahr=<%= cal.year %><%= withRepeat ? '' : '&amp;wdh=1' %>">🔁 Regelmäßige Aufgaben <%= withRepeat ? 'ausblenden' : 'zeigen' %></a>
-    <span class="spacer"></span>
-    <span class="legend"><span><i class="s"></i>säen</span><span><i class="g"></i>wächst</span><span><i class="h"></i>ernten</span><span>● Aufgabe</span></span>
-  </div>
-  <div class="fs-scroll">
-  <table class="cal">
-    <colgroup><col style="width:150px"><% for (let i = 0; i < 12; i++) { %><col><% } %><col style="width:24px"></colgroup>
-    <tr><th>Feld</th><% N.MONTHS_SHORT.forEach((mo, i) => { %><th class="<%= curM === i ? 'now' : '' %>"><%= mo %></th><% }) %><th></th></tr>
-    <% for (const r of cal.rows) { %>
-      <tr><td class="f" title="<%= r.note || '' %>"><%= r.field ? 'Feld ' + r.field : r.label %> · <%= r.crop %></td>
-        <% r.cells.forEach((c, i) => { %><td class="<%= curM === i ? 'now' : '' %>"><% if (c) { %><span class="<%= c %>" style="<%= c === 'g' ? '' : 'background:' + r.color %>"><%= c === 's' ? 'säen' : c === 'h' ? 'ernten' : '' %></span><% } %><% if (r.dots[i].length) { %><a class="t" href="#m<%= i %>" title="<%= r.dots[i].map(t => t.title).join(', ') %>">●</a><% } %></td><% }) %>
-        <td><% if (editable) { %><form method="post" action="/farming/plan/<%= r.id %>/loeschen" class="inline" data-confirm="Plan löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= backUrl %>"><button class="link" aria-label="Plan löschen">🗑️</button></form><% } %></td></tr>
-    <% } %>
-    <% if (!cal.rows.length) { %><tr><td colspan="14" class="hint" style="text-align:center;height:40px">Noch nichts geplant.</td></tr><% } %>
-    <tr class="tasks"><td class="f">Aufgaben</td><% cal.byMonth.forEach((ts, i) => { %><td class="<%= curM === i ? 'now' : '' %>"><% if (ts.length) { %><a href="#m<%= i %>"><b><%= ts.length %></b></a><% } %></td><% }) %><td></td></tr>
-  </table>
-  <% cal.byMonth.forEach((ts, i) => { if (!ts.length) return; %>
-    <div class="fs-month" id="m<%= i %>"><b><%= N.MONTHS[i] %></b>: <%= ts.map(t => t.title + (t.field ? ' (Feld ' + t.field + ')' : '') + (t.done_at ? ' ✔' : '')).join(' · ') %></div>
-  <% }) %>
-  </div>
+      <% } %>
+    </div>
+  </details>
+
   <% if (editable) { %>
-    <form method="post" action="/farming/hof/<%= f.id %>/plan" class="fs-form row groupbox" id="plan"><input type="hidden" name="_csrf" value="<%= csrf %>">
+    <form method="post" action="/farming/hof/<%= f.id %>/plan" class="fs-form row groupbox" id="plan"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= calUrl %>">
+      <b style="flex-basis:100%">Anbau planen</b>
       <select name="field" aria-label="Feld"><option value="">Ohne Feld</option><% for (const x of myFields) { %><option value="<%= x.id %>"<%= Number(query.feld) === x.id ? ' selected' : '' %>>Feld <%= x.id %> (<%= ha(x.area) %>)</option><% } %></select>
       <input name="label" maxlength="40" placeholder="oder Name, z. B. Wiesen" aria-label="Name statt Feld">
       <select name="crop_id" aria-label="Frucht" required><% for (const c of crops) { %><option value="<%= c.id %>" data-sow="<%= c.sowM[0] ?? '' %>" data-harvest="<%= c.harvestM[0] ?? '' %>"><%= c.name %></option><% } %></select>
       <label>säen <select name="sow_month"><option value="">wie Vorlage</option><% N.MONTHS.forEach((mo, i) => { %><option value="<%= i %>"><%= mo %></option><% }) %></select></label>
       <label>ernten <select name="harvest_month"><option value="">wie Vorlage</option><% N.MONTHS.forEach((mo, i) => { %><option value="<%= i %>"><%= mo %></option><% }) %></select></label>
-      <button class="def">📅 Planen</button>
+      <button class="def">Planen</button>
     </form>
   <% } %>
 <% } %>
@@ -217,7 +341,7 @@
   <% if (auto.length) { %>
     <div class="auto"><b>Vorschläge vom Server</b>
       <% for (const a of auto) { %>
-        <div class="r"><span><%= a.icon %> <%= a.title %> <small class="hint"><%= a.why %></small></span>
+        <div class="r"><span><%= a.title %> <small class="hint"><%= a.why %></small></span>
           <span><% if (editable) { %><form method="post" action="/farming/hof/<%= f.id %>/vorschlag" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= a.key %>"><button class="small">Übernehmen</button></form>
             <form method="post" action="/farming/hof/<%= f.id %>/ausblenden" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= a.key %>"><input type="hidden" name="sig" value="<%= a.sig %>"><button class="small">Ausblenden</button></form><% } %></span></div>
       <% } %>
@@ -236,5 +360,4 @@
     </details>
   <% } %>
 <% } %>
-</div>
 <%- include('_bottom') %>

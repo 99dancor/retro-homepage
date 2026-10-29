@@ -323,6 +323,7 @@ router.post('/werwolf/statistik/loeschen', (req, res) => {
 // Adressen und FTP-Zugang bleiben auf dem Server: Die Seite zeigt sie nur gekürzt (Code als ••••), leer lassen = unverändert.
 const FS_KEYS = ['stats', 'savegame', 'vehicles', 'economy', 'map'];
 const fsMapUpload = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 15 * 1024 * 1024, files: 1 } });
+const fsIconUpload = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 40 * 1024 * 1024, files: 400 } });
 function maskUrl(u) {
   if (!u) return '';
   try {
@@ -340,11 +341,12 @@ router.get('/farming', (req, res) => {
   const m = hub.model();
   res.render('admin/farming', {
     title: 'Farming Simulator', N: require('../fsnames'), feedRows, ftp: { ...ftp, password: undefined, pass_set: !!ftp.password }, m, hub,
-    s: Object.fromEntries(['fs_enabled', 'fs_view', 'fs_edit', 'fs_map_border', 'fs_auto_wear', 'fs_auto_diesel', 'fs_auto_pallets', 'fs_auto_food', 'fs_auto_fields', 'fs_modlist'].map(k => [k, getSetting(k, '')])),
-    customMap: fsfiles.find(f => /^map-custom\./.test(f)) || null, hasServerMap: fsfiles.includes('map-server'),
+    s: Object.fromEntries(['fs_enabled', 'fs_view', 'fs_edit', 'fs_map_border', 'fs_auto_wear', 'fs_auto_diesel', 'fs_auto_pallets', 'fs_auto_food', 'fs_auto_fields', 'fs_shapes', 'fs_modlist'].map(k => [k, getSetting(k, '')])),
+    customMap: fsfiles.find(f => /^map-custom\./.test(f)) || null, hasServerMap: fsfiles.includes('map-server'), iconCount: require('../fsicons').list().size,
     users: db.prepare('SELECT u.id, u.username, u.display_name, m.farm_id FROM users u LEFT JOIN fs_members m ON m.user_id = u.id WHERE u.disabled = 0 ORDER BY u.username COLLATE NOCASE').all(),
     lists: db.prepare('SELECT slug, title, game FROM modlists ORDER BY game, title').all(), crops: hub.crops(), sessions: hub.sessionTotals(30),
-    msg: { testen: 'Alle Zugänge abgefragt, die Ergebnisse stehen unten.', datum: 'Datum gesetzt.', karte: 'Kartenbild gespeichert.' }[req.query.ok] || (req.query.ok ? 'Gespeichert.' : null),
+    msg: { testen: 'Alle Zugänge abgefragt, die Ergebnisse stehen unten.', datum: 'Datum gesetzt.', karte: 'Kartenbild gespeichert.' }[req.query.ok]
+      || (/^symbole\d+$/.test(req.query.ok || '') ? `${req.query.ok.slice(7)} Symbole gespeichert.` : req.query.ok ? 'Gespeichert.' : null),
     err: req.query.err || null,
   });
 });
@@ -388,6 +390,7 @@ router.post('/farming/allgemein', (req, res) => {
   setSetting('fs_auto_pallets', n(b.fs_auto_pallets, 6, 1, 500));
   setSetting('fs_auto_food', b.fs_auto_food === '1' ? '1' : '0');
   setSetting('fs_auto_fields', b.fs_auto_fields === '1' ? '1' : '0');
+  setSetting('fs_shapes', b.fs_shapes === '1' ? '1' : '0');
   setSetting('fs_modlist', db.prepare('SELECT 1 FROM modlists WHERE slug = ?').get(String(b.fs_modlist || '')) ? String(b.fs_modlist) : '');
   setSetting('fs_map_border', n(b.fs_map_border, 0, 0, 45));
   require('../fshub').invalidate();
@@ -406,6 +409,17 @@ router.post('/farming/karte/loeschen', (req, res) => {
   const fsx = require('node:fs'), feeds = require('../fsfeeds');
   for (const old of fsx.readdirSync(feeds.FS_DIR).filter(x => /^map-custom\./.test(x))) fsx.rmSync(path.join(feeds.FS_DIR, old), { force: true });
   res.redirect('/admin/farming?ok=1#server');
+});
+// Originalsymbole der Erzeugnisse (PNG oder ZIP mit PNGs) – nur im Datenordner, siehe src/fsicons.js
+router.post('/farming/symbole', fsIconUpload.array('icons'), multipartCsrf, (req, res) => {
+  let n = 0;
+  try { n = require('../fsicons').save(req.files || []); } catch { return res.redirect('/admin/farming?err=' + encodeURIComponent('Die Datei ließ sich nicht lesen. Bitte PNG-Dateien oder ein ZIP wählen.') + '#symbole'); }
+  if (!n) return res.redirect('/admin/farming?err=' + encodeURIComponent('Keine PNG-Symbole gefunden.') + '#symbole');
+  res.redirect(`/admin/farming?ok=symbole${n}#symbole`);
+});
+router.post('/farming/symbole/loeschen', (req, res) => {
+  require('../fsicons').clear();
+  res.redirect('/admin/farming?ok=1#symbole');
 });
 // Datum korrigieren: Tag im Monat, Monat und Jahr wie im Spiel → absoluter Spieltag
 router.post('/farming/datum', (req, res) => {

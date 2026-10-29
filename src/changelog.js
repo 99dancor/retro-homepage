@@ -60,6 +60,30 @@ function parse(text) {
   return { date: m ? m[1] : '', title: m ? m[2] : head, items };
 }
 
+// Alle Einträge mit vollem Text der Punkte (für den Changelog des Farming Hubs)
+function sections(text) {
+  const out = [];
+  let cur = null;
+  for (const line of String(text || '').split(/\r?\n/)) {
+    if (/^##\s+\S/.test(line)) {
+      const head = plain(line.replace(/^##\s+/, ''));
+      const m = head.match(/^(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{2,4})\s*[–—-]\s*(.+)$/);
+      cur = { date: m ? `${m[3].length === 2 ? '20' + m[3] : m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '', title: m ? m[4] : head, items: [] };
+      out.push(cur);
+      continue;
+    }
+    if (!cur || /^#\s/.test(line)) continue;
+    const b = line.match(/^\s{0,3}[-*+]\s+(.+)$/);
+    if (b) cur.items.push(b[1]);
+    else if (/^\s+\S/.test(line) && cur.items.length) cur.items[cur.items.length - 1] += ' ' + line.trim();
+  }
+  for (const s of out) s.items = s.items.map(plain);
+  return out;
+}
+function all() {
+  try { return sections(fs.readFileSync(FILE, 'utf8')); } catch { return []; }
+}
+
 let cached;
 function latest() {
   if (cached === undefined) {
@@ -68,4 +92,4 @@ function latest() {
   return cached;
 }
 
-module.exports = { parse, latest, FILE };
+module.exports = { parse, latest, sections, all, FILE };

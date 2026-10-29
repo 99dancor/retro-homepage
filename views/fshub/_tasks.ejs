@@ -5,10 +5,10 @@
     <form method="post" action="/farming/aufgaben/<%= t.id %>/<%= t.done_at ? 'wieder' : 'erledigt' %>" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= backUrl %>"><button class="box" title="<%= t.done_at ? 'Wieder öffnen' : 'Erledigt' %>" aria-label="<%= t.done_at ? 'Wieder öffnen' : 'Erledigt' %>"><%= t.done_at ? '✔' : '' %></button></form>
   <% } else { %><span class="box" aria-hidden="true"><%= t.done_at ? '✔' : '' %></span><% } %>
   <div class="t"><%= t.title %>
-    <small><% const bits = [t.due ? (t.overdue ? '⚠ ' : '') + t.due : '', t.repeatText ? '🔁 ' + t.repeatText : '', t.field ? 'Feld ' + t.field : '', t.place || '', t.assignee ? '👤 ' + (t.assignee_display || t.assignee) : '', t.farm_id === 0 ? 'alle Höfe' : '', t.auto_key ? 'vom Hub' : '']; %><%= bits.filter(Boolean).join(' · ') %><% if (t.note && !c) { %><br><%= t.note %><% } %><% if (t.done_at) { %> · erledigt <%= when(t.done_at) %><%= t.doner ? ' von ' + t.doner : '' %><% } %></small>
+    <small><% const bits = [t.due ? (t.overdue ? '⚠ ' : '') + t.due : '', t.repeatText ? '🔁 ' + t.repeatText : '', t.field ? 'Feld ' + t.field : '', t.place || '', t.assignee ? 'für ' + (t.assignee_display || t.assignee) : '', t.farm_id === 0 ? 'alle Höfe' : '', t.auto_key ? 'vom Hub' : '']; %><%= bits.filter(Boolean).join(' · ') %><% if (t.note && !c) { %><br><%= t.note %><% } %><% if (t.done_at) { %> · erledigt <%= when(t.done_at) %><%= t.doner ? ' von ' + t.doner : '' %><% } %></small>
   </div>
   <% if (!c && canEdit(t.farm_id || farmId) && user) { %>
-    <span class="acts"><a href="/farming/hof/<%= farmId %>?tab=aufgaben&amp;aufgabe=<%= t.id %>#bearbeiten">✏️</a>
-    <form method="post" action="/farming/aufgaben/<%= t.id %>/loeschen" class="inline" data-confirm="Aufgabe „<%= t.title %>“ löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= backUrl %>"><button class="link" title="Löschen" aria-label="Löschen">🗑️</button></form></span>
+    <span class="acts"><a href="/farming/hof/<%= farmId %>?tab=aufgaben&amp;aufgabe=<%= t.id %>#bearbeiten" title="Bearbeiten">Bearbeiten</a>
+    <form method="post" action="/farming/aufgaben/<%= t.id %>/loeschen" class="inline" data-confirm="Aufgabe „<%= t.title %>“ löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= backUrl %>"><button class="link" title="Löschen" aria-label="Löschen">✕</button></form></span>
   <% } %>
 </div>

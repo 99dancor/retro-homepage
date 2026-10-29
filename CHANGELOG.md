@@ -1,5 +1,11 @@
 # Changelog
 
+## 29.10.2026 – Farming Hub: alle Grundstücke auf der Karte
+
+- **Alle Nummern wie im Spiel:** Die Karte im Spiel nummeriert jedes Grundstück, auch Wiesen, Wald und Plantagen wie die Kaffeefelder der neuen Karte. Der Hub zeigte bisher nur die echten Felder. Jetzt sind alle Grundstücke da: Felder wie bisher, Grundstücke ohne Feld als gestrichelte Kreise in passender Größe, mit Größe, Preis und Besitzer beim Anklicken.
+- **Melden und Planen:** Auch für ein Grundstück ohne Feld lässt sich melden, was darauf steht, und im Hofkalender planen. In der Hofübersicht zählen nur echte Felder.
+- **Umrisse:** Grundstücke ohne Feld lassen sich unter Karte → Feldumrisse von Hand nachzeichnen. Die Erkennung aus dem Kartenbild lässt sie aus, weil Wald und Hofflächen dort selten sauber zu erkennen sind.
+
 ## 29.10.2026 – Farming Hub: Feldumrisse zeichnen
 
 - **Nicht bestellte Felder sind wieder da:** Felder, die noch kein Acker sind, bekamen ein Stück vom Nachbarfeld statt ihres Kreises. Jetzt sind sie wieder Kreise in passender Größe, und leere Felder sieht man mit hellem Rand auf jedem Kartenbild. Felder, die der Server nicht einzeln nennt, kommen aus den Grundstücken.

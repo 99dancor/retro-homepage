@@ -256,7 +256,7 @@ function signature(files, fields, mapSize, outlines) {
   const h = crypto.createHash('sha1');
   h.update(String(mapSize) + ';' + ((outlines && outlines.sig) || '-'));
   for (const n of ['densityMap_ground.gdm', ...Object.values(LAYERS).map(l => l.file)]) h.update(n + '=' + ((files[n] && files[n].sig) || '-') + ';');
-  for (const f of fields) h.update(`${f.id}:${Math.round(f.x)}:${Math.round(f.z)};`);
+  for (const f of fields) h.update(`${f.id}:${Math.round(f.x)}:${Math.round(f.z)}${f.parcel ? "p" : ""};`);
   return h.digest('hex').slice(0, 16);
 }
 // outlines: { sig, polys } aus der Karte oder null. own: { sig, polys: { id: [[x, z], …] } } aus fs_outlines (gehen vor).
@@ -274,8 +274,10 @@ function load(dir, files, fields, mapSize, outlines = null, own = null) {
   } catch { /* noch nichts gerechnet */ }
   try {
     const t = Date.now();
-    const r = ground ? buildShapes(fs.readFileSync(path.join(dir, 'sg-densityMap_ground.gdm')), fields, mapSize) : { shapes: {} };
-    const exact = polys ? fsfields.matchFields(polys, fields, mapSize) : {};
+    // Grundstücke ohne Feld haben keinen Feldboden und kein Feld-Vieleck, dort fände die Suche nur den Nachbarn
+    const real = fields.filter(f => !f.parcel);
+    const r = ground ? buildShapes(fs.readFileSync(path.join(dir, 'sg-densityMap_ground.gdm')), real, mapSize) : { shapes: {} };
+    const exact = polys ? fsfields.matchFields(polys, real, mapSize) : {};
     const shapes = {};
     for (const [id, s] of Object.entries(r.shapes)) shapes[id] = { ...s, src: 'boden' };
     for (const [id, s] of Object.entries(exact)) shapes[id] = { ...s, src: 'karte' };

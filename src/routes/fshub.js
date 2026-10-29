@@ -76,7 +76,8 @@ function frame(gs, pad = 20) {
   const w = Math.max(x1 - x0, y1 - y0, 120), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
   return [cx - w / 2, cy - w / 2, w, w].map(v => v.toFixed(0)).join(' ');
 }
-const helpers = { icon: fsicons.html, geo, frame, de, eur, big, liters, ha, ago, mins, when, spark, N, TABS, hhmm: hub.hhmm, fmtDay: hub.fmtDay, STATUS: hub.STATUS, displayName: profiles.displayName };
+const fieldName = f => (f.parcel ? 'Grundstück ' : 'Feld ') + f.id;
+const helpers = { fieldName, icon: fsicons.html, geo, frame, de, eur, big, liters, ha, ago, mins, when, spark, N, TABS, hhmm: hub.hhmm, fmtDay: hub.fmtDay, STATUS: hub.STATUS, displayName: profiles.displayName };
 
 // ---------- Zugriff ----------
 router.use((req, res, next) => {
@@ -146,6 +147,7 @@ router.get('/karte.bild', (req, res) => {
 const MAP_LAYERS = { fruechte: 'Feldfrüchte', wachstum: 'Wachstum', boden: 'Boden', besitz: 'Besitz' };
 const LAYER_ALIAS = { zustand: 'wachstum', pflege: 'boden' };
 const NONE = 'rgba(255,255,255,.2)';   // leer oder unbekannt: hell, damit das Feld auf jedem Kartenbild zu sehen ist
+const PARCEL = 'rgba(255,255,255,.07)';   // Grundstück ohne Feld (Wiese, Wald, Plantage): nur angedeutet, gestrichelter Rand (fshub.css)
 const CARE = [['kalk', 'Kalk nötig', '#e0c52c'], ['pflug', 'Pflügen fällig', '#c8693a'], ['duenger', 'Düngen', '#4b97ec'], ['unkraut', 'Unkraut', '#b062c8'], ['steine', 'Steine', '#9a9a9a']];
 // Reihenfolge = Zeichenreihenfolge: was zu tun ist, liegt oben
 const RASTER = { duenger: ['Gedüngt', 'linear-gradient(90deg, #4b97ec 50%, #1f4fb8 50%)'], pflug: ['Pflügen fällig', '#c8693a'], kalk: ['Kalk nötig', '#e0c52c'] };
@@ -153,35 +155,38 @@ function mapView(fields, m, shp) {
   const raster = shp && shp.layers ? Object.keys(RASTER).filter(k => shp.layers.includes(k)) : [];
   const gs = geo(fields, m, shp).map(g => {
     const care = g.source === 'auto' ? (CARE.find(([k]) => g.care.some(c => c.key === k)) || ['ok', 'Alles erledigt', '#5aa83c']) : null;
+    const none = g.parcel ? '-' : '', nc = g.parcel ? PARCEL : NONE;
     return { ...g, layer: {
-      fruechte: g.crop ? ['crop:' + g.crop, g.cropColor || '#8fd16a'] : ['crop:', NONE],
-      wachstum: g.state ? ['state:' + g.state, N.STATES[g.state][1]] : ['state:', NONE],
-      boden: raster.length ? ['', 'rgba(20,24,18,.35)'] : care ? ['care:' + care[0], care[2]] : ['care:', NONE],
+      fruechte: g.crop ? ['crop:' + g.crop, g.cropColor || '#8fd16a'] : ['crop:' + none, nc],
+      wachstum: g.state ? ['state:' + g.state, N.STATES[g.state][1]] : ['state:' + none, nc],
+      boden: raster.length ? ['', g.parcel ? PARCEL : 'rgba(20,24,18,.35)'] : care ? ['care:' + care[0], care[2]] : ['care:' + none, nc],
       besitz: g.farm ? ['farm:' + g.farm.id, g.farm.color] : ['farm:0', 'rgba(255,255,255,.22)'],
     } };
   });
   const count = (layer, key) => { const xs = gs.filter(g => g.layer[layer][0] === key); return { n: xs.length, ha: xs.reduce((a, g) => a + (g.area || 0), 0) }; };
   const crops = [...new Map(gs.filter(g => g.crop).map(g => [g.crop, g])).values()];
+  const LAND = k => ({ key: k + ':-', label: 'Grundstück ohne Feld', color: PARCEL, parcel: true });
   const groups = {
-    fruechte: [...crops.map(g => ({ key: 'crop:' + g.crop, label: g.crop, color: g.cropColor || '#8fd16a', fill: g.cropFill })), { key: 'crop:', label: 'Leer oder unbekannt', color: NONE }],
-    wachstum: [...Object.entries(N.STATES).map(([k, [l, c]]) => ({ key: 'state:' + k, label: l, color: c })), { key: 'state:', label: 'Unbekannt', color: NONE }],
+    fruechte: [...crops.map(g => ({ key: 'crop:' + g.crop, label: g.crop, color: g.cropColor || '#8fd16a', fill: g.cropFill })), { key: 'crop:', label: 'Leer oder unbekannt', color: NONE }, LAND('crop')],
+    wachstum: [...Object.entries(N.STATES).map(([k, [l, c]]) => ({ key: 'state:' + k, label: l, color: c })), { key: 'state:', label: 'Unbekannt', color: NONE }, LAND('state')],
     boden: raster.length ? raster.map(k => ({ key: 'ras:' + k, label: RASTER[k][0], color: RASTER[k][1], raster: k }))
-      : [...CARE, ['ok', 'Alles erledigt', '#5aa83c']].map(([k, l, c]) => ({ key: 'care:' + k, label: l, color: c })).concat([{ key: 'care:', label: 'Unbekannt (nur mit FTP)', color: NONE }]),
+      : [...CARE, ['ok', 'Alles erledigt', '#5aa83c']].map(([k, l, c]) => ({ key: 'care:' + k, label: l, color: c })).concat([{ key: 'care:', label: 'Unbekannt (nur mit FTP)', color: NONE }, LAND('care')]),
     besitz: [...m.farms.map(f => ({ key: 'farm:' + f.id, label: f.name, color: f.color })), { key: 'farm:0', label: 'Zu kaufen', color: 'rgba(255,255,255,.22)' }],
   };
   for (const [layer, items] of Object.entries(groups)) {
     for (const it of items) Object.assign(it, it.raster ? { n: null, ha: null } : count(layer, it.key));
     groups[layer] = items.filter(it => it.raster || it.n || it.key.startsWith('farm:'));
-    if (layer === 'fruechte') groups[layer].sort((a, b) => (a.key === 'crop:') - (b.key === 'crop:') || b.ha - a.ha);
+    const last = it => (it.key === 'crop:' ? 1 : it.parcel ? 2 : 0);
+    if (layer === 'fruechte') groups[layer].sort((a, b) => last(a) - last(b) || b.ha - a.ha);
   }
   return { gs, groups, raster };
 }
 // Daten je Feld für die Infokarte (public/fshub.js baut sie beim Klick)
 function fieldCard(g, req) {
   const a = g.source === 'auto' ? g.auto : null;
-  return { id: g.id, ha: g.area, icon: g.crop ? fsicons.html(g.cropFill, g.crop, 's') : '', farm: g.farm ? { id: g.farm.id, name: g.farm.name, color: g.farm.color } : null, price: g.price || null,
+  return { id: g.id, parcel: !!g.parcel, ha: g.area, icon: g.crop ? fsicons.html(g.cropFill, g.crop, 's') : '', farm: g.farm ? { id: g.farm.id, name: g.farm.name, color: g.farm.color } : null, price: g.price || null,
     crop: g.crop, fill: g.cropFill, state: g.state ? N.STATES[g.state][0] : null, stateKey: g.state, src: g.source, ground: g.ground, growth: a ? a.growth : null,
-    soil: a ? { lime: a.lime, spray: a.spray, plow: !!a.plow, weed: a.weed, stone: a.stone } : null, care: g.care.map(c => c.label), autoAt: g.autoAt ? when(g.autoAt) : null,
+    soil: a ? { lime: a.lime, spray: a.spray, plow: !!a.plow, weed: a.weed, stone: a.stone } : null, care: g.care.map(c => c.label), autoAt: a && g.autoAt ? when(g.autoAt) : null,
     report: g.report ? { by: g.report.username || '–', at: when(g.report.updated_at), day: g.report.game_day ? hub.fmtDay(g.report.game_day) : null, crop: g.report.crop_id, cur: g.source === 'report' } : null,
     plan: g.plan ? `${g.plan.crop}, säen ${N.MONTHS[g.plan.sow_month]}, ernten ${N.MONTHS[g.plan.harvest_month]}` : null,
     edit: !!req.user && (!g.farm || hub.canEditFarm(req.user, g.farm.id)) };
@@ -200,7 +205,7 @@ router.get('/karte', (req, res) => {
   const want = LAYER_ALIAS[req.query.ansicht] || req.query.ansicht;
   // Für den Umriss-Editor (Admins): Kartenmaß, Lage des Bilds, je Feld Mitte, Größe und woher die Form kommt
   const editor = req.user && req.user.isAdmin ? { size: m.size || 2048, img: hasImage ? { off: -border / 100 * (1000 / (1 - 2 * border / 100)), w: 1000 / (1 - 2 * border / 100), src: '/farming/karte.bild?v=' + mapV } : null,
-    fields: view.gs.map(g => ({ id: g.id, cx: g.cx, cy: g.cy, r: g.r, ha: g.area || 0, src: g.d ? (shp.shapes[g.id] || {}).src || 'boden' : 'kreis' })) } : null;
+    fields: view.gs.map(g => ({ id: g.id, cx: g.cx, cy: g.cy, r: g.r, ha: g.area || 0, parcel: !!g.parcel, src: g.d ? (shp.shapes[g.id] || {}).src || 'boden' : 'kreis' })) } : null;
   page(req, res, 'map', { title: 'Karte – Farming Simulator', full: true, editor, ...view, CARE_COLORS: Object.fromEntries(CARE.map(([k, , c]) => [k, c])), sel, crops, border, hasImage, mapV, shp, LAYERS: MAP_LAYERS,
     cards: view.gs.map(g => fieldCard(g, req)), layer: Object.hasOwn(MAP_LAYERS, want) ? want : 'fruechte' });
 });

@@ -7,7 +7,7 @@
   <div class="row">
     <input name="title" maxlength="120" required placeholder="Was ist zu tun?" value="<%= e ? e.title : '' %>" aria-label="Aufgabe" class="grow">
     <select name="assignee_id" aria-label="Wer"><option value="">Wer? (alle)</option><% for (const u of f.members) { %><option value="<%= u.id %>"<%= e && e.assignee_id === u.id ? ' selected' : '' %>><%= u.display_name || u.username %></option><% } %></select>
-    <select name="field" aria-label="Feld"><option value="">Feld?</option><% for (const x of myFields) { %><option value="<%= x.id %>"<%= (e ? e.field : Number(query.feld)) === x.id ? ' selected' : '' %>>Feld <%= x.id %></option><% } %></select>
+    <select name="field" aria-label="Feld"><option value="">Feld?</option><% for (const x of myFields) { %><option value="<%= x.id %>"<%= (e ? e.field : Number(query.feld)) === x.id ? ' selected' : '' %>><%= fieldName(x) %></option><% } %></select>
     <select name="place_id" aria-label="Ort"><option value="">Ort?</option><% for (const p of places.filter(p => !p.farm_id || p.farm_id === f.id)) { %><option value="<%= p.id %>"<%= e && e.place_id === p.id ? ' selected' : '' %>><%= p.name %></option><% } %></select>
   </div>
   <div class="row">

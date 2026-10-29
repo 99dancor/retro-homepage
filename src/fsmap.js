@@ -9,11 +9,14 @@
 // Feldern bleiben), dann wächst jedes Feld von seiner Mitte aus dem Stats-Feed über zusammenhängenden Feldboden. Stoßen
 // zwei Felder ohne Lücke aneinander, teilen sie sich die Fläche nach Abstand. Aus jeder Fläche wird ein vereinfachter
 // Umriss im Koordinatensystem der Karte (0–1000). Passt die Fläche nicht zur Größe des Grundstücks, bleibt das Feld
-// ein Kreis. Ergebnis und Ebenen-Bilder liegen im Datenordner und werden nur neu gerechnet, wenn sich etwas ändert.
+// ein Kreis. Kennt der Hub die Feldumrisse aus der Karte (src/fsfields.js), nimmt er für jedes Feld dessen Vieleck, auch
+// ohne Feldboden (noch nicht bestellte Felder). Ergebnis und Ebenen-Bilder liegen im Datenordner und werden nur neu
+// gerechnet, wenn sich etwas ändert.
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const crypto = require('node:crypto');
+const fsfields = require('./fsfields');
 
 // ---------- Dateiformate ----------
 // GDM („"MDF“): Kopf mit Größe, Kanälen und Bereichen, danach 32 × 32-Kacheln, je Bereich mit Palette und Bits.
@@ -245,16 +248,19 @@ function layerPng(key, grleBuf, lab, m) {
 // ---------- Zwischenspeicher ----------
 // dir: Datenordner des Hubs. files: { name: { sig } } aus dem FTP-Stand, fields und mapSize aus dem Modell.
 let mem = null;
-function signature(files, fields, mapSize) {
+function signature(files, fields, mapSize, outlines) {
   const h = crypto.createHash('sha1');
-  h.update(String(mapSize));
+  h.update(String(mapSize) + ';' + ((outlines && outlines.sig) || '-'));
   for (const n of ['densityMap_ground.gdm', ...Object.values(LAYERS).map(l => l.file)]) h.update(n + '=' + ((files[n] && files[n].sig) || '-') + ';');
   for (const f of fields) h.update(`${f.id}:${Math.round(f.x)}:${Math.round(f.z)};`);
   return h.digest('hex').slice(0, 16);
 }
-function load(dir, files, fields, mapSize) {
-  if (!files['densityMap_ground.gdm'] || !fields.length) return null;
-  const sig = signature(files, fields, mapSize);
+// outlines: { sig, polys } aus der Karte oder null
+function load(dir, files, fields, mapSize, outlines = null) {
+  const ground = !!files['densityMap_ground.gdm'] && fs.existsSync(path.join(dir, 'sg-densityMap_ground.gdm'));
+  const polys = outlines && outlines.polys && outlines.polys.length ? outlines.polys : null;
+  if ((!ground && !polys) || !fields.length) return null;
+  const sig = signature(ground ? files : {}, fields, mapSize, polys && outlines);
   if (mem && mem.sig === sig) return mem;
   const store = path.join(dir, 'shapes.json');
   try {
@@ -263,14 +269,16 @@ function load(dir, files, fields, mapSize) {
   } catch { /* noch nichts gerechnet */ }
   try {
     const t = Date.now();
-    const r = buildShapes(fs.readFileSync(path.join(dir, 'sg-densityMap_ground.gdm')), fields, mapSize);
+    const r = ground ? buildShapes(fs.readFileSync(path.join(dir, 'sg-densityMap_ground.gdm')), fields, mapSize) : { shapes: {} };
+    const exact = polys ? fsfields.matchFields(polys, fields, mapSize) : {};
+    const shapes = { ...r.shapes, ...exact };
     const layers = [];
     for (const [key, L] of Object.entries(LAYERS)) {
       const file = path.join(dir, 'sg-' + L.file);
-      if (!files[L.file] || !fs.existsSync(file)) { fs.rmSync(path.join(dir, `layer-${key}.png`), { force: true }); continue; }
+      if (!ground || !files[L.file] || !fs.existsSync(file)) { fs.rmSync(path.join(dir, `layer-${key}.png`), { force: true }); continue; }
       try { fs.writeFileSync(path.join(dir, `layer-${key}.png`), layerPng(key, fs.readFileSync(file), r.lab, r.size)); layers.push(key); } catch (e) { console.error('Farming Hub, Ebene', key, e.message); }
     }
-    mem = { sig, at: Math.floor(Date.now() / 1000), ms: Date.now() - t, shapes: r.shapes, layers };
+    mem = { sig, at: Math.floor(Date.now() / 1000), ms: Date.now() - t, shapes, layers, exact: Object.keys(exact).length };
     fs.writeFileSync(store, JSON.stringify(mem));
     return mem;
   } catch (e) {

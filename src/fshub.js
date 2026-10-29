@@ -9,6 +9,7 @@
 const { db, now, getSetting, setSetting, tx } = require('./db');
 const feeds = require('./fsfeeds');
 const fsmap = require('./fsmap');
+const saves = require('./fssaves');
 const N = require('./fsnames');
 const notify = require('./notify');
 
@@ -205,9 +206,10 @@ function model() {
   }
   for (const s of sv) if (!s.used) vehicles.push(make(s, null));
 
-  // Höfe: alle Farm-Nummern, die irgendwo vorkommen
+  // Höfe: alle Farm-Nummern, die irgendwo vorkommen. Mit farms.xml (FTP) zählen nur die Höfe, die es im Spielstand gibt,
+  // sonst auch die, die Mitglieder hier angelegt haben
   const rows = farmRows(), members = membersByFarm();
-  const ids = new Set([...rows.keys()]);
+  const ids = new Set(farmsX ? [] : [...rows.keys()]);
   for (const v of vehicles) if (v.farmId > 0) ids.add(v.farmId);
   for (const f of lands.values()) if (f.owner > 0) ids.add(f.owner);
   for (const f of farmsX || []) if (f.id > 0) ids.add(f.id);
@@ -285,6 +287,7 @@ function accountFor(name) {
 
 // ---------- Was beim Abruf passiert ----------
 feeds.on((key, prev) => {
+  if (key === 'savegame' || key === 'ftp') checkSave();
   if (key === 'stats') onStats(prev, feeds.get('stats'));
   if (key === 'ftp') {
     setImmediate(() => { try { shapes(); } catch (e) { console.error('Farming Hub, Feldformen:', e); } });
@@ -303,6 +306,15 @@ feeds.onError((key, st) => {
   }
 });
 
+// Anderer Spielstand auf dem Server: Daten des alten beiseitelegen (src/fssaves.js), Changelog-Eintrag
+function checkSave() {
+  const sw = saves.check();
+  if (!sw) return;
+  fsmap.forget();
+  invalidate();
+  db.prepare("INSERT INTO fs_changelog(kind, title, body, created_at) VALUES ('server', ?, ?, ?)").run(`Neuer Spielstand: ${sw.to}`,
+    `Vorher ${sw.from}. ${sw.restored ? 'Höfe, Aufgaben und Pläne von früher sind wieder da.' : 'Höfe, Aufgaben und Pläne des alten Spielstands sind beiseitegelegt, hier beginnt alles leer.'}`, now());
+}
 function onStats(prev, st) {
   if (!st) return;
   const t = Date.now();
@@ -769,7 +781,7 @@ function fieldStates() {
 function shapes(m = model()) {
   if (getSetting('fs_shapes', '1') !== '1') return null;
   const f = feeds.get('ftp');
-  return fsmap.load(feeds.FS_DIR, (f && f.files) || {}, m.fields, m.size || 2048);
+  return fsmap.load(feeds.FS_DIR, (f && f.files) || {}, m.fields, m.size || 2048, feeds.currentOutlines());
 }
 function fieldOwner(fieldId) { const f = model().fields.find(x => x.id === Number(fieldId)); return f ? f.owner : 0; }
 function savePlace(id, b) {
@@ -936,6 +948,7 @@ function start() {
   crops();
   importUpdates();
   feeds.start();
+  checkSave();
   // Uhr: erst nach dem zweiten Abruf weiß der Hub, ob sie läuft
 }
 

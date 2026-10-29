@@ -127,11 +127,17 @@ router.get('/', (req, res) => {
     lastCount: hub.changelog(20).filter(c => c.kind === 'mods' && c.created_at > Date.now() / 1000 - 86400).length });
 });
 
-router.get('/karte.bild', (req, res) => {
+// Kartenbild: das eigene, sonst das vom Server. Die Seite hängt ?v=<Änderungszeit> an, so kommt ein neues Bild sofort.
+function mapImage() {
   const custom = fs.readdirSync(feeds.FS_DIR).find(f => /^map-custom\.(png|jpe?g|webp)$/.test(f));
   const file = custom ? path.join(feeds.FS_DIR, custom) : feeds.MAP_FILE;
-  if (!fs.existsSync(file)) return res.status(404).end();
-  res.set('Cache-Control', 'private, max-age=3600');
+  try { return { file, custom, v: Math.round(fs.statSync(file).mtimeMs).toString(36) }; } catch { return null; }
+}
+router.get('/karte.bild', (req, res) => {
+  const img = mapImage();
+  if (!img) return res.status(404).end();
+  const { file, custom } = img;
+  res.set('Cache-Control', req.query.v === img.v ? 'private, max-age=604800, immutable' : 'no-cache');
   res.type(custom ? path.extname(custom) : (fs.readFileSync(file).subarray(0, 2).toString('hex') === 'ffd8' ? 'jpg' : 'png')).sendFile(file);
 });
 
@@ -188,11 +194,11 @@ router.get('/karte', (req, res) => {
   const shp = hub.shapes(m);
   const view = mapView(fields, m, shp);
   const sel = view.gs.find(f => f.id === Number(req.query.feld)) || null;
-  const custom = fs.readdirSync(feeds.FS_DIR).some(f => /^map-custom\./.test(f));
-  const border = m.configured && !custom ? Number(getSetting('fs_map_border', '25')) || 0 : 0;
-  const hasImage = fs.existsSync(feeds.MAP_FILE) || custom;
+  const img = mapImage();
+  const border = m.configured && !(img && img.custom) ? Number(getSetting('fs_map_border', '25')) || 0 : 0;
+  const hasImage = !!img, mapV = img ? img.v : '';
   const want = LAYER_ALIAS[req.query.ansicht] || req.query.ansicht;
-  page(req, res, 'map', { title: 'Karte – Farming Simulator', full: true, ...view, CARE_COLORS: Object.fromEntries(CARE.map(([k, , c]) => [k, c])), sel, crops, border, hasImage, shp, LAYERS: MAP_LAYERS,
+  page(req, res, 'map', { title: 'Karte – Farming Simulator', full: true, ...view, CARE_COLORS: Object.fromEntries(CARE.map(([k, , c]) => [k, c])), sel, crops, border, hasImage, mapV, shp, LAYERS: MAP_LAYERS,
     cards: view.gs.map(g => fieldCard(g, req)), layer: Object.hasOwn(MAP_LAYERS, want) ? want : 'fruechte' });
 });
 // Boden-Ebenen aus der Dichtekarte (src/fsmap.js) und hochgeladene Originalsymbole (src/fsicons.js)

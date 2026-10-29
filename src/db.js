@@ -758,6 +758,15 @@ CREATE TABLE IF NOT EXISTS fs_hist (
   value REAL NOT NULL,
   PRIMARY KEY (series, day)
 );
+-- Spielstände, die der Hub gesehen hat (Karte + Anlegedatum). Läuft ein anderer, legt er Höfe, Mitglieder, Aufgaben, Pläne,
+-- Meldungen, Orte und Verläufe des alten hier als JSON ab (data) und holt die des neuen zurück, falls er ihn schon kennt.
+CREATE TABLE IF NOT EXISTS fs_saves (
+  key TEXT PRIMARY KEY,                 -- Kartenname|Anlegedatum, alt-<Zeit> für von Hand beiseitegelegte Stände
+  map TEXT, title TEXT, created TEXT,
+  first_at INTEGER NOT NULL, last_at INTEGER NOT NULL,
+  data TEXT,                            -- abgelegte Daten, leer = läuft gerade oder nichts abgelegt
+  image TEXT                            -- abgelegtes eigenes Kartenbild (Dateiname im Datenordner)
+);
 CREATE TABLE IF NOT EXISTS fs_changelog (
   id INTEGER PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,   -- leer = vom Hub selbst (z. B. Mods geändert)

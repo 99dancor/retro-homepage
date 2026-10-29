@@ -324,6 +324,7 @@ router.post('/werwolf/statistik/loeschen', (req, res) => {
 const FS_KEYS = ['stats', 'savegame', 'vehicles', 'economy', 'map'];
 const fsMapUpload = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 15 * 1024 * 1024, files: 1 } });
 const fsIconUpload = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 40 * 1024 * 1024, files: 400 } });
+const fsI3dUpload = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 250 * 1024 * 1024, files: 1 } });
 function maskUrl(u) {
   if (!u) return '';
   try {
@@ -333,7 +334,7 @@ function maskUrl(u) {
   } catch { return '••••••••'; }
 }
 router.get('/farming', (req, res) => {
-  const hub = require('../fshub'), feeds = require('../fsfeeds');
+  const hub = require('../fshub'), feeds = require('../fsfeeds'), saves = require('../fssaves');
   const fsfiles = require('node:fs').readdirSync(feeds.FS_DIR);
   const feedRows = [...FS_KEYS, 'ftp'].map(k => ({ key: k, ...feeds.FEEDS[k], set: feeds.configured(k), masked: k === 'ftp' ? '' : maskUrl(feeds.url(k)),
     every: feeds.interval(k), st: feeds.status(k) }));
@@ -343,23 +344,28 @@ router.get('/farming', (req, res) => {
     title: 'Farming Simulator', N: require('../fsnames'), feedRows, ftp: { ...ftp, password: undefined, pass_set: !!ftp.password }, m, hub,
     s: Object.fromEntries(['fs_enabled', 'fs_view', 'fs_edit', 'fs_map_border', 'fs_auto_wear', 'fs_auto_diesel', 'fs_auto_pallets', 'fs_auto_food', 'fs_auto_fields', 'fs_shapes', 'fs_modlist'].map(k => [k, getSetting(k, '')])),
     customMap: fsfiles.find(f => /^map-custom\./.test(f)) || null, hasServerMap: fsfiles.includes('map-server'), iconCount: require('../fsicons').list().size,
+    saves: { list: saves.list(), id: saves.identity(), unsure: saves.unsure(), counts: saves.liveCounts() },
+    outlines: (() => { const o = feeds.outlines(), shp = hub.shapes(m); return { o: o ? { ...o, polys: undefined, count: o.polys.length } : null, active: !!feeds.currentOutlines(), mod: feeds.mapMod(), exact: (shp && shp.exact) || 0, fields: m.fields.length }; })(),
     users: db.prepare('SELECT u.id, u.username, u.display_name, m.farm_id FROM users u LEFT JOIN fs_members m ON m.user_id = u.id WHERE u.disabled = 0 ORDER BY u.username COLLATE NOCASE').all(),
     lists: db.prepare('SELECT slug, title, game FROM modlists ORDER BY game, title').all(), crops: hub.crops(), sessions: hub.sessionTotals(30),
     msg: { testen: 'Alle Zugänge abgefragt, die Ergebnisse stehen unten.', datum: 'Datum gesetzt.', karte: 'Kartenbild gespeichert.' }[req.query.ok]
-      || (/^symbole\d+$/.test(req.query.ok || '') ? `${req.query.ok.slice(7)} Symbole gespeichert.` : req.query.ok ? 'Gespeichert.' : null),
+      || (/^symbole\d+$/.test(req.query.ok || '') ? `${req.query.ok.slice(7)} Symbole gespeichert.` : /^umrisse\d+$/.test(req.query.ok || '') ? `${req.query.ok.slice(7)} Feldumrisse aus der Karte gelesen.` : req.query.ok ? 'Gespeichert.' : null),
     err: req.query.err || null,
   });
 });
 router.post('/farming/server', (req, res) => {
   const feeds = require('../fsfeeds'), b = req.body;
+  const fresh = new Set();
   for (const k of FS_KEYS) {
     const v = String(b['url_' + k] || '').trim();
     if (b['clear_' + k] === '1') { setSetting('fs_url_' + k, ''); feeds.forget(k); }
     else if (v) {
       if (!/^https?:\/\/[^\s]+$/i.test(v)) return res.redirect('/admin/farming?err=' + encodeURIComponent(`${feeds.FEEDS[k].name}: Bitte eine Adresse mit http:// oder https:// eintragen.`));
+      if (v.slice(0, 1000) !== feeds.url(k)) fresh.add(k);
       setSetting('fs_url_' + k, v.slice(0, 1000));
     }
   }
+  const oldFtp = JSON.stringify([getSetting('fs_ftp_host', ''), getSetting('fs_ftp_path', '')]);
   for (const k of [...FS_KEYS, 'ftp']) {
     const n = Math.round(Number(b['int_' + k]));
     setSetting('fs_int_' + k, Number.isFinite(n) && n > 0 ? String(Math.max(feeds.FEEDS[k].min, Math.min(7 * 86400, n))) : '');
@@ -372,7 +378,11 @@ router.post('/farming/server', (req, res) => {
   setSetting('fs_ftp_secure', ['0', '1', '2'].includes(b.ftp_secure) ? b.ftp_secure : '0');
   if (b.ftp_pass) setSetting('fs_ftp_pass', String(b.ftp_pass).slice(0, 500));
   if (b.ftp_pass_clear === '1') setSetting('fs_ftp_pass', '');
-  if (!getSetting('fs_ftp_host')) feeds.forget('ftp');
+  // Anderer Server oder Ordner: die alten Dateien gehören nicht mehr dazu
+  if (!getSetting('fs_ftp_host') || oldFtp !== JSON.stringify([getSetting('fs_ftp_host', ''), getSetting('fs_ftp_path', '')])) { feeds.forget('ftp'); fresh.add('ftp'); }
+  // Neue Adresse: gleich abholen statt erst nach dem Abstand (Kartenbild sonst erst am nächsten Tag)
+  for (const k of fresh) if (feeds.configured(k)) feeds.soon(k);
+  require('../fshub').invalidate();
   res.redirect('/admin/farming?ok=1');
 });
 router.post('/farming/testen', async (req, res) => {
@@ -403,12 +413,37 @@ router.post('/farming/karte', fsMapUpload.single('map'), multipartCsrf, (req, re
   if (!ext) return res.redirect('/admin/farming?err=' + encodeURIComponent('Bitte ein PNG-, JPEG- oder WebP-Bild wählen.') + '#server');
   for (const old of fsx.readdirSync(feeds.FS_DIR).filter(x => /^map-custom\./.test(x))) fsx.rmSync(path.join(feeds.FS_DIR, old), { force: true });
   fsx.writeFileSync(path.join(feeds.FS_DIR, 'map-custom.' + ext), f.buffer);
+  require('../fssaves').imageUploaded();
   res.redirect('/admin/farming?ok=karte#server');
 });
 router.post('/farming/karte/loeschen', (req, res) => {
   const fsx = require('node:fs'), feeds = require('../fsfeeds');
   for (const old of fsx.readdirSync(feeds.FS_DIR).filter(x => /^map-custom\./.test(x))) fsx.rmSync(path.join(feeds.FS_DIR, old), { force: true });
   res.redirect('/admin/farming?ok=1#server');
+});
+// Feldumrisse aus der map.i3d der Karte (src/fsfields.js), falls der Hub sie nicht selbst aus dem mods-Ordner holen kann
+router.post('/farming/umrisse', fsI3dUpload.single('i3d'), multipartCsrf, (req, res) => {
+  if (!req.file) return res.redirect('/admin/farming?err=' + encodeURIComponent('Bitte die map.i3d der Karte wählen.') + '#umrisse');
+  let n;
+  try { n = require('../fsfeeds').outlinesFromUpload(req.file.buffer); } catch (e) { return res.redirect('/admin/farming?err=' + encodeURIComponent(e.message) + '#umrisse'); }
+  require('../fshub').invalidate();
+  res.redirect(`/admin/farming?ok=umrisse${n}#umrisse`);
+});
+router.post('/farming/umrisse/loeschen', (req, res) => {
+  const feeds = require('../fsfeeds');
+  feeds.removeOutlines();
+  if (feeds.configured('ftp')) feeds.soon('ftp');
+  require('../fshub').invalidate();
+  res.redirect('/admin/farming?ok=1#umrisse');
+});
+// Spielstände (src/fssaves.js): Daten beiseitelegen, zurückholen, löschen
+router.post('/farming/spielstand/:action', (req, res) => {
+  const saves = require('../fssaves'), key = String(req.body.key || '');
+  const ok = { neu: () => saves.restart(), behalten: () => { saves.keep(); return true; }, uebernehmen: () => saves.adopt(key), loeschen: () => saves.remove(key) }[req.params.action];
+  if (!ok) return res.status(404).end();
+  if (!ok()) return res.redirect('/admin/farming?err=' + encodeURIComponent('Das ging nicht (Spielstand unbekannt oder läuft gerade).') + '#spielstand');
+  require('../fshub').invalidate();
+  res.redirect('/admin/farming?ok=1#spielstand');
 });
 // Originalsymbole der Erzeugnisse (PNG oder ZIP mit PNGs) – nur im Datenordner, siehe src/fsicons.js
 router.post('/farming/symbole', fsIconUpload.array('icons'), multipartCsrf, (req, res) => {

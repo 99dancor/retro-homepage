@@ -46,11 +46,48 @@
   </form>
   <form method="post" action="/admin/farming/testen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>🔌 Alle testen</button> <small class="muted">fragt alle eingetragenen Zugänge sofort ab</small></form>
 
+  <fieldset class="groupbox" id="spielstand"><legend>Spielstand</legend>
+    <% const sid = saves.id, cnt = Object.entries(saves.counts).filter(([, n]) => n).map(([k, n]) => n + ' ' + k).join(', '); %>
+    <p>Läuft gerade: <b><%= sid ? sid.map : 'unbekannt' %></b><%= sid && sid.title ? ' · „' + sid.title + '“' : '' %><%= sid && sid.created ? ' · angelegt ' + sid.created : '' %>
+      <% if (!sid) { %><br><small class="muted">Dafür braucht der Hub die Savegame-Adresse oder careerSavegame.xml per FTP.</small><% } %></p>
+    <p class="muted">Höfe, Mitglieder, Aufgaben, Anbaupläne, Feldmeldungen, Orte, Verläufe und der Spieltag gehören zum Spielstand. Läuft auf dem Server ein anderer, legt der Hub sie beiseite und beginnt leer (oder holt die Daten zurück, wenn er den Spielstand schon kennt). Notizen, Changelog, Vorschläge und Feldfrüchte bleiben.</p>
+    <% if (saves.unsure) { %>
+      <div class="msg err">⚠ Der Hub merkt sich Spielstände erst ab jetzt. Hier stehen schon Daten (<%= cnt %>). Gehören sie zu einem früheren Spielstand, leg sie beiseite.</div>
+      <div class="actions">
+        <form method="post" action="/admin/farming/spielstand/neu" class="inline" data-confirm="Höfe, Aufgaben und Pläne beiseitelegen und für diesen Spielstand leer beginnen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="def">Beiseitelegen und leer beginnen</button></form>
+        <form method="post" action="/admin/farming/spielstand/behalten" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Gehören zu diesem Spielstand</button></form>
+      </div>
+    <% } else if (sid) { %>
+      <form method="post" action="/admin/farming/spielstand/neu" class="actions" data-confirm="Höfe, Aufgaben und Pläne beiseitelegen und für diesen Spielstand leer beginnen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Für diesen Spielstand neu beginnen</button> <small class="muted"><%= cnt ? 'jetzt: ' + cnt : 'noch keine Daten' %></small></form>
+    <% } %>
+    <% const others = saves.list.filter(r => !r.active && r.stored); %>
+    <% if (others.length) { %>
+      <table class="list"><tr><th>Beiseitegelegt</th><th>Inhalt</th><th>Zuletzt</th><th></th></tr>
+        <% for (const r of others) { %><tr><td><b><%= r.map %></b><%= r.title ? ' · ' + r.title : '' %><%= r.created ? ' · angelegt ' + r.created : '' %></td>
+          <td><small><%= Object.entries(r.counts).filter(([, n]) => n).map(([k, n]) => n + ' ' + k).join(', ') || 'leer' %></small></td><td><small><%= ago(r.last_at) %></small></td>
+          <td><form method="post" action="/admin/farming/spielstand/uebernehmen" class="inline" data-confirm="Diese Daten in den laufenden Spielstand holen? Was jetzt da ist, wird beiseitegelegt."><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= r.key %>"><button class="small">Hierher holen</button></form>
+            <form method="post" action="/admin/farming/spielstand/loeschen" class="inline" data-confirm="Diese Daten endgültig löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= r.key %>"><button class="small danger">Löschen</button></form></td></tr><% } %>
+      </table>
+    <% } %>
+  </fieldset>
+
   <fieldset class="groupbox"><legend>Kartenbild</legend>
     <p>Das Bild vom Server ist klein (meist 512 × 512, die Karte liegt in der Mitte). Schöner wird es mit einem eigenen Bild, zum Beispiel der overview.png aus der Karten-Mod: Das zeigt die ganze Karte ohne Rand.</p>
     <p><%= customMap ? '✔ Eigenes Bild aktiv (' + customMap + ')' : hasServerMap ? '✔ Bild vom Server' : 'Noch kein Bild' %></p>
     <form method="post" action="/admin/farming/karte" enctype="multipart/form-data" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="file" name="map" accept="image/png,image/jpeg,image/webp" required><button>Eigenes Bild hochladen</button></form>
     <% if (customMap) { %><form method="post" action="/admin/farming/karte/loeschen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">Eigenes Bild entfernen</button></form><% } %>
+  </fieldset>
+
+  <fieldset class="groupbox" id="umrisse"><legend>Feldumrisse</legend>
+    <% const ol = outlines.o; %>
+    <p>Die genauen Umrisse aller Felder stehen in der Karte selbst (map.i3d), auch für Felder, die noch kein Acker sind. Läuft eine Karten-Mod, holt der Hub sie per FTP aus dem mods-Ordner neben dem Spielstand (nur die eine Datei, nicht die ganze Mod). Sonst leitet er die Form aus dem Feldboden ab, und Felder ohne Acker bleiben Kreise.</p>
+    <p><% if (ol && ol.count && outlines.active) { %>✔ <%= ol.count %> Umrisse <%= ol.source === 'upload' ? 'aus der hochgeladenen Datei' : 'aus ' + ol.mod + '.zip' %> (<%= ol.entry %>), <%= outlines.exact %> von <%= outlines.fields %> Feldern zugeordnet
+      <% } else if (ol && ol.count) { %>Die gespeicherten Umrisse gehören zu einer anderen Karte (<%= ol.mod || ol.mapTitle %>).
+      <% } else if (ol) { %>⚠ In <%= ol.mod %>.zip keine Feldumrisse gefunden.
+      <% } else if (outlines.mod) { %>Karten-Mod <%= outlines.mod %>: wird beim nächsten FTP-Abruf gelesen<%= ftp.host ? '' : ' (FTP fehlt)' %>.
+      <% } else { %>Keine Karten-Mod erkannt (Karte aus dem Spiel oder noch kein Savegame-Feed).<% } %></p>
+    <form method="post" action="/admin/farming/umrisse" enctype="multipart/form-data" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="file" name="i3d" accept=".i3d,.zip,application/zip,application/xml" required><button>map.i3d hochladen</button> <small class="muted">aus der Karten-Mod, falls es per FTP nicht klappt</small></form>
+    <% if (ol) { %><form method="post" action="/admin/farming/umrisse/loeschen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Umrisse vergessen<%= ftp.host ? ' und neu holen' : '' %></button></form><% } %>
   </fieldset>
 
   <fieldset class="groupbox" id="symbole"><legend>Symbole der Erzeugnisse</legend>

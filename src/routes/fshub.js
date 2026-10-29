@@ -17,7 +17,7 @@ const hub = require('../fshub');
 const feeds = require('../fsfeeds');
 const N = require('../fsnames');
 const fsicons = require('../fsicons');
-const { getSetting } = require('../db');
+const { getSetting, setSetting } = require('../db');
 const profiles = require('../profiles');
 
 const router = express.Router();
@@ -227,6 +227,25 @@ function fieldCard(g, req) {
     edit: !!req.user && (!g.farm || hub.canEditFarm(req.user, g.farm.id)) };
 }
 
+// Kartenbild ausrichten (Admins): Größe in Prozent und Verschiebung in Metern, damit Felder und Bild genau aufeinanderliegen.
+// Gehört zum Spielstand (fs_map_fit in src/fssaves.js), weil jede Karte ihr eigenes Bild hat.
+function mapFit() {
+  let f = {};
+  try { f = JSON.parse(getSetting('fs_map_fit', '') || '{}') || {}; } catch { f = {}; }
+  const n = (v, d, lo, hi) => (Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Number(v))) : d);
+  return { scale: n(f.scale, 100, 50, 200), dx: n(f.dx, 0, -2000, 2000), dz: n(f.dz, 0, -2000, 2000) };
+}
+// Lage des Bilds im Kartenmaß 0–1000: Rand des Server-Bilds, dann um die Kartenmitte skaliert und verschoben
+function imageBox(border, fit, size) {
+  const base = 1000 / (1 - 2 * border / 100), w = base * fit.scale / 100;
+  return { base: +base.toFixed(2), w: +w.toFixed(2), x: +(500 - w / 2 + fit.dx / size * 1000).toFixed(2), y: +(500 - w / 2 + fit.dz / size * 1000).toFixed(2) };
+}
+router.post('/karte/ausrichten', login, adminPage, (req, res) => {
+  const b = req.body, num = v => Number(String(v ?? '').replace(',', '.'));
+  const fit = b.reset ? {} : { scale: num(b.scale), dx: num(b.dx), dz: num(b.dz) };
+  setSetting('fs_map_fit', JSON.stringify(fit));
+  res.redirect('/farming/karte?ok=gespeichert');
+});
 router.get('/karte', (req, res) => {
   const m = hub.model();
   const crops = hub.crops();
@@ -237,11 +256,12 @@ router.get('/karte', (req, res) => {
   const img = mapImage();
   const border = m.configured && !(img && img.custom) ? Number(getSetting('fs_map_border', '25')) || 0 : 0;
   const hasImage = !!img, mapV = img ? img.v : '';
+  const fit = mapFit(), box = imageBox(border, fit, m.size || 2048);
   const want = LAYER_ALIAS[req.query.ansicht] || req.query.ansicht;
   // Für den Umriss-Editor (Admins): Kartenmaß, Lage des Bilds, je Feld Mitte, Größe und woher die Form kommt
-  const editor = req.user && req.user.isAdmin ? { size: m.size || 2048, img: hasImage ? { off: -border / 100 * (1000 / (1 - 2 * border / 100)), w: 1000 / (1 - 2 * border / 100), src: '/farming/karte.bild?v=' + mapV } : null,
+  const editor = req.user && req.user.isAdmin ? { size: m.size || 2048, img: hasImage ? { x: box.x, y: box.y, w: box.w, base: box.base, fit, src: '/farming/karte.bild?v=' + mapV } : null,
     fields: view.gs.map(g => ({ id: g.id, cx: g.cx, cy: g.cy, r: g.r, ha: g.area || 0, parcel: !!g.parcel, soil: g.soil ? Object.fromEntries([...g.soil.parts.map(x => [x.key, x.pct]), ['yield', g.soil.yield]]) : null, src: g.d ? (shp.shapes[g.id] || {}).src || 'boden' : 'kreis' })) } : null;
-  page(req, res, 'map', { title: 'Karte – Farming Simulator', full: true, editor, SOILS: hub.SOILS, ...view, CARE_COLORS: Object.fromEntries(CARE.map(([k, , c]) => [k, c])), sel, crops, border, hasImage, mapV, shp, LAYERS: MAP_LAYERS,
+  page(req, res, 'map', { title: 'Karte – Farming Simulator', full: true, editor, SOILS: hub.SOILS, ...view, CARE_COLORS: Object.fromEntries(CARE.map(([k, , c]) => [k, c])), sel, crops, border, box, hasImage, mapV, shp, LAYERS: MAP_LAYERS,
     cards: view.gs.map(g => fieldCard(g, req)), layer: Object.hasOwn(MAP_LAYERS, want) ? want : 'fruechte' });
 });
 // Boden-Ebenen aus der Dichtekarte (src/fsmap.js) und hochgeladene Originalsymbole (src/fsicons.js)

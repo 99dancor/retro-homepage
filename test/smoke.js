@@ -2597,6 +2597,14 @@ async function main() {
         assert.equal(JSON.parse((await admin.form('/farming/umrisse', { _csrf: ak, data: sq })).text_).n, 1);
         assert.match((await admin.req('/farming/karte')).text_, /"id":7,[^}]*"src":"hand"/);
         assert.equal((await admin.form('/farming/umrisse/7/loeschen', { _csrf: ak })).status, 200);
+        // Kartenbild ausrichten: nur Admins, Bild wird um die Mitte skaliert und verschoben
+        assert.equal((await anna.form('/farming/karte/ausrichten', { _csrf: t, scale: '120' })).status, 403);
+        assert.equal((await admin.form('/farming/karte/ausrichten', { _csrf: ak, scale: '110', dx: '20.48', dz: '-20,48' })).status, 302);
+        page = (await anna.req('/farming/karte')).text_;
+        const im = /<image id="fs-mapimg"[^>]* x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)"/.exec(page);
+        assert.ok(im, 'Kartenbild da');
+        assert.ok(Math.abs(Number(im[1]) - Number(im[2]) - 20) < 0.1, '±20,48 m = ±10 im Kartenmaß');
+        await admin.form('/farming/karte/ausrichten', { _csrf: ak, reset: '1' });
         // Bodenverteilung von Hand: nur Admins, Infokarte zeigt sie
         assert.equal((await anna.form('/farming/boden/7', { _csrf: t, loam: '50' })).status, 403);
         assert.equal((await admin.form('/farming/boden/7', { _csrf: ak, loamy_sand: '17', sandy_loam: '53', loam: '28', yield: '101' })).status, 302);

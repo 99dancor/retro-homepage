@@ -1,5 +1,9 @@
 # Changelog
 
+## 29.10.2026 – Farming Hub: Kartenbild ausrichten
+
+- **Bild und Felder deckungsgleich:** Liegen die Felder versetzt zum Kartenbild, lässt sich das Bild unter Karte → Feldumrisse und Boden mit drei Reglern ausrichten: Größe, links/rechts, oben/unten. Die Karte folgt sofort, gespeichert wird je Spielstand. Gilt für das Bild vom Server und für ein eigenes.
+
 ## 29.10.2026 – Farming Hub: Produktionsplaner, Bodenart, Plantagen
 
 - **Produktionsplaner:** Neuer Reiter links. Alle Produktionsgebäude mit Kaufpreis, ihre Produktionen und ob sie parallel oder seriell laufen. Eine Produktion zeigt ihr Rezept, die Zyklen pro Monat und Jahr und die Kosten. „Produktion rechnen“ sagt, wie viel Output aus eurem Input wird, in wie vielen Zyklen, wie lange das dauert und was es kostet.

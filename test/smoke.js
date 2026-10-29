@@ -2517,6 +2517,12 @@ async function main() {
         assert.match(page, /Spieltag 174 · geschätzt/);
         assert.match(page, /Werkstatt: 4 Fahrzeuge über 50 % Verschleiß <span class="chip"/);
         assert.equal((await anna.req('/farming/karte.bild')).headers.get('content-type'), 'image/jpeg');
+        assert.match(adm, /Läuft gerade: <b>Bilk<\/b>/, 'Spielstand erkannt');
+        // Kartenbild mit Version: ein neues Bild kommt sofort, ohne Version fragt der Browser jedes Mal nach
+        const mv = /karte\.bild\?v=([a-z0-9]+)/.exec((await anna.req('/farming/karte')).text_);
+        assert.ok(mv, 'Kartenbild mit Version');
+        assert.match((await anna.req('/farming/karte.bild?v=' + mv[1])).headers.get('cache-control'), /immutable/);
+        assert.equal((await anna.req('/farming/karte.bild')).headers.get('cache-control'), 'no-cache');
 
         // Hof beitreten, Namen geben; Fremde dürfen das nicht
         t = anna.jar.get('csrf');

@@ -40,7 +40,7 @@
     <svg class="fs-map" id="fs-map" viewBox="0 0 1000 1000" data-layer="<%= layer %>" role="img" aria-label="Karte mit Feldern">
       <rect x="-5000" y="-5000" width="11000" height="11000" fill="#262c22"/>
       <rect width="1000" height="1000" fill="#4f6a33"/>
-      <% if (hasImage) { %><image href="/farming/karte.bild" x="<%= off.toFixed(1) %>" y="<%= off.toFixed(1) %>" width="<%= w.toFixed(1) %>" height="<%= w.toFixed(1) %>" preserveAspectRatio="none"/><% } %>
+      <% if (hasImage) { %><image href="/farming/karte.bild?v=<%= mapV %>" x="<%= off.toFixed(1) %>" y="<%= off.toFixed(1) %>" width="<%= w.toFixed(1) %>" height="<%= w.toFixed(1) %>" preserveAspectRatio="none"/><% } %>
       <g class="flds">
         <% for (const g of gs) { const L = g.layer; %>
           <a href="/farming/karte?ansicht=<%= layer %>&amp;feld=<%= g.id %>" data-field="<%= g.id %>"><<%= g.d ? 'path' : 'circle' %> class="fld<%= sel && sel.id === g.id ? ' sel' : '' %>" <%- g.d ? `d="${g.d}"` : `cx="${g.cx}" cy="${g.cy}" r="${g.r}"` %>

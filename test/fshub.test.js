@@ -256,3 +256,148 @@ test('Changelog: Updates des Hubs aus CHANGELOG.md, jedes nur einmal', () => {
   assert.equal(e.kind, 'update');
   assert.equal(e.body, '• Eins\n• Zwei');
 });
+
+// ---------- Feldumrisse aus der Karte (src/fsfields.js) ----------
+const I3D = `<?xml version="1.0" encoding="iso-8859-1"?>
+<i3D name="map"><Files><File fileId="1" filename="x.png"/></Files>
+<Scene>
+  <TransformGroup name="gameplay" translation="100 0 0" nodeId="1">
+    <TransformGroup name="fields" translation="0 5 -50" nodeId="2">
+      <!-- Feld 1: liegt gerade -->
+      <TransformGroup name="field1" translation="10 0 10" nodeId="3">
+        <TransformGroup name="polygonPoints" nodeId="4">
+          <TransformGroup name="point1" translation="0 0 0" nodeId="5"/>
+          <TransformGroup name="point2" translation="40 0 0" nodeId="6"/>
+          <TransformGroup name="point3" translation="40 0 40" nodeId="7"/>
+          <TransformGroup name="point4" translation="0 0 40" nodeId="8"/>
+        </TransformGroup>
+        <TransformGroup name="nameIndicator" translation="20 0 20" nodeId="9"><Note name="Note" text="1" nodeId="10"/></TransformGroup>
+        <TransformGroup name="teleportIndicator" nodeId="11"/>
+      </TransformGroup>
+      <!-- Feld 2: um 90 Grad gedreht -->
+      <TransformGroup name="field2" translation="-200 0 100" rotation="0 90 0" nodeId="12">
+        <TransformGroup name="polygonPoints" nodeId="13">
+          <TransformGroup name="point1" translation="0 0 0" nodeId="14"/>
+          <TransformGroup name="point2" translation="10 0 0" nodeId="15"/>
+          <TransformGroup name="point3" translation="10 0 20" nodeId="16"/>
+        </TransformGroup>
+      </TransformGroup>
+    </TransformGroup>
+  </TransformGroup>
+  <Shape name="baum" translation="1 2 3" nodeId="20"/>
+</Scene>
+<UserAttributes><UserAttribute nodeId="2"><Attribute name="onCreate" type="scriptCallback" value="x"/></UserAttribute></UserAttributes>
+</i3D>`;
+
+test('Feldumrisse: map.i3d mit verschachtelten und gedrehten Knoten, aus einem ZIP gelesen, Feldern zugeordnet', () => {
+  const FF = require('../src/fsfields');
+  const polys = FF.i3dFields(I3D);
+  assert.equal(polys.length, 2);
+  assert.equal(polys[0].name, 'field1');
+  assert.deepEqual(polys[0].pts, [[110, -40], [150, -40], [150, 0], [110, 0]]);
+  // Drehung um Y: x → (cos·x, −sin·x), z → (sin·z, cos·z)
+  assert.deepEqual(polys[1].pts.map(p => p.map(v => Math.round(v))), [[-100, 50], [-100, 40], [-80, 40]]);
+  assert.throws(() => FF.i3dFields('<i3D/>'), /Keine i3d/);
+
+  // ZIP wie im mods-Ordner: Inhaltsverzeichnis am Ende, dann nur der eine Eintrag
+  const AdmZip = require('adm-zip');
+  const z = new AdmZip();
+  z.addFile('modDesc.xml', Buffer.from('<modDesc/>'));
+  z.addFile('placeables/shed/shed.i3d', Buffer.from('<i3D><Scene/></i3D>'));
+  z.addFile('maps/map.i3d', Buffer.from(I3D + ' '.repeat(5000)));
+  const zip = z.toBuffer();
+  const tailStart = Math.max(0, zip.length - 200);
+  const dirAt = FF.zipDirectory(zip.subarray(tailStart), tailStart);
+  const entries = FF.zipEntries(zip.subarray(dirAt.offset, dirAt.offset + dirAt.size));
+  assert.deepEqual(entries.map(e => e.name).sort(), ['maps/map.i3d', 'modDesc.xml', 'placeables/shed/shed.i3d']);
+  const best = FF.mapCandidates(entries)[0];
+  assert.equal(best.name, 'maps/map.i3d');
+  const data = FF.zipData(zip.subarray(best.offset), best).toString('utf8');
+  assert.equal(FF.i3dFields(data).length, 2);
+
+  // Mitte im Vieleck → genau dieses, sonst das nächste in 40 m; Karte 2048 m → Maß 0–1000
+  const shapes = FF.matchFields(polys, [{ id: 7, x: 130, z: -20 }, { id: 8, x: -95, z: 60 }, { id: 9, x: 900, z: 900 }], 2048);
+  assert.ok(shapes[7].exact);
+  assert.equal(shapes[7].ha, 0.16);
+  assert.match(shapes[7].d, /^M553\.7 480\.5L/);
+  assert.ok(shapes[8], 'nahe genug am gedrehten Feld');
+  assert.ok(!shapes[9], 'weit weg: bleibt Kreis');
+});
+
+test('Feldumrisse ohne Feldboden: auch noch nicht bestellte Felder bekommen ihre Form', () => {
+  const M = require('../src/fsmap');
+  M.forget();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fs-shp-'));
+  const polys = require('../src/fsfields').i3dFields(I3D);
+  const r = M.load(dir, {}, [{ id: 1, x: 130, z: -20, area: 0.2 }, { id: 2, x: 0, z: 0, area: 1 }], 2048, { sig: 'a', polys });
+  assert.equal(r.exact, 1);
+  assert.ok(r.shapes[1] && !r.shapes[2]);
+  assert.equal(M.load(dir, {}, [{ id: 1, x: 130, z: -20 }], 2048, null), null, 'ohne Boden und Umrisse nichts');
+});
+
+test('Spielstände: anderer Spielstand legt Höfe und Aufgaben beiseite, zurück holt sie wieder', () => {
+  const { db, now, getSetting, setSetting } = require('../src/db');
+  const saves = require('../src/fssaves');
+  const hub = require('../src/fshub');
+  const put = db.prepare('INSERT INTO fs_cache(feed, data, ok_at, tried_at, error, info) VALUES (?, ?, ?, ?, NULL, NULL) ON CONFLICT(feed) DO UPDATE SET data = excluded.data');
+  const sg = (map, created) => { put.run('savegame', JSON.stringify({ title: 'My game save', mapTitle: map, mapId: 'FS25_' + map + '.' + map, created, money: 0 }), now(), now()); F.load(); };
+  setSetting('fs_url_savegame', 'http://example.invalid/sg');
+  for (const t of saves.TABLES) db.prepare(`DELETE FROM ${t}`).run();
+  setSetting('fs_save', '');
+
+  sg('Bilk', '2026-07-26');
+  db.prepare("INSERT INTO fs_farms(id, name, color, updated_at) VALUES (1, 'Alter Hof', '#123456', ?)").run(now());
+  const uid = Number(db.prepare("INSERT INTO users(username, password_hash, role, created_at) VALUES ('bauer', 'x', 'user', ?)").run(now()).lastInsertRowid);
+  db.prepare('INSERT INTO fs_members(user_id, farm_id, joined_at) VALUES (?, 1, ?)').run(uid, now());
+  db.prepare("INSERT INTO fs_tasks(farm_id, title, created_by, created_at) VALUES (1, 'Silo leeren', ?, ?)").run(uid, now());
+  setSetting('fs_day', JSON.stringify({ day: 174 }));
+  assert.equal(saves.check(), null, 'erster Lauf merkt sich nur den Spielstand');
+  assert.equal(saves.unsure(), true, 'vorhandene Daten: Admin entscheidet');
+  saves.keep();
+  assert.equal(F.mapMod(), 'FS25_Bilk');
+
+  sg('Flusstal', '2026-10-29');
+  const sw = saves.check();
+  assert.deepEqual(sw, { from: 'Bilk', to: 'Flusstal', restored: false });
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM fs_farms').get().n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM fs_tasks').get().n, 0);
+  assert.equal(getSetting('fs_day', ''), '');
+  hub.invalidate();
+  assert.ok(!hub.model().farms.some(f => f.name === 'Alter Hof'), 'alter Hof ist weg');
+  db.prepare("INSERT INTO fs_farms(id, name, updated_at) VALUES (1, 'Neuer Hof', ?)").run(now());
+  const parked = saves.list().find(r => r.key === 'Bilk|2026-07-26');
+  assert.equal(parked.counts.Aufgaben, 1);
+
+  sg('Bilk', '2026-07-26');
+  assert.equal(saves.check().restored, true);
+  assert.equal(db.prepare('SELECT name FROM fs_farms WHERE id = 1').get().name, 'Alter Hof');
+  assert.equal(db.prepare('SELECT farm_id FROM fs_members WHERE user_id = ?').get(uid).farm_id, 1);
+  assert.equal(JSON.parse(getSetting('fs_day', 'null')).day, 174);
+  assert.equal(saves.list().find(r => r.key === 'Flusstal|2026-10-29').counts.Höfe, 1, 'neuer Spielstand liegt jetzt beiseite');
+
+  // Von Hand: beiseitelegen und leer beginnen, dann wieder hierher holen
+  assert.equal(saves.restart(), true);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM fs_tasks').get().n, 0);
+  const alt = saves.list().find(r => r.key.startsWith('alt-'));
+  assert.equal(saves.adopt(alt.key), true);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM fs_tasks').get().n, 1);
+  setSetting('fs_url_savegame', '');
+});
+
+test('Höfe: mit farms.xml zählen nur Höfe aus dem Spielstand', () => {
+  const { db, now } = require('../src/db');
+  const hub = require('../src/fshub');
+  db.prepare("INSERT OR REPLACE INTO fs_farms(id, name, updated_at) VALUES (5, 'Nur hier angelegt', ?)").run(now());
+  const prev = db.prepare("SELECT data FROM fs_cache WHERE feed = 'ftp'").get();
+  const data = JSON.parse(prev.data);
+  data.files['farms.xml'] = F.readFarms('<farms><farm farmId="2" name="Im Spiel" money="5"/></farms>');
+  db.prepare("UPDATE fs_cache SET data = ? WHERE feed = 'ftp'").run(JSON.stringify(data));
+  F.load();
+  hub.invalidate();
+  const ids = hub.model().farms.map(f => f.id);
+  assert.ok(ids.includes(2) && !ids.includes(5), ids.join(','));
+  db.prepare("UPDATE fs_cache SET data = ? WHERE feed = 'ftp'").run(prev.data);
+  F.load();
+  hub.invalidate();
+  assert.ok(hub.model().farms.some(f => f.id === 5), 'ohne farms.xml wieder alle');
+});

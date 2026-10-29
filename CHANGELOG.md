@@ -1,5 +1,12 @@
 # Changelog
 
+## 29.10.2026 – Farming Hub: neuer Spielstand, alle Felder, Kartenbild
+
+- **Neuer Spielstand:** Läuft auf dem Server ein anderer Spielstand, legt der Hub Höfe, Mitglieder, Aufgaben, Anbaupläne, Feldmeldungen, Orte und Verläufe des alten beiseite und beginnt leer. Kommt der alte zurück, sind seine Daten wieder da. Notizen, Changelog und Vorschläge bleiben. Mit FTP zeigt der Hub nur die Höfe, die es im Spielstand gibt.
+- **Alle Felder auf der Karte:** Der Hub liest die Umrisse der Felder aus der Karte selbst (map.i3d der Karten-Mod im mods-Ordner, nur diese eine Datei). So haben auch Felder, die noch kein Acker sind, ihre richtige Form und lassen sich anklicken. Klappt das per FTP nicht, lässt sich die map.i3d in der Seitenverwaltung hochladen.
+- **Kartenbild:** Ein neues Bild erscheint sofort, auch nach dem Entfernen und erneuten Hochladen. Eine neue Map-Image-Adresse holt der Hub gleich ab statt erst am nächsten Tag.
+- **Anderer FTP-Ordner:** Wird ein anderer savegame-Ordner eingetragen, vergisst der Hub die Dateien aus dem alten und holt alles neu.
+
 ## 29.10.2026 – Farming Hub: sieht aus wie das Spielmenü
 
 - **Neues Aussehen:** Der Hub sieht jetzt aus wie das Menü im Spiel, in XP und 98 gleich: dunkle Flächen, grüne Auswahl, große Knöpfe und Überschriften, eine Schrift, die sich gut lesen lässt. Links eine Leiste mit großen Kacheln über die ganze Höhe, eine Kachel je Hof.

@@ -28,7 +28,7 @@
       <% for (const p of players) { %>
         <div class="fs-player">
           <% if (p.account) { %><%- include('../partials/avatar', { u: p.account, size: 20 }) %><% } else { %><span class="avatar avatar-letter" style="width:20px;height:20px;font-size:11px;background:#777" aria-hidden="true"><%= [...p.name][0].toUpperCase() %></span><% } %>
-          <div><b><% if (p.account) { %><a href="<%= profileUrl(p.account) %>" target="_top"><%= p.name %></a><% } else { %><%= p.name %><% } %></b><% if (p.admin) { %> <span class="tag adm">Admin</span><% } %>
+          <div><b><% if (p.account) { %><a href="<%= profileUrl(p.account.username) %>" target="_top"><%= p.name %></a><% } else { %><%= p.name %><% } %></b><% if (p.admin) { %> <span class="tag adm">Admin</span><% } %>
             <small><%= [p.farm ? p.farm.name : '', p.uptime ? 'seit ' + mins(p.uptime) : '', p.vehicle ? 'fährt ' + p.vehicle.name : ''].filter(Boolean).join(' · ') %></small></div>
         </div>
       <% } %>

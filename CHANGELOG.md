@@ -1,5 +1,11 @@
 # Changelog
 
+## 29.10.2026 – Farming Hub: Kartendaten direkt aus dem Spiel
+
+- **Mod „Farming Hub Export“:** Eine kleine Mod für den Spieleserver schreibt bei jedem Speichern alles in den Spielstand, was der Hub bisher nicht lesen konnte: die Umrisse aller Felder, die Grenzen aller Grundstücke, die Positionen aller Stationen und die Rezepte der Produktionen. Der Hub holt die Datei per FTP mit den anderen. Download und Anleitung in der Seitenverwaltung unter Farming Simulator → Kartendaten aus dem Spiel.
+- **Kein Klicken mehr:** Felder und Grundstücke haben ihre echte Form, auch auf DLC-Karten und Wiesen ohne Acker. Stationen stehen von selbst an der richtigen Stelle. Der Produktionsplaner bekommt Zyklen, Kosten, Zutaten und Erzeugnisse, wo noch nichts eingetragen ist, und weiß, ob ein Gebäude parallel oder seriell arbeitet.
+- **Auch im Einzelspieler:** In der Konsole „hubExport“ eingeben und die Datei in der Seitenverwaltung hochladen.
+
 ## 29.10.2026 – Farming Hub: Stationen auf der Karte
 
 - **Wie die Hotspots im Spiel:** Die Karte zeigt Verkaufsstellen, Ladestationen, Produktionen, Tankstellen, Händler und Sonstiges (Bahnhof, Mine, Forschungszentrum …) mit eigenem Symbol. Jede Art lässt sich links unter „Stationen“ ein- und ausblenden, die Symbole bleiben beim Zoomen gleich groß.

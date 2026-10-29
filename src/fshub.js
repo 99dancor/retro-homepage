@@ -13,6 +13,7 @@ const saves = require('./fssaves');
 const N = require('./fsnames');
 const prod = require('./fsprod');
 const fsst = require('./fsstations');
+const fsexport = require('./fsexport');
 const notify = require('./notify');
 
 const DEFAULT_COLORS = ['#2e8b2e', '#2f6fd8', '#c0392b', '#d4a017', '#8e44ad', '#16a085', '#d35400', '#7f8c8d'];
@@ -148,9 +149,11 @@ function priceOf(ec, fill, month) {
 function model() {
   if (cached) return cached;
   const st = feeds.get('stats'), sg = feed('savegame'), vf = feed('vehicles'), ec = feed('economy');
-  const farmsX = ftpFile('farms.xml'), plc = ftpFile('placeables.xml'), items = ftpFile('items.xml');
+  // Kartendaten aus dem Spiel (Mod „Farming Hub Export“): Positionen der vorplatzierten Gebäude, Grundstücke ohne Stats-Feed
+  const ex = fsexport.current();
+  const farmsX = ftpFile('farms.xml'), plc = fsexport.withPositions(ftpFile('placeables.xml'), ex), items = ftpFile('items.xml');
   const bank = ftpFile('bankCredit.xml');
-  const size = (st && st.mapSize) || 2048;
+  const size = (st && st.mapSize) || (ex && ex.mapSize) || 2048;
   const day = currentDay();
   const date = dateOf(day);
   const month = date ? date.month : null;
@@ -159,7 +162,7 @@ function model() {
   const valueOf = (fill, amount) => { const p = price(fill); return p ? amount / 1000 * p : 0; };
 
   // Grundstücke und Felder: Feldnummer = Grundstücksnummer
-  const lands = new Map(((st && st.farmlands) || []).map(f => [f.id, f]));
+  const lands = new Map(((st && st.farmlands && st.farmlands.length ? st.farmlands : ex && ex.farmlands) || []).map(f => [f.id, f]));
   const fields = ((st && st.fields) || []).map(f => {
     const land = lands.get(f.id);
     return { id: f.id, x: f.x, z: f.z, owner: land ? land.owner : 0, area: land ? land.area : 0, price: land ? land.price : 0 };
@@ -822,7 +825,8 @@ function fieldStates() {
 function planner() {
   const m = model();
   // Vorplatzierte Gebäude haben keine Position im Spielstand, dann gilt die von Hand gesetzte (Stationen auf der Karte)
-  const pos = fsst.positions(), raw = ftpFile('placeables.xml');
+  const pos = fsst.positions(), ex = fsexport.current(), raw = fsexport.withPositions(ftpFile('placeables.xml'), ex);
+  prod.fromGame(ex);
   const plc = raw && raw.map(p => (p.x === null || p.x === undefined) && pos.has(p.uid) ? { ...p, x: pos.get(p.uid).x, z: pos.get(p.uid).z } : p);
   const list = prod.buildings(plc, (x, z) => (x === undefined || x === null ? null : m.where(x, z).label));
   for (const b of list) for (const i of b.instances) i.farm = m.farms.find(f => f.id === i.farmId) || null;
@@ -832,7 +836,8 @@ function planner() {
 function shapes(m = model()) {
   if (getSetting('fs_shapes', '1') !== '1') return null;
   const f = feeds.get('ftp');
-  return fsmap.load(feeds.FS_DIR, (f && f.files) || {}, m.fields, m.size || 2048, feeds.currentOutlines(), ownOutlines());
+  const ex = fsexport.current();
+  return fsmap.load(feeds.FS_DIR, (f && f.files) || {}, m.fields, m.size || 2048, feeds.currentOutlines(), ownOutlines(), ex ? { sig: fsexport.sig(ex), shapes: fsexport.shapes(ex) } : null);
 }
 // Eigene Feldumrisse (aus dem Kartenbild erkannt oder von Hand gezeichnet), in Weltkoordinaten
 function ownOutlines() {

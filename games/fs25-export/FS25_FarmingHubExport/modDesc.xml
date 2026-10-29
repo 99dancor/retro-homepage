@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<modDesc descVersion="104">
+    <author>Chaosfarm</author>
+    <version>1.0.0.0</version>
+    <title>
+        <en>Farming Hub Export</en>
+        <de>Farming Hub Export</de>
+    </title>
+    <description>
+        <en><![CDATA[Writes field outlines, farmlands, station positions and production recipes to farmingHubExport.xml in the savegame folder on every save, for the Farming Hub website.
+Console: hubExport]]></en>
+        <de><![CDATA[Schreibt bei jedem Speichern Feldumrisse, Grundstücke, Positionen der Stationen und die Rezepte der Produktionen in farmingHubExport.xml im Spielstand-Ordner, für den Farming Hub der Website.
+Konsole: hubExport]]></de>
+    </description>
+    <iconFilename>icon_farmingHubExport.dds</iconFilename>
+    <multiplayer supported="true"/>
+    <extraSourceFiles>
+        <sourceFile filename="FarmingHubExport.lua"/>
+    </extraSourceFiles>
+</modDesc>

@@ -259,13 +259,16 @@ function signature(files, fields, mapSize, outlines) {
   for (const f of fields) h.update(`${f.id}:${Math.round(f.x)}:${Math.round(f.z)}${f.parcel ? "p" : ""};`);
   return h.digest('hex').slice(0, 16);
 }
-// outlines: { sig, polys } aus der Karte oder null. own: { sig, polys: { id: [[x, z], …] } } aus fs_outlines (gehen vor).
-function load(dir, files, fields, mapSize, outlines = null, own = null) {
+// outlines: { sig, polys } aus der Karte oder null. own: { sig, polys: { id: [[x, z], …] } } aus fs_outlines.
+// game: { sig, shapes: { id: { pts, kind } } } aus der Mod „Farming Hub Export“ (src/fsexport.js).
+// Reihenfolge, das Spätere gewinnt: Feldboden, map.i3d, aus dem Kartenbild erkannt, aus dem Spiel, von Hand gezeichnet.
+function load(dir, files, fields, mapSize, outlines = null, own = null, game = null) {
   const ground = !!files['densityMap_ground.gdm'] && fs.existsSync(path.join(dir, 'sg-densityMap_ground.gdm'));
   const polys = outlines && outlines.polys && outlines.polys.length ? outlines.polys : null;
   const mine = own && own.polys && Object.keys(own.polys).length ? own : null;
-  if ((!ground && !polys && !mine) || !fields.length) return null;
-  const sig = signature(ground ? files : {}, fields, mapSize, { sig: ((polys && outlines.sig) || '-') + '/' + ((mine && mine.sig) || '-') });
+  const fromGame = game && game.shapes && Object.keys(game.shapes).length ? game : null;
+  if ((!ground && !polys && !mine && !fromGame) || !fields.length) return null;
+  const sig = signature(ground ? files : {}, fields, mapSize, { sig: ((polys && outlines.sig) || '-') + '/' + ((mine && mine.sig) || '-') + '/' + ((fromGame && fromGame.sig) || '-') });
   if (mem && mem.sig === sig) return mem;
   const store = path.join(dir, 'shapes.json');
   try {
@@ -282,14 +285,18 @@ function load(dir, files, fields, mapSize, outlines = null, own = null) {
     for (const [id, s] of Object.entries(r.shapes)) shapes[id] = { ...s, src: 'boden' };
     for (const [id, s] of Object.entries(exact)) shapes[id] = { ...s, src: 'karte' };
     const ids = new Set(fields.map(f => String(f.id)));
-    for (const [id, pts] of Object.entries((mine && mine.polys) || {})) if (ids.has(String(id)) && pts.pts.length >= 3) shapes[id] = { ...fsfields.polyShape(pts.pts, mapSize), src: pts.source };
+    const own = Object.entries((mine && mine.polys) || {}).filter(([id, p]) => ids.has(String(id)) && p.pts.length >= 3);
+    for (const [id, p] of own) if (p.source !== 'hand') shapes[id] = { ...fsfields.polyShape(p.pts, mapSize), src: p.source };
+    let nGame = 0;
+    for (const [id, p] of Object.entries((fromGame && fromGame.shapes) || {})) if (ids.has(String(id)) && p.pts.length >= 3) { shapes[id] = { ...fsfields.polyShape(p.pts, mapSize), src: 'spiel' }; nGame++; }
+    for (const [id, p] of own) if (p.source === 'hand') shapes[id] = { ...fsfields.polyShape(p.pts, mapSize), src: p.source };
     const layers = [];
     for (const [key, L] of Object.entries(LAYERS)) {
       const file = path.join(dir, 'sg-' + L.file);
       if (!ground || !files[L.file] || !fs.existsSync(file)) { fs.rmSync(path.join(dir, `layer-${key}.png`), { force: true }); continue; }
       try { fs.writeFileSync(path.join(dir, `layer-${key}.png`), layerPng(key, fs.readFileSync(file), r.lab, r.size)); layers.push(key); } catch (e) { console.error('Farming Hub, Ebene', key, e.message); }
     }
-    mem = { sig, at: Math.floor(Date.now() / 1000), ms: Date.now() - t, shapes, layers, exact: Object.keys(exact).length };
+    mem = { sig, at: Math.floor(Date.now() / 1000), ms: Date.now() - t, shapes, layers, exact: Object.keys(exact).length, game: nGame };
     fs.writeFileSync(store, JSON.stringify(mem));
     return mem;
   } catch (e) {

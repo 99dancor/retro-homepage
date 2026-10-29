@@ -557,3 +557,57 @@ test('Bodenverteilung: von Hand je Feld, gehört zum Spielstand', () => {
   hub.saveSoil(id, {}, null);
   assert.equal(hub.soils().has(id), false, 'alles leer löscht');
 });
+
+test('Kartendaten aus dem Spiel: Felder, Grundstücksgrenzen, Stationen und Rezepte aus farmingHubExport.xml', () => {
+  const E = require('../src/fsexport');
+  const P = require('../src/fsprod');
+  const M = require('../src/fsmap');
+  const e = E.read(fs.readFileSync(path.join(__dirname, 'fixtures', 'fs', 'farmingHubExport.xml'), 'utf8'));
+  assert.equal(e.mapTitle, 'Riverbend Springs');
+  assert.deepEqual(e.fields.map(f => [f.id, f.farmland, f.pts.length]), [[1, 1, 4], [2, 3, 4]]);
+  assert.deepEqual(e.fields[1].pts[2], [250, 180]);
+  // Grundstückskarte 64 × 64 auf 2048 m: eine Zelle 32 m
+  const box = id => { const p = e.parcels[id], xs = p.map(q => q[0]), zs = p.map(q => q[1]); return [Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)]; };
+  assert.deepEqual(box(1), [-512, -512, -256, -256]);
+  assert.deepEqual(box(2), [-1024, -64, 1024, 0]);
+  assert.deepEqual(Object.keys(e.parcels).sort(), ['1', '2', '3']);
+  // Feld 2 liegt auf Grundstück 3: der Hub zählt nach Grundstück, das Feld geht vor der Grundstücksgrenze
+  const sh = E.shapes(e);
+  assert.equal(sh[3].kind, 'feld');
+  assert.equal(sh[2].kind, 'grundstueck');
+  const silo = e.placeables.find(p => p.hotspot === 'UNLOADING');
+  assert.deepEqual([silo.x, silo.z, silo.sells], [310, -190, ['BARLEY', 'WHEAT']]);
+  assert.deepEqual(e.placeables.find(p => p.hotspot === 'FUEL').buys, ['DIESEL']);
+
+  // Positionen für vorplatzierte Gebäude aus placeables.xml
+  const plc = [{ uid: silo.uid, x: null, z: null, productions: [] }, { uid: 'eigen', x: 1, z: 2, productions: [] }];
+  const withPos = E.withPositions(plc, e);
+  assert.deepEqual([withPos[0].x, withPos[0].z, withPos[1].x], [310, -190, 1]);
+
+  // Rezepte: füllen, was fehlt; was ein Admin eingetragen hat (Brot aus dem Planer-Test), bleibt
+  const before = P.recipes('bakery').find(r => r.id === 'bread');
+  P.fromGame({ ...e, source: 'ftp' });
+  const butter = P.recipes('bakery').find(r => r.id === 'butter');
+  assert.deepEqual([butter.name, butter.cycles, butter.cost, butter.inputs[0].fill, butter.inputs[0].amount, butter.outputs[0].amount], ['Butter', 408, 360, 'MILK', 15, 15]);
+  assert.equal(P.recipes('bakery').find(r => r.id === 'bread').cycles, before.cycles);
+  assert.equal(P.building('bakery').mode, 'seriell');
+
+  // Auf der Karte: aus dem Spiel geht vor dem Kartenbild, von Hand gezeichnet geht vor
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fs-exp-'));
+  const fields = [{ id: 1, x: -400, z: -400, area: 5 }, { id: 2, x: 0, z: -30, area: 10, parcel: true }, { id: 3, x: 175, z: 140, area: 2 }];
+  M.forget();
+  const own = { sig: 'a', polys: { 1: { pts: [[0, 0], [10, 0], [10, 10]], source: 'bild' }, 3: { pts: [[0, 0], [10, 0], [10, 10]], source: 'hand' } } };
+  const r = M.load(dir, {}, fields, 2048, null, own, { sig: E.sig({ ...e, source: 'ftp' }), shapes: sh });
+  assert.deepEqual([r.shapes[1].src, r.shapes[2].src, r.shapes[3].src, r.game], ['spiel', 'spiel', 'hand', 3]);
+  assert.equal(r.shapes[1].ha, 4);
+
+  // Die Mod zum Herunterladen: modDesc, Skript und Symbol als DDS
+  const AdmZip = require('adm-zip');
+  const zip = new AdmZip(E.modZip());
+  assert.deepEqual(zip.getEntries().map(x => x.entryName).sort(), ['FarmingHubExport.lua', 'icon_farmingHubExport.dds', 'modDesc.xml']);
+  const dds = zip.getEntry('icon_farmingHubExport.dds').getData();
+  assert.equal(dds.toString('latin1', 0, 4), 'DDS ');
+  assert.equal(dds.length, 128 + 256 * 256 * 4);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
+  assert.throws(() => E.read('<placeables/>'), /Farming Hub Export/);
+});

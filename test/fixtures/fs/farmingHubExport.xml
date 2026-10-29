@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<farmingHubExport version="1" mapId="MapUS" mapTitle="Riverbend Springs" mapSize="2048" saveDate="2026-10-29 22:00" day="174">
+    <fields>
+        <field id="1" farmland="1" areaHa="4.000" x="-400.0" z="-400.0" pts="-500.0,-500.0 -300.0,-500.0 -300.0,-300.0 -500.0,-300.0"/>
+        <field id="2" farmland="3" areaHa="1.200" x="175.0" z="140.0" pts="100.0,100.0 250.0,100.0 250.0,180.0 100.0,180.0"/>
+    </fields>
+    <farmlands>
+        <farmland id="1" areaHa="5.000" price="60000" owner="1" x="-400.0" z="-400.0"/>
+        <farmland id="2" areaHa="10.000" price="20000" owner="0" x="0.0" z="0.0"/>
+        <farmland id="3" areaHa="2.000" price="30000" owner="0" x="175.0" z="140.0"/>
+        <map size="64">
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*16 1*8 0*40</row>
+            <row>0*16 1*8 0*40</row>
+            <row>0*16 1*8 0*40</row>
+            <row>0*16 1*8 0*40</row>
+            <row>0*16 1*8 0*40</row>
+            <row>0*16 1*8 0*40</row>
+            <row>0*16 1*8 0*40</row>
+            <row>0*16 1*8 0*40</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>2*64</row>
+            <row>2*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*34 3*8 0*22</row>
+            <row>0*34 3*8 0*22</row>
+            <row>0*34 3*8 0*22</row>
+            <row>0*34 3*8 0*22</row>
+            <row>0*34 3*8 0*22</row>
+            <row>0*34 3*8 0*22</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+            <row>0*64</row>
+        </map>
+    </farmlands>
+    <placeables>
+        <placeable uniqueId="preplaced_grainElevator_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" filename="$data/placeables/grainElevator.xml" type="sellingStation" name="Getreidesilo" farmId="0" x="310.0" z="-190.0" hotspot="UNLOADING" sells="BARLEY WHEAT"/>
+        <placeable uniqueId="preplaced_gasStation_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" filename="$data/placeables/gasStation.xml" type="buyingStation" farmId="0" x="-100.0" z="600.0" hotspot="FUEL" buys="DIESEL"/>
+        <placeable uniqueId="preplaced_bakery_cccccccccccccccccccccccccccccccc" filename="$data/placeables/bakery.xml" type="productionPoint" farmId="0" x="500.0" z="500.0" price="250000">
+            <productionPoint shared="true">
+                <production id="bread" name="Brot" cyclesPerMonth="408.000" costsPerMonth="360.00">
+                    <inputs>
+                        <input fillType="FLOUR" amount="50.000"/>
+                    </inputs>
+                    <outputs>
+                        <output fillType="BREAD" amount="30.000"/>
+                    </outputs>
+                </production>
+                <production id="butter" name="Butter" cyclesPerMonth="408.000" costsPerMonth="360.00">
+                    <inputs>
+                        <input fillType="MILK" amount="15.000"/>
+                    </inputs>
+                    <outputs>
+                        <output fillType="BUTTER" amount="15.000" sellDirectly="true"/>
+                    </outputs>
+                </production>
+            </productionPoint>
+        </placeable>
+    </placeables>
+</farmingHubExport>

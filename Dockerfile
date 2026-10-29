@@ -18,6 +18,7 @@ COPY src ./src
 COPY views ./views
 COPY public ./public
 COPY games/haustier/src ./games/haustier/src
+COPY games/fs25-export ./games/fs25-export
 COPY CHANGELOG.md ./
 
 RUN mkdir -p /data

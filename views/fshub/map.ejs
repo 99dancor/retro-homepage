@@ -62,6 +62,21 @@
             <div class="btns"><button type="button" class="btn small def" data-umriss="speichern">Speichern</button><button type="button" class="btn small" data-umriss="abbrechen">Abbrechen</button></div></div>
         </div>
       </details>
+      <% if (stations.length) { %>
+        <details class="fs-fold fs-stset" id="fs-stset" data-remember="fs-fold-stset" data-csrf="<%= csrf %>">
+          <summary>Stationen setzen <small>nur Admins</small></summary>
+          <div class="in">
+            <p class="note">Die Stationen kennt der Hub aus dem Spielstand, ihre Position nicht. Station wählen, „Setzen“, dann auf der Karte auf ihr Symbol klicken. Danach ist gleich die nächste ohne Position dran, Esc hört auf.</p>
+            <select data-st-pick aria-label="Station">
+              <% for (const [k, [l]] of Object.entries(STATION_CATS)) { const xs = stations.filter(s => s.cat === k); if (!xs.length) continue; %>
+                <optgroup label="<%= l %>"><% for (const s of xs) { %><option value="<%= s.uid %>"<%= s.fixed ? ' disabled' : '' %>><%= s.name %><%= s.cx !== null ? ' ✔' : '' %></option><% } %></optgroup>
+              <% } %>
+            </select>
+            <div class="btns"><button type="button" class="btn small def" data-st="setzen">Setzen</button><button type="button" class="btn small" data-st="weg">Position entfernen</button></div>
+            <p class="note" data-st-msg></p>
+          </div>
+        </details>
+      <% } %>
     <% } %>
     <div class="shows">
       <label class="inline"><input type="checkbox" data-show="nr" checked> Feldnummern</label>
@@ -70,9 +85,27 @@
       <label class="inline"><input type="checkbox" data-show="orte" checked> Orte</label>
       <% if (m.orchards.length) { %><label class="inline"><input type="checkbox" data-show="plant" checked> Plantagen</label><% } %>
     </div>
+    <% if (stations.length) { const placed = stations.filter(s => s.cx !== null); %>
+      <div class="fs-stfilter">
+        <h3>Stationen</h3>
+        <% for (const [k, [l, c]] of Object.entries(STATION_CATS)) { const n = placed.filter(s => s.cat === k).length, all = stations.filter(s => s.cat === k).length; if (!all) continue; %>
+          <label class="inline"><input type="checkbox" data-show="st-<%= k %>" checked><span class="stsw" style="background:<%= c %>"><svg aria-hidden="true"><use href="#st-<%= k %>"/></svg></span><span class="lb"><%= l %></span><span class="n"><%= n %><%= n < all ? ' / ' + all : '' %></span></label>
+        <% } %>
+        <% if (placed.length < stations.length) { %><p class="note"><%= stations.length - placed.length %> von <%= stations.length %> noch ohne Position. <%= isAdmin ? 'Setzen: Abschnitt „Stationen setzen“.' : 'Ein Admin setzt sie auf der Karte.' %></p><% } %>
+      </div>
+    <% } %>
   </aside>
   <div class="fs-mapbox" id="fs-mapbox">
     <svg class="fs-map" id="fs-map" viewBox="0 0 1000 1000" data-layer="<%= layer %>" role="img" aria-label="Karte mit Feldern">
+      <defs>
+        <%# Eigene Symbole im Stil der Hotspots im Spiel (keine Originalgrafiken) %>
+        <symbol id="st-verkauf" viewBox="0 0 16 16"><path d="M8 2v7M4.8 6.2 8 9.4l3.2-3.2M3 10.5V13h10v-2.5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+        <symbol id="st-einkauf" viewBox="0 0 16 16"><path d="M8 9.4V2M4.8 5.2 8 2l3.2 3.2M3 10.5V13h10v-2.5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+        <symbol id="st-produktion" viewBox="0 0 16 16"><path d="M2 14V7.5l3.5 2v-2l3.5 2v-2l2 1.2V2.5h2.5V14z" fill="#fff"/></symbol>
+        <symbol id="st-tanken" viewBox="0 0 16 16"><path d="M3 14V3.2c0-.7.5-1.2 1.2-1.2h4.6c.7 0 1.2.5 1.2 1.2V14zm1.5-10v3h4V4z" fill="#fff" fill-rule="evenodd"/><path d="M10 7h1.5l1.5 1.5v4a1 1 0 0 1-2 0V10" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/></symbol>
+        <symbol id="st-haendler" viewBox="0 0 16 16"><path d="M2.5 6.5 3.6 3h8.8l1.1 3.5zM3.5 7.5h9V13h-3.2V9.5H6.7V13H3.5z" fill="#fff"/></symbol>
+        <symbol id="st-sonstiges" viewBox="0 0 16 16"><path d="m8 2 1.8 4 4.2.4-3.2 2.8 1 4.2L8 11.2l-3.8 2.2 1-4.2L2 6.4l4.2-.4z" fill="#fff"/></symbol>
+      </defs>
       <rect x="-5000" y="-5000" width="11000" height="11000" fill="#262c22"/>
       <rect width="1000" height="1000" fill="#4f6a33"/>
       <% if (hasImage) { %><image id="fs-mapimg" href="/farming/karte.bild?v=<%= mapV %>" x="<%= box.x %>" y="<%= box.y %>" width="<%= box.w %>" height="<%= box.w %>" preserveAspectRatio="none"/><% } %>
@@ -87,6 +120,7 @@
       <g class="ras"><% for (const k of raster) { %><image href="/farming/karte/ebene/<%= k %>.png?v=<%= shp.at %>" x="0" y="0" width="1000" height="1000" preserveAspectRatio="none" data-raster="<%= k %>"/><% } %></g>
       <g class="nr"><% for (const g of gs) { %><text x="<%= g.cx %>" y="<%= g.cy %>"><%= g.id %></text><% } %></g>
       <g class="orte"><% for (const p of m.places) { %><g><circle cx="<%= P(p.x) %>" cy="<%= P(p.z) %>" r="<%= Math.max(5, p.radius / S * 1000).toFixed(1) %>" class="ort"/><text x="<%= P(p.x) %>" y="<%= (Number(P(p.z)) - Math.max(6, p.radius / S * 1000) - 3).toFixed(1) %>" class="ort-t"><%= p.name %></text></g><% } %></g>
+      <g class="stn"><% for (const s of stations) { %><a href="#" data-station="<%= s.uid %>" class="st st-<%= s.cat %><%= s.cx === null ? ' unplaced' : '' %>" transform="translate(<%= s.cx === null ? '500 500' : s.cx + ' ' + s.cy %>)"><g class="sc"><rect x="-9" y="-9" width="18" height="18" rx="3.5" fill="<%= STATION_CATS[s.cat][1] %>"/><use href="#st-<%= s.cat %>" x="-6.5" y="-6.5" width="13" height="13"/></g><title><%= s.name %> · <%= s.catLabel %></title></a><% } %></g>
       <g class="veh"><% for (const v of m.vehicles.filter(v => !v.pallet && v.x !== null)) { %><rect x="<%= (P(v.x) - 4).toFixed(1) %>" y="<%= (P(v.z) - 4).toFixed(1) %>" width="8" height="8" rx="1.5" fill="<%= v.driver || v.ai ? '#ffd400' : '#fff' %>" stroke="#000"><title><%= v.name %><%= v.driver ? ' · ' + v.driver : v.ai ? ' · Helfer' : '' %></title></rect><% } %></g>
       <g class="pal"><% for (const v of m.vehicles.filter(v => v.pallet && v.x !== null)) { %><circle cx="<%= P(v.x) %>" cy="<%= P(v.z) %>" r="3" fill="#c8a165" stroke="#000"><title><%= v.name %> · <%= v.fill.map(([t, l]) => N.fill(t) + ' ' + liters(l)).join(', ') %></title></circle><% } %></g>
     </svg>
@@ -137,9 +171,11 @@
     <div class="row"><button class="def">Melden</button><a class="btn small" data-plan>Plan</a> <a class="btn small" data-task>Aufgabe</a></div>
   </form>
 </template>
+<script type="application/json" id="fs-stations"><%- JSON.stringify(stations).replace(/</g, '\\u003c') %></script>
 <% if (editor) { %>
 <script type="application/json" id="fs-umriss-data"><%- JSON.stringify(editor).replace(/</g, '\\u003c') %></script>
 <script src="<%= asset('fsdetect.js') %>"></script>
 <script src="<%= asset('fshub-umriss.js') %>"></script>
+<script src="<%= asset('fshub-stationen.js') %>"></script>
 <% } %>
 <%- include('_bottom') %>

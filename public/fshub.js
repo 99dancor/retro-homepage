@@ -67,7 +67,35 @@
       var g = groups[keys.indexOf(k)];
       document.getElementById('fs-ltitle').textContent = g ? g.dataset.title : '';
       document.querySelectorAll('.fs-dots [data-layer]').forEach(function (a) { a.firstElementChild.classList.toggle('on', a.dataset.layer === k); });
-      map.querySelectorAll('a[data-field]').forEach(function (a) { a.setAttribute('href', '/farming/karte?ansicht=' + k + '&feld=' + a.dataset.field); });
+      // Station wählen: Art, Lage, was sie annimmt (Link zu den Preisen), große Nachfrage, Produktionsplaner
+    var stations = {};
+    try { JSON.parse(document.getElementById('fs-stations').textContent).forEach(function (s) { stations[s.uid] = s; }); } catch (e) { /* ohne Daten keine Infokarte */ }
+    var markSt = function (uid) { map.querySelectorAll('.st').forEach(function (a) { a.classList.toggle('sel', a.dataset.station === uid); }); };
+    var selectStation = function (uid) {
+      var s = stations[uid];
+      if (!s) return;
+      fields.forEach(function (f) { f.classList.remove('sel'); });
+      markSt(uid);
+      var h = '<a class="x" href="#" data-close aria-label="Schließen">✕</a><h2>' + esc(s.name) + '</h2><div class="fs-rows">' + row('Art', esc(s.catLabel)) +
+        (s.where ? row('Lage', esc(s.where)) : '') +
+        (s.planner ? row('Produktionen', s.productions + ' · <a href="/farming/produktion?g=' + encodeURIComponent(s.planner) + '">im Produktionsplaner</a>') : '') + '</div>';
+      if (s.demands.length) h += '<div class="hint">Große Nachfrage: ' + s.demands.map(function (d) { return esc(d.name) + ' ×' + de(d.mult, 1) + (d.running ? ' (läuft)' : d.day ? ' ab ' + esc(d.day) : ''); }).join(', ') + '</div>';
+      if (s.sells.length) {
+        h += '<div class="hint">' + (s.cat === 'einkauf' ? 'Hier zu kaufen' : 'Nimmt an') + ' (' + s.sells.length + '):</div><div class="chips fs-sells">' +
+          s.sells.map(function (f) { return '<a class="chip" href="/farming/preise?w=' + encodeURIComponent(f.fill) + '">' + esc(f.name) + '</a>'; }).join('') + '</div>';
+      }
+      info.innerHTML = h;
+      info.hidden = false;
+      url(null, null);
+    };
+    map.querySelectorAll('a[data-station]').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (moved) return;
+        selectStation(a.dataset.station);
+      });
+    });
+    map.querySelectorAll('a[data-field]').forEach(function (a) { a.setAttribute('href', '/farming/karte?ansicht=' + k + '&feld=' + a.dataset.field); });
       url(k);
       apply();
       save();
@@ -115,7 +143,11 @@
 
     // Zoomen und Verschieben über die viewBox
     var vb = [0, 0, 1000, 1000];
-    var setVb = function () { map.setAttribute('viewBox', vb.map(function (v) { return v.toFixed(1); }).join(' ')); };
+    // Stationssymbole bleiben beim Zoomen gleich groß (fshub.css: .st .sc { transform: scale(var(--z)) }): Kartenmaß je Bildpunkt
+    var setZ = function () { var r = map.getBoundingClientRect(), px = Math.min(r.width, r.height); if (px) map.style.setProperty('--z', (vb[2] / px * 1.1).toFixed(4)); };
+    var setVb = function () { map.setAttribute('viewBox', vb.map(function (v) { return v.toFixed(1); }).join(' ')); setZ(); };
+    setZ();
+    window.addEventListener('resize', setZ);
     var toMap = function (cx, cy) {
       var m = map.getScreenCTM();
       if (!m) return [500, 500];
@@ -164,6 +196,7 @@
     var row = function (t, v) { return '<div class="fs-row"><span class="t">' + t + '</span><span class="v">' + v + '</span></div>'; };
     var select = function (id) {
       fields.forEach(function (f) { f.classList.toggle('sel', f.parentNode.dataset.field === String(id)); });
+      markSt(null);
       var c = cards[id];
       if (!c) { info.hidden = true; url(null, null); return; }
       var h = '<a class="x" href="#" data-close aria-label="Schließen">✕</a><h2>' + (c.parcel ? 'Grundstück ' : 'Feld ') + c.id + '</h2><div class="fs-rows">' +
@@ -200,6 +233,34 @@
       info.hidden = false;
       url(null, c.id);
     };
+    // Station wählen: Art, Lage, was sie annimmt (Link zu den Preisen), große Nachfrage, Produktionsplaner
+    var stations = {};
+    try { JSON.parse(document.getElementById('fs-stations').textContent).forEach(function (s) { stations[s.uid] = s; }); } catch (e) { /* ohne Daten keine Infokarte */ }
+    var markSt = function (uid) { map.querySelectorAll('.st').forEach(function (a) { a.classList.toggle('sel', a.dataset.station === uid); }); };
+    var selectStation = function (uid) {
+      var s = stations[uid];
+      if (!s) return;
+      fields.forEach(function (f) { f.classList.remove('sel'); });
+      markSt(uid);
+      var h = '<a class="x" href="#" data-close aria-label="Schließen">✕</a><h2>' + esc(s.name) + '</h2><div class="fs-rows">' + row('Art', esc(s.catLabel)) +
+        (s.where ? row('Lage', esc(s.where)) : '') +
+        (s.planner ? row('Produktionen', s.productions + ' · <a href="/farming/produktion?g=' + encodeURIComponent(s.planner) + '">im Produktionsplaner</a>') : '') + '</div>';
+      if (s.demands.length) h += '<div class="hint">Große Nachfrage: ' + s.demands.map(function (d) { return esc(d.name) + ' ×' + de(d.mult, 1) + (d.running ? ' (läuft)' : d.day ? ' ab ' + esc(d.day) : ''); }).join(', ') + '</div>';
+      if (s.sells.length) {
+        h += '<div class="hint">' + (s.cat === 'einkauf' ? 'Hier zu kaufen' : 'Nimmt an') + ' (' + s.sells.length + '):</div><div class="chips fs-sells">' +
+          s.sells.map(function (f) { return '<a class="chip" href="/farming/preise?w=' + encodeURIComponent(f.fill) + '">' + esc(f.name) + '</a>'; }).join('') + '</div>';
+      }
+      info.innerHTML = h;
+      info.hidden = false;
+      url(null, null);
+    };
+    map.querySelectorAll('a[data-station]').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (moved) return;
+        selectStation(a.dataset.station);
+      });
+    });
     map.querySelectorAll('a[data-field]').forEach(function (a) {
       a.addEventListener('click', function (e) {
         e.preventDefault();
@@ -212,6 +273,7 @@
       e.preventDefault();
       info.hidden = true;
       fields.forEach(function (f) { f.classList.remove('sel'); });
+      markSt(null);
       url(null, null);
     });
     // Feld aus der Adresse: hinzoomen

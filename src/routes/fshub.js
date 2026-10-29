@@ -8,7 +8,7 @@
 //   GET  /farming/preise          Preise mit Graph (?w=WHEAT)            GET /farming/mods        Modliste und Abgleich
 //   GET  /farming/hof/<id>        Hof, ?tab=uebersicht (Kacheln) | inventar | produktion | fahrzeuge | finanzen | kalender | aufgaben
 //   GET  /farming/changelog       Änderungen am Server und am Hub        GET /farming/vorschlaege Wünsche und Ideen
-//   POST …                        Formulare (Notizen, Aufgaben, Pläne, Feldmeldungen, Orte, Hof, Changelog, Vorschläge)
+//   POST …                        Formulare (Notizen, Aufgaben, Pläne, Feldmeldungen, Orte, Stationen, Hof, Changelog, Vorschläge)
 const fs = require('node:fs');
 const path = require('node:path');
 const express = require('express');
@@ -227,6 +227,14 @@ function fieldCard(g, req) {
     edit: !!req.user && (!g.farm || hub.canEditFarm(req.user, g.farm.id)) };
 }
 
+// Daten je Station für Markierung und Infokarte (Lage im Kartenmaß 0–1000, ohne Position: null)
+function stationCard(s) {
+  const S = hub.model().size || 2048, P = v => +((v + S / 2) / S * 1000).toFixed(1);
+  return { uid: s.uid, name: s.name, cat: s.cat, catLabel: hub.stations.CATS[s.cat][0], cx: s.placed ? P(s.x) : null, cy: s.placed ? P(s.z) : null, fixed: s.fixed, where: s.where,
+    sells: s.sells.map(f => ({ fill: f, name: N.fill(f) })).sort((a, b) => a.name.localeCompare(b.name, 'de')), planner: s.planner, productions: s.productions.length,
+    demands: s.demands.map(d => ({ name: N.fill(d.fill), mult: d.mult, running: d.running, day: d.day ? hub.fmtDay(d.day) : null })) };
+}
+
 // Kartenbild ausrichten (Admins): Größe in Prozent und Verschiebung in Metern, damit Felder und Bild genau aufeinanderliegen.
 // Gehört zum Spielstand (fs_map_fit in src/fssaves.js), weil jede Karte ihr eigenes Bild hat.
 function mapFit() {
@@ -262,6 +270,7 @@ router.get('/karte', (req, res) => {
   const editor = req.user && req.user.isAdmin ? { size: m.size || 2048, img: hasImage ? { x: box.x, y: box.y, w: box.w, base: box.base, fit, src: '/farming/karte.bild?v=' + mapV } : null,
     fields: view.gs.map(g => ({ id: g.id, cx: g.cx, cy: g.cy, r: g.r, ha: g.area || 0, parcel: !!g.parcel, soil: g.soil ? Object.fromEntries([...g.soil.parts.map(x => [x.key, x.pct]), ['yield', g.soil.yield]]) : null, src: g.d ? (shp.shapes[g.id] || {}).src || 'boden' : 'kreis' })) } : null;
   page(req, res, 'map', { title: 'Karte – Farming Simulator', full: true, editor, SOILS: hub.SOILS, ...view, CARE_COLORS: Object.fromEntries(CARE.map(([k, , c]) => [k, c])), sel, crops, border, box, hasImage, mapV, shp, LAYERS: MAP_LAYERS,
+    stations: m.stations.map(stationCard), STATION_CATS: hub.stations.CATS,
     cards: view.gs.map(g => fieldCard(g, req)), layer: Object.hasOwn(MAP_LAYERS, want) ? want : 'fruechte' });
 });
 // Boden-Ebenen aus der Dichtekarte (src/fsmap.js) und hochgeladene Originalsymbole (src/fsicons.js)
@@ -446,6 +455,15 @@ router.post('/umrisse', login, adminOnly, (req, res) => {
 });
 router.post('/umrisse/:id/loeschen', login, adminOnly, (req, res) => {
   if (req.params.id === 'bild') hub.removeOutlines('bild'); else hub.removeOutline(req.params.id);
+  hub.invalidate();
+  res.json({ ok: true });
+});
+
+// Stationen der Karte setzen (nur Admins, public/fshub-stationen.js): Weltkoordinaten, clear=1 nimmt die Position weg
+router.post('/stationen', login, adminOnly, (req, res) => {
+  const b = req.body, num = v => (v === undefined || v === '' ? NaN : Number(String(v).replace(',', '.')));
+  const ok = hub.stations.place(b.uid, b.clear ? null : num(b.x), b.clear ? null : num(b.z), req.user.id);
+  if (!ok) return res.status(400).json({ ok: false, error: 'Position unlesbar.' });
   hub.invalidate();
   res.json({ ok: true });
 });

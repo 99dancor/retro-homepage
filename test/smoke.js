@@ -2605,6 +2605,13 @@ async function main() {
         assert.ok(im, 'Kartenbild da');
         assert.ok(Math.abs(Number(im[1]) - Number(im[2]) - 20) < 0.1, '±20,48 m = ±10 im Kartenmaß');
         await admin.form('/farming/karte/ausrichten', { _csrf: ak, reset: '1' });
+        // Stationen setzen: nur Admins, Weltkoordinaten, clear nimmt die Position weg
+        assert.equal((await anna.form('/farming/stationen', { _csrf: t, uid: 'preplaced_x', x: '1', z: '2' })).status, 403);
+        assert.equal(JSON.parse((await admin.form('/farming/stationen', { _csrf: ak, uid: 'preplaced_x', x: '10,5', z: '-20' })).text_).ok, true);
+        assert.deepEqual({ ...sql.prepare("SELECT x, z FROM fs_stations WHERE uid = 'preplaced_x'").get() }, { x: 10.5, z: -20 });
+        assert.equal((await admin.form('/farming/stationen', { _csrf: ak, uid: 'preplaced_x', x: 'weit weg', z: '1' })).status, 400);
+        await admin.form('/farming/stationen', { _csrf: ak, uid: 'preplaced_x', clear: '1' });
+        assert.equal(sql.prepare("SELECT 1 FROM fs_stations WHERE uid = 'preplaced_x'").get(), undefined);
         // Bodenverteilung von Hand: nur Admins, Infokarte zeigt sie
         assert.equal((await anna.form('/farming/boden/7', { _csrf: t, loam: '50' })).status, 403);
         assert.equal((await admin.form('/farming/boden/7', { _csrf: ak, loamy_sand: '17', sandy_loam: '53', loam: '28', yield: '101' })).status, 302);

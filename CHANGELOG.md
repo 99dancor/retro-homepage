@@ -1,5 +1,11 @@
 # Changelog
 
+## 29.10.2026 – Farming Hub: Stationen auf der Karte
+
+- **Wie die Hotspots im Spiel:** Die Karte zeigt Verkaufsstellen, Ladestationen, Produktionen, Tankstellen, Händler und Sonstiges (Bahnhof, Mine, Forschungszentrum …) mit eigenem Symbol. Jede Art lässt sich links unter „Stationen“ ein- und ausblenden, die Symbole bleiben beim Zoomen gleich groß.
+- **Infokarte:** Ein Klick auf eine Station zeigt, was sie annimmt (mit Link zum Preis), große Nachfrage dort und bei Produktionen den Weg in den Produktionsplaner. Der Planer nennt dann auch die Lage.
+- **Einmal setzen:** Welche Stationen es gibt, liest der Hub aus dem Spielstand. Die Position vorplatzierter Stationen steht dort nicht, die setzt ein Admin einmal je Spielstand unter Karte → Stationen setzen: Station wählen, auf die Karte klicken, die nächste ist gleich dran.
+
 ## 29.10.2026 – Farming Hub: Kartenbild ausrichten
 
 - **Bild und Felder deckungsgleich:** Liegen die Felder versetzt zum Kartenbild, lässt sich das Bild unter Karte → Feldumrisse und Boden mit drei Reglern ausrichten: Größe, links/rechts, oben/unten. Die Karte folgt sofort, gespeichert wird je Spielstand. Gilt für das Bild vom Server und für ein eigenes.

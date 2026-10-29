@@ -795,6 +795,13 @@ CREATE TABLE IF NOT EXISTS fs_soil (
   updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   updated_at INTEGER NOT NULL
 );
+-- Stationen der Karte (Verkauf, Tankstelle, Händler …), die in placeables.xml keine Position haben: von Hand gesetzt, Weltkoordinaten
+CREATE TABLE IF NOT EXISTS fs_stations (
+  uid TEXT PRIMARY KEY,                 -- uniqueId aus placeables.xml
+  x REAL NOT NULL, z REAL NOT NULL,
+  updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  updated_at INTEGER NOT NULL
+);
 -- Spielstände, die der Hub gesehen hat (Karte + Anlegedatum). Läuft ein anderer, legt er Höfe, Mitglieder, Aufgaben, Pläne,
 -- Meldungen, Orte und Verläufe des alten hier als JSON ab (data) und holt die des neuen zurück, falls er ihn schon kennt.
 CREATE TABLE IF NOT EXISTS fs_saves (

@@ -758,6 +758,15 @@ CREATE TABLE IF NOT EXISTS fs_hist (
   value REAL NOT NULL,
   PRIMARY KEY (series, day)
 );
+-- Feldumrisse, aus dem Kartenbild erkannt (bild) oder von Hand gezeichnet (hand), in Weltkoordinaten [[x, z], …].
+-- Gehen vor allen anderen Formen (map.i3d, Feldboden), gehören zum Spielstand (src/fssaves.js).
+CREATE TABLE IF NOT EXISTS fs_outlines (
+  field INTEGER PRIMARY KEY,
+  pts TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'hand',
+  updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  updated_at INTEGER NOT NULL
+);
 -- Spielstände, die der Hub gesehen hat (Karte + Anlegedatum). Läuft ein anderer, legt er Höfe, Mitglieder, Aufgaben, Pläne,
 -- Meldungen, Orte und Verläufe des alten hier als JSON ab (data) und holt die des neuen zurück, falls er ihn schon kennt.
 CREATE TABLE IF NOT EXISTS fs_saves (

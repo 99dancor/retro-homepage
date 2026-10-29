@@ -2588,6 +2588,15 @@ async function main() {
         assert.match(page, /data-layer="wachstum" role="img"/, 'alte Ansicht „zustand“ heißt jetzt Wachstum');
         assert.match(page, /data-wachstum="state:reif"/);
         assert.match(page, /gemeldet von anna/);
+        // Feldumrisse: nur Admins sehen den Editor und dürfen speichern
+        assert.doesNotMatch(page, /id="fs-umriss"/);
+        assert.equal((await anna.form('/farming/umrisse', { _csrf: t, data: '{}' })).status, 403);
+        const ak = admin.jar.get('csrf');
+        assert.match((await admin.req('/farming/karte')).text_, /id="fs-umriss-data"/);
+        const sq = JSON.stringify({ fields: { 7: [[0, 0], [40, 0], [40, 40], [0, 40]] }, source: 'hand' });
+        assert.equal(JSON.parse((await admin.form('/farming/umrisse', { _csrf: ak, data: sq })).text_).n, 1);
+        assert.match((await admin.req('/farming/karte')).text_, /"id":7,[^}]*"src":"hand"/);
+        assert.equal((await admin.form('/farming/umrisse/7/loeschen', { _csrf: ak })).status, 200);
         // Ort aus einem Palettenhaufen
         const spot = (await anna.req('/farming/hof/1?tab=produktion')).text_.match(/name="x" value="(-?\d+)"><input type="hidden" name="z" value="(-?\d+)"/);
         assert.ok(spot, 'Palettenhaufen ohne Ort');

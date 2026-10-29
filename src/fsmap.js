@@ -8,8 +8,8 @@
 // Ablauf: Bodenart auf halbe Auflösung (2 × 2 Pixel, nur wenn alle vier Feldboden sind, damit schmale Lücken zwischen
 // Feldern bleiben), dann wächst jedes Feld von seiner Mitte aus dem Stats-Feed über zusammenhängenden Feldboden. Stoßen
 // zwei Felder ohne Lücke aneinander, teilen sie sich die Fläche nach Abstand. Aus jeder Fläche wird ein vereinfachter
-// Umriss im Koordinatensystem der Karte (0–1000). Passt die Fläche nicht zur Größe des Grundstücks, bleibt das Feld
-// ein Kreis. Kennt der Hub die Feldumrisse aus der Karte (src/fsfields.js), nimmt er für jedes Feld dessen Vieleck, auch
+// Umriss im Koordinatensystem der Karte (0–1000). Liegt die Mitte nicht auf Feldboden (noch nicht bestellt) oder passt
+// die Fläche nicht zur Größe des Grundstücks, bleibt das Feld ein Kreis. Kennt der Hub die Feldumrisse aus der Karte (src/fsfields.js), nimmt er für jedes Feld dessen Vieleck, auch
 // ohne Feldboden (noch nicht bestellte Felder). Ergebnis und Ebenen-Bilder liegen im Datenordner und werden nur neu
 // gerechnet, wenn sich etwas ändert.
 const fs = require('node:fs');
@@ -196,7 +196,9 @@ function buildShapes(groundBuf, fields, mapSize) {
   const mask = fieldMask(ground);
   const m = mask.size, cell = mapSize / m, k = 1000 / m;
   const seeds = fields.filter(f => Number.isFinite(f.x) && Number.isFinite(f.z)).map(f => ({ ...f, gx: (f.x + mapSize / 2) / cell, gy: (f.z + mapSize / 2) / cell }));
-  const lab = grow(mask, seeds, Math.ceil(25 / cell));
+  // Die Mitte muss auf Feldboden liegen (bis 4 m daneben): sonst ist das Feld noch nicht bestellt und bliebe nicht leer,
+  // sondern bekäme ein Stück vom Nachbarfeld
+  const lab = grow(mask, seeds, Math.max(1, Math.ceil(4 / cell)));
   // Ausdehnung und Größe je Feld
   const box = seeds.map(() => ({ x0: m, y0: m, x1: -1, y1: -1, n: 0, sx: 0, sy: 0 }));
   for (let y = 0; y < m; y++) {
@@ -215,6 +217,8 @@ function buildShapes(groundBuf, fields, mapSize) {
     const ha = b.n * cell * cell / 10000;
     // Viel größer als das Grundstück: ist in Nachbarflächen gelaufen, lieber Kreis
     if (s.area > 0 && (ha > s.area * 1.6 + 0.3)) return;
+    // Viel kleiner als das Grundstück: nur ein Rest am Rand, lieber Kreis
+    if (ha < 0.05 || (s.area > 0 && ha < s.area * 0.25)) return;
     const ring = outline(lab, m, i + 1, b);
     if (!ring) return;
     const pts = simplify(ring, 0.9);
@@ -255,12 +259,13 @@ function signature(files, fields, mapSize, outlines) {
   for (const f of fields) h.update(`${f.id}:${Math.round(f.x)}:${Math.round(f.z)};`);
   return h.digest('hex').slice(0, 16);
 }
-// outlines: { sig, polys } aus der Karte oder null
-function load(dir, files, fields, mapSize, outlines = null) {
+// outlines: { sig, polys } aus der Karte oder null. own: { sig, polys: { id: [[x, z], …] } } aus fs_outlines (gehen vor).
+function load(dir, files, fields, mapSize, outlines = null, own = null) {
   const ground = !!files['densityMap_ground.gdm'] && fs.existsSync(path.join(dir, 'sg-densityMap_ground.gdm'));
   const polys = outlines && outlines.polys && outlines.polys.length ? outlines.polys : null;
-  if ((!ground && !polys) || !fields.length) return null;
-  const sig = signature(ground ? files : {}, fields, mapSize, polys && outlines);
+  const mine = own && own.polys && Object.keys(own.polys).length ? own : null;
+  if ((!ground && !polys && !mine) || !fields.length) return null;
+  const sig = signature(ground ? files : {}, fields, mapSize, { sig: ((polys && outlines.sig) || '-') + '/' + ((mine && mine.sig) || '-') });
   if (mem && mem.sig === sig) return mem;
   const store = path.join(dir, 'shapes.json');
   try {
@@ -271,7 +276,11 @@ function load(dir, files, fields, mapSize, outlines = null) {
     const t = Date.now();
     const r = ground ? buildShapes(fs.readFileSync(path.join(dir, 'sg-densityMap_ground.gdm')), fields, mapSize) : { shapes: {} };
     const exact = polys ? fsfields.matchFields(polys, fields, mapSize) : {};
-    const shapes = { ...r.shapes, ...exact };
+    const shapes = {};
+    for (const [id, s] of Object.entries(r.shapes)) shapes[id] = { ...s, src: 'boden' };
+    for (const [id, s] of Object.entries(exact)) shapes[id] = { ...s, src: 'karte' };
+    const ids = new Set(fields.map(f => String(f.id)));
+    for (const [id, pts] of Object.entries((mine && mine.polys) || {})) if (ids.has(String(id)) && pts.pts.length >= 3) shapes[id] = { ...fsfields.polyShape(pts.pts, mapSize), src: pts.source };
     const layers = [];
     for (const [key, L] of Object.entries(LAYERS)) {
       const file = path.join(dir, 'sg-' + L.file);

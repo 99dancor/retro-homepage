@@ -145,7 +145,7 @@ router.get('/karte.bild', (req, res) => {
 // das Umschalten macht dann nur noch CSS (public/fshub.css) und public/fshub.js.
 const MAP_LAYERS = { fruechte: 'Feldfrüchte', wachstum: 'Wachstum', boden: 'Boden', besitz: 'Besitz' };
 const LAYER_ALIAS = { zustand: 'wachstum', pflege: 'boden' };
-const NONE = 'rgba(255,255,255,.08)';
+const NONE = 'rgba(255,255,255,.2)';   // leer oder unbekannt: hell, damit das Feld auf jedem Kartenbild zu sehen ist
 const CARE = [['kalk', 'Kalk nötig', '#e0c52c'], ['pflug', 'Pflügen fällig', '#c8693a'], ['duenger', 'Düngen', '#4b97ec'], ['unkraut', 'Unkraut', '#b062c8'], ['steine', 'Steine', '#9a9a9a']];
 // Reihenfolge = Zeichenreihenfolge: was zu tun ist, liegt oben
 const RASTER = { duenger: ['Gedüngt', 'linear-gradient(90deg, #4b97ec 50%, #1f4fb8 50%)'], pflug: ['Pflügen fällig', '#c8693a'], kalk: ['Kalk nötig', '#e0c52c'] };
@@ -198,7 +198,10 @@ router.get('/karte', (req, res) => {
   const border = m.configured && !(img && img.custom) ? Number(getSetting('fs_map_border', '25')) || 0 : 0;
   const hasImage = !!img, mapV = img ? img.v : '';
   const want = LAYER_ALIAS[req.query.ansicht] || req.query.ansicht;
-  page(req, res, 'map', { title: 'Karte – Farming Simulator', full: true, ...view, CARE_COLORS: Object.fromEntries(CARE.map(([k, , c]) => [k, c])), sel, crops, border, hasImage, mapV, shp, LAYERS: MAP_LAYERS,
+  // Für den Umriss-Editor (Admins): Kartenmaß, Lage des Bilds, je Feld Mitte, Größe und woher die Form kommt
+  const editor = req.user && req.user.isAdmin ? { size: m.size || 2048, img: hasImage ? { off: -border / 100 * (1000 / (1 - 2 * border / 100)), w: 1000 / (1 - 2 * border / 100), src: '/farming/karte.bild?v=' + mapV } : null,
+    fields: view.gs.map(g => ({ id: g.id, cx: g.cx, cy: g.cy, r: g.r, ha: g.area || 0, src: g.d ? (shp.shapes[g.id] || {}).src || 'boden' : 'kreis' })) } : null;
+  page(req, res, 'map', { title: 'Karte – Farming Simulator', full: true, editor, ...view, CARE_COLORS: Object.fromEntries(CARE.map(([k, , c]) => [k, c])), sel, crops, border, hasImage, mapV, shp, LAYERS: MAP_LAYERS,
     cards: view.gs.map(g => fieldCard(g, req)), layer: Object.hasOwn(MAP_LAYERS, want) ? want : 'fruechte' });
 });
 // Boden-Ebenen aus der Dichtekarte (src/fsmap.js) und hochgeladene Originalsymbole (src/fsicons.js)
@@ -363,6 +366,22 @@ router.post('/feld/:id', login, (req, res) => {
   if (owner && !hub.canEditFarm(req.user, owner)) return deny(res, 'Dieses Feld melden nur Mitglieder des Hofs, dem es gehört.');
   hub.reportField(req.user, req.params.id, req.body);
   back(req, res, `/farming/karte?feld=${Number(req.params.id)}`, 'gemeldet');
+});
+
+// Feldumrisse (nur Admins, public/fshub-umriss.js): erkannt aus dem Kartenbild oder von Hand, als JSON in data
+const adminOnly = (req, res, next) => (req.user && req.user.isAdmin ? next() : res.status(403).json({ ok: false, error: 'Nur für Admins.' }));
+router.post('/umrisse', login, adminOnly, (req, res) => {
+  let d;
+  try { d = JSON.parse(String(req.body.data || '')); } catch { return res.status(400).json({ ok: false, error: 'Daten unlesbar.' }); }
+  if (d.replace === 'bild') hub.removeOutlines('bild');
+  const n = hub.saveOutlines(d.fields, d.source, req.user.id);
+  hub.invalidate();
+  res.json({ ok: true, n });
+});
+router.post('/umrisse/:id/loeschen', login, adminOnly, (req, res) => {
+  if (req.params.id === 'bild') hub.removeOutlines('bild'); else hub.removeOutline(req.params.id);
+  hub.invalidate();
+  res.json({ ok: true });
 });
 
 router.post('/hof/:id/ort', login, farmParam, farmEditor, (req, res) => {

@@ -152,4 +152,10 @@ function matchFields(polys, fields, mapSize) {
   return out;
 }
 
-module.exports = { i3dFields, zipDirectory, zipEntries, mapCandidates, zipData, matchFields, centroid, inside };
+// Ein Vieleck in Weltkoordinaten als Form im Kartenmaß 0–1000
+function polyShape(pts, mapSize) {
+  const P = v => +((v + mapSize / 2) / mapSize * 1000).toFixed(1), c = centroid(pts);
+  return { d: 'M' + pts.map(([x, z]) => `${P(x)} ${P(z)}`).join('L') + 'Z', cx: P(c[0]), cy: P(c[1]), ha: Math.round(Math.abs(area(pts)) / 100) / 100, exact: true };
+}
+
+module.exports = { polyShape, i3dFields, zipDirectory, zipEntries, mapCandidates, zipData, matchFields, centroid, inside };

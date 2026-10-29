@@ -29,6 +29,24 @@
       </div>
     <% } %>
     <p class="note">Linksklick blendet ein oder aus · Rechtsklick: nur dieser Eintrag (noch mal: alle)</p>
+    <% if (editor) { %>
+      <details class="fs-fold fs-umriss" id="fs-umriss" data-remember="fs-fold-umriss" data-csrf="<%= csrf %>">
+        <summary>Feldumrisse <small>nur Admins</small></summary>
+        <div class="in">
+          <p class="note" data-umriss-stat></p>
+          <div class="btns"><button type="button" class="btn small" data-umriss="erkennen">Aus dem Kartenbild erkennen</button>
+            <button type="button" class="btn small" data-umriss="bildweg">Erkannte löschen</button></div>
+          <label class="inline"><input type="checkbox" data-umriss-alle> auch Felder, die schon eine Form haben</label>
+          <div data-umriss-preview hidden><p class="note" data-umriss-msg></p>
+            <div class="btns"><button type="button" class="btn small def" data-umriss="uebernehmen" hidden>Übernehmen</button><button type="button" class="btn small" data-umriss="verwerfen">Verwerfen</button></div></div>
+          <p class="note" data-umriss-sel></p>
+          <div class="btns"><button type="button" class="btn small" data-umriss="bearbeiten">Umriss bearbeiten</button><button type="button" class="btn small" data-umriss="zeichnen">Neu zeichnen</button>
+            <button type="button" class="btn small" data-umriss="auto" title="Eigenen Umriss löschen, dann gilt wieder die Form aus dem Spielstand oder der Kreis">Automatisch</button></div>
+          <div data-umriss-edit hidden><p class="note" data-umriss-hint></p>
+            <div class="btns"><button type="button" class="btn small def" data-umriss="speichern">Speichern</button><button type="button" class="btn small" data-umriss="abbrechen">Abbrechen</button></div></div>
+        </div>
+      </details>
+    <% } %>
     <div class="shows">
       <label class="inline"><input type="checkbox" data-show="nr" checked> Feldnummern</label>
       <label class="inline"><input type="checkbox" data-show="veh"> Fahrzeuge</label>
@@ -98,4 +116,9 @@
     <div class="row"><button class="def">Melden</button><a class="btn small" data-plan>Plan</a> <a class="btn small" data-task>Aufgabe</a></div>
   </form>
 </template>
+<% if (editor) { %>
+<script type="application/json" id="fs-umriss-data"><%- JSON.stringify(editor).replace(/</g, '\\u003c') %></script>
+<script src="<%= asset('fsdetect.js') %>"></script>
+<script src="<%= asset('fshub-umriss.js') %>"></script>
+<% } %>
 <%- include('_bottom') %>

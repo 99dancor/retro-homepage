@@ -1,5 +1,11 @@
 # Changelog
 
+## 29.10.2026 – Farming Hub: Feldumrisse zeichnen
+
+- **Nicht bestellte Felder sind wieder da:** Felder, die noch kein Acker sind, bekamen ein Stück vom Nachbarfeld statt ihres Kreises. Jetzt sind sie wieder Kreise in passender Größe, und leere Felder sieht man mit hellem Rand auf jedem Kartenbild. Felder, die der Server nicht einzeln nennt, kommen aus den Grundstücken.
+- **Felder aus dem Kartenbild erkennen:** Für Karten, deren Feldumrisse der Hub nicht lesen kann (DLC oder Karten aus dem Spiel), sucht er sie im Kartenbild, als Vorschau zum Übernehmen. Nur für Admins, unter Karte → Feldumrisse.
+- **Von Hand nachzeichnen:** Jedes Feld lässt sich auf der Karte korrigieren oder neu zeichnen. „Automatisch“ nimmt den eigenen Umriss wieder weg. Die Umrisse gehören zum Spielstand.
+
 ## 29.10.2026 – Farming Hub: neuer Spielstand, alle Felder, Kartenbild
 
 - **Neuer Spielstand:** Läuft auf dem Server ein anderer Spielstand, legt der Hub Höfe, Mitglieder, Aufgaben, Anbaupläne, Feldmeldungen, Orte und Verläufe des alten beiseite und beginnt leer. Kommt der alte zurück, sind seine Daten wieder da. Notizen, Changelog und Vorschläge bleiben. Mit FTP zeigt der Hub nur die Höfe, die es im Spielstand gibt.

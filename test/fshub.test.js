@@ -401,3 +401,58 @@ test('Höfe: mit farms.xml zählen nur Höfe aus dem Spielstand', () => {
   hub.invalidate();
   assert.ok(hub.model().farms.some(f => f.id === 5), 'ohne farms.xml wieder alle');
 });
+
+test('Felder im Kartenbild: zwei Äcker mit Grenze, Wald drumherum, jedes Feld für sich', () => {
+  const D = require('../public/fsdetect');
+  const w = 120, h = 80, data = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4;
+    let c = ((x * 7 + y * 13) % 5 < 2) ? [20, 60, 20] : [45, 90, 35];          // unruhiger Wald
+    if (x >= 10 && x < 58 && y >= 10 && y < 70) c = [150, 110, 70];              // Acker A
+    if (x >= 60 && x < 110 && y >= 10 && y < 70) c = [148, 108, 72];             // Acker B, fast gleiche Farbe
+    if ((x === 58 || x === 59) && y >= 10 && y < 70) c = [215, 180, 130];        // helle Feldgrenze
+    data.set([...c, 255], i);
+  }
+  const seeds = [{ id: 1, x: 30, y: 40, max: 4000, min: 200 }, { id: 2, x: 85, y: 40, max: 4000, min: 200 }, { id: 3, x: 3, y: 3, max: 50, min: 40 }];
+  const r = D.detect({ width: w, height: h, data }, seeds);
+  assert.ok(r[1] && r[2], 'beide Äcker');
+  assert.ok(!r[3], 'im Wald nichts');
+  const box = pts => [Math.min(...pts.map(p => p[0])), Math.max(...pts.map(p => p[0])), Math.min(...pts.map(p => p[1])), Math.max(...pts.map(p => p[1]))];
+  const a = box(r[1]), b = box(r[2]);
+  assert.ok(a[1] <= 59 && b[0] >= 59, `Grenze hält: A bis ${a[1]}, B ab ${b[0]}`);
+  assert.ok(a[0] <= 12 && a[2] <= 12 && a[3] >= 68, 'A fast ganz: ' + a.join(','));
+});
+
+test('Eigene Feldumrisse: gehen vor, gehören zum Spielstand, „Automatisch“ nimmt sie weg', () => {
+  const { db } = require('../src/db');
+  const hub = require('../src/fshub');
+  db.prepare('DELETE FROM fs_outlines').run();
+  const id = hub.model().fields[0].id, f = hub.model().fields[0];
+  const sq = [[f.x - 20, f.z - 20], [f.x + 20, f.z - 20], [f.x + 20, f.z + 20], [f.x - 20, f.z + 20]];
+  assert.equal(hub.saveOutlines({ [id]: sq, 99999: [[0, 0], [1, 1]], abc: sq, [id + 1]: [[0, 0], [1e9, 0], [0, 1]] }, 'bild', null), 1, 'nur das gültige');
+  hub.invalidate();
+  const s = hub.shapes();
+  assert.equal(s.shapes[id].src, 'bild');
+  assert.equal(s.shapes[id].ha, 0.16);
+  hub.saveOutlines({ [id]: sq.slice(0, 3) }, 'hand', null);
+  assert.equal(hub.shapes().shapes[id].src, 'hand');
+  hub.removeOutline(id);
+  assert.ok(!hub.shapes() || !hub.shapes().shapes[id] || hub.shapes().shapes[id].src !== 'hand');
+  assert.ok(require('../src/fssaves').TABLES.includes('fs_outlines'));
+});
+
+test('Felder ohne Eintrag im Stats-Feed kommen aus den Grundstücken', () => {
+  const { db, now } = require('../src/db');
+  const hub = require('../src/fshub');
+  const prev = db.prepare("SELECT data FROM fs_cache WHERE feed = 'stats'").get().data;
+  const st = JSON.parse(prev);
+  const n = st.fields.length;
+  st.fields = [];
+  db.prepare("UPDATE fs_cache SET data = ?, ok_at = ? WHERE feed = 'stats'").run(JSON.stringify(st), now());
+  F.load(); hub.invalidate();
+  const m = hub.model();
+  assert.ok(m.fields.length >= n, `${m.fields.length} Felder aus ${st.farmlands.length} Grundstücken`);
+  assert.ok(m.fields.every(f => Number.isFinite(f.x) && f.area > 0));
+  db.prepare("UPDATE fs_cache SET data = ? WHERE feed = 'stats'").run(prev);
+  F.load(); hub.invalidate();
+});

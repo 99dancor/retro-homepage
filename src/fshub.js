@@ -162,6 +162,13 @@ function model() {
     const land = lands.get(f.id);
     return { id: f.id, x: f.x, z: f.z, owner: land ? land.owner : 0, area: land ? land.area : 0, price: land ? land.price : 0 };
   });
+  // Felder, die der Stats-Feed nicht nennt (z. B. frischer Spielstand): aus fields.xml, und ohne Feldliste alle Grundstücke.
+  // Lage und Größe kommen dann vom Grundstück (Feldnummer = Grundstücksnummer).
+  const known = new Set(fields.map(f => f.id)), fxml = ftpFile('fields.xml');
+  const fromLand = l => { known.add(l.id); fields.push({ id: l.id, x: l.x, z: l.z, owner: l.owner, area: l.area, price: l.price }); };
+  for (const f of (fxml && fxml.list) || []) { const l = lands.get(f.id); if (l && !known.has(f.id) && Number.isFinite(l.x)) fromLand(l); }
+  if (!(st && st.fields && st.fields.length)) for (const l of lands.values()) if (!known.has(l.id) && l.area > 0 && Number.isFinite(l.x)) fromLand(l);
+  fields.sort((a, b) => a.id - b.id);
   function where(x, z) {
     if (x === null || z === null || x === undefined) return { label: '–' };
     const p = { x, z };
@@ -781,8 +788,36 @@ function fieldStates() {
 function shapes(m = model()) {
   if (getSetting('fs_shapes', '1') !== '1') return null;
   const f = feeds.get('ftp');
-  return fsmap.load(feeds.FS_DIR, (f && f.files) || {}, m.fields, m.size || 2048, feeds.currentOutlines());
+  return fsmap.load(feeds.FS_DIR, (f && f.files) || {}, m.fields, m.size || 2048, feeds.currentOutlines(), ownOutlines());
 }
+// Eigene Feldumrisse (aus dem Kartenbild erkannt oder von Hand gezeichnet), in Weltkoordinaten
+function ownOutlines() {
+  const rows = db.prepare('SELECT field, pts, source, updated_at FROM fs_outlines').all();
+  if (!rows.length) return null;
+  const polys = {};
+  for (const r of rows) { try { polys[r.field] = { pts: JSON.parse(r.pts), source: r.source }; } catch { /* kaputt: ignorieren */ } }
+  return { sig: rows.length + ':' + Math.max(...rows.map(r => r.updated_at)) + ':' + rows.reduce((a, r) => a + r.pts.length, 0), polys };
+}
+// fields: { id: [[x, z], …] } in Weltkoordinaten; source bild | hand
+function saveOutlines(fields, source, userId) {
+  const S = (model().size || 2048) / 2 + 50, t = now();
+  const put = db.prepare(`INSERT INTO fs_outlines(field, pts, source, updated_by, updated_at) VALUES (?, ?, ?, ?, ?)
+                          ON CONFLICT(field) DO UPDATE SET pts = excluded.pts, source = excluded.source, updated_by = excluded.updated_by, updated_at = excluded.updated_at`);
+  let n = 0;
+  tx(() => {
+    for (const [id, pts] of Object.entries(fields || {})) {
+      const fid = intOr(id);
+      if (!fid || fid < 1 || !Array.isArray(pts) || pts.length < 3 || pts.length > 2000) continue;
+      const clean = pts.map(p => (Array.isArray(p) ? [Number(p[0]), Number(p[1])] : null));
+      if (clean.some(p => !p || !p.every(v => Number.isFinite(v) && Math.abs(v) <= S))) continue;
+      put.run(fid, JSON.stringify(clean.map(([x, z]) => [Math.round(x * 10) / 10, Math.round(z * 10) / 10])), source === 'bild' ? 'bild' : 'hand', userId || null, t);
+      n++;
+    }
+  });
+  return n;
+}
+function removeOutline(id) { db.prepare('DELETE FROM fs_outlines WHERE field = ?').run(intOr(id)); }
+function removeOutlines(source) { db.prepare('DELETE FROM fs_outlines WHERE source = ?').run(source === 'hand' ? 'hand' : 'bild'); }
 function fieldOwner(fieldId) { const f = model().fields.find(x => x.id === Number(fieldId)); return f ? f.owner : 0; }
 function savePlace(id, b) {
   const name = oneLine(b.name, MAX.name), x = Number(b.x), z = Number(b.z);
@@ -959,6 +994,6 @@ module.exports = {
   tasks, openTasks, task, addTask, editTask, completeTask, reopenTask, removeTask, isDue, dueLabel, repeatLabel,
   suggestions, hideSuggestion, takeSuggestion, crops, crop, saveCrop, removeCrop, resetCrops, plans, plan, addPlan, removePlan, planCells, calendar,
   fieldReports, fieldStates, reportField, fieldOwner, savePlace, place, removePlace, palletSpots, sessionsToday, sessionTotals,
-  changelog, addChange, removeChange, importUpdates, shapes, ideas, idea, addIdea, editIdea, answerIdea, removeIdea, vote, goods, modCompare, syncModlist, start,
+  changelog, addChange, removeChange, importUpdates, shapes, saveOutlines, removeOutline, removeOutlines, ideas, idea, addIdea, editIdea, answerIdea, removeIdea, vote, goods, modCompare, syncModlist, start,
   _clock: clock, _onStats: onStats,
 };

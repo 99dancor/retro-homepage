@@ -166,7 +166,7 @@
       fields.forEach(function (f) { f.classList.toggle('sel', f.parentNode.dataset.field === String(id)); });
       var c = cards[id];
       if (!c) { info.hidden = true; url(null, null); return; }
-      var h = '<a class="x" href="#" data-close aria-label="Schließen">✕</a><h2>Feld ' + c.id + '</h2><div class="fs-rows">' +
+      var h = '<a class="x" href="#" data-close aria-label="Schließen">✕</a><h2>' + (c.parcel ? 'Grundstück ' : 'Feld ') + c.id + '</h2><div class="fs-rows">' +
         row('Größe', de(c.ha, 1) + ' ha') +
         row('Besitzer', c.farm ? '<a href="/farming/hof/' + c.farm.id + '">' + esc(c.farm.name) + '</a>' : 'zu kaufen' + (c.price ? ' für ' + de(Math.round(c.price)) + ' €' : '')) +
         row('Frucht', c.crop ? '<span class="fs-name">' + c.icon + esc(c.crop) + '</span>' + (c.src === 'plan' ? ' (laut Plan)' : '') : (c.src === 'auto' ? 'nichts' : 'unbekannt')) +

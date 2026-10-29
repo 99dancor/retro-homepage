@@ -34,7 +34,7 @@
   // Stand: woher die Formen kommen
   var NAMES = { karte: 'aus der Karte', boden: 'aus dem Feldboden', bild: 'aus dem Bild erkannt', hand: 'von Hand', kreis: 'ohne Form (Kreis)' };
   var counts = {};
-  D.fields.forEach(function (f) { counts[f.src] = (counts[f.src] || 0) + 1; });
+  D.fields.forEach(function (f) { if (!f.parcel) counts[f.src] = (counts[f.src] || 0) + 1; });
   say('stat', Object.keys(NAMES).filter(function (k) { return counts[k]; }).map(function (k) { return counts[k] + ' ' + NAMES[k]; }).join(' · '));
   if (!counts.bild) $('bildweg').hidden = true;
 
@@ -56,7 +56,8 @@
         cx.drawImage(img, 0, 0, cv.width, cv.height);
         var data = cx.getImageData(0, 0, cv.width, cv.height);
         var ppu = cv.width / D.img.w, mpp = S / 1000 / ppu;
-        var seeds = D.fields.filter(function (f) { return all ? f.src !== 'hand' : f.src === 'kreis'; }).map(function (f) {
+        // Grundstücke ohne Feld (Wald, Hof, Wiese) erkennt das Bild selten sauber, die zeichnet man besser von Hand
+        var seeds = D.fields.filter(function (f) { return !f.parcel && (all ? f.src !== 'hand' : f.src === 'kreis'); }).map(function (f) {
           var px = (f.ha > 0 ? f.ha : 15) * 10000 / (mpp * mpp);
           return { id: f.id, x: (f.cx - D.img.off) * ppu, y: (f.cy - D.img.off) * ppu, max: px * 1.15, min: Math.max(25, px * 0.08) };
         });
@@ -93,7 +94,7 @@
   var selected = function () { var a = map.querySelector('.fld.sel'); return a ? Number(a.parentNode.dataset.field) : null; };
   var showSel = function () {
     sel = selected();
-    say('sel', sel ? 'Feld ' + sel + ': ' + NAMES[(byId[sel] || {}).src || 'kreis'] : 'Erst ein Feld auf der Karte anklicken.');
+    say('sel', sel ? ((byId[sel] || {}).parcel ? 'Grundstück ' : 'Feld ') + sel + ': ' + NAMES[(byId[sel] || {}).src || 'kreis'] : 'Erst ein Feld auf der Karte anklicken.');
     ['bearbeiten', 'zeichnen'].forEach(function (k) { $(k).disabled = !sel || !!mode; });
     $('auto').disabled = !sel || !!mode || ['hand', 'bild'].indexOf((byId[sel] || {}).src) < 0;
   };

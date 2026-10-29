@@ -300,7 +300,7 @@
       <input type="hidden" name="due" value="gday"><input type="hidden" name="due_day" value="">
       <b data-title>Neue Aufgabe</b>
       <label>Was ist zu tun <input name="title" maxlength="120" required></label>
-      <label>Feld <select name="field"><option value="">ohne Feld</option><% for (const x of myFields) { %><option value="<%= x.id %>">Feld <%= x.id %></option><% } %></select></label>
+      <label>Feld <select name="field"><option value="">ohne Feld</option><% for (const x of myFields) { %><option value="<%= x.id %>"><%= fieldName(x) %></option><% } %></select></label>
       <label>Wiederholen <select name="repeat"><option value="">nein</option><option value="gmonths:1">jeden Spielmonat</option><option value="gmonths:12">jedes Spieljahr</option></select></label>
       <div class="btns"><button type="button" data-close>Abbrechen</button><button class="def">Anlegen</button></div>
     </form>
@@ -313,7 +313,7 @@
       <div class="fs-scroll"><table class="list tight">
         <tr><th>Feld</th><th class="num">Größe</th><th>Frucht</th><th>Zustand</th><th>Zu tun</th></tr>
         <% for (const x of fieldList) { %>
-          <tr><td><a href="/farming/karte?feld=<%= x.id %>">Feld <%= x.id %></a></td><td class="num"><%= ha(x.area) %></td>
+          <tr><td><a href="/farming/karte?feld=<%= x.id %>"><%= fieldName(x) %></a></td><td class="num"><%= ha(x.area) %></td>
             <td><% if (x.crop) { %><span class="fs-name"><%- icon(x.cropFill, x.crop, 's') %><%= x.crop %><%= x.source === 'plan' ? ' (Plan)' : x.source === 'report' ? ' (gemeldet)' : '' %></span><% } else { %><span class="hint"><%= x.source === 'auto' ? 'nichts' : 'unbekannt' %></span><% } %></td>
             <td><%= x.state ? N.STATES[x.state][0] : '–' %><%= x.source === 'auto' && x.auto.growth && (x.state === 'gesaet' || x.state === 'waechst') ? ', Stufe ' + x.auto.growth : '' %></td>
             <td><%= x.care.map(c => c.label).join(' · ') || (x.source === 'auto' ? '✔' : '') %></td></tr>
@@ -327,7 +327,7 @@
   <% if (editable) { %>
     <form method="post" action="/farming/hof/<%= f.id %>/plan" class="fs-form row groupbox" id="plan"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= calUrl %>">
       <b style="flex-basis:100%">Anbau planen</b>
-      <select name="field" aria-label="Feld"><option value="">Ohne Feld</option><% for (const x of myFields) { %><option value="<%= x.id %>"<%= Number(query.feld) === x.id ? ' selected' : '' %>>Feld <%= x.id %> (<%= ha(x.area) %>)</option><% } %></select>
+      <select name="field" aria-label="Feld"><option value="">Ohne Feld</option><% for (const x of myFields) { %><option value="<%= x.id %>"<%= Number(query.feld) === x.id ? ' selected' : '' %>><%= fieldName(x) %> (<%= ha(x.area) %>)</option><% } %></select>
       <input name="label" maxlength="40" placeholder="oder Name, z. B. Wiesen" aria-label="Name statt Feld">
       <select name="crop_id" aria-label="Frucht" required><% for (const c of crops) { %><option value="<%= c.id %>" data-sow="<%= c.sowM[0] ?? '' %>" data-harvest="<%= c.harvestM[0] ?? '' %>"><%= c.name %></option><% } %></select>
       <label>säen <select name="sow_month"><option value="">wie Vorlage</option><% N.MONTHS.forEach((mo, i) => { %><option value="<%= i %>"><%= mo %></option><% }) %></select></label>

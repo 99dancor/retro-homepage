@@ -27,7 +27,7 @@ const FILL = {
   GRAPESEED: 'Traubenkerne', GRAPEMUST: 'Traubenmost', GRAPESEED_OIL: 'Traubenkernöl', TABLEGRAPE: 'Tafeltrauben', COMPOST: 'Kompost',
   MUSTARD: 'Senf', OILSEEDRADISH: 'Ölrettich', SILAGEMAIZE: 'Silomais', MOLASSES: 'Melasse', COAL: 'Kohle', LIQUIDSEEDTREATMENT: 'Saatgutbeize',
   ROUNDBALE: 'Rundballen', SQUAREBALE: 'Quaderballen', CANNED_PEAS: 'Erbsen (Dose)', SPINACH_BAGS: 'Spinat (Beutel)', RICE_BAGS: 'Reis (Säcke)',
-  APPLEJUICE: 'Apfelsaft', KETCHUP: 'Ketchup', PICKLES: 'Essiggurken', ROPE: 'Seile', BARREL: 'Fässer', BUCKET: 'Eimer',
+  COFFEE: 'Kaffee', APPLEJUICE: 'Apfelsaft', KETCHUP: 'Ketchup', PICKLES: 'Essiggurken', ROPE: 'Seile', BARREL: 'Fässer', BUCKET: 'Eimer',
 };
 const CATEGORY = {
   TRACTORSS: 'Traktor (klein)', TRACTORSM: 'Traktor (mittel)', TRACTORSL: 'Traktor (groß)', TRUCKS: 'Lkw', CARS: 'Auto', HARVESTERS: 'Mähdrescher',

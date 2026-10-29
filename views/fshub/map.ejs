@@ -19,7 +19,7 @@
       <div class="fs-items" data-group="<%= k %>" data-title="<%= LAYERS[k] %>"<%= k === layer ? '' : ' hidden' %>>
         <% for (const it of groups[k]) { %>
           <button type="button" class="fs-item" data-item="<%= it.key %>"<%- it.raster ? ` data-raster="${it.raster}"` : '' %> title="Klick blendet aus, Rechtsklick zeigt nur diesen Eintrag">
-            <span class="sw" style="background:<%= it.color %>"></span>
+            <span class="sw<%= it.parcel ? ' parcel' : '' %>" style="background:<%= it.color %>"></span>
             <span class="lb"><% if (it.fill) { %><span class="fs-name"><%- icon(it.fill, it.label, 's') %><%= it.label %></span><% } else { %><%= it.label %><% } %></span>
             <span class="n"><%= it.n === null ? '' : it.n %></span>
           </button>
@@ -61,9 +61,9 @@
       <% if (hasImage) { %><image href="/farming/karte.bild?v=<%= mapV %>" x="<%= off.toFixed(1) %>" y="<%= off.toFixed(1) %>" width="<%= w.toFixed(1) %>" height="<%= w.toFixed(1) %>" preserveAspectRatio="none"/><% } %>
       <g class="flds">
         <% for (const g of gs) { const L = g.layer; %>
-          <a href="/farming/karte?ansicht=<%= layer %>&amp;feld=<%= g.id %>" data-field="<%= g.id %>"><<%= g.d ? 'path' : 'circle' %> class="fld<%= sel && sel.id === g.id ? ' sel' : '' %>" <%- g.d ? `d="${g.d}"` : `cx="${g.cx}" cy="${g.cy}" r="${g.r}"` %>
+          <a href="/farming/karte?ansicht=<%= layer %>&amp;feld=<%= g.id %>" data-field="<%= g.id %>"><<%= g.d ? 'path' : 'circle' %> class="fld<%= g.parcel ? ' parcel' : '' %><%= sel && sel.id === g.id ? ' sel' : '' %>" <%- g.d ? `d="${g.d}"` : `cx="${g.cx}" cy="${g.cy}" r="${g.r}"` %>
             style="--c-fruechte:<%= L.fruechte[1] %>;--c-wachstum:<%= L.wachstum[1] %>;--c-boden:<%= L.boden[1] %>;--c-besitz:<%= L.besitz[1] %>"
-            data-fruechte="<%= L.fruechte[0] %>" data-wachstum="<%= L.wachstum[0] %>" data-boden="<%= L.boden[0] %>" data-besitz="<%= L.besitz[0] %>"><title>Feld <%= g.id %> · <%= ha(g.area) %><%= g.farm ? ' · ' + g.farm.name : g.price ? ' · zu kaufen ' + eur(g.price) : '' %><%= g.crop ? ' · ' + g.crop : '' %></title></<%= g.d ? 'path' : 'circle' %>></a>
+            data-fruechte="<%= L.fruechte[0] %>" data-wachstum="<%= L.wachstum[0] %>" data-boden="<%= L.boden[0] %>" data-besitz="<%= L.besitz[0] %>"><title><%= fieldName(g) %> · <%= ha(g.area) %><%= g.farm ? ' · ' + g.farm.name : g.price ? ' · zu kaufen ' + eur(g.price) : '' %><%= g.crop ? ' · ' + g.crop : '' %></title></<%= g.d ? 'path' : 'circle' %>></a>
         <% } %>
       </g>
       <g class="ras"><% for (const k of raster) { %><image href="/farming/karte/ebene/<%= k %>.png?v=<%= shp.at %>" x="0" y="0" width="1000" height="1000" preserveAspectRatio="none" data-raster="<%= k %>"/><% } %></g>
@@ -83,7 +83,7 @@
     <div class="fs-finfo" id="fs-finfo"<%= sel ? '' : ' hidden' %>>
       <% if (sel) { const a = sel.source === 'auto' ? sel.auto : null; %>
         <a class="x" href="/farming/karte?ansicht=<%= layer %>" data-close aria-label="Schließen">✕</a>
-        <h2>Feld <%= sel.id %></h2>
+        <h2><%= fieldName(sel) %></h2>
         <div class="fs-rows">
           <div class="fs-row"><span class="t">Größe</span><span class="v"><%= ha(sel.area) %></span></div>
           <div class="fs-row"><span class="t">Besitzer</span><span class="v"><% if (sel.farm) { %><a href="/farming/hof/<%= sel.farm.id %>"><%= sel.farm.name %></a><% } else { %>zu kaufen für <%= eur(sel.price) %><% } %></span></div>

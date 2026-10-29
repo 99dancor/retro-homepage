@@ -299,6 +299,8 @@ details.fs-fold > .in { padding: 0 12px 12px; }
 .fs-map[data-layer="boden"] .ras image { display: inline; }
 .fs-map .ras image.hid { display: none; }
 .fs-map .fld.hid { fill: rgba(255,255,255,.06) !important; }
+.fs-map .fld.parcel { stroke: rgba(255,255,255,.45); stroke-dasharray: 4 3; fill-opacity: 1; }
+.fs-item .sw.parcel { outline: 1px dashed rgba(255,255,255,.6); outline-offset: -1px; }
 .fs-map a:hover .fld, .fs-map .fld.hl { stroke: #fff; stroke-width: 2; fill-opacity: .95; }
 .fs-map .fld.sel { stroke: var(--g-accent); stroke-width: 3; }
 .fs-map .ras { pointer-events: none; image-rendering: pixelated; }

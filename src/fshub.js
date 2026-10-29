@@ -162,12 +162,15 @@ function model() {
     const land = lands.get(f.id);
     return { id: f.id, x: f.x, z: f.z, owner: land ? land.owner : 0, area: land ? land.area : 0, price: land ? land.price : 0 };
   });
-  // Felder, die der Stats-Feed nicht nennt (z. B. frischer Spielstand): aus fields.xml, und ohne Feldliste alle Grundstücke.
-  // Lage und Größe kommen dann vom Grundstück (Feldnummer = Grundstücksnummer).
+  // Felder, die der Stats-Feed nicht nennt (z. B. frischer Spielstand): aus fields.xml. Lage und Größe kommen dann vom Grundstück
+  // (Feldnummer = Grundstücksnummer). Alle übrigen Grundstücke kommen als „Grundstück ohne Feld“ dazu (parcel): Wiesen, Wald,
+  // Plantagen wie Kaffee auf DLC-Karten. Die Karte im Spiel nummeriert alle Grundstücke, der Hub zeigt sie deshalb auch.
+  // Kennt der Hub gar keine Feldliste, gelten alle Grundstücke als Felder.
   const known = new Set(fields.map(f => f.id)), fxml = ftpFile('fields.xml');
-  const fromLand = l => { known.add(l.id); fields.push({ id: l.id, x: l.x, z: l.z, owner: l.owner, area: l.area, price: l.price }); };
+  const fromLand = (l, parcel) => { known.add(l.id); fields.push({ id: l.id, x: l.x, z: l.z, owner: l.owner, area: l.area, price: l.price, ...(parcel ? { parcel: true } : {}) }); };
   for (const f of (fxml && fxml.list) || []) { const l = lands.get(f.id); if (l && !known.has(f.id) && Number.isFinite(l.x)) fromLand(l); }
-  if (!(st && st.fields && st.fields.length)) for (const l of lands.values()) if (!known.has(l.id) && l.area > 0 && Number.isFinite(l.x)) fromLand(l);
+  const noList = !fields.length;
+  for (const l of lands.values()) if (!known.has(l.id) && l.id < 255 && l.area > 0 && Number.isFinite(l.x)) fromLand(l, !noList);
   fields.sort((a, b) => a.id - b.id);
   function where(x, z) {
     if (x === null || z === null || x === undefined) return { label: '–' };
@@ -176,8 +179,8 @@ function model() {
     for (const pl of places) { const d = dist(pl, p); if (d <= pl.radius && (!best || d < best.d)) best = { d, pl }; }
     if (best) return { label: best.pl.name, place: best.pl.id };
     let bf = null;
-    for (const f of fields) { const d = dist(f, p); if (!bf || d < bf.d) bf = { d, f }; }
-    if (bf && bf.d < 150) return { label: `bei Feld ${bf.f.id}`, field: bf.f.id };
+    for (const f of fields) { const d = dist(f, p) + (f.parcel ? 50 : 0); if (!bf || d < bf.d) bf = { d, f }; }   // echte Felder zuerst
+    if (bf && bf.d < 150) return bf.f.parcel ? { label: `bei Grundstück ${bf.f.id}` } : { label: `bei Feld ${bf.f.id}`, field: bf.f.id };
     return { label: `${Math.round(x)} / ${Math.round(z)}` };
   }
 
@@ -255,7 +258,7 @@ function model() {
     const bales = (items || []).filter(b => b.farmId === id);
     for (const b of bales) put(b.fill, b.level, where(b.x, b.z).label, 'Ballen');
     const stockList = [...stock.values()].map(s => ({ ...s, where: [...s.where.values()].sort((a, b) => b.amount - a.amount) })).sort((a, b) => b.value - a.value || b.amount - a.amount);
-    const land = { ha: own.reduce((a, f) => a + f.area, 0), value: own.reduce((a, f) => a + f.price, 0), lands: own.length, fields: fields.filter(f => f.owner === id).length };
+    const land = { ha: own.reduce((a, f) => a + f.area, 0), value: own.reduce((a, f) => a + f.price, 0), lands: own.length, fields: fields.filter(f => f.owner === id && !f.parcel).length };
     const stockValue = stockList.reduce((a, s) => a + s.value, 0);
     const fleetValue = fleet.reduce((a, v) => a + v.price, 0);
     const money = fx && fx.money !== null ? fx.money : null;

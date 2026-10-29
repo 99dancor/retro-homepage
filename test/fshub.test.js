@@ -456,3 +456,17 @@ test('Felder ohne Eintrag im Stats-Feed kommen aus den Grundstücken', () => {
   db.prepare("UPDATE fs_cache SET data = ? WHERE feed = 'stats'").run(prev);
   F.load(); hub.invalidate();
 });
+
+test('Grundstücke ohne Feld: auf der Karte als Grundstück, zählen nicht als Feld', () => {
+  const hub = require('../src/fshub');
+  hub.invalidate();
+  const m = hub.model(), st = require('../src/fsfeeds').get('stats');
+  const parcels = m.fields.filter(f => f.parcel);
+  assert.equal(m.fields.length, st.farmlands.filter(l => l.area > 0 && l.id < 255).length, 'alle Grundstücke auf der Karte');
+  assert.equal(parcels.length, m.fields.length - st.fields.length);
+  assert.ok(parcels.length > 0);
+  assert.ok(parcels.every(p => !st.fields.some(f => f.id === p.id)));
+  for (const f of m.farms) assert.equal(f.land.fields, m.fields.filter(x => x.owner === f.id && !x.parcel).length);
+  const s = hub.shapes();
+  if (s) for (const p of parcels) assert.ok(!s.shapes[p.id] || ['hand', 'bild'].includes(s.shapes[p.id].src), 'keine Form aus dem Feldboden');
+});

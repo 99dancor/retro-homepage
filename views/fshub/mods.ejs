@@ -1,8 +1,11 @@
 <%- include('_top') %>
 <%# Mods des Servers (Stats-Feed) mit Abgleich gegen die verknüpfte Modliste (Seitenverwaltung → Farming → Modliste) %>
-<div class="fs-maphead"><h2>🧩 Modliste</h2><span class="spacer"></span>
-  <% if (cmp.list) { %><a href="/mods/<%= cmp.list.slug %>" target="_top">Zur Modliste „<%= cmp.list.title %>“</a><% } %>
-  <% if (canSync) { %><form method="post" action="/farming/mods/abgleichen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" title="Setzt in der Modliste den Haken „Server“ bei allem, was gerade auf dem Server läuft">✔ Server-Haken abgleichen</button></form><% } %>
+<div class="fs-title"><h1>Modliste</h1>
+  <div class="acts">
+    <% if (cmp.list) { %><a class="btn small" href="/mods/<%= cmp.list.slug %>" target="_top">Zur Modliste „<%= cmp.list.title %>“</a><% } %>
+    <% if (canSync) { %><form method="post" action="/farming/mods/abgleichen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" title="Setzt in der Modliste den Haken „Server“ bei allem, was gerade auf dem Server läuft">Server-Haken abgleichen</button></form><% } %>
+  </div>
+  <div class="sub"><%= cmp.mods.length %> Mods und DLCs auf dem Server<%= cmp.list ? ' · ' + cmp.mods.filter(x => x.item).length + ' davon in der Liste' : '' %></div>
 </div>
 <% if (!cmp.list) { %><p class="hint">Keine Modliste verknüpft. <%= isAdmin ? 'In der Seitenverwaltung → Farming lässt sich eine Modliste wählen, dann zeigt der Hub, was fehlt.' : '' %></p><% } %>
 <% if (changes.length) { %>
@@ -23,5 +26,4 @@
   <table class="list tight"><% for (const it of cmp.missing) { %><tr><td><b><%= it.name %></b></td><td><%= it.category %></td><td><%= it.notes %></td></tr><% } %></table>
 <% } %>
 </div>
-<p class="hint"><%= cmp.mods.length %> Mods und DLCs auf dem Server<%= cmp.list ? ' · ' + cmp.mods.filter(x => x.item).length + ' davon in der Liste' : '' %></p>
 <%- include('_bottom') %>

@@ -1,5 +1,14 @@
 # Changelog
 
+## 29.10.2026 – Farming Hub: sieht aus wie das Spielmenü
+
+- **Neues Aussehen:** Der Hub sieht jetzt aus wie das Menü im Spiel, in XP und 98 gleich: dunkle Flächen, grüne Auswahl, große Knöpfe und Überschriften, eine Schrift, die sich gut lesen lässt. Links eine Leiste mit großen Kacheln über die ganze Höhe, eine Kachel je Hof.
+- **Symbole:** Jedes Erzeugnis hat ein Symbol, im Inventar, bei Produktion, Preisen, Karte und Kalender. In der Seitenverwaltung lassen sich die Originalsymbole aus dem Spiel hochladen, dann ersetzen sie die eigenen.
+- **Hof:** Jeder Hof startet mit Kacheln, die zeigen, was in den Reitern steht: Konto, Felder mit kleiner Karte, nächste Aufgaben, Inventar, Fahrzeuge, Produktion und Kalender. Mit ◀ ▶ geht es zum nächsten Hof.
+- **Hofkalender:** Januar bis Dezember, jeder Monat in seine Spieltage geteilt (so viele, wie der Server eingestellt hat). Ein Klick auf einen Tag legt dort eine Aufgabe an. „Auf den Feldern“ steht darunter und lässt sich einklappen, mit dem Symbol jeder Frucht.
+- **Karte:** füllt das Fenster, zoomt mit dem Mausrad und lässt sich verschieben. Die Felder haben ihre echte Form aus dem Spielstand. Links die Ansichten wie im Spiel (Feldfrüchte, Wachstum, Boden, Besitz): Klick blendet einen Eintrag aus, Rechtsklick zeigt nur ihn. Kalk, Dünger und Pflug zeigt die Ansicht Boden genau je Fleck.
+- **Changelog:** Updates des Hubs tragen sich selbst in den Changelog im Hub ein.
+
 ## 28.10.2026 – Farming Hub: Felder und Kredite aus dem Spielstand
 
 - **Felder von selbst:** Mit FTP liest der Hub nach jedem Autosave, was auf jedem Feld steht: Frucht, Wachstumsstufe, Bodenzustand, Kalk, Dünger, Pflug, Unkraut und Steine. Karte, Hofkalender und Feld-Infos füllen sich damit allein. Eine Meldung von Hand gilt, bis der nächste Autosave kommt.

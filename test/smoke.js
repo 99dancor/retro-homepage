@@ -2526,10 +2526,11 @@ async function main() {
         assert.equal((await bernd.form('/farming/hof/2/beitreten', { _csrf: bernd.jar.get('csrf') })).status, 302);
         page = (await anna.req('/farming/hof/1')).text_;
         assert.match(page, /<b>Hof Anna<\/b>/);
-        assert.match(page, /57,2 ha/);
-        assert.match(page, /Wert des Landes 4,46 Mio €/);
-        assert.match(page, /Felder: 18 · Grundstücke: 20/);
-        assert.match(page, /Forelle<\/a><\/b>/);
+        assert.match(page, /18 <small>Felder · 57,2 ha<\/small>/, 'Hof startet mit den Kacheln');
+        assert.match(page, /class="fs-tile" href="\/farming\/hof\/1\?tab=inventar"/);
+        assert.match(page, /<span class="fi fi-s" style="--c:#9ab0a0" title="Forelle"/, 'Symbol der Forelle im Inventar');
+        assert.match((await anna.req('/farming/hof/1?tab=inventar')).text_, /Forelle<\/a><\/b>/);
+        assert.match((await anna.req('/farming/hof/1?tab=finanzen')).text_, /Land \(20 Grundstücke, Kaufpreis\)/);
         assert.match((await anna.req('/farming/hof/1?tab=fahrzeuge&sort=preis')).text_, /JAGUAR 990 TERRA TRAC/);
         assert.match((await anna.req('/farming/hof/1?tab=finanzen')).text_, /Fuhrpark \(59 Stück, Neupreis\)/);
 
@@ -2565,22 +2566,31 @@ async function main() {
         // Hofkalender, Feld melden, Karte
         const weizen = sql.prepare("SELECT id FROM fs_crops WHERE name = 'Weizen'").get().id;
         assert.equal((await anna.form('/farming/hof/1/plan', { _csrf: t, field: '7', crop_id: String(weizen), sow_month: '', harvest_month: '' })).status, 302);
-        assert.match((await anna.req('/farming/hof/1?tab=kalender')).text_, /Feld 7 · Weizen[\s\S]*?säen/);
+        page = (await anna.req('/farming/hof/1?tab=kalender')).text_;
+        assert.match(page, /Weizen<small>Feld 7<\/small>[\s\S]*?<span class="seg s l/, 'Planzeile mit Säen');
+        assert.match(page, /<th colspan="2" class="">Jan<\/th>[\s\S]*?<th colspan="2" class="now">Mai<\/th>[\s\S]*?<th colspan="2" class="">Dez<\/th>/, 'Januar bis Dezember, zwei Tage je Monat');
+        assert.match(page, /data-day="174" data-label="Mai, Tag 2 · Jahr 8"/, 'Klick auf einen Tag');
+        // Aufgabe aus dem Kalender: Spieltag und jedes Spieljahr
+        assert.equal((await anna.form('/farming/hof/1/aufgaben', { _csrf: t, title: 'Kalken', due: 'gday', due_day: '180', repeat: 'gmonths:12', back: '/farming/hof/1?tab=kalender' })).headers.get('location'), '/farming/hof/1?tab=kalender&ok=aufgabe');
+        assert.deepEqual({ ...sql.prepare("SELECT due_day, repeat, repeat_n FROM fs_tasks WHERE title = 'Kalken'").get() }, { due_day: 180, repeat: 'gmonths', repeat_n: 12 });
+        assert.match((await anna.req('/farming/hof/1?tab=kalender&wdh=1')).text_, /<span class="dotx" title="Kalken">/);
         assert.equal((await bernd.form('/farming/feld/7', { _csrf: bernd.jar.get('csrf'), crop_id: String(weizen), state: 'reif' })).status, 403);
         assert.equal((await anna.form('/farming/feld/7', { _csrf: t, crop_id: String(weizen), state: 'reif' })).status, 302);
         page = (await anna.req('/farming/karte?feld=7&ansicht=zustand')).text_;
-        assert.match(page, /<legend>Feld 7<\/legend>/);
-        assert.match(page, /Zustand: <b>Erntereif<\/b>/);
+        assert.match(page, /<h2>Feld 7<\/h2>/);
+        assert.match(page, /<span class="t">Zustand<\/span><span class="v"><b>Erntereif<\/b>/);
+        assert.match(page, /data-layer="wachstum" role="img"/, 'alte Ansicht „zustand“ heißt jetzt Wachstum');
+        assert.match(page, /data-wachstum="state:reif"/);
         assert.match(page, /gemeldet von anna/);
         // Ort aus einem Palettenhaufen
         const spot = (await anna.req('/farming/hof/1?tab=produktion')).text_.match(/name="x" value="(-?\d+)"><input type="hidden" name="z" value="(-?\d+)"/);
         assert.ok(spot, 'Palettenhaufen ohne Ort');
         assert.equal((await anna.form('/farming/hof/1/ort', { _csrf: t, name: 'Fischzucht', x: spot[1], z: spot[2], radius: '40' })).status, 302);
-        assert.match((await anna.req('/farming/hof/1?tab=produktion')).text_, /📍 Fischzucht<\/b> <span class="hint">\d+ Paletten/);
+        assert.match((await anna.req('/farming/hof/1?tab=produktion')).text_, /<b>Fischzucht<\/b> <span class="hint">\d+ Paletten/);
 
         // Preise und Modliste
         page = (await anna.req('/farming/preise?w=WHEAT')).text_;
-        assert.match(page, /<legend>Weizen – € je 1 000 l<\/legend>/);
+        assert.match(page, /<\/span>Weizen – € je 1 000 l<\/span><\/legend>/);
         assert.match(page, /bester Monat <b>Dezember<\/b>/);
         page = (await anna.req('/farming/mods')).text_;
         assert.match(page, /Bunker Silo Set Modular/);
@@ -2596,6 +2606,23 @@ async function main() {
         assert.equal((await anna.form('/farming/changelog', { _csrf: t, title: 'Ich' })).status, 403);
         assert.equal((await admin.form('/farming/changelog', { _csrf: admin.jar.get('csrf'), title: 'Neue Regeln für den Hof', body: 'Bitte lesen' })).status, 302);
         assert.match((await anna.req('/farming/changelog')).text_, /Neue Regeln für den Hof/);
+        // Updates des Hubs aus CHANGELOG.md stehen von selbst drin
+        assert.match((await anna.req('/farming/changelog')).text_, /fs-entry update[\s\S]*?<b>Farming Hub: sieht aus wie das Spielmenü<\/b>/);
+
+        // Originalsymbole hochladen: ersetzen die eigenen, liegen nur im Datenordner
+        const fd = new FormData();
+        fd.append('_csrf', admin.jar.get('csrf'));
+        fd.append('icons', new Blob([require('./png').png(4, 4)]), 'hud_fill_wheat.png');
+        fd.append('icons', new Blob(['kein Bild']), 'hud_fill_barley.png');
+        assert.equal((await admin.req('/admin/farming/symbole', { method: 'POST', body: fd })).headers.get('location'), '/admin/farming?ok=symbole1#symbole');
+        assert.match((await anna.req('/farming/preise?w=WHEAT')).text_, /<img class="fi fi-s up" src="\/farming\/symbol\/wheat\.png\?v=\d+"/);
+        const sym = await anna.req('/farming/symbol/wheat.png');
+        assert.equal(sym.headers.get('content-type'), 'image/png');
+        assert.equal((await anna.req('/farming/symbol/barley.png')).status, 404);
+        assert.equal((await anna.req('/farming/symbol/..%2Fsite.db.png')).status, 404);
+        assert.equal((await anna.req('/farming/karte/ebene/kalk.png')).status, 404, 'ohne Dichtekarte keine Ebene');
+        await admin.form('/admin/farming/symbole/loeschen', { _csrf: admin.jar.get('csrf') });
+        assert.match((await anna.req('/farming/preise?w=WHEAT')).text_, /<span class="fi fi-s" style="--c:#e3b34c" title="Weizen"/);
 
         // Vorschläge: schreiben, abstimmen, Admin setzt den Stand
         assert.equal((await anna.form('/farming/vorschlaege', { _csrf: t, title: 'Biogasanlage bauen', body: 'Gülle loswerden' })).status, 302);

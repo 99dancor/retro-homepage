@@ -1,23 +1,23 @@
 <%- include('_top') %>
-<%# Serverübersicht: Kopf, vier Kacheln, gerade auf dem Server, Server im Blick, Heute erledigen je Hof, Notizen %>
+<%# Serverübersicht: Kopf mit Kontostand, vier Kennzahlen, gerade auf dem Server, Server im Blick, Heute erledigen je Hof, Notizen %>
 <% const sg = m.savegame; %>
-<div class="fs-head">
-  <span class="big" aria-hidden="true">🌾</span>
-  <div><b><%= st ? st.name : 'Farming Simulator Server' %></b>
-    <small><%= st ? [st.game, st.version && 'Version ' + st.version, st.map && 'Karte „' + st.map + '“' + (st.mapSize ? ' (' + de(st.mapSize / 1000, 0) + ' × ' + de(st.mapSize / 1000, 0) + ' km)' : '')].filter(Boolean).join(' · ') : 'Noch keine Daten' %></small></div>
-  <span class="on<%= m.online ? '' : ' off' %>"><%= m.online ? (m.paused ? '● Online · pausiert' : '● Online') : (st ? '○ Offline' : '○ Unbekannt') %></span>
+<div class="fs-title">
+  <h1><b><%= st ? st.name : 'Farming Simulator Server' %></b></h1>
+  <span class="fs-online<%= m.online ? '' : ' off' %>"><%= m.online ? (m.paused ? '● Online · pausiert' : '● Online') : (st ? '○ Offline' : '○ Unbekannt') %></span>
+  <% if (m.money !== null) { %><div class="fs-money">Kontostand: <b><%= eur(m.money) %></b><% if (!m.perFarmMoney) { %><small>alle Höfe zusammen</small><% } %></div><% } %>
+  <div class="sub"><%= st ? [st.game, st.version && 'Version ' + st.version, st.map && 'Karte „' + st.map + '“' + (st.mapSize ? ' (' + de(st.mapSize / 1000, 0) + ' × ' + de(st.mapSize / 1000, 0) + ' km)' : '')].filter(Boolean).join(' · ') : 'Noch keine Daten' %></div>
 </div>
-<div class="kpis fs-k">
-  <div class="kpi"><span class="ic" aria-hidden="true">🕗</span><small>Uhrzeit im Spiel</small>
+<div class="kpis">
+  <div class="kpi"><span class="ic" aria-hidden="true"><svg><use href="#i-clock"/></svg></span><small>Uhrzeit im Spiel</small>
     <b id="fs-clock" data-ms="<%= m.dayTime ?? '' %>" data-at="<%= m.clock.at %>" data-run="<%= m.online && m.clock.running ? '1' : '' %>" data-scale="<%= m.timeScale || 1 %>"><%= m.time %></b>
     <small><%= !m.online ? 'Server nicht erreichbar' : m.clock.running ? 'läuft' : m.clock.at ? 'steht' : 'wird geprüft' %><%= m.timeScale ? ' · Zeitfaktor ×' + de(m.timeScale, m.timeScale % 1 ? 1 : 0) : '' %></small></div>
-  <div class="kpi"><span class="ic" aria-hidden="true">📆</span><small>Datum im Spiel</small>
+  <div class="kpi"><span class="ic" aria-hidden="true"><svg><use href="#i-cal"/></svg></span><small>Datum im Spiel</small>
     <b><%= m.date ? (m.date.dpp > 1 ? m.date.dom + '. ' : '') + m.date.monthName : '–' %></b>
     <small><%= m.date ? 'Jahr ' + m.date.year + ' · Spieltag ' + m.date.day + (m.dateSource === 'estimate' ? ' · geschätzt' : m.dateSource === 'admin' ? ' · korrigiert' : '') : 'unbekannt' %></small></div>
-  <div class="kpi"><span class="ic" aria-hidden="true"><%= m.weather ? m.weather.icon : '⛅' %></span><small>Wetter</small>
+  <div class="kpi"><span class="ic" aria-hidden="true"><svg><use href="#i-sun"/></svg></span><small>Wetter</small>
     <b><%= m.weather ? m.weather.label : '–' %></b>
-    <small><%= m.weather ? (m.weather.forecast.length > 1 ? 'danach ' + m.weather.forecast.slice(1, 3).map(w => w.icon).join(' ') : 'laut letztem Autosave') : m.ftp ? 'nicht im Spielstand' : 'nur mit FTP-Zugang' %></small></div>
-  <div class="kpi"><span class="ic" aria-hidden="true">👥</span><small>Spieler</small>
+    <small><%= m.weather ? (m.weather.forecast.length > 1 ? 'danach ' + m.weather.forecast.slice(1, 3).map(w => w.label).join(', ') : 'laut letztem Autosave') : m.ftp ? 'nicht im Spielstand' : 'nur mit FTP-Zugang' %></small></div>
+  <div class="kpi"><span class="ic" aria-hidden="true"><svg><use href="#i-people"/></svg></span><small>Spieler</small>
     <b><%= st ? m.players.length + ' / ' + st.capacity : '–' %></b>
     <small><% const last = seen.find(s => !s.online); %><%= m.players.length ? m.players.map(p => p.name).join(', ') : last ? 'zuletzt da: ' + last.name + ', ' + ago(last.last) : 'heute noch niemand' %></small></div>
 </div>
@@ -29,7 +29,7 @@
         <div class="fs-player">
           <% if (p.account) { %><%- include('../partials/avatar', { u: p.account, size: 20 }) %><% } else { %><span class="avatar avatar-letter" style="width:20px;height:20px;font-size:11px;background:#777" aria-hidden="true"><%= [...p.name][0].toUpperCase() %></span><% } %>
           <div><b><% if (p.account) { %><a href="<%= profileUrl(p.account) %>" target="_top"><%= p.name %></a><% } else { %><%= p.name %><% } %></b><% if (p.admin) { %> <span class="tag adm">Admin</span><% } %>
-            <small><%= [p.farm ? p.farm.name : '', p.uptime ? 'seit ' + mins(p.uptime) : '', p.vehicle ? '🚜 ' + p.vehicle.name : ''].filter(Boolean).join(' · ') %></small></div>
+            <small><%= [p.farm ? p.farm.name : '', p.uptime ? 'seit ' + mins(p.uptime) : '', p.vehicle ? 'fährt ' + p.vehicle.name : ''].filter(Boolean).join(' · ') %></small></div>
         </div>
       <% } %>
     <% } else { %>
@@ -40,14 +40,16 @@
   </fieldset>
   <fieldset class="groupbox"><legend>Server im Blick</legend>
     <% if (st) { %>
-      <div>🧩 <a href="/farming/mods"><%= m.mods.length %> Mods und DLCs</a><% if (lastCount) { %> <span class="warn">· seit gestern geändert</span><% } %></div>
-      <div>🚜 <%= m.vehicles.filter(v => !v.pallet).length %> Fahrzeuge, <%= m.vehicles.filter(v => v.pallet).length %> Paletten<% if (m.farms.length) { %> <span class="hint">(<%= m.farms.map(f => f.name + ' ' + f.vehicles.length).join(', ') %>)</span><% } %></div>
-      <div>🗺️ <%= owned.length %> von <%= m.lands.length %> Grundstücken gekauft (<%= ha(owned.reduce((a, l) => a + l.area, 0)) %>)</div>
-      <% if (m.money !== null) { %><div>💶 Kontostand <%= m.perFarmMoney ? 'aller Höfe' : '(alle Höfe zusammen)' %>: <b><%= eur(m.money) %></b></div><% } %>
-      <% if (sg) { %><div>⚙️ <%= [sg.difficulty && 'Wirtschaft ' + ({ EASY: 'leicht', NORMAL: 'normal', HARD: 'schwer' }[sg.difficulty] || sg.difficulty), sg.daysPerPeriod + (sg.daysPerPeriod === 1 ? ' Tag' : ' Tage') + ' pro Monat', sg.autoSave ? 'Autosave alle ' + de(sg.autoSave) + ' min' : ''].filter(Boolean).join(' · ') %></div><% } %>
+      <div class="fs-rows">
+      <div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-puzzle"/></svg><span class="t"><a href="/farming/mods"><%= m.mods.length %> Mods und DLCs</a><% if (lastCount) { %> <span class="warn">· seit gestern geändert</span><% } %></span></div>
+      <div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-tractor"/></svg><span class="t"><%= m.vehicles.filter(v => !v.pallet).length %> Fahrzeuge, <%= m.vehicles.filter(v => v.pallet).length %> Paletten<% if (m.farms.length) { %> <span class="hint">(<%= m.farms.map(f => f.name + ' ' + f.vehicles.length).join(', ') %>)</span><% } %></span></div>
+      <div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-field"/></svg><span class="t"><%= owned.length %> von <%= m.lands.length %> Grundstücken gekauft (<%= ha(owned.reduce((a, l) => a + l.area, 0)) %>)</span></div>
+      <% if (m.money !== null) { %><div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-bank"/></svg><span class="t">Kontostand <%= m.perFarmMoney ? 'aller Höfe' : '(alle Höfe zusammen)' %>: <b><%= eur(m.money) %></b></span></div><% } %>
+      <% if (sg) { %><div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-gear"/></svg><span class="t"><%= [sg.difficulty && 'Wirtschaft ' + ({ EASY: 'leicht', NORMAL: 'normal', HARD: 'schwer' }[sg.difficulty] || sg.difficulty), sg.daysPerPeriod + (sg.daysPerPeriod === 1 ? ' Tag' : ' Tage') + ' pro Monat', sg.autoSave ? 'Autosave alle ' + de(sg.autoSave) + ' min' : ''].filter(Boolean).join(' · ') %></span></div><% } %>
       <% for (const d of m.demands) { %>
-        <div>📣 Große Nachfrage<%= d.running ? ' (läuft)' : d.day ? ' ab ' + (fmtDay(d.day) || 'Tag ' + d.day) + ', ' + d.hour + ' Uhr' : '' %>: <a href="/farming/preise?w=<%= d.fill %>"><b><%= N.fill(d.fill) %> +<%= Math.round((d.mult - 1) * 100) %> %</b></a></div>
+        <div class="fs-row"><%- icon(d.fill, N.fill(d.fill), 's') %><span class="t">Große Nachfrage<%= d.running ? ' (läuft)' : d.day ? ' ab ' + (fmtDay(d.day) || 'Tag ' + d.day) + ', ' + d.hour + ' Uhr' : '' %>: <a href="/farming/preise?w=<%= d.fill %>"><b><%= N.fill(d.fill) %> +<%= Math.round((d.mult - 1) * 100) %> %</b></a></span></div>
       <% } %>
+      </div>
     <% } else { %><p class="hint">Sobald der Stats-Feed eingetragen ist, steht hier, was auf dem Server los ist.</p><% } %>
   </fieldset>
 </div>
@@ -60,9 +62,9 @@
         <h4><span class="dot" style="background:<%= c.farm.color %>"></span><a href="/farming/hof/<%= c.farm.id %>?tab=aufgaben"><%= c.farm.name %></a></h4>
         <% for (const t of c.tasks) { %><%- include('_tasks', { t, compact: true, farmId: c.farm.id }) %><% } %>
         <% for (const s of c.auto.slice(0, 4)) { %>
-          <div class="todo auto-row"><span class="box" aria-hidden="true"><%= s.icon %></span><div class="t"><%= s.title %> <span class="chip" title="vom Hub vorgeschlagen">auto</span></div></div>
+          <div class="todo auto-row"><span class="box" aria-hidden="true"><svg width="16" height="16"><use href="#i-bulb"/></svg></span><div class="t"><%= s.title %> <span class="chip" title="vom Hub vorgeschlagen">auto</span></div></div>
         <% } %>
-        <% if (!c.tasks.length && !c.auto.length) { %><p class="hint">Nichts fällig 🎉</p><% } %>
+        <% if (!c.tasks.length && !c.auto.length) { %><p class="hint">Nichts fällig.</p><% } %>
       </div>
     <% } %>
   </div>
@@ -82,8 +84,8 @@
           <% } %>
           <div class="meta"><%= n.username ? (n.display_name || n.username) : 'Gelöschtes Konto' %> · <%= when(n.created_at) %><%= n.updated_at ? ' · bearbeitet' : '' %></div>
         </div>
-        <span class="acts"><% if (user && (user.isAdmin || n.user_id === user.id) && editNote !== n.id) { %><a href="/farming?notiz=<%= n.id %>#n<%= n.id %>">✏️ Bearbeiten</a> ·
-          <form method="post" action="/farming/notizen/<%= n.id %>/loeschen" class="inline" data-confirm="Notiz löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="/farming#notizen"><button class="link" title="Löschen" aria-label="Notiz löschen">🗑️</button></form><% } %></span>
+        <span class="acts"><% if (user && (user.isAdmin || n.user_id === user.id) && editNote !== n.id) { %><a href="/farming?notiz=<%= n.id %>#n<%= n.id %>">Bearbeiten</a> ·
+          <form method="post" action="/farming/notizen/<%= n.id %>/loeschen" class="inline" data-confirm="Notiz löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="/farming#notizen"><button class="link" title="Löschen" aria-label="Notiz löschen">✕</button></form><% } %></span>
       </div>
     <% } %>
     <% if (!notes.length) { %><p class="hint fs-empty">Noch keine Notizen.</p><% } %>

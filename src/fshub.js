@@ -8,6 +8,7 @@
 // das Datum zählt er selbst mit (genauer mit environment.xml per FTP), Geld je Hof gibt es nur über FTP (farms.xml).
 const { db, now, getSetting, setSetting, tx } = require('./db');
 const feeds = require('./fsfeeds');
+const fsmap = require('./fsmap');
 const N = require('./fsnames');
 const notify = require('./notify');
 
@@ -286,6 +287,7 @@ function accountFor(name) {
 feeds.on((key, prev) => {
   if (key === 'stats') onStats(prev, feeds.get('stats'));
   if (key === 'ftp') {
+    setImmediate(() => { try { shapes(); } catch (e) { console.error('Farming Hub, Feldformen:', e); } });
     const env = ftpFile('environment.xml');
     const before = prev && prev.files && prev.files['environment.xml'];
     if (env && env.day && (!before || before.day !== env.day || !dayState())) setDay(env.day, 'ftp');
@@ -674,25 +676,37 @@ function planCells(p) {
   cells[p.harvest_month] = p.harvest_month === p.sow_month ? 's' : 'h';
   return cells;
 }
-// Kalender eines Spieljahrs: Planzeilen mit Aufgabenpunkten und eine Zeile mit der Zahl der Aufgaben je Monat
+// Hofkalender eines Kalenderjahrs, Januar links bis Dezember rechts, jeder Monat in seine Spieltage geteilt (Tage pro Monat aus
+// dem Spielstand). Das Spieljahr beginnt im März: Januar und Februar des Kalenderjahrs N sind das Ende von Spieljahr N−1.
+// Zellen der Planzeilen: s = säen, g = wächst, h = ernten (gleich für jedes Jahr), Punkte = Aufgaben mit Spieltag.
+const CAL_ORDER = [10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+function calendarYear(m) { return m && m.date ? m.date.year + (m.date.month >= 10 ? 1 : 0) : 1; }
 function calendar(farmId, year, withRepeat = false) {
-  const dpp = daysPerPeriod();
-  const all = db.prepare(`${TASK_SQL} WHERE (t.farm_id = ? OR t.farm_id = 0) AND t.due_day IS NOT NULL`).all(Number(farmId))
-    .filter(t => withRepeat || !t.repeat).map(t => decorate(t));
-  const inYear = all.filter(t => { const d = dateOf(t.due_day, dpp); return d && d.year === year; });
-  const byMonth = Array.from({ length: 12 }, () => []);
-  for (const t of inYear) byMonth[dateOf(t.due_day, dpp).month].push(t);
-  const rows = plans(farmId).map(p => {
-    const dots = Array.from({ length: 12 }, () => []);
-    if (p.field) for (const t of inYear) if (t.field === p.field) dots[dateOf(t.due_day, dpp).month].push(t);
-    return { ...p, cells: planCells(p), dots };
+  const dpp = daysPerPeriod(), today = currentDay();
+  const cols = CAL_ORDER.map(im => {
+    const gy = im >= 10 ? year - 1 : year, first = gy >= 1 ? dayOfMonth(im, gy, dpp) : null;
+    return { im, gy, name: N.MONTHS[im], short: N.MONTHS_SHORT[im], days: Array.from({ length: dpp }, (_, d) => ({ dom: d + 1, gday: first ? first + d : null })) };
   });
-  return { rows, byMonth, year };
+  const days = cols.flatMap(c => c.days.filter(d => d.gday)).map(d => d.gday);
+  const lo = Math.min(...days, Infinity), hi = Math.max(...days, -Infinity);
+  const all = db.prepare(`${TASK_SQL} WHERE (t.farm_id = ? OR t.farm_id = 0) AND t.due_day BETWEEN ? AND ?`).all(Number(farmId), lo, hi)
+    .filter(t => withRepeat || !t.repeat).map(t => decorate(t));
+  const byDay = new Map();
+  for (const t of all) { if (!byDay.has(t.due_day)) byDay.set(t.due_day, []); byDay.get(t.due_day).push(t); }
+  // Je Planzeile die Zellen in Anzeigereihenfolge, mit Rundung am Anfang (l) und Ende (r) eines Abschnitts
+  const rows = plans(farmId).map(p => {
+    const pc = planCells(p), flat = cols.flatMap(c => c.days.map(() => pc[c.im]));
+    const cells = flat.map((c, i) => (c ? c + (flat[i - 1] !== c ? ' l' : '') + (flat[i + 1] !== c ? ' r' : '') : ''));
+    const dots = new Map();
+    if (p.field) for (const t of all) if (t.field === p.field) dots.set(t.due_day, (dots.get(t.due_day) || 0) + 1);
+    return { ...p, cells, dots };
+  });
+  return { year, dpp, today, cols, rows, byDay, tasks: all.sort((a, b) => a.due_day - b.due_day || a.id - b.id) };
 }
 
 // ---------- Felder und Orte ----------
 function fieldReports() {
-  return new Map(db.prepare('SELECT f.*, u.username, c.name AS crop, c.color AS crop_color FROM fs_fields f LEFT JOIN users u ON u.id = f.user_id LEFT JOIN fs_crops c ON c.id = f.crop_id').all().map(r => [r.field, r]));
+  return new Map(db.prepare('SELECT f.*, u.username, c.name AS crop, c.color AS crop_color, c.fill AS crop_fill FROM fs_fields f LEFT JOIN users u ON u.id = f.user_id LEFT JOIN fs_crops c ON c.id = f.crop_id').all().map(r => [r.field, r]));
 }
 function reportField(user, field, b) {
   const id = intOr(field);
@@ -708,10 +722,10 @@ const GRASS_FRUITS = new Set(['GRASS', 'MEADOW']);
 function cropFor(fruit, cs) {
   if (!fruit) return null;
   const c = cs.find(x => x.fill === fruit) || (GRASS_FRUITS.has(fruit) && cs.find(x => x.kind === 'grass'));
-  if (c) return { name: c.name, color: c.color };
+  if (c) return { name: c.name, color: c.color, fill: fruit };
   let h = 0;
   for (const ch of fruit) h = (h * 31 + ch.charCodeAt(0)) % 360;
-  return { name: N.fill(fruit), color: `hsl(${h}, 55%, 55%)` };
+  return { name: N.fill(fruit), color: `hsl(${h}, 55%, 55%)`, fill: fruit };
 }
 function fieldCare(a, state) {
   const out = [];
@@ -738,18 +752,24 @@ function fieldStates() {
     const r = reports.get(f.id) || null, p = planned.get(f.id) || null, a = auto.get(f.id) || null;
     const farm = m.farms.find(x => x.id === f.owner) || null;
     let crop = null, state = null, source = null;
-    if (r && (!a || r.updated_at > autoAt)) { crop = r.crop ? { name: r.crop, color: r.crop_color } : null; state = r.state; source = 'report'; }
+    if (r && (!a || r.updated_at > autoAt)) { crop = r.crop ? { name: r.crop, color: r.crop_color, fill: r.crop_fill } : null; state = r.state; source = 'report'; }
     else if (a) {
       crop = cropFor(a.fruit, cs);
       state = N.GROUND[a.ground] || null;
       if (state === 'gesaet' && a.growth >= 2) state = 'waechst';
       source = 'auto';
     }
-    if (!crop && p && !p.future) { crop = { name: p.crop, color: p.color }; source = source || 'plan'; }
+    if (!crop && p && !p.future) { crop = { name: p.crop, color: p.color, fill: p.fill }; source = source || 'plan'; }
     const care = source === 'auto' ? fieldCare(a, state) : [];
-    return { ...f, farm, report: r, plan: p, auto: a, autoAt, source, crop: crop ? crop.name : null, cropColor: crop ? crop.color : null, state, care,
+    return { ...f, farm, report: r, plan: p, auto: a, autoAt, source, crop: crop ? crop.name : null, cropColor: crop ? crop.color : null, cropFill: crop ? crop.fill || null : null, state, care,
       ground: a && a.ground ? N.GROUND_LABEL[a.ground] || N.pretty(a.ground) : null };
   });
+}
+// Echte Feldformen aus der Dichtekarte (src/fsmap.js); null ohne FTP-Datei oder wenn abgeschaltet
+function shapes(m = model()) {
+  if (getSetting('fs_shapes', '1') !== '1') return null;
+  const f = feeds.get('ftp');
+  return fsmap.load(feeds.FS_DIR, (f && f.files) || {}, m.fields, m.size || 2048);
 }
 function fieldOwner(fieldId) { const f = model().fields.find(x => x.id === Number(fieldId)); return f ? f.owner : 0; }
 function savePlace(id, b) {
@@ -811,6 +831,26 @@ function addChange(user, b) {
   return Number(db.prepare("INSERT INTO fs_changelog(user_id, kind, title, body, created_at) VALUES (?, 'note', ?, ?, ?)").run(user.id, title, clean(b.body, MAX.body) || null, now()).lastInsertRowid);
 }
 function removeChange(id) { db.prepare('DELETE FROM fs_changelog WHERE id = ?').run(Number(id)); }
+// Updates der Website, die den Hub betreffen (Titel mit „Farming“ in der CHANGELOG.md), kommen einmal von selbst
+// in den Changelog. Gemerkt wird jeder übernommene Eintrag, damit ein gelöschter nicht wiederkommt.
+function importUpdates(list = require('./changelog').all()) {
+  let seen;
+  try { seen = new Set(JSON.parse(getSetting('fs_changelog_seen', '[]'))); } catch { seen = new Set(); }
+  const ins = db.prepare("INSERT INTO fs_changelog(kind, title, body, created_at) VALUES ('update', ?, ?, ?)");
+  let n = 0;
+  tx(() => {
+    for (const s of list.slice().reverse()) {
+      const key = s.date + ' ' + s.title;
+      if (!/farming/i.test(s.title) || seen.has(key)) continue;
+      const at = s.date && !Number.isNaN(Date.parse(s.date + 'T12:00:00Z')) ? Math.floor(Date.parse(s.date + 'T12:00:00Z') / 1000) : now();
+      ins.run(s.title.slice(0, MAX.title), s.items.map(i => '• ' + i).join('\n').slice(0, MAX.body) || null, at);
+      seen.add(key);
+      n++;
+    }
+  });
+  if (n) setSetting('fs_changelog_seen', JSON.stringify([...seen]));
+  return n;
+}
 function ideas(userId, status = null) {
   const rows = db.prepare(`SELECT s.*, u.username, u.display_name, u.avatar, (SELECT COUNT(*) FROM fs_votes v WHERE v.suggestion_id = s.id) AS votes,
       EXISTS(SELECT 1 FROM fs_votes v WHERE v.suggestion_id = s.id AND v.user_id = ?) AS voted
@@ -894,17 +934,18 @@ function syncModlist(m = model()) {
 // Konto gelöscht: Mitgliedschaft geht mit (Fremdschlüssel), Aufgaben bleiben ohne Zuständigen
 function start() {
   crops();
+  importUpdates();
   feeds.start();
   // Uhr: erst nach dem zweiten Abruf weiß der Hub, ob sie läuft
 }
 
 module.exports = {
   STATUS, REPEAT, MAX, SUPPLIES, DEFAULT_COLORS, enabled, canView, canEditFarm, farmOf, model, invalidate, farm, feed, ftpFile,
-  currentDay, setDay, estimateDay, dateOf, dayOfMonth, fmtDay, hhmm, daysPerPeriod, today, accountFor, history, record,
+  currentDay, setDay, estimateDay, calendarYear, dateOf, dayOfMonth, fmtDay, hhmm, daysPerPeriod, today, accountFor, history, record,
   join, leave, setMember, saveFarm, notes, addNote, note, canChangeNote, editNote, removeNote,
   tasks, openTasks, task, addTask, editTask, completeTask, reopenTask, removeTask, isDue, dueLabel, repeatLabel,
   suggestions, hideSuggestion, takeSuggestion, crops, crop, saveCrop, removeCrop, resetCrops, plans, plan, addPlan, removePlan, planCells, calendar,
   fieldReports, fieldStates, reportField, fieldOwner, savePlace, place, removePlace, palletSpots, sessionsToday, sessionTotals,
-  changelog, addChange, removeChange, ideas, idea, addIdea, editIdea, answerIdea, removeIdea, vote, goods, modCompare, syncModlist, start,
+  changelog, addChange, removeChange, importUpdates, shapes, ideas, idea, addIdea, editIdea, answerIdea, removeIdea, vote, goods, modCompare, syncModlist, start,
   _clock: clock, _onStats: onStats,
 };

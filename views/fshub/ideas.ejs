@@ -1,8 +1,7 @@
 <%- include('_top') %>
 <%# Vorschläge zum Hub und zum Server: jedes Mitglied schreibt und stimmt ab, Admins setzen den Stand und antworten %>
-<div class="fs-maphead"><h2>💡 Vorschläge</h2>
-  <div class="layer" role="group" aria-label="Filter"><a class="btn small<%= !status ? ' on' : '' %>" href="/farming/vorschlaege">Alle</a><% for (const [k, l] of Object.entries(STATUS)) { %><a class="btn small<%= status === k ? ' on' : '' %>" href="/farming/vorschlaege?status=<%= k %>"><%= l %></a><% } %></div>
-</div>
+<div class="fs-title"><h1>Vorschläge</h1><div class="sub">Wünsche und Ideen für den Server und den Hub. Jedes Mitglied stimmt ab.</div></div>
+<nav class="fs-tabs" aria-label="Filter"><a href="/farming/vorschlaege"<%- !status ? ' class="on"' : '' %>>Alle</a><% for (const [k, l] of Object.entries(STATUS)) { %><a href="/farming/vorschlaege?status=<%= k %>"<%- status === k ? ' class="on"' : '' %>><%= l %></a><% } %></nav>
 <% if (user) { %>
   <form method="post" action="/farming/vorschlaege" class="fs-form groupbox"><input type="hidden" name="_csrf" value="<%= csrf %>">
     <label>Vorschlag <input name="title" maxlength="120" required placeholder="z. B. Biogasanlage gemeinsam betreiben"></label>
@@ -25,9 +24,9 @@
         <% if (s.body) { %><div class="pre"><%= s.body %></div><% } %>
       <% } %>
       <div class="hint"><%= s.username ? (s.display_name || s.username) : 'Gelöschtes Konto' %> · <%= when(s.created_at) %>
-        <% if (user && (user.isAdmin || (s.user_id === user.id && s.status === 'offen')) && editIdea !== s.id) { %> · <a href="/farming/vorschlaege?bearbeiten=<%= s.id %>#v<%= s.id %>">✏️ Bearbeiten</a><% } %>
-        <% if (user && (user.isAdmin || s.user_id === user.id)) { %> · <form method="post" action="/farming/vorschlaege/<%= s.id %>/loeschen" class="inline" data-confirm="Vorschlag löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="link">🗑️</button></form><% } %></div>
-      <% if (s.answer) { %><div class="fs-answer">💬 <%= s.answer %></div><% } %>
+        <% if (user && (user.isAdmin || (s.user_id === user.id && s.status === 'offen')) && editIdea !== s.id) { %> · <a href="/farming/vorschlaege?bearbeiten=<%= s.id %>#v<%= s.id %>">Bearbeiten</a><% } %>
+        <% if (user && (user.isAdmin || s.user_id === user.id)) { %> · <form method="post" action="/farming/vorschlaege/<%= s.id %>/loeschen" class="inline" data-confirm="Vorschlag löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="link">Löschen</button></form><% } %></div>
+      <% if (s.answer) { %><div class="fs-answer"><%= s.answer %></div><% } %>
       <% if (isAdmin) { %>
         <form method="post" action="/farming/vorschlaege/<%= s.id %>/antwort" class="fs-form row"><input type="hidden" name="_csrf" value="<%= csrf %>">
           <select name="status" aria-label="Stand"><% for (const [k, l] of Object.entries(STATUS)) { %><option value="<%= k %>"<%= s.status === k ? ' selected' : '' %>><%= l %></option><% } %></select>

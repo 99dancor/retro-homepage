@@ -148,3 +148,111 @@ test('Hub: Felder und Kredite aus dem FTP-Ordner landen auf Karte, Hof und Vorsc
   const sug = hub.suggestions(owner).map(s => s.title);
   assert.ok(sug.some(t => /^Weizen ernten: Feld/.test(t)), sug.join(' | '));
 });
+
+// ---------- Dichtekarten (src/fsmap.js) ----------
+// Kleine GDM-Datei von Hand: ein Bereich, 32er-Kacheln, je Kachel 1 Bit mit Palette [0, wert]
+function gdm(size, value) {
+  const cs = 32, n = size / cs, dimLog = Math.log2(n), head = Buffer.alloc(16);
+  head.write('"MDF', 0, 'latin1');
+  head[8] = dimLog; head[9] = 5; head[11] = 4; head[12] = 1;
+  const parts = [head];
+  for (let cy = 0; cy < n; cy++) for (let cx = 0; cx < n; cx++) {
+    const bits = Buffer.alloc(cs * cs / 8);
+    for (let i = 0; i < cs * cs; i++) if (value(cx * cs + (i & 31), cy * cs + (i >> 5))) bits[i >> 3] |= 1 << (i & 7);
+    const pal = Buffer.alloc(4); pal.writeUInt16LE(0, 0); pal.writeUInt16LE(5, 2);
+    parts.push(Buffer.from([1, 2]), pal, bits);
+  }
+  return Buffer.concat(parts);
+}
+// GRLE von Hand: Wert, bei Wiederholung noch einmal der Wert und die Zahl weiterer Kopien (0xFF = +255)
+function grle(w, h, value) {
+  const vals = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) vals.push(value(x, y));
+  const out = [];
+  for (let i = 0; i < vals.length;) {
+    let j = i;
+    while (j < vals.length && vals[j] === vals[i]) j++;
+    const L = j - i;
+    out.push(vals[i]);
+    if (L > 1) { out.push(vals[i]); let c = L - 2; while (c >= 255) { out.push(255); c -= 255; } out.push(c); }
+    i = j;
+  }
+  const head = Buffer.alloc(21);
+  head.write('GRLE', 0, 'latin1');
+  head.writeUInt16LE(w / 256, 6); head.writeUInt16LE(h / 256, 10); head.writeUInt32LE(out.length, 17);
+  return Buffer.concat([head, Buffer.from(out)]);
+}
+
+test('Dichtekarten: GDM und GRLE lesen, zwei Felder als echte Form, Boden-Ebene als PNG', () => {
+  const M = require('../src/fsmap');
+  // 256 Pixel für eine Karte von 128 m: zwei Rechtecke mit Lücke
+  const inA = (x, y) => x >= 20 && x < 100 && y >= 20 && y < 100, inB = (x, y) => x >= 140 && x < 240 && y >= 40 && y < 120;
+  const g = M.readGdm(gdm(256, (x, y) => inA(x, y) || inB(x, y)));
+  assert.equal(g.size, 256);
+  assert.equal(g.data[30 * 256 + 30], 5);
+  assert.equal(g.data[10 * 256 + 10], 0);
+  assert.throws(() => M.readGdm(Buffer.from('kaputt, keine Datei')), /Keine GDM/);
+
+  const fields = [{ id: 1, x: -34, z: -34, area: 0.16 }, { id: 2, x: 31, z: -24, area: 0.2 }, { id: 3, x: 50, z: 50, area: 1 }];
+  const r = M.buildShapes(gdm(256, (x, y) => inA(x, y) || inB(x, y)), fields, 128);
+  assert.ok(r.shapes[1] && r.shapes[2], 'beide Rechtecke gefunden');
+  assert.ok(!r.shapes[3], 'ohne Feldboden bleibt das Feld ein Kreis');
+  assert.match(r.shapes[1].d, /^M[\d.]+ [\d.]+/);
+  assert.ok(Math.abs(r.shapes[1].ha - 0.16) < 0.03, 'Fläche A ' + r.shapes[1].ha);
+  assert.ok(Math.abs(r.shapes[2].ha - 0.2) < 0.03, 'Fläche B ' + r.shapes[2].ha);
+  assert.ok(Math.abs(r.shapes[1].cx - 234) < 10 && Math.abs(r.shapes[1].cy - 234) < 10, `Mitte A ${r.shapes[1].cx},${r.shapes[1].cy}`);
+
+  const lime = M.readGrle(grle(256, 256, (x, y) => (x < 128 ? 0 : 3)));
+  assert.equal(lime.w, 256);
+  assert.equal(lime.data[5], 0);
+  assert.equal(lime.data[200], 3);
+  const pngBuf = M.layerPng('kalk', grle(256, 256, (x, y) => (x < 128 ? 0 : 3)), r.lab, r.size);
+  assert.equal(pngBuf.subarray(0, 4).toString('hex'), '89504e47');
+  assert.equal(pngBuf.readUInt32BE(16), r.size, 'Ebene so groß wie die Feldmaske');
+});
+
+test('Symbole: Kürzel, eigene Zeichnung, hochgeladenes Original', () => {
+  const I = require('../src/fsicons');
+  assert.equal(I.key('hud_fill_wheat.png'), 'wheat');
+  assert.equal(I.key('SUGARBEET_CUT'), 'sugarbeetcut');
+  assert.match(I.html('WHEAT', 'Weizen'), /<span class="fi fi-m" style="--c:#e3b34c" title="Weizen" aria-hidden="true"><svg><use href="#g-grain"\/><\/svg><\/span>/);
+  assert.match(I.html('IRGENDWAS_OIL'), /#g-drop/, 'Flüssigkeiten ohne Vorlage als Tropfen');
+  assert.match(I.html('IRGENDWAS'), /#g-box/);
+  assert.match(I.html('X', '<b>'), /title="&lt;b&gt;"/);
+  const pngBuf = require('./png').png(2, 2);
+  assert.equal(I.save([{ originalname: 'hud_fill_wheat.png', buffer: pngBuf }, { originalname: 'boese.png', buffer: Buffer.from('kein png') }]), 1);
+  assert.match(I.html('WHEAT', 'Weizen', 's'), /<img class="fi fi-s up" src="\/farming\/symbol\/wheat\.png\?v=\d+"/);
+  assert.ok(I.file('wheat'));
+  assert.equal(I.file('../wheat'), I.file('wheat'), 'nur Buchstaben und Ziffern');
+  I.clear();
+  assert.equal(I.file('wheat'), null);
+});
+
+test('Hofkalender: Januar bis Dezember mit Spieltagen, Januar und Februar vom Spieljahr davor', () => {
+  const { db, now } = require('../src/db');
+  const hub = require('../src/fshub');
+  const dpp = hub.daysPerPeriod();
+  const cal = hub.calendar(1, 2);
+  assert.deepEqual(cal.cols.map(c => c.short), ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']);
+  assert.equal(cal.cols[0].gy, 1, 'Januar von Kalenderjahr 2 gehört zu Spieljahr 1');
+  assert.equal(cal.cols[0].days[0].gday, hub.dayOfMonth(10, 1, dpp));
+  assert.equal(cal.cols[2].days[0].gday, hub.dayOfMonth(0, 2, dpp), 'März beginnt Spieljahr 2');
+  assert.equal(cal.cols[1].days.at(-1).gday + 1, cal.cols[2].days[0].gday, 'Februar und März liegen nebeneinander');
+  assert.ok(hub.calendar(1, 1).cols[0].days.every(d => d.gday === null), 'vor dem ersten Spieljahr gibt es keine Tage');
+  const day = cal.cols[5].days[0].gday;
+  const uid = Number(db.prepare("INSERT INTO users(username, password_hash, role, created_at) VALUES ('kalender', 'x', 'user', ?)").run(now()).lastInsertRowid);
+  hub.addTask({ id: uid, isAdmin: true }, 1, { title: 'Säen', due: 'gday', due_day: String(day) });
+  assert.deepEqual(hub.calendar(1, 2).byDay.get(day).map(t => t.title), ['Säen']);
+  assert.equal(hub.calendarYear({ date: { year: 3, month: 10 } }), 4, 'Januar in Spieljahr 3 ist Kalenderjahr 4');
+  assert.equal(hub.calendarYear({ date: { year: 3, month: 0 } }), 3);
+});
+
+test('Changelog: Updates des Hubs aus CHANGELOG.md, jedes nur einmal', () => {
+  const hub = require('../src/fshub');
+  const list = [{ date: '2026-10-29', title: 'Farming Hub: Neu', items: ['Eins', 'Zwei'] }, { date: '2026-10-28', title: 'Paint: anders', items: ['x'] }];
+  assert.equal(hub.importUpdates(list), 1);
+  assert.equal(hub.importUpdates(list), 0, 'kein zweites Mal');
+  const e = hub.changelog(10).find(c => c.title === 'Farming Hub: Neu');
+  assert.equal(e.kind, 'update');
+  assert.equal(e.body, '• Eins\n• Zwei');
+});

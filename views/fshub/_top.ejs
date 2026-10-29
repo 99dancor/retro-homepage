@@ -1,24 +1,29 @@
 <%- include('../partials/head') %>
-<%# Farming Simulator Hub: links die Bereiche (Server, Höfe, unten Changelog und Vorschläge), rechts der Inhalt. Routen: src/routes/fshub.js %>
-<div class="fs" id="fs" data-csrf="<%= csrf %>">
-  <nav class="fs-side panel" aria-label="Bereiche">
-    <div class="grp">Server</div>
-    <a class="it<%= section === 'overview' ? ' sel' : '' %>" href="/farming">🏠 Übersicht</a>
-    <a class="it<%= section === 'map' ? ' sel' : '' %>" href="/farming/karte">🗺️ Karte</a>
-    <a class="it<%= section === 'prices' ? ' sel' : '' %>" href="/farming/preise">📈 Preise</a>
-    <a class="it<%= section === 'mods' ? ' sel' : '' %>" href="/farming/mods">🧩 Modliste<% if (m.mods.length) { %> <span class="cnt"><%= m.mods.length %></span><% } %></a>
-    <div class="grp">Höfe</div>
-    <% for (const f of m.farms) { %>
-      <a class="it<%= section === 'farm' && locals.f && locals.f.id === f.id ? ' sel' : '' %>" href="/farming/hof/<%= f.id %>"><span class="dot" style="background:<%= f.color %>"></span><span class="nm"><%= f.name %></span><% if (myFarm === f.id) { %><span class="me" title="Dein Hof">★</span><% } %><% if (due.get(f.id)) { %><span class="n" title="heute fällig"><%= due.get(f.id) %></span><% } %></a>
+<%# Farming Simulator Hub im Look des Spielmenüs: links eine Leiste mit Kacheln (Server, je Hof eine, unten Changelog und Vorschläge),
+    rechts der Inhalt. Aussehen: public/fshub.css, Routen: src/routes/fshub.js %>
+<link rel="stylesheet" href="<%= asset('fshub.css') %>">
+<%- include('_icons') %>
+<div class="fs fsg" id="fs" data-csrf="<%= csrf %>">
+  <nav class="fs-rail" aria-label="Bereiche">
+    <% const tile = (key, href, icon, label, extra) => `<a class="tile${section === key ? ' sel' : ''}" href="${href}"${section === key ? ' aria-current="page"' : ''}><svg aria-hidden="true"><use href="#i-${icon}"/></svg><span class="lbl">${label}</span>${extra || ''}</a>`; %>
+    <%- tile('overview', '/farming', 'home', 'Übersicht') %>
+    <%- tile('map', '/farming/karte', 'map', 'Karte') %>
+    <%- tile('prices', '/farming/preise', 'chart', 'Preise') %>
+    <%- tile('mods', '/farming/mods', 'puzzle', 'Mods', m.mods.length ? `<span class="cnt" style="background:var(--g-tile-hi)">${m.mods.length}</span>` : '') %>
+    <span class="sep" aria-hidden="true"></span>
+    <% for (const f of m.farms) { const on = section === 'farm' && locals.f && locals.f.id === f.id, ini = f.name.split(/\s+/).filter(w => /[\p{L}\d]/u.test(w)).slice(0, 2).map(w => [...w.replace(/^[^\p{L}\d]+/u, '')][0] || '').join('').toUpperCase() || '#'; %>
+      <a class="tile<%= on ? ' sel' : '' %>" href="/farming/hof/<%= f.id %>" title="<%= f.name %>"<%= on ? ' aria-current=page' : '' %>>
+        <span class="badge" style="--fc:<%= f.color %>" aria-hidden="true"><%= ini %></span><span class="lbl"><%= f.name %></span>
+        <% if (myFarm === f.id) { %><span class="me" title="Dein Hof">★</span><% } %><% if (due.get(f.id)) { %><span class="cnt" title="heute fällig"><%= due.get(f.id) %></span><% } %>
+      </a>
     <% } %>
-    <% if (!m.farms.length) { %><div class="it muted">Noch keine Höfe</div><% } %>
-    <div class="spacer"></div>
-    <a class="it<%= section === 'changelog' ? ' sel' : '' %>" href="/farming/changelog">📋 Changelog</a>
-    <a class="it<%= section === 'ideas' ? ' sel' : '' %>" href="/farming/vorschlaege">💡 Vorschläge</a>
-    <% if (isAdmin) { %><a class="it" href="/admin/farming" target="_top">⚙️ Einstellungen</a><% } %>
+    <span class="grow" aria-hidden="true"></span>
+    <%- tile('changelog', '/farming/changelog', 'list', 'Changelog') %>
+    <%- tile('ideas', '/farming/vorschlaege', 'bulb', 'Vorschläge') %>
+    <% if (isAdmin) { %><a class="tile" href="/admin/farming" target="_top"><svg aria-hidden="true"><use href="#i-gear"/></svg><span class="lbl">Einstellungen</span></a><% } %>
   </nav>
-  <main class="fs-main">
+  <main class="fs-main<%= locals.full ? ' full' : '' %>">
     <% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
     <% if (!m.configured && section !== 'changelog' && section !== 'ideas') { %>
-      <div class="msg">🚜 Der Hub kennt den Server noch nicht. <% if (isAdmin) { %>Trag in der <a href="/admin/farming" target="_top">Seitenverwaltung → Farming</a> die Adressen aus dem Webinterface ein.<% } else { %>Ein Admin trägt die Adressen des Servers bald ein.<% } %></div>
+      <div class="msg">Der Hub kennt den Server noch nicht. <% if (isAdmin) { %>Trag in der <a href="/admin/farming" target="_top">Seitenverwaltung → Farming</a> die Adressen aus dem Webinterface ein.<% } else { %>Ein Admin trägt die Adressen des Servers bald ein.<% } %></div>
     <% } %>

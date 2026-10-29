@@ -761,7 +761,7 @@ CREATE TABLE IF NOT EXISTS fs_hist (
 CREATE TABLE IF NOT EXISTS fs_changelog (
   id INTEGER PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,   -- leer = vom Hub selbst (z. B. Mods geändert)
-  kind TEXT NOT NULL DEFAULT 'note',    -- note | mods | server
+  kind TEXT NOT NULL DEFAULT 'note',    -- note | mods | server | update (aus der CHANGELOG.md)
   title TEXT NOT NULL,
   body TEXT,
   created_at INTEGER NOT NULL
@@ -950,6 +950,7 @@ const DEFAULT_SETTINGS = {
   fs_auto_pallets: '6',         // Vorschlag Paletten abholen ab so vielen an einem Ort
   fs_auto_food: '1',            // Vorschlag Futter, wenn ein Stall (FTP) leer ist
   fs_auto_fields: '1',          // Vorschläge aus fields.xml (FTP): ernten, kalken, pflügen, düngen
+  fs_shapes: '1',               // echte Feldformen aus densityMap_ground.gdm (FTP), sonst Kreise
 };
 // Das Freundebuch der Seite heißt seit den Profil-Freundebüchern „Besucherbuch“: unveränderte Standardtexte mitziehen
 for (const k of ['home_md', 'theme_marquee']) {

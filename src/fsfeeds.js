@@ -6,7 +6,8 @@
 //                        Vehicles (Farm, Preis, Verschleiß), Economy (Preise, große Nachfragen), Map Image (Kartenbild)
 //   FTP (z. B. GPORTAL): farms.xml (Geld je Hof), placeables.xml (Silos, Produktionen, Ställe), items.xml (Ballen),
 //                        environment.xml (Datum, Wetter), fields.xml (Frucht, Wachstum und Boden je Feld),
-//                        bankCredit.xml (Kredite aus dem Mod „Bank Credit“, wenn vorhanden), densityMap_ground.gdm und die
+//                        bankCredit.xml (Kredite aus dem Mod „Bank Credit“, wenn vorhanden), farmingHubExport.xml (Kartendaten
+//                        aus der Mod „Farming Hub Export“, src/fsexport.js), densityMap_ground.gdm und die
 //                        Kalk-, Dünger- und Pflug-Ebenen (echte Feldformen, src/fsmap.js). Ist eine Webinterface-Adresse leer, liest er careerSavegame.xml,
 //                        vehicles.xml und economy.xml auch von dort. Die Dateien sind so aktuell wie der letzte Autosave.
 //                        Aus der Karten-Mod im mods-Ordner liest er die Feldumrisse (map.i3d, src/fsfields.js), ohne die
@@ -36,11 +37,11 @@ const FEEDS = {
   map: { name: 'Map Image', every: 86400, min: 600, hint: 'dedicated-server-stats-map.jpg' },
   ftp: { name: 'FTP', every: 300, min: 60, hint: 'Savegame-Ordner beim Hoster' },
 };
-const FTP_FILES = ['farms.xml', 'placeables.xml', 'items.xml', 'environment.xml', 'fields.xml', 'bankCredit.xml'];
+const FTP_FILES = ['farms.xml', 'placeables.xml', 'items.xml', 'environment.xml', 'fields.xml', 'bankCredit.xml', 'farmingHubExport.xml'];
 // Dichtekarten für die Feldformen: werden nur gespeichert (sg-<Name> im Datenordner), nicht ausgelesen
 const FTP_BINARY = ['densityMap_ground.gdm', 'infoLayer_limeLevel.grle', 'infoLayer_sprayLevel.grle', 'infoLayer_plowLevel.grle'];
 // Dateien von Mods und Dichtekarten: fehlen sie, ist das kein Fehler
-const FTP_OPTIONAL = new Set(['bankCredit.xml', ...FTP_BINARY]);
+const FTP_OPTIONAL = new Set(['bankCredit.xml', 'farmingHubExport.xml', ...FTP_BINARY]);
 // Diese drei liest der FTP-Abruf zusätzlich, wenn die Webinterface-Adresse dafür leer ist
 const FTP_FALLBACK = { savegame: 'careerSavegame.xml', vehicles: 'vehicles.xml', economy: 'economy.xml' };
 const TIMEOUT = 15000;
@@ -496,6 +497,7 @@ function readFtpFile(name, xml) {
     case 'environment.xml': return readEnvironment(xml);
     case 'fields.xml': return { at: now(), list: readFields(xml) };
     case 'bankCredit.xml': return readBankCredit(xml);
+    case 'farmingHubExport.xml': return require('./fsexport').read(xml);
     case 'careerSavegame.xml': return readSavegame(xml);
     case 'vehicles.xml': return readVehicles(xml);
     case 'economy.xml': return readEconomy(xml);
@@ -528,6 +530,8 @@ function summarizeFtp(files, notes) {
   if (fl) parts.push(`fields.xml: ${fl.list.length} Felder`);
   const bc = files['bankCredit.xml'];
   if (bc) { const open = bc.loans.filter(l => !l.paidOff).length; parts.push(`bankCredit.xml: ${open} ${open === 1 ? 'laufender Kredit' : 'laufende Kredite'}`); }
+  const ex = files['farmingHubExport.xml'];
+  if (ex) parts.push(`farmingHubExport.xml: ${ex.fields.length} Feldumrisse, ${ex.placeables.filter(p => p.x !== null).length} Stationen aus dem Spiel`);
   if (files['densityMap_ground.gdm']) parts.push(`Dichtekarte: Feldformen${FTP_BINARY.slice(1).some(n => files[n]) ? ' und Boden-Ebenen' : ''}`);
   const o = outlines();
   if (o && o.source === 'ftp') parts.push(o.polys.length ? `Feldumrisse aus ${o.mod}.zip: ${o.polys.length} Felder` : `${o.mod}.zip: keine Feldumrisse gefunden`);

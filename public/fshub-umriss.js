@@ -51,7 +51,7 @@
   }
 
   // Stand: woher die Formen kommen
-  var NAMES = { karte: 'aus der Karte', boden: 'aus dem Feldboden', bild: 'aus dem Bild erkannt', hand: 'von Hand', kreis: 'ohne Form (Kreis)' };
+  var NAMES = { spiel: 'aus dem Spiel', karte: 'aus der Karte', boden: 'aus dem Feldboden', bild: 'aus dem Bild erkannt', hand: 'von Hand', kreis: 'ohne Form (Kreis)' };
   var counts = {};
   D.fields.forEach(function (f) { if (!f.parcel) counts[f.src] = (counts[f.src] || 0) + 1; });
   say('stat', Object.keys(NAMES).filter(function (k) { return counts[k]; }).map(function (k) { return counts[k] + ' ' + NAMES[k]; }).join(' · '));

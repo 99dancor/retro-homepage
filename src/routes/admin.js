@@ -345,10 +345,13 @@ router.get('/farming', (req, res) => {
     s: Object.fromEntries(['fs_enabled', 'fs_view', 'fs_edit', 'fs_map_border', 'fs_auto_wear', 'fs_auto_diesel', 'fs_auto_pallets', 'fs_auto_food', 'fs_auto_fields', 'fs_shapes', 'fs_modlist'].map(k => [k, getSetting(k, '')])),
     customMap: fsfiles.find(f => /^map-custom\./.test(f)) || null, hasServerMap: fsfiles.includes('map-server'), iconCount: require('../fsicons').list().size,
     saves: { list: saves.list(), id: saves.identity(), unsure: saves.unsure(), counts: saves.liveCounts() },
+    gameExport: require('../fsexport').summary(require('../fsexport').current()), gameUploaded: require('../fsexport').uploaded(),
+    gameShapes: (() => { const shp = hub.shapes(m); return (shp && shp.game) || 0; })(),
     outlines: (() => { const o = feeds.outlines(), shp = hub.shapes(m); return { o: o ? { ...o, polys: undefined, count: o.polys.length } : null, active: !!feeds.currentOutlines(), mod: feeds.mapMod(), exact: (shp && shp.exact) || 0, fields: m.fields.length }; })(),
     users: db.prepare('SELECT u.id, u.username, u.display_name, m.farm_id FROM users u LEFT JOIN fs_members m ON m.user_id = u.id WHERE u.disabled = 0 ORDER BY u.username COLLATE NOCASE').all(),
     lists: db.prepare('SELECT slug, title, game FROM modlists ORDER BY game, title').all(), crops: hub.crops(), sessions: hub.sessionTotals(30),
     msg: { testen: 'Alle Zugänge abgefragt, die Ergebnisse stehen unten.', datum: 'Datum gesetzt.', karte: 'Kartenbild gespeichert.' }[req.query.ok]
+      || (/^spiel\d+$/.test(req.query.ok || '') ? `Kartendaten aus dem Spiel gelesen: ${req.query.ok.slice(5)} Feldumrisse.` : null)
       || (/^symbole\d+$/.test(req.query.ok || '') ? `${req.query.ok.slice(7)} Symbole gespeichert.` : /^umrisse\d+$/.test(req.query.ok || '') ? `${req.query.ok.slice(7)} Feldumrisse aus der Karte gelesen.` : req.query.ok ? 'Gespeichert.' : null),
     err: req.query.err || null,
   });
@@ -428,6 +431,24 @@ router.post('/farming/umrisse', fsI3dUpload.single('i3d'), multipartCsrf, (req, 
   try { n = require('../fsfeeds').outlinesFromUpload(req.file.buffer); } catch (e) { return res.redirect('/admin/farming?err=' + encodeURIComponent(e.message) + '#umrisse'); }
   require('../fshub').invalidate();
   res.redirect(`/admin/farming?ok=umrisse${n}#umrisse`);
+});
+// Mod „Farming Hub Export“ (games/fs25-export) und ihre Datei, falls der Hub sie nicht per FTP bekommt (src/fsexport.js)
+router.get('/farming/export-mod.zip', (req, res) => {
+  const ex = require('../fsexport');
+  res.set('content-type', 'application/zip').attachment(ex.MOD_NAME + '.zip').send(ex.modZip());
+});
+router.post('/farming/spieldaten', fsI3dUpload.single('export'), multipartCsrf, (req, res) => {
+  if (!req.file) return res.redirect('/admin/farming?err=' + encodeURIComponent('Bitte die farmingHubExport.xml wählen.') + '#spieldaten');
+  let d;
+  try { d = require('../fsexport').upload(req.file.buffer); } catch (e) { return res.redirect('/admin/farming?err=' + encodeURIComponent(e.message) + '#spieldaten'); }
+  require('../fsprod').forget();
+  require('../fshub').invalidate();
+  res.redirect(`/admin/farming?ok=spiel${d.fields.length}#spieldaten`);
+});
+router.post('/farming/spieldaten/loeschen', (req, res) => {
+  require('../fsexport').removeUpload();
+  require('../fshub').invalidate();
+  res.redirect('/admin/farming?ok=1#spieldaten');
 });
 router.post('/farming/umrisse/loeschen', (req, res) => {
   const feeds = require('../fsfeeds');

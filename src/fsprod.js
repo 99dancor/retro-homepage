@@ -67,6 +67,33 @@ function sync(plc) {
   synced = sig;
 }
 
+// Rezepte aus dem Spiel (Mod „Farming Hub Export“, src/fsexport.js): füllt, was noch fehlt. Was ein Admin schon
+// eingetragen hat (Zyklen gesetzt), bleibt. Kaufpreis und parallel/seriell ebenso nur, wenn noch leer.
+let gameSig = null;
+function fromGame(ex) {
+  const sig = ex ? `${ex.source}:${ex.at}` : null;
+  if (!ex || gameSig === sig) return;
+  const addB = db.prepare('INSERT OR IGNORE INTO fs_prod_buildings(key, name, price, updated_at) VALUES (?, ?, ?, ?)');
+  const fillB = db.prepare(`UPDATE fs_prod_buildings SET price = COALESCE(price, ?), mode = CASE WHEN mode = '' THEN ? ELSE mode END WHERE key = ?`);
+  const addR = db.prepare('INSERT OR IGNORE INTO fs_prod_recipes(building, id, name, position) VALUES (?, ?, ?, ?)');
+  const fillR = db.prepare('UPDATE fs_prod_recipes SET cycles = ?, cost = ?, inputs = ?, outputs = ? WHERE building = ? AND id = ? AND cycles IS NULL');
+  const rows = list => JSON.stringify(list.filter(x => x.amount > 0).map(x => ({ fill: x.fill, name: N.fill(x.fill), amount: x.amount })));
+  const seen = new Set();
+  for (const p of ex.placeables) {
+    if (!p.production || !p.production.recipes.length) continue;
+    const key = typeOf({ file: p.file, uid: p.uid });
+    if (seen.has(key)) continue;
+    seen.add(key);
+    addB.run(key, buildingName(key), p.price > 0 ? p.price : null, now());
+    fillB.run(p.price > 0 ? p.price : null, p.production.recipes.length > 1 ? (p.production.shared ? 'seriell' : 'parallel') : '', key);
+    p.production.recipes.forEach((r, i) => {
+      addR.run(key, r.id, r.name || recipeName(r.id), i);
+      if (r.cycles > 0) fillR.run(r.cycles, r.cost, rows(r.inputs), rows(r.outputs), key, r.id);
+    });
+  }
+  gameSig = sig;
+}
+
 const parse = s => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
 function recipes(key) {
   return db.prepare('SELECT * FROM fs_prod_recipes WHERE building = ? ORDER BY position, name').all(key)
@@ -156,4 +183,4 @@ function saveRecipe(key, id, b) {
 }
 function removeRecipe(key, id) { db.prepare('DELETE FROM fs_prod_recipes WHERE building = ? AND id = ?').run(String(key), String(id)); }
 
-module.exports = { NAMES, MODES, MAX_ROWS, typeOf, buildingName, recipeName, fillOf, sync, buildings, recipes, calc, building, saveBuilding, removeBuilding, saveRecipe, removeRecipe, forget: () => { synced = null; } };
+module.exports = { NAMES, MODES, MAX_ROWS, typeOf, buildingName, recipeName, fillOf, sync, fromGame, buildings, recipes, calc, building, saveBuilding, removeBuilding, saveRecipe, removeRecipe, forget: () => { synced = null; gameSig = null; } };

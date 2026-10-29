@@ -11,7 +11,7 @@ const { db, now, getSetting, setSetting, tx } = require('./db');
 const feeds = require('./fsfeeds');
 
 const TABLES = ['fs_farms', 'fs_members', 'fs_tasks', 'fs_hidden', 'fs_places', 'fs_plans', 'fs_fields', 'fs_hist', 'fs_outlines', 'fs_soil'];
-const SETTINGS = ['fs_day'];
+const SETTINGS = ['fs_day', 'fs_map_fit'];
 // Spalten mit Konten; gibt es das Konto beim Zurückholen nicht mehr, wird die Spalte leer (fs_members: Zeile fällt weg)
 const USER_COLS = ['updated_by', 'user_id', 'assignee_id', 'created_by', 'done_by'];
 const LABELS = { fs_farms: 'Höfe', fs_members: 'Mitglieder', fs_tasks: 'Aufgaben', fs_plans: 'Anbaupläne', fs_fields: 'Feldmeldungen', fs_places: 'Orte', fs_outlines: 'Feldumrisse', fs_soil: 'Bodenverteilung' };

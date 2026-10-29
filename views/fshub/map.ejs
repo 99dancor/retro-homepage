@@ -34,6 +34,15 @@
       <details class="fs-fold fs-umriss" id="fs-umriss" data-remember="fs-fold-umriss" data-csrf="<%= csrf %>">
         <summary>Feldumrisse und Boden <small>nur Admins</small></summary>
         <div class="in">
+          <% if (hasImage) { const f = editor.img.fit; %>
+            <form method="post" action="/farming/karte/ausrichten" class="fs-form fs-fitform" data-umriss-fit><input type="hidden" name="_csrf" value="<%= csrf %>">
+              <p class="note"><b>Kartenbild ausrichten</b>: so lange schieben, bis die Felder auf dem Bild liegen. Die Vorschau ändert sich sofort.</p>
+              <label class="inline"><span class="lb">Größe</span><input type="range" min="50" max="200" step="0.1" value="<%= f.scale %>" data-fit="scale" aria-label="Größe in Prozent"><input name="scale" type="number" min="50" max="200" step="0.1" value="<%= f.scale %>" data-fit="scale"> %</label>
+              <label class="inline"><span class="lb">Links / rechts</span><input type="range" min="-500" max="500" step="1" value="<%= f.dx %>" data-fit="dx" aria-label="Verschiebung nach rechts in Metern"><input name="dx" type="number" min="-2000" max="2000" step="1" value="<%= f.dx %>" data-fit="dx"> m</label>
+              <label class="inline"><span class="lb">Oben / unten</span><input type="range" min="-500" max="500" step="1" value="<%= f.dz %>" data-fit="dz" aria-label="Verschiebung nach unten in Metern"><input name="dz" type="number" min="-2000" max="2000" step="1" value="<%= f.dz %>" data-fit="dz"> m</label>
+              <div class="btns"><button class="btn small def">Ausrichtung speichern</button><button class="btn small" name="reset" value="1">Zurücksetzen</button></div>
+            </form>
+          <% } %>
           <p class="note" data-umriss-stat></p>
           <div class="btns"><button type="button" class="btn small" data-umriss="erkennen">Aus dem Kartenbild erkennen</button>
             <button type="button" class="btn small" data-umriss="bildweg">Erkannte löschen</button></div>
@@ -66,7 +75,7 @@
     <svg class="fs-map" id="fs-map" viewBox="0 0 1000 1000" data-layer="<%= layer %>" role="img" aria-label="Karte mit Feldern">
       <rect x="-5000" y="-5000" width="11000" height="11000" fill="#262c22"/>
       <rect width="1000" height="1000" fill="#4f6a33"/>
-      <% if (hasImage) { %><image href="/farming/karte.bild?v=<%= mapV %>" x="<%= off.toFixed(1) %>" y="<%= off.toFixed(1) %>" width="<%= w.toFixed(1) %>" height="<%= w.toFixed(1) %>" preserveAspectRatio="none"/><% } %>
+      <% if (hasImage) { %><image id="fs-mapimg" href="/farming/karte.bild?v=<%= mapV %>" x="<%= box.x %>" y="<%= box.y %>" width="<%= box.w %>" height="<%= box.w %>" preserveAspectRatio="none"/><% } %>
       <g class="flds">
         <% for (const g of gs) { const L = g.layer; %>
           <a href="/farming/karte?ansicht=<%= layer %>&amp;feld=<%= g.id %>" data-field="<%= g.id %>"><<%= g.d ? 'path' : 'circle' %> class="fld<%= g.parcel ? ' parcel' : '' %><%= sel && sel.id === g.id ? ' sel' : '' %>" <%- g.d ? `d="${g.d}"` : `cx="${g.cx}" cy="${g.cy}" r="${g.r}"` %>

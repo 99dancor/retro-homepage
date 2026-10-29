@@ -476,3 +476,7 @@ details.fs-fold > .in { padding: 0 12px 12px; }
 .fs-soil { display: flex; flex-wrap: wrap; gap: 3px 12px; font-size: 13px; margin: 6px 0; }
 .fs-soil .bar { flex-basis: 100%; display: flex; height: 10px; border-radius: 3px; overflow: hidden; background: var(--g-field); }
 .fs-soil span i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.fs-fitform { display: grid; gap: 4px; margin: 0 0 10px; }
+.fs-fitform label.inline { display: grid !important; grid-template-columns: 92px minmax(0, 1fr) 70px auto; align-items: center; gap: 6px; }
+.fs-fitform input[type=range] { accent-color: var(--g-accent); width: 100%; }
+.fs-fitform input[type=number] { min-height: 28px !important; padding: 3px 5px !important; }

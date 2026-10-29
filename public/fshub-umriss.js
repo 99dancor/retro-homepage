@@ -31,6 +31,25 @@
     location.href = u.toString();
   };
 
+  // Kartenbild ausrichten: Regler und Zahlenfeld gehören zusammen, das Bild folgt sofort (gespeichert wird mit dem Formular)
+  var fitForm = part('fit'), mapImg = document.getElementById('fs-mapimg');
+  if (fitForm && mapImg && D.img) {
+    var fitVal = function (k) { return Number(fitForm.querySelector('input[name="' + k + '"]').value) || 0; };
+    var place = function () {
+      var w = D.img.base * (fitVal('scale') || 100) / 100;
+      mapImg.setAttribute('width', w); mapImg.setAttribute('height', w);
+      mapImg.setAttribute('x', 500 - w / 2 + fitVal('dx') / S * 1000);
+      mapImg.setAttribute('y', 500 - w / 2 + fitVal('dz') / S * 1000);
+      D.img.x = +mapImg.getAttribute('x'); D.img.y = +mapImg.getAttribute('y'); D.img.w = w;   // die Erkennung nimmt die neue Lage
+    };
+    [].forEach.call(fitForm.querySelectorAll('[data-fit]'), function (inp) {
+      inp.addEventListener('input', function () {
+        [].forEach.call(fitForm.querySelectorAll('[data-fit="' + inp.dataset.fit + '"]'), function (o) { if (o !== inp) o.value = inp.value; });
+        place();
+      });
+    });
+  }
+
   // Stand: woher die Formen kommen
   var NAMES = { karte: 'aus der Karte', boden: 'aus dem Feldboden', bild: 'aus dem Bild erkannt', hand: 'von Hand', kreis: 'ohne Form (Kreis)' };
   var counts = {};
@@ -59,14 +78,14 @@
         // Grundstücke ohne Feld (Wald, Hof, Wiese) erkennt das Bild selten sauber, die zeichnet man besser von Hand
         var seeds = D.fields.filter(function (f) { return !f.parcel && (all ? f.src !== 'hand' : f.src === 'kreis'); }).map(function (f) {
           var px = (f.ha > 0 ? f.ha : 15) * 10000 / (mpp * mpp);
-          return { id: f.id, x: (f.cx - D.img.off) * ppu, y: (f.cy - D.img.off) * ppu, max: px * 1.15, min: Math.max(25, px * 0.08) };
+          return { id: f.id, x: (f.cx - D.img.x) * ppu, y: (f.cy - D.img.y) * ppu, max: px * 1.15, min: Math.max(25, px * 0.08) };
         });
         var res = window.FSDetect.detect(data, seeds);
         layer.innerHTML = '';
         found = {};
         var n = 0;
         Object.keys(res).forEach(function (id) {
-          var pts = res[id].map(function (p) { return [D.img.off + p[0] / ppu, D.img.off + p[1] / ppu]; });
+          var pts = res[id].map(function (p) { return [D.img.x + p[0] / ppu, D.img.y + p[1] / ppu]; });
           el('path', { d: dPath(pts), class: 'umr-prev' }, layer);
           found[id] = pts.map(world);
           n++;

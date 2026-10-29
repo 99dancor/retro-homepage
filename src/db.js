@@ -767,6 +767,34 @@ CREATE TABLE IF NOT EXISTS fs_outlines (
   updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   updated_at INTEGER NOT NULL
 );
+-- Produktionsplaner (src/fsprod.js): Produktionsgebäude und ihre Rezepte. Gebäude und Produktionen kommen aus placeables.xml,
+-- Rezepte, Zyklen, Kosten und Preise trägt ein Admin nach (stehen nur in den Spieldateien). Gilt für alle Spielstände.
+CREATE TABLE IF NOT EXISTS fs_prod_buildings (
+  key TEXT PRIMARY KEY,                 -- Art des Gebäudes wie im Spiel (bakery, sawmill …) oder eigen-<Zeit>
+  name TEXT NOT NULL,
+  price REAL,                           -- Kaufpreis in €
+  mode TEXT NOT NULL DEFAULT '',        -- parallel | seriell | '' (unbekannt)
+  note TEXT NOT NULL DEFAULT '',
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS fs_prod_recipes (
+  building TEXT NOT NULL REFERENCES fs_prod_buildings(key) ON DELETE CASCADE,
+  id TEXT NOT NULL,                     -- Produktions-ID aus placeables.xml oder eigen-<Zeit>
+  name TEXT NOT NULL,
+  cycles REAL,                          -- Zyklen pro Monat
+  cost REAL,                            -- Kosten pro Monat in €
+  inputs TEXT NOT NULL DEFAULT '[]',    -- [{ fill, name, amount }] je Zyklus
+  outputs TEXT NOT NULL DEFAULT '[]',
+  position INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (building, id)
+);
+-- Bodenverteilung je Grundstück, von Hand aus dem Spiel abgeschrieben (Prozent je Bodenart, Ertragspotenzial). Gehört zum Spielstand.
+CREATE TABLE IF NOT EXISTS fs_soil (
+  field INTEGER PRIMARY KEY,
+  loamy_sand REAL, sandy_loam REAL, loam REAL, silty_clay REAL, yield REAL,
+  updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  updated_at INTEGER NOT NULL
+);
 -- Spielstände, die der Hub gesehen hat (Karte + Anlegedatum). Läuft ein anderer, legt er Höfe, Mitglieder, Aufgaben, Pläne,
 -- Meldungen, Orte und Verläufe des alten hier als JSON ab (data) und holt die des neuen zurück, falls er ihn schon kennt.
 CREATE TABLE IF NOT EXISTS fs_saves (

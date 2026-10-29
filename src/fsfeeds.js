@@ -174,12 +174,20 @@ function readPlaceables(xml) {
         if (el.n === 'production' && el.a.id) productions.push({ id: el.a.id, on: el.a.isEnabled !== 'false' });
       }
     }
-    if (!fills.length && !animals.length && !productions.length) continue;
     const pos = xyz(p.a.position);
+    // Plantagen (DLC, z. B. Kaffee und Bananen): Reihen als Zaunstücke mit id „COFFEE_ORCHARD“, Weltkoordinaten
+    const rows = {};
+    for (const el of X.walk(p)) {
+      const m = el.n === 'segment' && /^([A-Z]+)_ORCHARD$/.exec(el.a.id || '');
+      const a = m && xyz(el.a.start), b = m && xyz(el.a.end);
+      if (a && b) (rows[m[1]] = rows[m[1]] || []).push([round(a[0]), round(a[2]), round(b[0]), round(b[2])]);
+    }
+    for (const [type, list] of Object.entries(rows)) out.push({ farmId: num(p.a.farmId, 0), name: '', file: p.a.filename || '', kind: 'orchard', type, rows: list, fills: [], animals: [], productions: [] });
+    if (!fills.length && !animals.length && !productions.length) continue;
     const secs = new Set(p.c.map(c => c.n));
     const kind = [...secs].some(n => /^husbandry/i.test(n)) ? 'husbandry' : secs.has('productionPoint') ? 'production'
       : [...secs].some(n => /silo|storage/i.test(n)) ? 'silo' : 'other';
-    out.push({ farmId: num(p.a.farmId, 0), name: p.a.name || '', file: p.a.filename || '', x: pos && pos[0], z: pos && pos[2], kind, fills, animals, productions });
+    out.push({ farmId: num(p.a.farmId, 0), name: p.a.name || '', file: p.a.filename || '', uid: p.a.uniqueId || '', price: num(p.a.price), x: pos && pos[0], z: pos && pos[2], kind, fills, animals, productions });
   }
   return out;
 }

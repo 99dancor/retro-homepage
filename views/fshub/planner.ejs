@@ -1,0 +1,150 @@
+<%- include('_top') %>
+<%# Produktionsplaner: links alle Produktionsgebäude mit Preis, rechts das gewählte als Fenster mit seinen Produktionen.
+    Eine Produktion wählen zeigt ihr Rezept, „Produktion rechnen“ rechnet aus dem Input Output, Zyklen, Zeit und Kosten.
+    Daten: src/fsprod.js (Gebäude und Produktionen aus placeables.xml, Rezepte trägt ein Admin nach). Kein JavaScript nötig. %>
+<% const num = v => (v === null || v === undefined ? '' : String(v)); const amt = v => de(v, Number.isInteger(v) ? 0 : 1);
+   const items = xs => xs.map(x => `<span class="pl-it">${icon(x.fill, x.name, 's')}${String(amt(x.amount)).replace(/</g, '&lt;')} ${x.name.replace(/</g, '&lt;')}</span>`).join('');
+   const link = (g, p, extra) => '/farming/produktion?g=' + encodeURIComponent(g) + (p ? '&p=' + encodeURIComponent(p) : '') + (extra || ''); %>
+<div class="fs-title"><h1>Produktionsplaner</h1>
+  <% if (m.money !== null) { %><div class="fs-money">Kontostand: <b><%= eur(m.money) %></b></div><% } %>
+  <div class="sub">Gebäude wählen, dann eine Produktion: Rezept, Zyklen und der Rechner. <%= dpp > 1 ? `Ein Monat hat ${dpp} Spieltage.` : '' %></div>
+</div>
+<% if (!list.length) { %>
+  <p class="hint">Noch keine Produktionsgebäude. Der Hub liest sie aus placeables.xml (FTP zum Spielstand).<%= isAdmin ? ' Oder leg unten selbst eins an.' : '' %></p>
+<% } %>
+<div class="fs-planner">
+  <div class="pl-list" role="list">
+    <% for (const b of list) { %>
+      <a role="listitem" class="pl-b<%= sel && sel.key === b.key ? ' sel' : '' %>" href="<%= link(b.key) %>"<%= sel && sel.key === b.key ? ' aria-current=true' : '' %>>
+        <svg class="pl-ic" aria-hidden="true"><use href="#i-factory"/></svg>
+        <span class="pl-n"><%= b.name %></span>
+        <span class="pl-p"><%= b.price ? eur(b.price) : 'Preis fehlt' %></span>
+        <span class="pl-m"><%= b.recipes.length %> <%= b.recipes.length === 1 ? 'Produktion' : 'Produktionen' %><%= b.mode ? ' · ' + MODES[b.mode].toLowerCase() : '' %><% if (b.recipes.length && b.done < b.recipes.length) { %> · <span class="warn"><%= b.recipes.length - b.done %> ohne Rezept</span><% } %></span>
+      </a>
+    <% } %>
+    <% if (isAdmin) { %>
+      <details class="pl-new"<%= edit === 'neu' ? ' open' : '' %>><summary class="btn small">＋ Gebäude anlegen</summary>
+        <form method="post" action="/farming/produktion/gebaeude" class="fs-form"><input type="hidden" name="_csrf" value="<%= csrf %>">
+          <label>Name <input name="name" maxlength="60" required placeholder="z. B. Zementwerk"></label>
+          <label>Preis (€) <input name="price" inputmode="decimal" placeholder="370000"></label>
+          <label>Produktionen laufen <select name="mode"><option value="">unbekannt</option><% for (const [k, l] of Object.entries(MODES)) { %><option value="<%= k %>"><%= l.toLowerCase() %></option><% } %></select></label>
+          <div class="row"><button class="def">Anlegen</button></div>
+        </form>
+      </details>
+    <% } %>
+  </div>
+
+  <% if (sel) { %>
+  <section class="pl-win" aria-label="<%= sel.name %>">
+    <header class="pl-head">
+      <div><h2><%= sel.name %></h2>
+        <div class="pl-sub"><b><%= sel.price ? eur(sel.price) : 'Preis unbekannt' %></b>
+          <% if (sel.mode) { %><span class="pl-mode <%= sel.mode %>" title="<%= sel.mode === 'parallel' ? 'Jede aktive Produktion hat ihre vollen Zyklen' : 'Alle aktiven Produktionen teilen sich die Zyklen des Gebäudes' %>"><%= MODES[sel.mode] %></span><% } else { %><span class="pl-mode">parallel oder seriell: unbekannt</span><% } %>
+        </div>
+        <% if (sel.note) { %><div class="hint"><%= sel.note %></div><% } %>
+      </div>
+      <% if (isAdmin) { %><a class="btn small" href="<%= link(sel.key, rec && rec.id, '&bearbeiten=gebaeude') %>">Gebäude bearbeiten</a><% } %>
+    </header>
+    <p class="hint pl-modehint"><%= sel.mode === 'seriell' ? 'Seriell: Die Produktionen laufen nacheinander und teilen sich die Zyklen. Laufen zwei gleichzeitig, braucht jede doppelt so lange.' : sel.mode === 'parallel' ? 'Parallel: Alle eingeschalteten Produktionen laufen gleichzeitig, jede mit ihren vollen Zyklen.' : '' %></p>
+
+    <% if (edit === 'gebaeude') { %>
+      <form method="post" action="/farming/produktion/gebaeude" class="fs-form pl-edit"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= sel.key %>">
+        <label>Name <input name="name" maxlength="60" value="<%= sel.name %>"></label>
+        <label>Preis (€) <input name="price" inputmode="decimal" value="<%= num(sel.price) %>"></label>
+        <label>Produktionen laufen <select name="mode"><option value="">unbekannt</option><% for (const [k, l] of Object.entries(MODES)) { %><option value="<%= k %>"<%= sel.mode === k ? ' selected' : '' %>><%= l.toLowerCase() %></option><% } %></select></label>
+        <label>Notiz <input name="note" maxlength="300" value="<%= sel.note %>"></label>
+        <div class="row"><button class="def">Speichern</button> <a class="btn small" href="<%= link(sel.key, rec && rec.id) %>">Abbrechen</a></div>
+      </form>
+      <form method="post" action="/farming/produktion/gebaeude/<%= encodeURIComponent(sel.key) %>/loeschen" class="inline" data-confirm="<%= sel.name %> mit allen Rezepten löschen? Steht es im Spielstand, kommt es ohne Rezepte wieder."><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Gebäude löschen</button></form>
+    <% } %>
+
+    <% if (sel.instances.length) { %>
+      <div class="pl-where">Auf der Karte: <% sel.instances.forEach((i, k) => { %><%= k ? ' · ' : '' %><%= i.farm ? i.farm.name : 'zu kaufen' %><%= i.where ? ' (' + i.where + ')' : '' %><% }) %></div>
+    <% } %>
+
+    <table class="list pl-recipes">
+      <tr><th>Produktion</th><th>Braucht je Zyklus</th><th>Liefert je Zyklus</th><th class="num">Zyklen / Monat</th><th class="num">Kosten / Monat</th></tr>
+      <% for (const r of sel.recipes) { const on = rec && rec.id === r.id; %>
+        <tr class="<%= on ? 'hl' : '' %>">
+          <td><a href="<%= link(sel.key, r.id) %>"<%= on ? ' aria-current=true' : '' %>><b><%= r.name %></b></a></td>
+          <td><%- r.inputs.length ? items(r.inputs) : '<span class="hint">–</span>' %></td>
+          <td><%- r.outputs.length ? items(r.outputs) : '<span class="hint">–</span>' %></td>
+          <td class="num"><%= r.cycles ? amt(r.cycles) : '–' %></td>
+          <td class="num"><%= r.cost ? eur(r.cost) : '–' %></td>
+        </tr>
+      <% } %>
+      <% if (!sel.recipes.length) { %><tr><td colspan="5" class="hint">Noch keine Produktionen.</td></tr><% } %>
+    </table>
+    <% if (isAdmin) { %><div class="row"><a class="btn small" href="<%= link(sel.key, null, '&bearbeiten=neu-rezept') %>">＋ Produktion anlegen</a></div><% } %>
+
+    <% const er = edit === 'neu-rezept' ? { id: '', name: '', cycles: null, cost: null, inputs: [], outputs: [] } : rec && edit === rec.id ? rec : null; %>
+    <% if (er) { %>
+      <form method="post" action="/farming/produktion/<%= encodeURIComponent(sel.key) %>/rezept" class="fs-form pl-edit"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="id" value="<%= er.id %>">
+        <h3><%= er.id ? 'Rezept: ' + er.name : 'Neue Produktion' %></h3>
+        <label>Name <input name="name" maxlength="60" value="<%= er.name %>"<%= er.id ? '' : ' required' %>></label>
+        <label>Zyklen pro Monat <input name="cycles" inputmode="decimal" value="<%= num(er.cycles) %>" placeholder="408"></label>
+        <label>Kosten pro Monat (€) <input name="cost" inputmode="decimal" value="<%= num(er.cost) %>" placeholder="360"></label>
+        <% for (const [side, title] of [['in', 'Braucht je Zyklus'], ['out', 'Liefert je Zyklus']]) { const xs = side === 'in' ? er.inputs : er.outputs; %>
+          <fieldset class="pl-rows"><legend><%= title %></legend>
+            <% for (let i = 0; i < ROWS[side]; i++) { const x = xs[i] || {}; %>
+              <div class="pl-rowin"><input name="<%= side %>_amount_<%= i %>" inputmode="decimal" value="<%= num(x.amount) %>" aria-label="Menge" placeholder="Menge"><input name="<%= side %>_fill_<%= i %>" list="pl-fills" value="<%= x.name || '' %>" aria-label="Ware" placeholder="Ware, z. B. Bananen"></div>
+            <% } %>
+          </fieldset>
+        <% } %>
+        <div class="row"><button class="def">Speichern</button> <a class="btn small" href="<%= link(sel.key, er.id || null) %>">Abbrechen</a></div>
+      </form>
+      <% if (er.id) { %><form method="post" action="/farming/produktion/<%= encodeURIComponent(sel.key) %>/rezept/<%= encodeURIComponent(er.id) %>/loeschen" class="inline" data-confirm="Produktion <%= er.name %> löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Produktion löschen</button></form><% } %>
+      <datalist id="pl-fills"><% for (const [k, n] of fills) { %><option value="<%= n %>"><% } %></datalist>
+    <% } %>
+
+    <% if (rec && !er) { %>
+      <div class="pl-rec">
+        <div class="pl-rechead"><h3>Rezept: <%= rec.name %></h3>
+          <% if (isAdmin) { %><a class="btn small" href="<%= link(sel.key, rec.id, '&bearbeiten=' + encodeURIComponent(rec.id)) %>"><%= rec.complete ? 'Rezept bearbeiten' : 'Rezept eintragen' %></a><% } %></div>
+        <% if (rec.inputs.length || rec.outputs.length) { %>
+          <div class="pl-flow"><div class="pl-side"><%- items(rec.inputs) || '<span class="hint">nichts</span>' %></div><span class="pl-arrow" aria-label="wird zu">▶</span><div class="pl-side"><%- items(rec.outputs) || '<span class="hint">nichts</span>' %></div></div>
+        <% } else { %><p class="hint">Rezept noch nicht eingetragen.<%= isAdmin ? ' Die Werte stehen im Spiel unter Produktionsketten.' : '' %></p><% } %>
+        <% if (info) { %>
+          <div class="pl-cyc">
+            <div><small>Zyklen pro Monat</small><b><%= amt(info.perMonth) %></b></div>
+            <div><small>pro Jahr</small><b><%= amt(info.perYear) %></b></div>
+            <% if (dpp > 1) { %><div><small>pro Spieltag</small><b><%= de(info.perDay, 1) %></b></div><% } %>
+            <div><small>Kosten pro Monat</small><b><%= rec.cost ? eur(rec.cost) : '–' %></b></div>
+            <% if (rec.outputs[0]) { %><div><small><%= rec.outputs[0].name %> pro Monat</small><b><%= amt(rec.outputs[0].amount * info.perMonth) %></b></div><% } %>
+          </div>
+          <% if (sel.mode === 'seriell') { %><p class="hint">Seriell: Die Zyklen gelten, solange diese Produktion allein läuft.</p><% } %>
+        <% } %>
+
+        <% if (!form) { %>
+          <a class="btn def pl-calcbtn" href="<%= link(sel.key, rec.id, '&rechnen=1') %>#rechner">Produktion rechnen</a>
+        <% } else { %>
+          <form method="get" action="/farming/produktion" class="fs-form pl-calc" id="rechner">
+            <input type="hidden" name="g" value="<%= sel.key %>"><input type="hidden" name="p" value="<%= rec.id %>"><input type="hidden" name="rechnen" value="1">
+            <h3>Produktion rechnen</h3>
+            <% if (rec.inputs.length) { %>
+              <p class="hint">Wie viel habt ihr von jedem Input? Der Rechner nimmt so viele Zyklen, wie das knappste Input zulässt.</p>
+              <% rec.inputs.forEach((x, i) => { %><label class="pl-inrow"><span class="fs-name"><%- icon(x.fill, x.name, 's') %><%= x.name %></span> <input name="in<%= i %>" type="number" min="0" step="any" value="<%= num(form.amounts[i]) %>" placeholder="<%= amt(x.amount * 10) %>"> <small>l / Stück</small></label><% }) %>
+              <p class="hint pl-or">oder gewünschte Zyklen:</p>
+            <% } %>
+            <label class="pl-inrow"><span>Zyklen</span> <input name="zyklen" type="number" min="0" step="1" value="<%= num(form.cycles) %>" placeholder="<%= rec.cycles ? amt(rec.cycles) : '10' %>"></label>
+            <% if (sel.mode === 'seriell') { %><label class="pl-inrow"><span>Gleichzeitig aktive Produktionen</span> <input name="gleich" type="number" min="1" max="99" step="1" value="<%= form.shared %>"></label><% } %>
+            <div class="row"><button class="def">Rechnen</button> <a class="btn small" href="<%= link(sel.key, rec.id) %>">Schließen</a></div>
+          </form>
+          <% if (calc) { %>
+            <div class="pl-result" role="status">
+              <div class="pl-big"><b><%= de(calc.cycles) %></b> Zyklen</div>
+              <% if (calc.made.length) { %><div class="pl-res"><small>Ergibt</small><%- calc.made.map(x => `<span class="pl-it big">${icon(x.fill, x.name, 's')}<b>${amt(x.total)}</b> ${x.name.replace(/</g, '&lt;')}</span>`).join('') %></div><% } %>
+              <% if (calc.used.length) { %><div class="pl-res"><small>Verbraucht</small><%- calc.used.map(x => `<span class="pl-it">${icon(x.fill, x.name, 's')}${amt(x.need)} ${x.name.replace(/</g, '&lt;')}${x.left !== null ? ` <span class="hint">(übrig ${amt(x.left)})</span>` : ''}</span>`).join('') %></div><% } %>
+              <% if (calc.months !== null) { %>
+                <div class="pl-res"><small>Dauer</small><span><b><%= de(calc.months, calc.months < 10 ? 1 : 0) %></b> <%= calc.months === 1 ? 'Monat' : 'Monate' %><%= dpp > 1 ? ' · ' + de(calc.days, calc.days < 10 ? 1 : 0) + ' Spieltage' : '' %><%= sel.mode === 'seriell' && form.shared > 1 ? ` (${form.shared} Produktionen teilen sich die Zyklen)` : '' %></span></div>
+                <% if (calc.cost !== null) { %><div class="pl-res"><small>Kosten</small><span><b><%= eur(calc.cost) %></b></span></div><% } %>
+              <% } else { %><p class="hint">Für die Dauer fehlen die Zyklen pro Monat.</p><% } %>
+            </div>
+          <% } %>
+        <% } %>
+      </div>
+    <% } %>
+  </section>
+  <% } %>
+</div>
+<%- include('_bottom') %>

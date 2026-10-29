@@ -470,3 +470,54 @@ test('Grundstücke ohne Feld: auf der Karte als Grundstück, zählen nicht als F
   const s = hub.shapes();
   if (s) for (const p of parcels) assert.ok(!s.shapes[p.id] || ['hand', 'bild'].includes(s.shapes[p.id].src), 'keine Form aus dem Feldboden');
 });
+
+test('Produktionsplaner: Gebäude aus placeables.xml, Rezept eintragen, Rechner', () => {
+  const P = require('../src/fsprod');
+  const plc = F.readPlaceables(`<placeables>
+    <placeable isPreplaced="true" uniqueId="preplaced_bakery_9110d7de511c929e2cf101b72b5310af" price="150000.000000" farmId="0">
+      <productionPoint><production id="bread" isEnabled="true"/><production id="bananaCake" isEnabled="false"/><storage farmId="0"/></productionPoint></placeable>
+    <placeable filename="$pdlcdir$beansAndAlpacasPack/placeables/orchards/coffeeCherries/coffeeCherriesOrchard.xml" position="0 -151 0" farmId="0">
+      <newFence><segment start="10 20 -200" end="10 21 -176" id="COFFEE_ORCHARD"/><segment start="12 20 -200" end="12 21 -176" id="COFFEE_ORCHARD"/></newFence></placeable>
+  </placeables>`);
+  const orch = plc.find(p => p.kind === 'orchard');
+  assert.deepEqual(orch.rows[0], [10, -200, 10, -176]);
+  assert.equal(orch.type, 'COFFEE');
+  assert.equal(P.typeOf(plc[0]), 'bakery');
+  const list = P.buildings(plc);
+  const b = list.find(x => x.key === 'bakery');
+  assert.equal(b.name, 'Bäckerei');
+  assert.equal(b.price, 150000);
+  assert.deepEqual(b.recipes.map(r => r.name), ['Brot', 'Banana Cake']);
+  assert.equal(b.instances[0].on.length, 1);
+  P.saveBuilding('bakery', { name: 'Bäckerei', price: '150.000', mode: 'seriell' });
+  P.saveRecipe('bakery', 'bread', { cycles: '20', cost: '1.200,5', in_amount_0: '300', in_fill_0: 'Mehl', in_amount_1: '50', in_fill_1: 'SUGAR', out_amount_0: '200', out_fill_0: 'Brot', in_fill_2: 'nur Name ohne Menge' });
+  const r = P.recipes('bakery').find(x => x.id === 'bread');
+  assert.deepEqual(r.inputs, [{ fill: 'FLOUR', name: 'Mehl', amount: 300 }, { fill: 'SUGAR', name: 'Zucker', amount: 50 }]);
+  assert.equal(r.cost, 1200.5);
+  // Knappstes Input bestimmt die Zyklen; seriell mit zwei gleichzeitig: halbe Zyklen pro Monat
+  const c = P.calc(r, { amounts: [1000, 500], shared: 2, dpp: 3 });
+  assert.equal(c.cycles, 3);
+  assert.equal(c.made[0].total, 600);
+  assert.equal(c.used[0].left, 100);
+  assert.equal(c.perMonth, 10);
+  assert.equal(c.months, 0.3);
+  assert.ok(Math.abs(c.days - 0.9) < 1e-9);
+  assert.equal(P.calc(r, { cycles: 40 }).months, 2);
+  // Abgleich ändert den eingetragenen Preis nicht
+  P.forget(); P.buildings(plc);
+  assert.equal(P.building('bakery').mode, 'seriell');
+});
+
+test('Bodenverteilung: von Hand je Feld, gehört zum Spielstand', () => {
+  const hub = require('../src/fshub');
+  const id = hub.model().fields[0].id;
+  assert.equal(hub.saveSoil(id, { loamy_sand: '17', sandy_loam: '~53', loam: '28,5', silty_clay: '', yield: '101' }, null), true);
+  assert.equal(hub.saveSoil(99999, { loam: '50' }, null), false);
+  const s = hub.soils().get(id);
+  assert.equal(s.top, 'sandy_loam');
+  assert.deepEqual(s.parts.map(x => x.pct), [17, 53, 28.5]);
+  assert.equal(hub.fieldStates().find(f => f.id === id).soil.yield, 101);
+  assert.ok(require('../src/fssaves').TABLES.includes('fs_soil'));
+  hub.saveSoil(id, {}, null);
+  assert.equal(hub.soils().has(id), false, 'alles leer löscht');
+});

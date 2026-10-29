@@ -24,6 +24,7 @@
             <span class="n"><%= it.n === null ? '' : it.n %></span>
           </button>
         <% } %>
+        <% if (k === 'bodenart') { %><p class="note">Farbe nach der Bodenart mit dem größten Anteil. Eintragen: Abschnitt „Feldumrisse und Boden“ (Admins).</p><% } %>
         <% if (k === 'boden' && raster.length) { %><p class="note">Genau je Fleck aus der Dichtekarte im letzten Autosave. Dünger: hell einmal, dunkel zweimal.</p><% } %>
         <% if (k !== 'besitz' && !gs.some(f => f.source === 'auto')) { %><p class="note"><%= k === 'boden' ? 'Braucht den FTP-Zugang (fields.xml).' : 'Ohne FTP nur, was Mitglieder melden oder planen.' %></p><% } %>
       </div>
@@ -31,7 +32,7 @@
     <p class="note">Linksklick blendet ein oder aus · Rechtsklick: nur dieser Eintrag (noch mal: alle)</p>
     <% if (editor) { %>
       <details class="fs-fold fs-umriss" id="fs-umriss" data-remember="fs-fold-umriss" data-csrf="<%= csrf %>">
-        <summary>Feldumrisse <small>nur Admins</small></summary>
+        <summary>Feldumrisse und Boden <small>nur Admins</small></summary>
         <div class="in">
           <p class="note" data-umriss-stat></p>
           <div class="btns"><button type="button" class="btn small" data-umriss="erkennen">Aus dem Kartenbild erkennen</button>
@@ -42,6 +43,12 @@
           <p class="note" data-umriss-sel></p>
           <div class="btns"><button type="button" class="btn small" data-umriss="bearbeiten">Umriss bearbeiten</button><button type="button" class="btn small" data-umriss="zeichnen">Neu zeichnen</button>
             <button type="button" class="btn small" data-umriss="auto" title="Eigenen Umriss löschen, dann gilt wieder die Form aus dem Spielstand oder der Kreis">Automatisch</button></div>
+          <form method="post" class="fs-form fs-soilform" data-umriss-boden hidden><input type="hidden" name="_csrf" value="<%= csrf %>">
+            <p class="note"><b>Bodenverteilung</b> wie im Spiel (Prozent, leer lassen löscht)</p>
+            <% for (const [k, l, c] of SOILS) { %><label class="inline"><span class="sw" style="background:<%= c %>"></span><span class="lb"><%= l %></span><input name="<%= k %>" type="number" min="0" max="100" step="any" data-soil="<%= k %>"> %</label><% } %>
+            <label class="inline"><span class="lb">Ertragspotenzial</span><input name="yield" type="number" min="0" max="300" step="any" data-soil="yield"> %</label>
+            <div class="btns"><button class="btn small def">Boden speichern</button></div>
+          </form>
           <div data-umriss-edit hidden><p class="note" data-umriss-hint></p>
             <div class="btns"><button type="button" class="btn small def" data-umriss="speichern">Speichern</button><button type="button" class="btn small" data-umriss="abbrechen">Abbrechen</button></div></div>
         </div>
@@ -52,6 +59,7 @@
       <label class="inline"><input type="checkbox" data-show="veh"> Fahrzeuge</label>
       <label class="inline"><input type="checkbox" data-show="pal"> Paletten</label>
       <label class="inline"><input type="checkbox" data-show="orte" checked> Orte</label>
+      <% if (m.orchards.length) { %><label class="inline"><input type="checkbox" data-show="plant" checked> Plantagen</label><% } %>
     </div>
   </aside>
   <div class="fs-mapbox" id="fs-mapbox">
@@ -62,10 +70,11 @@
       <g class="flds">
         <% for (const g of gs) { const L = g.layer; %>
           <a href="/farming/karte?ansicht=<%= layer %>&amp;feld=<%= g.id %>" data-field="<%= g.id %>"><<%= g.d ? 'path' : 'circle' %> class="fld<%= g.parcel ? ' parcel' : '' %><%= sel && sel.id === g.id ? ' sel' : '' %>" <%- g.d ? `d="${g.d}"` : `cx="${g.cx}" cy="${g.cy}" r="${g.r}"` %>
-            style="--c-fruechte:<%= L.fruechte[1] %>;--c-wachstum:<%= L.wachstum[1] %>;--c-boden:<%= L.boden[1] %>;--c-besitz:<%= L.besitz[1] %>"
-            data-fruechte="<%= L.fruechte[0] %>" data-wachstum="<%= L.wachstum[0] %>" data-boden="<%= L.boden[0] %>" data-besitz="<%= L.besitz[0] %>"><title><%= fieldName(g) %> · <%= ha(g.area) %><%= g.farm ? ' · ' + g.farm.name : g.price ? ' · zu kaufen ' + eur(g.price) : '' %><%= g.crop ? ' · ' + g.crop : '' %></title></<%= g.d ? 'path' : 'circle' %>></a>
+            style="<%= keys.map(k => `--c-${k}:${L[k][1]}`).join(';') %>"
+            <%- keys.map(k => `data-${k}="${L[k][0]}"`).join(' ') %>><title><%= fieldName(g) %> · <%= ha(g.area) %><%= g.farm ? ' · ' + g.farm.name : g.price ? ' · zu kaufen ' + eur(g.price) : '' %><%= g.crop ? ' · ' + g.crop : '' %></title></<%= g.d ? 'path' : 'circle' %>></a>
         <% } %>
       </g>
+      <g class="plant"><% for (const o of m.orchards) { %><path d="<%= o.rows.map(r => `M${P(r[0])} ${P(r[1])}L${P(r[2])} ${P(r[3])}`).join('') %>" class="row-<%= o.type.toLowerCase() %>"><title><%= N.fill(o.type) %>-Plantage · <%= o.rows.length %> Reihen</title></path><% } %></g>
       <g class="ras"><% for (const k of raster) { %><image href="/farming/karte/ebene/<%= k %>.png?v=<%= shp.at %>" x="0" y="0" width="1000" height="1000" preserveAspectRatio="none" data-raster="<%= k %>"/><% } %></g>
       <g class="nr"><% for (const g of gs) { %><text x="<%= g.cx %>" y="<%= g.cy %>"><%= g.id %></text><% } %></g>
       <g class="orte"><% for (const p of m.places) { %><g><circle cx="<%= P(p.x) %>" cy="<%= P(p.z) %>" r="<%= Math.max(5, p.radius / S * 1000).toFixed(1) %>" class="ort"/><text x="<%= P(p.x) %>" y="<%= (Number(P(p.z)) - Math.max(6, p.radius / S * 1000) - 3).toFixed(1) %>" class="ort-t"><%= p.name %></text></g><% } %></g>
@@ -89,8 +98,11 @@
           <div class="fs-row"><span class="t">Besitzer</span><span class="v"><% if (sel.farm) { %><a href="/farming/hof/<%= sel.farm.id %>"><%= sel.farm.name %></a><% } else { %>zu kaufen für <%= eur(sel.price) %><% } %></span></div>
           <div class="fs-row"><span class="t">Frucht</span><span class="v"><% if (sel.crop) { %><span class="fs-name"><%- icon(sel.cropFill, sel.crop, 's') %><%= sel.crop %></span><% } else { %><%= sel.source === 'auto' ? 'nichts' : 'unbekannt' %><% } %><%= sel.source === 'plan' ? ' (laut Plan)' : '' %></span></div>
           <div class="fs-row"><span class="t">Zustand</span><span class="v"><b><%= sel.state ? N.STATES[sel.state][0] : 'unbekannt' %></b><%= a && a.growth ? ', Stufe ' + a.growth : '' %></span></div>
+          <% if (sel.orchard) { %><div class="fs-row"><span class="t">Plantage</span><span class="v"><%= N.fill(sel.orchard) %></span></div><% } %>
+          <% if (sel.soil && sel.soil.yield) { %><div class="fs-row"><span class="t">Ertragspotenzial</span><span class="v"><%= de(sel.soil.yield) %> %</span></div><% } %>
           <% if (a) { %><div class="fs-row"><span class="t">Boden</span><span class="v">Kalk <%= a.lime %>/3 · Dünger <%= a.spray %>/2 · Pflug <%= a.plow ? '✔' : '–' %></span></div><% } %>
         </div>
+        <% if (sel.soil && sel.soil.parts.length) { %><div class="fs-soil"><div class="bar"><% for (const x of sel.soil.parts) { %><i style="flex:<%= x.pct %>;background:<%= x.color %>"></i><% } %></div><% for (const x of sel.soil.parts) { %><span><i style="background:<%= x.color %>"></i><%= x.label %> <%= de(x.pct) %> %</span><% } %></div><% } %>
         <% if (sel.care.length) { %><div class="chips"><% for (const c of sel.care) { const k = CARE_COLORS[c.key]; %><span class="chip"><i style="background:<%= k || '#999' %>"></i><%= c.label %></span><% } %></div><% } %>
         <% if (a) { %><div class="hint">laut letztem Autosave, abgeholt <%= when(sel.autoAt) %></div><% } %>
         <% if (sel.report) { %><div class="hint"><%= sel.source === 'report' ? '' : 'Ältere Meldung: ' %>gemeldet von <%= sel.report.username || '–' %><%= sel.report.game_day ? ' am ' + (fmtDay(sel.report.game_day) || 'Spieltag ' + sel.report.game_day) : '' %>, <%= when(sel.report.updated_at) %></div><% } %>

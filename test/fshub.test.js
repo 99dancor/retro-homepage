@@ -240,6 +240,10 @@ test('Dichtekarten: GDM und GRLE lesen, Früchte, Zustand und Kalk je Fleck und 
   assert.deepEqual([wrong.learned, wrong.map.get(1)], [true, 'WHEAT']);
   const right = M.fruitValues(M.readGdm(gdmR(256, [fruit])).data, 256, 128, [{ name: 'WHEAT', density: 1 }, { name: 'BARLEY', density: 2 }], [{ id: 1, fruit: 'WHEAT' }], { 1: poly });
   assert.deepEqual([right.learned, right.map.get(2)], [false, 'BARLEY']);
+  // Zahlen ohne bekannte Frucht (Bewuchs, Deko) tauchen nirgends auf
+  const deko = M.build(dir, { mapSize: 128, fruits: [fruits[0]], grid: { size: 2, lab: [1, 2, 1, 2] } });
+  assert.deepEqual(Object.keys(deko.images.fruits), ['WHEAT']);
+  assert.deepEqual(deko.parcels[2].fruits, { WHEAT: 0.1 });
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -500,6 +504,25 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   assert.equal(dds.toString('latin1', 0, 4), 'DDS ');
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
-  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>2\.0\.0\.0<\/version>/);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>2\.1\.0\.0<\/version>/);
   assert.throws(() => E.read('<placeables/>'), /Farming Hub Export/);
+});
+
+test('Export auf Englisch: deutsche Gebäude- und Rezeptnamen, Platzhalter weg, Katalog ohne Doppel', () => {
+  const P = require('../src/fsprod');
+  const rec = (id, name, inputs, out) => ({ id, name, cycles: 10, cost: 1, active: true, inputs: inputs.map(f => ({ fill: f, amount: 1 })), outputs: [{ fill: out, amount: 1 }] });
+  const bakery = f => ({ file: f, name: 'Bakery', price: 150000, dlc: '', shared: false, category: 'PRODUCTIONPOINTS', capacity: null, storage: [],
+    recipes: [rec('bread', 'Bread', ['FLOUR'], 'BREAD'), rec('breadRiceFlour', 'Bread', ['RICEFLOUR'], 'BREAD'), rec('cake', '%s (%s)', ['FLOUR', 'EGG'], 'CAKE')] });
+  const ex = { language: 'en', placeables: [], catalog: [
+    bakery('data/placeables/brandless/productionPointsGeneric/bakery/bakery.xml'), bakery('data/placeables/mapEU/bakery/bakery.xml'),
+    { ...bakery('data/placeables/brandless/productionPointsSmall/bakery/bakery.xml'), price: 36000 },
+    { file: 'data/placeables/dairy/dairy.xml', name: 'Dairy', price: 1, dlc: '', shared: true, storage: [], recipes: [
+      rec('coffeeYogurt', 'Coffee Yogurt', ['MILK', 'COFFEEBAGS'], 'COFFEEYOGURT'), rec('coffeeYogurtSugar', 'Coffee Yogurt', ['MILK', 'COFFEEBAGS', 'SUGAR'], 'COFFEEYOGURT')] }] };
+  const k = P.all(ex, []).katalog;
+  assert.deepEqual(k.map(b => b.name), ['Bäckerei', 'Bäckerei (klein)', 'Molkerei']);
+  assert.deepEqual(k[0].recipes.map(r => r.name), ['Brot aus Mehl', 'Brot aus Reismehl', 'Kuchen']);
+  assert.deepEqual(k[2].recipes.map(r => r.name), ['Kaffeejoghurt', 'Kaffeejoghurt aus Zucker']);
+  // Auf Deutsch gelten die Namen aus dem Spiel, Platzhalter nie
+  const de = P.all({ ...ex, language: 'de' }, []).katalog;
+  assert.deepEqual(de[0].recipes.map(r => r.name), ['Bread', 'Bread', 'Kuchen']);
 });

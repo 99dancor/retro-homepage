@@ -274,8 +274,9 @@ function build(dir, ctx) {
   // Je Pixel: Nummer der Frucht (1…), des Zustands (1…) und je Pflege der Farbe
   const fruitNames = [], fruitNo = new Map();
   const fruitOf = v => {
-    if (!v) return 0;
-    const name = values.get(v) || `?${v}`;
+    // Zahlen ohne bekannte Frucht sind Bewuchs und Deko der Karte (Wiesen, Büsche): gehören nicht auf die Karte
+    const name = v && values.get(v);
+    if (!name) return 0;
     if (!fruitNo.has(name)) { fruitNames.push(name); fruitNo.set(name, fruitNames.length); }
     return fruitNo.get(name);
   };

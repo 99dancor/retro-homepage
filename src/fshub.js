@@ -759,7 +759,6 @@ function cropFor(fruit, cs) {
   if (!fruit) return null;
   const c = cs.find(x => x.name === fruit || x.fill === fruit);
   if (c) return { name: c.label || c.name, color: c.color, fill: c.fill, fruit };
-  if (/^\?\d+$/.test(fruit)) return { name: 'Unbekannte Frucht ' + fruit.slice(1), color: '#9aa394', fill: null, fruit };
   return { name: N.fill(fruit), color: fscrops.hsl(fruit), fill: fruit, fruit };
 }
 function fieldCare(a, state) {

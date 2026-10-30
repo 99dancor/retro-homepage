@@ -275,6 +275,10 @@ test('Grundstücksgrenzen: begradigt, Nachbarn teilen genau dieselbe Linie', () 
   // Ältere gespeicherte Exporte bekommen die neuen Umrisse aus der Grundstückskarte
   assert.deepEqual(E.outlines({ grid: { size: n, rows }, mapSize: 64, parcels: { 1: [[0, 0]] } }), p);
   assert.deepEqual(E.outlines({ parcels: { 1: [[0, 0]] } }), { 1: [[0, 0]] });
+  // Platz für die Nummer liegt im Grundstück, auch bei einer L-Form (deren Schwerpunkt außerhalb läge)
+  const L = [[0, 0], [10, 0], [10, 2], [2, 2], [2, 10], [0, 10]];
+  const [lx, ly] = require('../src/fsmap').labelPoint(L);
+  assert.ok((lx > 0 && lx < 10 && ly > 0 && ly < 2) || (lx > 0 && lx < 2 && ly > 0 && ly < 10), 'im L: ' + lx + ',' + ly);
 });
 
 test('Symbole: Kürzel, eigene Zeichnung, hochgeladenes Original', () => {

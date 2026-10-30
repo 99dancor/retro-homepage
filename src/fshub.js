@@ -842,7 +842,10 @@ function shapes(m = model()) {
   const osig = ex ? fsexport.sig(ex) + ':' + size : '-';
   if (!outlineMem || outlineMem.sig !== osig) {
     const out = {};
-    for (const [id, pts] of Object.entries(fsexport.outlines(ex))) if (pts.length >= 3) out[id] = { d: fsmap.polyPath(pts, size) };
+    for (const [id, pts] of Object.entries(fsexport.outlines(ex))) if (pts.length >= 3) {
+      const c = fsmap.labelPoint(pts), P = v => +((v + size / 2) / size * 1000).toFixed(1);
+      out[id] = { d: fsmap.polyPath(pts, size), cx: P(c[0]), cy: P(c[1]) };
+    }
     outlineMem = { sig: osig, shapes: out };
   }
   let ras = null;

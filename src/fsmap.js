@@ -214,6 +214,23 @@ function simplifyShared(lab, m, rings, eps) {
   }
   return out;
 }
+// Platz für die Nummer: Mitte der breitesten Strecke im Inneren, über einige waagerechte Linien gesucht (liegt sicher im Vieleck)
+function labelPoint(pts) {
+  let y0 = Infinity, y1 = -Infinity;
+  for (const p of pts) { if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
+  let best = null, bw = -1;
+  for (let k = 1; k < 12; k++) {
+    const y = y0 + (y1 - y0) * k / 12, xs = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      if ((a[1] <= y) !== (b[1] <= y)) xs.push(a[0] + (y - a[1]) / (b[1] - a[1]) * (b[0] - a[0]));
+    }
+    xs.sort((a, b) => a - b);
+    // Mitte der Höhe bevorzugt, damit die Nummer nicht am Rand klebt
+    for (let i = 0; i + 1 < xs.length; i += 2) { const w = (xs[i + 1] - xs[i]) * (1 - Math.abs(k - 6) / 12); if (w > bw) { bw = w; best = [(xs[i] + xs[i + 1]) / 2, y]; } }
+  }
+  return best || pts[0];
+}
 // Vieleck in Weltkoordinaten → SVG-Pfad im Kartenmaß 0–1000
 function polyPath(pts, mapSize) {
   const k = 1000 / mapSize, h = mapSize / 2;
@@ -443,4 +460,4 @@ function load(dir, files, ctx) {
 }
 function forget() { mem = null; }
 
-module.exports = { readGdm, readGdmRegions, readGrle, png, outline, simplify, simplifyLine, simplifyShared, polyPath, forPixelsIn, fruitValues, growthState, build, load, forget, signature, FILES, CARE, STATE_KEYS, GROUND_STATE };
+module.exports = { readGdm, readGdmRegions, readGrle, png, outline, simplify, simplifyLine, simplifyShared, labelPoint, polyPath, forPixelsIn, fruitValues, growthState, build, load, forget, signature, FILES, CARE, STATE_KEYS, GROUND_STATE };

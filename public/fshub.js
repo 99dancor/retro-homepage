@@ -127,9 +127,12 @@
     // Zoomen und Verschieben über die viewBox
     var vb = [0, 0, 1000, 1000];
     // Symbole bleiben beim Zoomen gleich groß (fshub.css: .st .sc { transform: scale(var(--z)) }): Kartenmaß je Bildpunkt
-    // --z nur an der Stationsgruppe: an der ganzen Karte müsste der Browser bei jedem Zoomschritt alle Formen neu durchrechnen
-    var stn = map.querySelector('.stn') || map;
-    var setZ = function () { var r = map.getBoundingClientRect(), px = Math.min(r.width, r.height); if (px) stn.style.setProperty('--z', (vb[2] / px * 1.1).toFixed(4)); };
+    // --z nur an Stationen und Nummern: an der ganzen Karte müsste der Browser bei jedem Zoomschritt alle Formen neu durchrechnen
+    var scaled = map.querySelectorAll('.stn, .nr');
+    var setZ = function () {
+      var r = map.getBoundingClientRect(), px = Math.min(r.width, r.height);
+      if (px) for (var i = 0; i < scaled.length; i++) scaled[i].style.setProperty('--z', (vb[2] / px * 1.1).toFixed(4));
+    };
     // Höchstens einmal je Bild neu zeichnen, auch wenn Mausrad und Ziehen schneller Ereignisse schicken
     var frame = 0;
     var setVb = function () {

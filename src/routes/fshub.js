@@ -159,8 +159,7 @@ router.get('/produktion', (req, res) => {
   const section = picked ? picked.section : wanted && (!q || lists[wanted].length) ? wanted : q && firstHit ? firstHit
     : lists.eigene.length ? 'eigene' : lists.karte.length ? 'karte' : 'katalog';
   const list = lists[section];
-  // Ohne ?g= ist nichts gewählt: wer den Bereich oder den Reiter wechselt und zurückkommt, startet wieder bei der Liste
-  const sel = picked || null;
+  const sel = picked || list[0] || null;
   const rec = sel ? sel.recipes.find(r => r.id === req.query.p) || sel.recipes.find(r => r.active) || sel.recipes[0] || null : null;
   const dpp = hub.daysPerPeriod();
   let calc = null, form = null;

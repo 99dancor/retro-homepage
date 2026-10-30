@@ -30,10 +30,10 @@ const typeName = (t, title) => TYPES[t] || title || N.pretty(t);
 // Was eine Kurve ist: [Name, Einheit, Seite]
 const CURVES = {
   food: ['Futter', 'l', 'in'], water: ['Wasser', 'l', 'in'], straw: ['Stroh', 'l', 'in'],
-  milk: ['Milch', 'l', 'out'], pallets: ['Paletten', 'l', 'out'], manure: ['Mist', 'l', 'out'], liquidManure: ['Gülle', 'l', 'out'],
+  milk: ['Milch', 'l', 'out'], pallets: ['Paletten', 'l', 'out'], fleece: ['Vlies je Schur', 'l', 'out'], manure: ['Mist', 'l', 'out'], liquidManure: ['Gülle', 'l', 'out'],
   buy: ['Kaufpreis', '€', 'price'], sell: ['Verkaufspreis', '€', 'price'], transport: ['Transport', '€', 'price'],
 };
-const OUT_FILL = { manure: 'MANURE', liquidManure: 'LIQUIDMANURE' };
+const OUT_FILL = { manure: 'MANURE', liquidManure: 'LIQUIDMANURE', fleece: 'ALPACAFLEECE' };
 // Erzeugnisse: Milch, Paletten (Wolle, Eier, Ziegenmilch) und alles, was die Mod ab 2.6 sonst mit Ware liefert (z. B. Alpakavlies)
 const outputs = s => Object.entries(s.curves).filter(([k, c]) => c.fill && (!CURVES[k] || CURVES[k][2] === 'out'));
 const goods = s => outputs(s).filter(([k]) => k !== 'manure' && k !== 'liquidManure');
@@ -67,7 +67,7 @@ function parse(el) {
         const r = X.kid(s, 'reproduction'), curves = {};
         for (const c of X.kids(s, 'curve')) if (c.a.kind) curves[c.a.kind] = { fill: c.a.fillType || OUT_FILL[c.a.kind] || null, pts: pts(c.a.pts) };
         return {
-          name: s.a.name, fill: s.a.fillType || s.a.name, title: s.a.title || '', gender: s.a.gender || '', breed: s.a.breed || '',
+          name: s.a.name, fill: s.a.fillType || s.a.name, title: s.a.title || '', gender: s.a.gender || '', breed: s.a.breed || '', fleeceRegrowth: num(s.a.fleeceRegrowth),
           repro: r ? { minAge: num(r.a.minAgeMonth), duration: num(r.a.durationMonth), minHealth: num(r.a.minHealth), none: r.a.none === 'true' } : null, curves,
         };
       }),
@@ -98,7 +98,7 @@ function toXml(d, meta = {}) {
     }
     out.push('      </food>');
     for (const s of t.subs) {
-      out.push(`      <subType${attrs({ name: s.name, fillType: s.fill, title: s.title, gender: s.gender, breed: s.breed })}>`);
+      out.push(`      <subType${attrs({ name: s.name, fillType: s.fill, title: s.title, gender: s.gender, breed: s.breed, fleeceRegrowth: s.fleeceRegrowth })}>`);
       if (s.repro) out.push(`        <reproduction${attrs({ minAgeMonth: s.repro.minAge, durationMonth: s.repro.duration, minHealth: s.repro.minHealth, none: s.repro.none ? 'true' : null })}/>`);
       for (const [kind, c] of Object.entries(s.curves)) out.push(`        <curve${attrs({ kind, fillType: OUT_FILL[kind] ? null : c.fill, pts: ptsText(c.pts) })}/>`);
       out.push('      </subType>');
@@ -176,7 +176,11 @@ function adultAge(s) {
 // Die Ware, die ein Tier liefert, mit Menge pro Monat bei einem Alter
 function products(s, age, f) {
   const out = [];
-  for (const [kind, c] of outputs(s)) { const v = at(c.pts, age); if (v > 0) out.push({ kind, fill: c.fill, name: N.fill(c.fill), perMonth: v * f }); }
+  for (const [kind, c] of outputs(s)) {
+    // Vlies (Alpakas): die Kurve ist die Menge bei vollem Vlies, davon wächst pro Tag fleeceRegrowth nach
+    const v = at(c.pts, age) * (kind === 'fleece' ? s.fleeceRegrowth || 0 : 1);
+    if (v > 0) out.push({ kind, fill: c.fill, name: N.fill(c.fill), perMonth: v * f, ...(kind === 'fleece' ? { perShear: at(c.pts, age) } : {}) });
+  }
   return out;
 }
 // Ausgewählte Alter für Tabellen: alle Stützpunkte der Kurven, höchstens 8

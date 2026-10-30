@@ -1091,6 +1091,15 @@ function FarmingHubExport:writeSubType(xml, k, st)
     end
     table.sort(keys)
     xml:setString(k .. "#keys", table.concat(keys, " "))
+    -- Alpakas (ab 2.7): kein output, sondern Vlies, das nachwächst und geschoren wird. fleeceAmountCurve = Menge bei vollem
+    -- Vlies je Alter, fleeceRegrowthPerDay = Anteil, der pro Tag nachwächst
+    if st.fleeceAmountCurve ~= nil then
+        local fleece = g_fillTypeManager.getFillTypeIndexByName ~= nil and g_fillTypeManager:getFillTypeIndexByName("ALPACAFLEECE") or nil
+        put("fleece", st.fleeceAmountCurve, st.fleeceFillTypeIndex or fleece)
+        if type(st.fleeceRegrowthPerDay) == "number" then
+            xml:setString(k .. "#fleeceRegrowth", num(st.fleeceRegrowthPerDay, 5))
+        end
+    end
     local fields = {}
     for key in pairs(st) do
         table.insert(fields, tostring(key))

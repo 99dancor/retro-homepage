@@ -341,6 +341,31 @@
     document.addEventListener('pointerdown', function (e) { if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.fs-cal td.d > a')) close(); });
   }
 
+  // ---------- Jeder Bereich der Leiste merkt sich seine Unterseite ----------
+  // Wer im Planer die Spinnerei, in den Preisen eine Ware oder am Hof einen Reiter wählt, landet beim Zurückkommen wieder
+  // dort: Die Kacheln links (und die Bereiche im Planer) zeigen auf die zuletzt offene Adresse. Gemerkt wird beim Verlassen,
+  // damit auch Änderungen per replaceState (Karte) dabei sind.
+  var here = function () {
+    var u = new URL(location.href);
+    ['ok', 'embed'].forEach(function (p) { u.searchParams.delete(p); });
+    return u.pathname + u.search;
+  };
+  var cur = document.querySelector('.fs-rail .tile.sel'), curKey = cur && cur.getAttribute('href'), planner = document.querySelector('.fs-planner[data-section]');
+  var remember = function () {
+    if (curKey) store.set('fs-last:' + curKey, here());
+    if (planner && /[?&]g=/.test(location.search)) store.set('fs-last:planner:' + planner.dataset.section, here());
+  };
+  window.addEventListener('pagehide', remember);
+  remember();
+  document.querySelectorAll('.fs-rail .tile[href^="/farming"]').forEach(function (a) {
+    var last = store.get('fs-last:' + a.getAttribute('href'));
+    if (typeof last === 'string' && last.indexOf(a.getAttribute('href')) === 0) a.setAttribute('href', last);
+  });
+  document.querySelectorAll('a[data-last]').forEach(function (a) {
+    var last = store.get('fs-last:' + a.dataset.last);
+    if (typeof last === 'string' && last.indexOf('/farming/produktion?') === 0) a.setAttribute('href', last);
+  });
+
   // ---------- Aufklappbare Abschnitte merken sich, ob sie offen sind ----------
   document.querySelectorAll('details[data-remember]').forEach(function (d) {
     var k = d.dataset.remember, v = store.get(k);

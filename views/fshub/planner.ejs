@@ -14,7 +14,7 @@
 </div>
 <div class="fs-bar">
   <nav class="fs-tabs" aria-label="Bereiche des Planers">
-    <% for (const [k, l] of Object.entries(SECTIONS)) { %><a href="<%= secUrl(k) %><%= q ? '&q=' + encodeURIComponent(q) : '' %>"<%- section === k ? ' class="on" aria-current="page"' : '' %>><%= l %> <span class="n"><%= lists[k].length %></span></a><% } %>
+    <% for (const [k, l] of Object.entries(SECTIONS)) { %><a href="<%= secUrl(k) %><%= q ? '&q=' + encodeURIComponent(q) : '' %>"<%- q ? '' : ` data-last="planner:${k}"` %><%- section === k ? ' class="on" aria-current="page"' : '' %>><%= l %> <span class="n"><%= lists[k].length %></span></a><% } %>
   </nav>
   <form class="fs-search" method="get" action="/farming/produktion" role="search">
     <input type="hidden" name="bereich" value="<%= section %>">
@@ -29,7 +29,7 @@
 <% } %>
 <%# Links die Gebäude, nach DLC bzw. Hof gruppiert und zuklappbar; die Liste scrollt für sich, die Ansicht rechts bleibt stehen %>
 <% const groups = []; for (const b of list) { const g = section === 'katalog' ? (b.dlc || 'Grundspiel') : section === 'eigene' ? (b.farm ? b.farm.name : '') : ''; let e = groups.find(x => x.name === g); if (!e) groups.push(e = { name: g, items: [] }); e.items.push(b); } %>
-<div class="fs-planner">
+<div class="fs-planner" data-section="<%= section %>">
   <div class="pl-list" role="list" aria-label="Gebäude">
     <% for (const g of groups) { const hasSel = sel && g.items.some(b => b.key === sel.key); const open = q || groups.length <= 2 || hasSel; %>
       <% if (g.name && groups.length > 1) { %><details class="pl-grp"<%= open ? ' open' : '' %>><summary><%= g.name %> <span class="n"><%= g.items.length %></span></summary><% } %>
@@ -158,8 +158,6 @@
     <% } %>
     </div>
   </section>
-  <% } else if (list.length) { %>
-  <section class="pl-win pl-empty" aria-label="Kein Gebäude gewählt"><p class="hint">Links ein Gebäude wählen, dann siehst du hier Lager, Produktionen und den Rechner.</p></section>
   <% } %>
 </div>
 <%- include('_bottom') %>

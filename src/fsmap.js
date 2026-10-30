@@ -164,6 +164,56 @@ function simplify(pts, eps) {
   dp(mid, ring.length - 1);
   return out;
 }
+// Douglas-Peucker für einen offenen Linienzug (Anfang und Ende bleiben)
+function simplifyLine(pts, eps) {
+  if (pts.length < 3) return pts.slice();
+  const keep = new Uint8Array(pts.length);
+  keep[0] = keep[pts.length - 1] = 1;
+  const stack = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    let far = -1, fd = eps;
+    const [ax, ay] = pts[a], [bx, by] = pts[b], dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy);
+    for (let i = a + 1; i < b; i++) {
+      const d = len ? Math.abs((pts[i][0] - ax) * dy - (pts[i][1] - ay) * dx) / len : Math.hypot(pts[i][0] - ax, pts[i][1] - ay);
+      if (d > fd) { fd = d; far = i; }
+    }
+    if (far >= 0) { keep[far] = 1; stack.push([a, far], [far, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+// Umrisse vieler Flächen auf einmal begradigen, so dass gemeinsame Grenzen bei beiden Nachbarn dieselben Punkte bekommen.
+// rings: Map id → Ring aus Pixelecken (wie outline). Jeder Ring wird an den Ecken geteilt, an denen der Nachbar wechselt;
+// jedes Grenzstück wird einmal in fester Richtung vereinfacht und von beiden Seiten benutzt.
+function simplifyShared(lab, m, rings, eps) {
+  const W = m + 1, at = (x, y) => (x >= 0 && y >= 0 && x < m && y < m ? lab[y * m + x] : 0);
+  // Nachbar jenseits der Kante p → q (Ring läuft im Uhrzeigersinn in Bildkoordinaten, innen rechts)
+  const across = (p, q) => {
+    const dx = q[0] - p[0], dy = q[1] - p[1];
+    return dx > 0 ? at(p[0], p[1] - 1) : dy > 0 ? at(p[0], p[1]) : dx < 0 ? at(p[0] - 1, p[1]) : at(p[0] - 1, p[1] - 1);
+  };
+  const done = new Map(), out = new Map();
+  for (const [id, ring] of rings) {
+    const n = ring.length, side = ring.map((p, i) => across(p, ring[(i + 1) % n]));
+    const cuts = [];
+    for (let i = 0; i < n; i++) if (side[i] !== side[(i + n - 1) % n]) cuts.push(i);
+    if (cuts.length < 2) { out.set(id, simplify(ring, eps)); continue; }
+    const res = [];
+    for (let c = 0; c < cuts.length; c++) {
+      const a = cuts[c], b = cuts[(c + 1) % cuts.length], piece = [];
+      for (let i = a; ; i = (i + 1) % n) { piece.push(ring[i]); if (i === b) break; }
+      const ka = ring[a][1] * W + ring[a][0], kb = ring[b][1] * W + ring[b][0];
+      const fwd = ka < kb || (ka === kb && id < side[a]);
+      const key = (fwd ? ka + ':' + kb : kb + ':' + ka) + ':' + Math.min(id, side[a]) + ':' + Math.max(id, side[a]) + ':' + piece.length;
+      let line = done.get(key);
+      if (!line) { line = simplifyLine(fwd ? piece : piece.slice().reverse(), eps); done.set(key, line); }
+      const use = fwd ? line : line.slice().reverse();
+      for (let i = 0; i < use.length - 1; i++) res.push(use[i]);
+    }
+    out.set(id, res.length >= 3 ? res : simplify(ring, eps));
+  }
+  return out;
+}
 // Vieleck in Weltkoordinaten → SVG-Pfad im Kartenmaß 0–1000
 function polyPath(pts, mapSize) {
   const k = 1000 / mapSize, h = mapSize / 2;
@@ -312,40 +362,55 @@ function build(dir, ctx) {
       }
     }
   }
-  // Bilder: eins je Frucht, Zustand und Pflege; alte weg
+  // Bilder: eins je Frucht, Zustand und Pflege, jedes nur so groß wie seine Flecken (boxes: Lage im Kartenmaß 0–1000).
+  // Kleine Bilder statt vieler kartengroßer halten die Karte beim Zoomen und Verschieben flüssig. Alte Bilder weg.
   for (const f of fs.readdirSync(dir)) if (/^ras-.*\.png$/.test(f)) fs.rmSync(path.join(dir, f), { force: true });
-  const mask = (pix, no) => { const out = new Uint8Array(R * R); for (let i = 0; i < out.length; i++) if (pix[i] === no) out[i] = 1; return out; };
+  const boxes = {};
+  const write = (file, pix, keep, colors) => {
+    let x0 = R, y0 = R, x1 = -1, y1 = -1;
+    for (let y = 0; y < R; y++) {
+      const row = y * R;
+      for (let x = 0; x < R; x++) {
+        if (!keep(pix[row + x])) continue;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+    }
+    if (x1 < 0) return false;
+    const w = x1 - x0 + 1, h = y1 - y0 + 1, out = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const v = pix[(y + y0) * R + x + x0]; out[y * w + x] = keep(v) ? (colors.length > 1 ? v : 1) : 0; }
+    fs.writeFileSync(path.join(dir, file), png(w, h, out, colors));
+    const k = 1000 / R;
+    boxes[file] = [+(x0 * k).toFixed(2), +(y0 * k).toFixed(2), +(w * k).toFixed(2), +(h * k).toFixed(2)];
+    return true;
+  };
   const slug = s => String(s).replace(/[^A-Za-z0-9_]/g, '_');
   const images = { fruits: {}, states: {}, care: {} };
   fruitNames.forEach((name, i) => {
     const file = `ras-f-${slug(name)}.png`;
-    fs.writeFileSync(path.join(dir, file), png(R, R, mask(fPix, i + 1), [ctx.colorOf ? ctx.colorOf(name) : '#8fd16a']));
-    images.fruits[name] = file;
+    if (write(file, fPix, v => v === i + 1, [ctx.colorOf ? ctx.colorOf(name) : '#8fd16a'])) images.fruits[name] = file;
   });
   STATE_KEYS.forEach((k, i) => {
     if (!totals.states[k]) return;
     const file = `ras-s-${k}.png`;
-    fs.writeFileSync(path.join(dir, file), png(R, R, mask(sPix, i + 1), [ctx.stateColor ? ctx.stateColor(k) : '#5aa83c']));
-    images.states[k] = file;
+    if (write(file, sPix, v => v === i + 1, [ctx.stateColor ? ctx.stateColor(k) : '#5aa83c'])) images.states[k] = file;
   });
   for (const k of Object.keys(care)) {
     if (k === 'duenger') {
+      // Dünger: einmal und zweimal gedüngt als eigene Einträge
       for (const lvl of [1, 2]) {
         if (!totals.care['duenger' + lvl]) continue;
         const file = `ras-c-duenger${lvl}.png`;
-        fs.writeFileSync(path.join(dir, file), png(R, R, mask(cPix[k], lvl), [CARE.duenger.colors[lvl - 1]]));
-        images.care['duenger' + lvl] = file;
+        if (write(file, cPix[k], v => v === lvl, [CARE.duenger.colors[lvl - 1]])) images.care['duenger' + lvl] = file;
       }
     } else if (totals.care[k]) {
       const file = `ras-c-${k}.png`;
-      fs.writeFileSync(path.join(dir, file), png(R, R, cPix[k], CARE[k].colors));
-      images.care[k] = file;
+      if (write(file, cPix[k], v => v > 0, CARE[k].colors)) images.care[k] = file;
     }
   }
   // Pixel → Hektar
   const ha = o => Object.fromEntries(Object.entries(o).map(([k, n]) => [k, Math.round(n * pxHa * 100) / 100]));
   for (const p of Object.values(parcels)) { p.ha = Math.round(p.px * pxHa * 100) / 100; delete p.px; p.fruits = ha(p.fruits); p.states = ha(p.states); p.care = ha(p.care); }
-  return { size: R, learned, values: Object.fromEntries(values), images, totals: { fruits: ha(totals.fruits), states: ha(totals.states), care: ha(totals.care) }, parcels };
+  return { size: R, learned, values: Object.fromEntries(values), images, boxes, totals: { fruits: ha(totals.fruits), states: ha(totals.states), care: ha(totals.care) }, parcels };
 }
 
 // ---------- Zwischenspeicher ----------
@@ -364,7 +429,7 @@ function load(dir, files, ctx) {
   const store = path.join(dir, 'patches.json');
   try {
     const saved = JSON.parse(fs.readFileSync(store, 'utf8'));
-    if (saved.sig === sig && Object.values(saved.images || {}).every(g => Object.values(g).every(f => fs.existsSync(path.join(dir, f))))) { mem = saved; return mem; }
+    if (saved.sig === sig && saved.boxes && Object.values(saved.images || {}).every(g => Object.values(g).every(f => fs.existsSync(path.join(dir, f))))) { mem = saved; return mem; }
   } catch { /* noch nichts gerechnet */ }
   try {
     const t = Date.now();
@@ -378,4 +443,4 @@ function load(dir, files, ctx) {
 }
 function forget() { mem = null; }
 
-module.exports = { readGdm, readGdmRegions, readGrle, png, outline, simplify, polyPath, forPixelsIn, fruitValues, growthState, build, load, forget, signature, FILES, CARE, STATE_KEYS, GROUND_STATE };
+module.exports = { readGdm, readGdmRegions, readGrle, png, outline, simplify, simplifyLine, simplifyShared, polyPath, forPixelsIn, fruitValues, growthState, build, load, forget, signature, FILES, CARE, STATE_KEYS, GROUND_STATE };

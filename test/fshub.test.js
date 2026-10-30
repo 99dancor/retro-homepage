@@ -222,6 +222,8 @@ test('Dichtekarten: GDM und GRLE lesen, Früchte, Zustand und Kalk je Fleck und 
   assert.equal(r.learned, false, 'Zahlen der Früchte kommen aus der Mod');
   assert.deepEqual(Object.keys(r.images.fruits).sort(), ['BARLEY', 'WHEAT']);
   assert.ok(fs.existsSync(path.join(dir, r.images.fruits.WHEAT)), 'Bild je Frucht');
+  // Bilder nur so groß wie ihr Inhalt: Gerste liegt bei x 140–240, y 40–80 von 256
+  assert.deepEqual(r.boxes[r.images.fruits.BARLEY].map(Math.round), [547, 156, 391, 156]);
   assert.equal(fs.readFileSync(path.join(dir, r.images.care.kalk)).subarray(0, 4).toString('hex'), '89504e47');
   assert.deepEqual(r.parcels[1].fruits, { WHEAT: 0.16 });
   assert.deepEqual(r.parcels[2].fruits, { WHEAT: 0.1, BARLEY: 0.1 }, 'zwei Früchte auf einem Grundstück');
@@ -245,6 +247,34 @@ test('Dichtekarten: GDM und GRLE lesen, Früchte, Zustand und Kalk je Fleck und 
   assert.deepEqual(Object.keys(deko.images.fruits), ['WHEAT']);
   assert.deepEqual(deko.parcels[2].fruits, { WHEAT: 0.1 });
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Grundstücksgrenzen: begradigt, Nachbarn teilen genau dieselbe Linie', () => {
+  const E = require('../src/fsexport');
+  // 64 × 64: links 1, rechts 2, dazwischen eine Treppe (schräge Grenze), unten ein Streifen 3
+  const n = 64, rows = [];
+  for (let y = 0; y < n; y++) {
+    const runs = [];
+    let prev = null, len = 0;
+    for (let x = 0; x < n; x++) {
+      const id = y >= 56 ? 3 : x < 20 + Math.floor(y / 2) ? 1 : 2;
+      if (id === prev) len++; else { if (prev !== null) runs.push(prev + '*' + len); prev = id; len = 1; }
+    }
+    runs.push(prev + '*' + len);
+    rows.push(runs.join(' '));
+  }
+  const p = E.parcels(rows, n, 64);
+  assert.deepEqual(Object.keys(p), ['1', '2', '3']);
+  assert.ok(p[1].length <= 6 && p[2].length <= 6, 'Treppe wird eine Linie: ' + p[1].length + ' / ' + p[2].length);
+  const key = q => q.join(',');
+  const shared = p[1].map(key).filter(k => p[2].map(key).includes(k));
+  assert.ok(shared.length >= 2, 'Grenze 1/2 hat dieselben Endpunkte');
+  // Kein Punkt von 1 liegt auf der Grenze zu 2, den 2 nicht auch hat (sonst zwei leicht versetzte Linien)
+  const onDiag = q => q[1] > -32 && q[1] < 24 && q[0] > -32 + 20 - 0.5;
+  assert.deepEqual(p[1].filter(onDiag).map(key).sort(), p[2].filter(onDiag).map(key).sort());
+  // Ältere gespeicherte Exporte bekommen die neuen Umrisse aus der Grundstückskarte
+  assert.deepEqual(E.outlines({ grid: { size: n, rows }, mapSize: 64, parcels: { 1: [[0, 0]] } }), p);
+  assert.deepEqual(E.outlines({ parcels: { 1: [[0, 0]] } }), { 1: [[0, 0]] });
 });
 
 test('Symbole: Kürzel, eigene Zeichnung, hochgeladenes Original', () => {

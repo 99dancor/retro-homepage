@@ -278,6 +278,8 @@ details.fs-fold > .in { padding: 0 12px 12px; }
 /* Feldumrisse (Admins, public/fshub-umriss.js) */
 .fs-mapbox { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #262c22; touch-action: none; cursor: grab; }
 .fs-mapbox.drag { cursor: grabbing; }
+/* Beim Ziehen keine Treffer- und Hover-Prüfung für hunderte Formen */
+.fs-mapbox.drag .fs-map * { pointer-events: none; }
 .fs-mapbox > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .fs-maptitle { padding: 14px 22px 12px; border-bottom: 1px solid var(--g-line); }
 .fs-main.full > .msg { margin: 10px 14px 0; }

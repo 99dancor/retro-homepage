@@ -28,32 +28,34 @@ const num = (v, d = null) => X.num(v, d);
 const pts = s => String(s || '').trim().split(/\s+/).map(p => p.split(',').map(Number)).filter(p => p.length === 2 && p.every(Number.isFinite));
 const fills = s => String(s || '').split(/\s+/).filter(Boolean);
 
-// Grundstückskarte → Umriss je Grundstück in Weltkoordinaten (größte zusammenhängende Fläche)
+// Grundstückskarte → Umriss je Grundstück in Weltkoordinaten (größte zusammenhängende Fläche).
+// Gemeinsame Grenzen werden einmal begradigt, damit Nachbarn genau dieselbe Linie haben (keine Treppen, keine Doppellinien).
+const EPS = 1.3;
 function parcels(rows, size, mapSize) {
   if (!size || rows.length !== size) return {};
-  const lab = new Uint16Array(size * size), box = new Map();
-  rows.forEach((row, y) => {
-    let x = 0;
-    for (const run of row.trim().split(/\s+/)) {
-      const [id, len] = run.split('*').map(Number);
-      if (!Number.isFinite(id) || !(len > 0)) continue;
-      const end = Math.min(size, x + len);
-      if (id > 0 && id < 255) {
-        lab.fill(id, y * size + x, y * size + end);
-        const b = box.get(id) || { x0: size, y0: size, x1: -1, y1: -1 };
-        if (x < b.x0) b.x0 = x; if (end - 1 > b.x1) b.x1 = end - 1; if (y < b.y0) b.y0 = y; if (y > b.y1) b.y1 = y;
-        box.set(id, b);
-      }
-      x = end;
+  const lab = labels(rows, size), box = new Map();
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const id = lab[y * size + x];
+      if (!id) continue;
+      const b = box.get(id);
+      if (!b) box.set(id, { x0: x, y0: y, x1: x, y1: y });
+      else { if (x < b.x0) b.x0 = x; if (x > b.x1) b.x1 = x; b.y1 = y; }
     }
-  });
-  const cell = mapSize / size, out = {};
-  for (const [id, b] of box) {
-    const ring = fsmap.outline(lab, size, id, b);
-    if (!ring) continue;
-    out[id] = fsmap.simplify(ring, 0.9).map(([x, y]) => [+(x * cell - mapSize / 2).toFixed(1), +(y * cell - mapSize / 2).toFixed(1)]);
   }
+  const rings = new Map();
+  for (const [id, b] of box) { const r = fsmap.outline(lab, size, id, b); if (r) rings.set(id, r); }
+  const cell = mapSize / size, out = {};
+  for (const [id, ring] of fsmap.simplifyShared(lab, size, rings, EPS)) out[id] = ring.map(([x, y]) => [+(x * cell - mapSize / 2).toFixed(1), +(y * cell - mapSize / 2).toFixed(1)]);
   return out;
+}
+// Umrisse eines Exports: aus der Grundstückskarte neu berechnet (gemerkt), damit ältere gespeicherte Exporte die begradigten Grenzen bekommen
+const outlineCache = new WeakMap();
+function outlines(e) {
+  const g = e && e.grid;
+  if (!g || !g.size || g.rows.length !== g.size) return (e && e.parcels) || {};
+  if (!outlineCache.has(g)) outlineCache.set(g, parcels(g.rows, g.size, e.mapSize || 2048));
+  return outlineCache.get(g);
 }
 
 const recipe = r => ({
@@ -209,4 +211,4 @@ function modZip() {
   return zip.toBuffer();
 }
 
-module.exports = { FILE, MOD_NAME, read, parcels, labels, gridLabels, parcelAt, upload, uploaded, removeUpload, current, summary, sig, withPositions, modZip, icon };
+module.exports = { FILE, MOD_NAME, read, parcels, outlines, labels, gridLabels, parcelAt, upload, uploaded, removeUpload, current, summary, sig, withPositions, modZip, icon };

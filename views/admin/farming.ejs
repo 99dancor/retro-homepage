@@ -1,5 +1,5 @@
 <%- include('../partials/head') %>
-<%# Seitenverwaltung → Farming Simulator: Zugänge zum Spieleserver (fünf Webinterface-Adressen und FTP), Höfe, Orte, Feldfrüchte, Zugriff.
+<%# Seitenverwaltung → Farming Simulator: Zugänge zum Spieleserver (fünf Webinterface-Adressen und FTP), Höfe, Orte, Zugriff.
     Adressen und Passwort werden nie ausgegeben, nur gekürzt angezeigt. Routen: src/routes/admin.js, Abruf: src/fsfeeds.js %>
 <% const de = n => Number(n).toLocaleString('de-DE'); %>
 <% const ago = t => { if (!t) return 'nie'; const s = Math.floor(Date.now() / 1000) - t; return s < 90 ? 'vor ' + s + ' s' : s < 5400 ? 'vor ' + Math.round(s / 60) + ' min' : s < 172800 ? 'vor ' + Math.round(s / 3600) + ' Std.' : 'vor ' + Math.round(s / 86400) + ' Tagen'; }; %>
@@ -7,7 +7,7 @@
 <% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
 <p>🚜 <a href="/farming" target="_blank">Farming Simulator Hub öffnen</a> · Die Website holt alles selbst vom Spieleserver ab. Adressen, Codes und das FTP-Passwort bleiben auf dem Server, kein Browser sieht sie.</p>
 <div class="tabs" role="tablist" data-reiter>
-  <% [['server', '🖥️ Server'], ['hoefe', '🏡 Höfe'], ['orte', '📍 Orte'], ['fruechte', '🌱 Feldfrüchte'], ['zugriff', '🔑 Zugriff und Vorschläge']].forEach(([k, l], i) => { %><button type="button" role="tab" id="t-<%= k %>" aria-controls="<%= k %>" aria-selected="<%= i === 0 %>"<%- i ? ' tabindex="-1"' : '' %>><%= l %></button><% }) %>
+  <% [['server', '🖥️ Server'], ['hoefe', '🏡 Höfe'], ['orte', '📍 Orte'], ['zugriff', '🔑 Zugriff und Vorschläge']].forEach(([k, l], i) => { %><button type="button" role="tab" id="t-<%= k %>" aria-controls="<%= k %>" aria-selected="<%= i === 0 %>"<%- i ? ' tabindex="-1"' : '' %>><%= l %></button><% }) %>
 </div>
 
 <section class="tab-page" id="server" role="tabpanel" aria-labelledby="t-server">
@@ -28,7 +28,7 @@
     </fieldset>
     <% const ft = feedRows.find(x => x.key === 'ftp'); %>
     <fieldset class="groupbox"><legend>FTP zum Spielstand (z. B. GPORTAL)</legend>
-      <p class="muted">Ergänzt, was das Webinterface nicht hat: Geld je Hof (farms.xml), Silos, Produktionen und Ställe (placeables.xml), Ballen (items.xml), Datum und Wetter (environment.xml), Frucht und Zustand jedes Felds (fields.xml) und, falls der Mod „Bank Credit“ läuft, die Kredite (bankCredit.xml). Für die echten Feldformen holt er densityMap_ground.gdm und die Kalk-, Dünger- und Pflug-Ebenen (infoLayer_*.grle). Ist oben eine Adresse leer, liest der Hub careerSavegame.xml, vehicles.xml und economy.xml auch von hier. Die Dateien sind so aktuell wie der letzte Autosave. Die Website verbindet sich nur nach draußen, am Reverse Proxy und an Unraid ändert sich nichts.</p>
+      <p class="muted">Ergänzt, was das Webinterface nicht hat: Geld je Hof (farms.xml), Silos, Produktionen und Ställe (placeables.xml), Ballen (items.xml), Datum und Wetter (environment.xml), Frucht und Zustand jedes Felds (fields.xml) und, falls der Mod „Bank Credit“ läuft, die Kredite (bankCredit.xml). Für die Karte je Fleck holt er die Dichtekarten (densityMap_fruits.gdm, densityMap_ground.gdm) und die Kalk-, Dünger- und Pflug-Ebenen (infoLayer_*.grle). Ist oben eine Adresse leer, liest der Hub careerSavegame.xml, vehicles.xml und economy.xml auch von hier. Die Dateien sind so aktuell wie der letzte Autosave. Die Website verbindet sich nur nach draußen, am Reverse Proxy und an Unraid ändert sich nichts.</p>
       <div class="fs-admin-ftp">
         <label>Server <input name="ftp_host" value="<%= ftp.host %>" placeholder="z. B. 176.57.181.181" autocomplete="off"></label>
         <label>Port <input type="number" name="ftp_port" value="<%= ftp.port %>" min="1" max="65535" style="width:80px"></label>
@@ -50,7 +50,7 @@
     <% const sid = saves.id, cnt = Object.entries(saves.counts).filter(([, n]) => n).map(([k, n]) => n + ' ' + k).join(', '); %>
     <p>Läuft gerade: <b><%= sid ? sid.map : 'unbekannt' %></b><%= sid && sid.title ? ' · „' + sid.title + '“' : '' %><%= sid && sid.created ? ' · angelegt ' + sid.created : '' %>
       <% if (!sid) { %><br><small class="muted">Dafür braucht der Hub die Savegame-Adresse oder careerSavegame.xml per FTP.</small><% } %></p>
-    <p class="muted">Höfe, Mitglieder, Aufgaben, Anbaupläne, Feldmeldungen, Orte, Verläufe und der Spieltag gehören zum Spielstand. Läuft auf dem Server ein anderer, legt der Hub sie beiseite und beginnt leer (oder holt die Daten zurück, wenn er den Spielstand schon kennt). Notizen, Changelog, Vorschläge und Feldfrüchte bleiben.</p>
+    <p class="muted">Höfe, Mitglieder, Aufgaben, Anbaupläne, Orte, Verläufe und der Spieltag gehören zum Spielstand. Läuft auf dem Server ein anderer, legt der Hub sie beiseite und beginnt leer (oder holt die Daten zurück, wenn er den Spielstand schon kennt). Notizen, Changelog und Vorschläge bleiben.</p>
     <% if (saves.unsure) { %>
       <div class="msg err">⚠ Der Hub merkt sich Spielstände erst ab jetzt. Hier stehen schon Daten (<%= cnt %>). Gehören sie zu einem früheren Spielstand, leg sie beiseite.</div>
       <div class="actions">
@@ -78,33 +78,35 @@
     <% if (customMap) { %><form method="post" action="/admin/farming/karte/loeschen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">Eigenes Bild entfernen</button></form><% } %>
   </fieldset>
 
+  <fieldset class="groupbox" id="hintergrund"><legend>Hintergrund der Übersicht</legend>
+    <p>Ein Bild, das die Hub-Übersicht halb durchsichtig hinterlegt, zum Beispiel ein Screenshot aus dem Spiel. Der Hub merkt es sich je Karte und zeigt das zur laufenden Karte passende.</p>
+    <% const bgNow = bgs.find(b => b.key === bgKey); %>
+    <p>Laufende Karte: <b><%= bgName || 'unbekannt' %></b> · <%= bgNow ? '✔ Bild vorhanden' : 'noch kein Bild' %></p>
+    <form method="post" action="/admin/farming/hintergrund" enctype="multipart/form-data" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="file" name="bg" accept="image/png,image/jpeg,image/webp" required><button>Bild für <%= bgName || 'diese Karte' %> hochladen</button></form>
+    <% if (bgs.length) { %>
+      <table class="list"><tr><th>Karte</th><th>Datei</th><th></th></tr>
+        <% for (const b of bgs) { %><tr><td><%= b.key === bgKey ? '▶ ' : '' %><%= b.key %></td><td><small><%= b.name %></small></td>
+          <td><form method="post" action="/admin/farming/hintergrund/<%= b.key %>/loeschen" class="inline" data-confirm="Hintergrund für <%= b.key %> entfernen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Entfernen</button></form></td></tr><% } %>
+      </table>
+    <% } %>
+  </fieldset>
+
   <fieldset class="groupbox" id="spieldaten"><legend>Kartendaten aus dem Spiel</legend>
     <% const gx = gameExport; %>
-    <p>Feldumrisse, Grundstücksgrenzen, Positionen aller Stationen und die Rezepte der Produktionen kennt nur das laufende Spiel: DLC-Karten liegen verschlüsselt in .dlc-Dateien, die Grundspielkarten gepackt in .gar. Die kleine Mod <b>Farming Hub Export</b> schreibt diese Daten bei jedem Speichern in den Spielstand-Ordner (<code>farmingHubExport.xml</code>), der Hub holt sie per FTP mit den anderen Dateien.</p>
+    <p>Grundstücke, Felder, Positionen aller Stationen, Produktionen mit Rezepten und Lager, die Namen der Waren, Saat- und Erntezeiten der Früchte und den Katalog aller Gebäude kennt nur das laufende Spiel: DLC-Karten liegen verschlüsselt in .dlc-Dateien, die Grundspielkarten gepackt in .gar. Die kleine Mod <b>Farming Hub Export</b> schreibt diese Daten bei jedem Speichern in den Spielstand-Ordner (<code>farmingHubExport.xml</code>), der Hub holt sie per FTP mit den anderen Dateien.</p>
     <ol class="muted">
       <li>Mod herunterladen und als ZIP (nicht entpacken) in den mods-Ordner des Servers legen, bei GPORTAL über die Mod-Verwaltung oder per FTP.</li>
       <li>Server neu starten, die Mod im Spielstand aktivieren. Mitspieler laden sie beim Beitreten automatisch.</li>
       <li>Einmal speichern (oder Autosave abwarten). Im Einzelspieler geht es auch sofort: Konsole öffnen, <code>hubExport</code> eingeben und die Datei unten hochladen.</li>
     </ol>
-    <p><% if (gx) { %>✔ <%= gx.source === 'upload' ? 'Hochgeladen' : 'Per FTP' %>, gespeichert <%= gx.saveDate || ago(gx.at) %><%= gx.mapTitle ? ' · ' + gx.mapTitle : '' %>: <%= gx.fields %> Feldumrisse, <%= gx.parcels %> Grundstücksgrenzen, <%= gx.stations %> Gebäude mit Position, <%= gx.productions %> <%= gx.productions === 1 ? "Produktion" : "Produktionen" %> mit <%= gx.recipes %> <%= gx.recipes === 1 ? "Rezept" : "Rezepten" %><%= gameShapes ? ' · ' + gameShapes + ' Umrisse auf der Karte' : '' %>
+    <p><% if (gx) { %>✔ <%= gx.source === 'upload' ? 'Hochgeladen' : 'Per FTP' %>, gespeichert <%= gx.saveDate || ago(gx.at) %><%= gx.mapTitle ? ' · ' + gx.mapTitle : '' %> (Mod-Version <%= gx.version %>): <%= gx.farmlands %> Grundstücke, <%= gx.fields %> Felder, <%= gx.stations %> Gebäude mit Position, <%= gx.productions %> <%= gx.productions === 1 ? "Produktion" : "Produktionen" %> mit <%= gx.recipes %> <%= gx.recipes === 1 ? "Rezept" : "Rezepten" %><% if (gx.version >= 2) { %>, <%= gx.fruitTypes %> Früchte, <%= gx.fillTypes %> Waren, <%= gx.catalog %> Gebäude im Katalog<% } %>
+      <% if (gx.version < 2) { %><br>⚠ Das ist noch Version 1 der Mod. Bitte die neue Version herunterladen und auf dem Server ersetzen: erst sie liefert Lagerstände, Früchte, Warennamen und den Katalog.<% } %>
       <% } else if (gameUploaded) { %>Die hochgeladene Datei gehört zu einer anderen Karte (<%= gameUploaded.mapTitle %>).
       <% } else { %>Noch keine Daten aus dem Spiel.<% } %></p>
-    <p class="muted">Was aus dem Spiel kommt, ersetzt erkannte Umrisse und von Hand gesetzte Stationen. Von Hand gezeichnete Umrisse gehen weiterhin vor, die kannst du in der Karte löschen. Rezepte füllt der Hub nur dort, wo noch keine Zyklen eingetragen sind.</p>
+    <p class="muted">Von Hand eingetragen wird nichts davon. Ohne die Mod zeigt der Hub Grundstücke als Kreise, Stationen ohne Position und Produktionen ohne Rezepte.</p>
     <div class="actions"><a class="btn" href="/admin/farming/export-mod.zip" download>Mod herunterladen (FS25_FarmingHubExport.zip)</a></div>
     <form method="post" action="/admin/farming/spieldaten" enctype="multipart/form-data" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="file" name="export" accept=".xml,application/xml,text/xml" required><button>farmingHubExport.xml hochladen</button></form>
     <% if (gameUploaded) { %><form method="post" action="/admin/farming/spieldaten/loeschen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Hochgeladene Datei vergessen</button></form><% } %>
-  </fieldset>
-
-  <fieldset class="groupbox" id="umrisse"><legend>Feldumrisse</legend>
-    <% const ol = outlines.o; %>
-    <p>Die genauen Umrisse aller Felder stehen in der Karte selbst (map.i3d), auch für Felder, die noch kein Acker sind. Läuft eine Karten-Mod, holt der Hub sie per FTP aus dem mods-Ordner neben dem Spielstand (nur die eine Datei, nicht die ganze Mod). Sonst leitet er die Form aus dem Feldboden ab, und Felder ohne Acker bleiben Kreise.</p>
-    <p><% if (ol && ol.count && outlines.active) { %>✔ <%= ol.count %> Umrisse <%= ol.source === 'upload' ? 'aus der hochgeladenen Datei' : 'aus ' + ol.mod + '.zip' %> (<%= ol.entry %>), <%= outlines.exact %> von <%= outlines.fields %> Feldern zugeordnet
-      <% } else if (ol && ol.count) { %>Die gespeicherten Umrisse gehören zu einer anderen Karte (<%= ol.mod || ol.mapTitle %>).
-      <% } else if (ol) { %>⚠ In <%= ol.mod %>.zip keine Feldumrisse gefunden.
-      <% } else if (outlines.mod) { %>Karten-Mod <%= outlines.mod %>: wird beim nächsten FTP-Abruf gelesen<%= ftp.host ? '' : ' (FTP fehlt)' %>.
-      <% } else { %>Keine Karten-Mod erkannt (Karte aus dem Spiel oder noch kein Savegame-Feed).<% } %></p>
-    <form method="post" action="/admin/farming/umrisse" enctype="multipart/form-data" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="file" name="i3d" accept=".i3d,.zip,application/zip,application/xml" required><button>map.i3d hochladen</button> <small class="muted">aus der Karten-Mod, falls es per FTP nicht klappt</small></form>
-    <% if (ol) { %><form method="post" action="/admin/farming/umrisse/loeschen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Umrisse vergessen<%= ftp.host ? ' und neu holen' : '' %></button></form><% } %>
   </fieldset>
 
   <fieldset class="groupbox" id="symbole"><legend>Symbole der Erzeugnisse</legend>
@@ -114,16 +116,6 @@
     <% if (iconCount) { %><form method="post" action="/admin/farming/symbole/loeschen" class="actions" data-confirm="Alle hochgeladenen Symbole löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">Alle hochgeladenen Symbole löschen</button></form><% } %>
   </fieldset>
 
-  <fieldset class="groupbox"><legend>Datum im Spiel</legend>
-    <% const d = m.date; %>
-    <p>Jetzt: <b><%= d ? (d.dpp > 1 ? d.dom + '. ' : '') + d.monthName + ', Jahr ' + d.year + ' (Spieltag ' + d.day + ')' : 'unbekannt' %></b> · <%= { ftp: 'aus environment.xml (FTP)', admin: 'von dir gesetzt, zählt selbst weiter', estimate: 'geschätzt aus den großen Nachfragen' }[m.dateSource] || 'ohne Quelle' %></p>
-    <form method="post" action="/admin/farming/datum" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>">
-      <% if (hub.daysPerPeriod() > 1) { %><label>Tag <input type="number" name="dom" min="1" max="<%= hub.daysPerPeriod() %>" value="<%= d ? d.dom : 1 %>" style="width:60px"></label><% } %>
-      <label>Monat <select name="month"><% N.MONTHS.forEach((mo, i) => { %><option value="<%= i %>"<%= d && d.month === i ? ' selected' : '' %>><%= mo %></option><% }) %></select></label>
-      <label>Jahr <input type="number" name="year" min="1" value="<%= d ? d.year : 1 %>" style="width:70px"></label>
-      <button>Datum setzen</button></form>
-    <p class="muted">Mit FTP liest der Hub das Datum bei jedem Autosave aus dem Spielstand, dann ist das hier nicht nötig.</p>
-  </fieldset>
 </section>
 
 <section class="tab-page" id="hoefe" role="tabpanel" aria-labelledby="t-hoefe" hidden>
@@ -164,23 +156,6 @@
   </table>
 </section>
 
-<section class="tab-page" id="fruechte" role="tabpanel" aria-labelledby="t-fruechte" hidden>
-  <p class="muted">Vorlage für den Hofkalender und die Karte. Monate wie im Spiel, das Jahr beginnt im März. Bitte einmal gegen den Kalender im Spiel prüfen. „Ware“ ist der Name im Economy-Feed (für Preise), z. B. WHEAT.</p>
-  <% const MONTHS = N.MONTHS_SHORT; %>
-  <table class="list fs-admin-crops"><tr><th>Frucht</th><th>Säen</th><th>Ernten</th><th></th></tr>
-    <% for (const c of [...crops, { id: '', name: '', fill: '', color: '#8fd16a', sowM: [], harvestM: [], kind: 'field' }]) { %>
-      <tr><td colspan="4"><form method="post" action="/admin/farming/fruechte" class="fs-admin-row"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="id" value="<%= c.id %>">
-        <input type="color" name="color" value="<%= c.color %>" aria-label="Farbe"><input name="name" value="<%= c.name %>" maxlength="40" required placeholder="Neue Frucht" style="width:120px" aria-label="Name"><input name="fill" value="<%= c.fill || '' %>" maxlength="40" placeholder="Ware" style="width:100px" aria-label="Ware">
-        <select name="kind" aria-label="Art"><option value="field"<%= c.kind === 'field' ? ' selected' : '' %>>Feldfrucht</option><option value="grass"<%= c.kind === 'grass' ? ' selected' : '' %>>wächst nach</option><option value="perm"<%= c.kind === 'perm' ? ' selected' : '' %>>Dauerkultur</option></select>
-        <span class="fs-months" title="Säen">🌱<% MONTHS.forEach((mo, i) => { %><label><input type="checkbox" name="sow" value="<%= i %>"<%= c.sowM.includes(i) ? ' checked' : '' %>><%= mo %></label><% }) %></span>
-        <span class="fs-months" title="Ernten">🌾<% MONTHS.forEach((mo, i) => { %><label><input type="checkbox" name="harvest" value="<%= i %>"<%= c.harvestM.includes(i) ? ' checked' : '' %>><%= mo %></label><% }) %></span>
-        <button class="small"><%= c.id ? 'Speichern' : 'Anlegen' %></button></form>
-        <% if (c.id) { %><form method="post" action="/admin/farming/fruechte/<%= c.id %>/loeschen" class="inline" data-confirm="„<%= c.name %>“ löschen? Pläne mit dieser Frucht verschwinden auch."><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small danger">Löschen</button></form><% } %></td></tr>
-    <% } %>
-  </table>
-  <form method="post" action="/admin/farming/fruechte/zuruecksetzen" class="actions" data-confirm="Alle Feldfrüchte auf die Vorlage zurücksetzen? Pläne gehen dabei verloren."><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">Auf Vorlage zurücksetzen</button></form>
-</section>
-
 <section class="tab-page" id="zugriff" role="tabpanel" aria-labelledby="t-zugriff" hidden>
   <form method="post" action="/admin/farming/allgemein"><input type="hidden" name="_csrf" value="<%= csrf %>">
     <fieldset class="groupbox"><legend>Zugriff</legend>
@@ -198,7 +173,7 @@
     </fieldset>
     <fieldset class="groupbox"><legend>Modliste und Karte</legend>
       <label>Verknüpfte Modliste <select name="fs_modlist"><option value="">keine</option><% for (const l of lists) { %><option value="<%= l.slug %>"<%= s.fs_modlist === l.slug ? ' selected' : '' %>><%= l.game ? l.game + ' – ' : '' %><%= l.title %></option><% } %></select></label>
-      <label class="inline"><input type="checkbox" name="fs_shapes" value="1"<%= s.fs_shapes === '1' ? ' checked' : '' %>> Echte Feldformen (nur mit FTP: holt densityMap_ground.gdm und die Kalk-, Dünger- und Pflug-Ebenen, je Autosave etwa 1–2 MB)</label><br>
+      <label class="inline"><input type="checkbox" name="fs_shapes" value="1"<%= s.fs_shapes === '1' ? ' checked' : '' %>> Karte je Fleck (nur mit FTP: holt die Dichtekarten für Früchte und Boden und die Kalk-, Dünger- und Pflug-Ebenen, je Autosave einige MB)</label><br>
       <label>Rand des Server-Kartenbilds <input type="number" name="fs_map_border" min="0" max="45" value="<%= s.fs_map_border %>" style="width:60px"> % je Seite</label>
       <p class="muted">Das Webinterface zeigt die Karte in der Mitte eines größeren Bilds (bei Bilk 25 %). Ein eigenes Bild gilt immer ohne Rand.</p>
     </fieldset>

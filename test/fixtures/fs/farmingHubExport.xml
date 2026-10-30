@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
-<farmingHubExport version="1" mapId="MapUS" mapTitle="Riverbend Springs" mapSize="2048" saveDate="2026-10-29 22:00" day="174">
+<farmingHubExport version="2" mapId="MapUS" mapTitle="Riverbend Springs" mapSize="2048" saveDate="2026-10-29 22:00" day="174" daysPerPeriod="2">
     <fields>
         <field id="1" farmland="1" areaHa="4.000" x="-400.0" z="-400.0" pts="-500.0,-500.0 -300.0,-500.0 -300.0,-300.0 -500.0,-300.0"/>
         <field id="2" farmland="3" areaHa="1.200" x="175.0" z="140.0" pts="100.0,100.0 250.0,100.0 250.0,180.0 100.0,180.0"/>
@@ -96,7 +96,53 @@
                         <output fillType="BUTTER" amount="15.000" sellDirectly="true"/>
                     </outputs>
                 </production>
+                <storage>
+                    <fill fillType="FLOUR" level="1200.000" capacity="10000.000"/>
+                    <fill fillType="MILK" level="0.000" capacity="10000.000"/>
+                    <fill fillType="BREAD" level="300.000" capacity="5000.000"/>
+                    <fill fillType="BUTTER" level="0.000" capacity="5000.000"/>
+                </storage>
+            </productionPoint>
+        </placeable>
+        <placeable uniqueId="placeable_42" filename="$moddir$FS25_Spinnery/spinnery.xml" type="productionPoint" name="Spinnerei am Hof" farmId="1" x="-450.0" z="-350.0" price="180000">
+            <productionPoint shared="false">
+                <production id="yarn" name="Garn" cyclesPerMonth="200.000" costsPerMonth="100.00" active="true" status="1">
+                    <inputs>
+                        <input fillType="ALPACAFLEECE" amount="10.000"/>
+                    </inputs>
+                    <outputs>
+                        <output fillType="FABRIC" amount="8.000"/>
+                    </outputs>
+                </production>
+                <storage>
+                    <fill fillType="ALPACAFLEECE" level="2500.000" capacity="10000.000"/>
+                    <fill fillType="FABRIC" level="400.000" capacity="5000.000"/>
+                </storage>
             </productionPoint>
         </placeable>
     </placeables>
+    <fillTypes language="de">
+        <fillType name="WHEAT" title="Weizen" price="380" mass="0.79" priceTable="true"/>
+        <fillType name="ALPACAFLEECE" title="Alpaka-Wolle" price="2100" mass="0.2" priceTable="true"/>
+        <fillType name="MODFILL" title="Spezialware" price="500" mass="1" priceTable="true"/>
+    </fillTypes>
+    <fruitTypes>
+        <fruitType name="WHEAT" index="2" density="2" fillType="WHEAT" growthStates="8" harvestMin="8" harvestMax="8" cut="10" withered="9" literPerSqm="1.11" seedPerSqm="0.04" windrow="STRAW" color="#e2c044" plant="7 8" harvest="5 6"/>
+        <fruitType name="COFFEE" index="20" density="0" fillType="COFFEE" growthStates="6" harvestMin="5" harvestMax="5" color="#9b3b2c" harvest="7 8" noSeeding="true"/>
+    </fruitTypes>
+    <catalog>
+        <building filename="$data/placeables/bakery.xml" name="Bäckerei" price="250000" category="productionPoints" shared="true">
+            <production id="bread" name="Brot" cyclesPerMonth="408.000" costsPerMonth="360.00">
+                <inputs><input fillType="FLOUR" amount="50.000"/></inputs>
+                <outputs><output fillType="BREAD" amount="30.000"/></outputs>
+            </production>
+            <storage><capacity fillType="FLOUR" capacity="10000"/><capacity fillType="BREAD" capacity="5000"/></storage>
+        </building>
+        <building filename="$data/placeables/paintFactory.xml" name="Farbenfabrik" price="420000" category="productionPoints" dlc="Beans and Alpacas" shared="false">
+            <production id="paint" name="Farbe" cyclesPerMonth="100.000" costsPerMonth="500.00">
+                <inputs><input fillType="ALPACAFLEECE" amount="5.000"/><input fillType="WATER" amount="50.000"/></inputs>
+                <outputs><output fillType="PAINT" amount="20.000"/></outputs>
+            </production>
+        </building>
+    </catalog>
 </farmingHubExport>

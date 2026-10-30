@@ -1,47 +1,58 @@
 'use strict';
-// Farming Simulator Hub: echte Feldformen und Boden-Ebenen aus den Dichtekarten des Spielstands (per FTP abgeholt).
+// Farming Simulator Hub: was auf den Feldern steht, je Fleck statt je Feld, aus den Dichtekarten des Spielstands (per FTP).
 //
-//   densityMap_ground.gdm      Bodenart je halben Meter (Bits 0–3, 0 = kein Feldboden) → Umriss jedes Felds
+//   densityMap_fruits.gdm      Bereich 0: welche Frucht, Bereich 1: Wachstumsstufe (halber Meter je Pixel)
+//   densityMap_ground.gdm      Bodenart (Bits 0–3): gepflügt, gegrubbert, gesät, erntereif, Gras … 0 = kein Feldboden
 //   infoLayer_limeLevel.grle   Kalk 0–3 (0 = Kalk nötig)         infoLayer_sprayLevel.grle  Dünger 0–2
 //   infoLayer_plowLevel.grle   Pflug 0/1 (0 = Pflügen fällig)
 //
-// Ablauf: Bodenart auf halbe Auflösung (2 × 2 Pixel, nur wenn alle vier Feldboden sind, damit schmale Lücken zwischen
-// Feldern bleiben), dann wächst jedes Feld von seiner Mitte aus dem Stats-Feed über zusammenhängenden Feldboden. Stoßen
-// zwei Felder ohne Lücke aneinander, teilen sie sich die Fläche nach Abstand. Aus jeder Fläche wird ein vereinfachter
-// Umriss im Koordinatensystem der Karte (0–1000). Liegt die Mitte nicht auf Feldboden (noch nicht bestellt) oder passt
-// die Fläche nicht zur Größe des Grundstücks, bleibt das Feld ein Kreis. Kennt der Hub die Feldumrisse aus der Karte (src/fsfields.js), nimmt er für jedes Feld dessen Vieleck, auch
-// ohne Feldboden (noch nicht bestellte Felder). Ergebnis und Ebenen-Bilder liegen im Datenordner und werden nur neu
-// gerechnet, wenn sich etwas ändert.
+// Daraus werden durchsichtige Bilder über der Karte, eins je Eintrag der Legende (eine Frucht, ein Zustand, eine Pflege),
+// damit sich jeder Eintrag einzeln ein- und ausblenden lässt. Dazu je Grundstück, was wie viel Fläche hat (Grundstückskarte
+// aus der Mod „Farming Hub Export“). Welche Zahl in der Dichtekarte welche Frucht ist, sagt die Mod (ab Version 2); sonst
+// lernt der Hub es aus fields.xml: Die Zahl, die auf einem Feld mit Weizen am häufigsten vorkommt, ist Weizen.
+// Ergebnis und Bilder liegen im Datenordner und werden nur neu gerechnet, wenn sich eine Datei ändert.
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const crypto = require('node:crypto');
-const fsfields = require('./fsfields');
 
 // ---------- Dateiformate ----------
 // GDM („"MDF“): Kopf mit Größe, Kanälen und Bereichen, danach 32 × 32-Kacheln, je Bereich mit Palette und Bits.
-// Gibt die Werte eines Bereichs als Uint16Array zurück (Zeile für Zeile, size × size).
-function readGdm(buf, region = 0) {
+// Gibt die Werte der gewünschten Bereiche zurück (Zeile für Zeile), mit step > 1 nur jedes step-te Pixel (kleinere Bilder).
+function readGdm(buf, region = 0, step = 1) {
+  const r = readGdmRegions(buf, [region], step);
+  return { size: r.size, data: r.data[0], channels: r.channels, bounds: r.bounds };
+}
+function readGdmRegions(buf, wanted, step = 1) {
   if (buf.length < 16 || buf.toString('latin1', 0, 4) !== '"MDF') throw new Error('Keine GDM-Datei');
   const dimLog = buf[8], chunkLog = buf[9], channels = buf[11], regions = buf[12];
   const bounds = [...buf.subarray(13, 13 + regions - 1)];
-  if (region >= regions) throw new Error('Bereich fehlt');
-  const size = 1 << (dimLog + chunkLog), cs = 1 << chunkLog, n = size / cs;
-  const out = new Uint16Array(size * size);
+  for (const w of wanted) if (w >= regions) throw new Error('Bereich fehlt');
+  const full = 1 << (dimLog + chunkLog), cs = 1 << chunkLog, n = full / cs;
+  const size = Math.floor(full / step);
+  const out = wanted.map(() => new Uint16Array(size * size));
+  const slot = new Map(wanted.map((w, i) => [w, i]));
   let p = 16 + (regions - 1);
   for (let cy = 0; cy < n; cy++) {
     for (let cx = 0; cx < n; cx++) {
       for (let r = 0; r < regions; r++) {
+        if (p + 2 > buf.length) throw new Error('GDM-Datei ist abgeschnitten');
         const bits = buf[p], pal = buf[p + 1];
         p += 2;
         const palette = pal ? Array.from({ length: pal }, (_, i) => buf.readUInt16LE(p + i * 2)) : null;
         p += pal * 2;
         const nb = bits * cs * cs / 8;
-        if (r === region) {
-          const base = cy * cs * size + cx * cs;
+        const k = slot.get(r);
+        if (k !== undefined) {
+          const o = out[k];
           if (!bits) {
             const v = palette ? palette[0] : 0;
-            for (let y = 0; y < cs; y++) out.fill(v, base + y * size, base + y * size + cs);
+            for (let y = 0; y < cs; y++) {
+              const gy = cy * cs + y;
+              if (gy % step) continue;
+              const row = (gy / step) * size;
+              for (let x = 0; x < cs; x += 1) { const gx = cx * cs + x; if (!(gx % step)) o[row + gx / step] = v; }
+            }
           } else {
             const mask = (1 << bits) - 1;
             let acc = 0, nacc = 0, q = p;
@@ -50,7 +61,9 @@ function readGdm(buf, region = 0) {
               const idx = acc & mask;
               acc >>>= bits;
               nacc -= bits;
-              out[base + (i >> chunkLog) * size + (i & (cs - 1))] = palette ? (palette[idx] ?? 0) : idx;
+              const gy = cy * cs + (i >> chunkLog), gx = cx * cs + (i & (cs - 1));
+              if (gy % step || gx % step) continue;
+              o[(gy / step) * size + gx / step] = palette ? (palette[idx] ?? 0) : idx;
             }
           }
         }
@@ -59,7 +72,7 @@ function readGdm(buf, region = 0) {
     }
   }
   if (p > buf.length) throw new Error('GDM-Datei ist abgeschnitten');
-  return { size, data: out, channels, bounds };
+  return { size, full, data: out, channels, bounds };
 }
 // GRLE: Kopf mit Breite und Höhe (in 256ern), danach Lauflängen: ein Byte, folgt dasselbe noch einmal, kommt ein Zähler
 // (0xFF heißt +255 und weiter) für weitere Kopien.
@@ -99,48 +112,10 @@ function png(w, h, pixels, colors) {
   const raw = Buffer.alloc((w + 1) * h);
   for (let y = 0; y < h; y++) { raw[y * (w + 1)] = 0; raw.set(pixels.subarray(y * w, (y + 1) * w), y * (w + 1) + 1); }
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('PLTE', pal), chunk('tRNS', trns),
-    chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
+    chunk('IDAT', zlib.deflateSync(raw, { level: 6 })), chunk('IEND', Buffer.alloc(0))]);
 }
 
-// ---------- Felder ----------
-// Feldboden auf halber Auflösung: eine Zelle zählt nur, wenn alle vier Pixel Feldboden sind
-function fieldMask(ground) {
-  const n = ground.size, m = n >> 1, g = ground.data, mask = new Uint8Array(m * m);
-  for (let y = 0; y < m; y++) {
-    const r0 = 2 * y * n, r1 = r0 + n;
-    for (let x = 0; x < m; x++) {
-      const a = 2 * x;
-      if ((g[r0 + a] & 15) && (g[r0 + a + 1] & 15) && (g[r1 + a] & 15) && (g[r1 + a + 1] & 15)) mask[y * m + x] = 1;
-    }
-  }
-  return { size: m, data: mask };
-}
-// Jedes Feld wächst gleichzeitig von seiner Mitte aus (Breitensuche), so teilen sich aneinanderstoßende Felder die Fläche.
-// seeds: [{ id, gx, gy }] in Zellen. Ergebnis: Nummer des Felds je Zelle (Index in seeds + 1).
-function grow(mask, seeds, searchCells) {
-  const m = mask.size, md = mask.data, lab = new Uint16Array(m * m), q = new Int32Array(m * m);
-  let head = 0, tail = 0;
-  seeds.forEach((s, i) => {
-    let best = -1, bd = Infinity;
-    const cx = Math.round(s.gx), cy = Math.round(s.gy);
-    for (let dy = -searchCells; dy <= searchCells; dy++) {
-      for (let dx = -searchCells; dx <= searchCells; dx++) {
-        const x = cx + dx, y = cy + dy, d = dx * dx + dy * dy;
-        if (x < 0 || y < 0 || x >= m || y >= m || d >= bd || !md[y * m + x] || lab[y * m + x]) continue;
-        best = y * m + x; bd = d;
-      }
-    }
-    if (best >= 0) { lab[best] = i + 1; q[tail++] = best; }
-  });
-  while (head < tail) {
-    const c = q[head++], x = c % m, l = lab[c];
-    if (x > 0 && md[c - 1] && !lab[c - 1]) { lab[c - 1] = l; q[tail++] = c - 1; }
-    if (x < m - 1 && md[c + 1] && !lab[c + 1]) { lab[c + 1] = l; q[tail++] = c + 1; }
-    if (c >= m && md[c - m] && !lab[c - m]) { lab[c - m] = l; q[tail++] = c - m; }
-    if (c < m * (m - 1) && md[c + m] && !lab[c + m]) { lab[c + m] = l; q[tail++] = c + m; }
-  }
-  return lab;
-}
+// ---------- Umrisse (für die Grundstückskarte, src/fsexport.js) ----------
 // Umriss einer Fläche: Kanten zwischen innen und außen sammeln, zu Ringen verketten, den größten nehmen
 function outline(lab, m, l, box) {
   const next = new Map();
@@ -189,122 +164,217 @@ function simplify(pts, eps) {
   dp(mid, ring.length - 1);
   return out;
 }
-
-// fields: [{ id, x, z, area (ha) }], mapSize in Metern. Gibt { [id]: { d, cx, cy, ha } } im Kartenmaß 0–1000 zurück.
-function buildShapes(groundBuf, fields, mapSize) {
-  const ground = readGdm(groundBuf, 0);
-  const mask = fieldMask(ground);
-  const m = mask.size, cell = mapSize / m, k = 1000 / m;
-  const seeds = fields.filter(f => Number.isFinite(f.x) && Number.isFinite(f.z)).map(f => ({ ...f, gx: (f.x + mapSize / 2) / cell, gy: (f.z + mapSize / 2) / cell }));
-  // Die Mitte muss auf Feldboden liegen (bis 4 m daneben): sonst ist das Feld noch nicht bestellt und bliebe nicht leer,
-  // sondern bekäme ein Stück vom Nachbarfeld
-  const lab = grow(mask, seeds, Math.max(1, Math.ceil(4 / cell)));
-  // Ausdehnung und Größe je Feld
-  const box = seeds.map(() => ({ x0: m, y0: m, x1: -1, y1: -1, n: 0, sx: 0, sy: 0 }));
-  for (let y = 0; y < m; y++) {
-    for (let x = 0; x < m; x++) {
-      const l = lab[y * m + x];
-      if (!l) continue;
-      const b = box[l - 1];
-      if (x < b.x0) b.x0 = x; if (x > b.x1) b.x1 = x; if (y < b.y0) b.y0 = y; if (y > b.y1) b.y1 = y;
-      b.n++; b.sx += x; b.sy += y;
-    }
-  }
-  const out = {};
-  seeds.forEach((s, i) => {
-    const b = box[i];
-    if (!b.n) return;
-    const ha = b.n * cell * cell / 10000;
-    // Viel größer als das Grundstück: ist in Nachbarflächen gelaufen, lieber Kreis
-    if (s.area > 0 && (ha > s.area * 1.6 + 0.3)) return;
-    // Viel kleiner als das Grundstück: nur ein Rest am Rand, lieber Kreis
-    if (ha < 0.05 || (s.area > 0 && ha < s.area * 0.25)) return;
-    const ring = outline(lab, m, i + 1, b);
-    if (!ring) return;
-    const pts = simplify(ring, 0.9);
-    out[s.id] = {
-      d: 'M' + pts.map(([x, y]) => `${+(x * k).toFixed(1)} ${+(y * k).toFixed(1)}`).join('L') + 'Z',
-      cx: +((b.sx / b.n + 0.5) * k).toFixed(1), cy: +((b.sy / b.n + 0.5) * k).toFixed(1), ha: Math.round(ha * 100) / 100,
-    };
-  });
-  return { shapes: out, lab, size: m, seeds };
+// Vieleck in Weltkoordinaten → SVG-Pfad im Kartenmaß 0–1000
+function polyPath(pts, mapSize) {
+  const k = 1000 / mapSize, h = mapSize / 2;
+  return 'M' + pts.map(([x, z]) => `${+((x + h) * k).toFixed(1)} ${+((z + h) * k).toFixed(1)}`).join('L') + 'Z';
 }
 
-// Ebenen-Bild in 1024 × 1024 (oder kleiner bei kleinen Karten): nur Zellen, die zu einem bekannten Feld gehören
-const LAYERS = {
+// ---------- Was wo wächst ----------
+// Bodenart (densityMap_ground, Bits 0–3) → Zustand wie in der Legende „Wachstum“
+const GROUND_STATE = [null, 'gegrubbert', 'gegrubbert', 'gegrubbert', 'gepfluegt', 'gegrubbert', 'gegrubbert', 'gesaet', 'gesaet', 'gesaet', 'gesaet', 'gesaet', 'reif', 'reif', 'gras', 'gemaeht'];
+const STATE_KEYS = ['gepfluegt', 'gegrubbert', 'gesaet', 'waechst', 'reif', 'geerntet', 'verdorrt', 'gras', 'gemaeht'];
+// Pflege je Fleck: Wert aus der Ebene → Nummer der Farbe (0 = nichts zu tun)
+const CARE = {
   kalk: { file: 'infoLayer_limeLevel.grle', colors: ['#e0c52c'], value: v => (v === 0 ? 1 : 0) },
-  duenger: { file: 'infoLayer_sprayLevel.grle', colors: ['#4b97ec', '#1f4fb8'], value: v => (v >= 2 ? 2 : v === 1 ? 1 : 0) },
+  duenger: { file: 'infoLayer_sprayLevel.grle', colors: ['#7db8f2', '#1f4fb8'], value: v => (v >= 2 ? 2 : v === 1 ? 1 : 0) },
   pflug: { file: 'infoLayer_plowLevel.grle', colors: ['#c8693a'], value: v => (v === 0 ? 1 : 0) },
 };
-function layerPng(key, grleBuf, lab, m) {
-  const L = LAYERS[key], g = readGrle(grleBuf);
-  const r = Math.min(1024, m), px = new Uint8Array(r * r);
-  for (let y = 0; y < r; y++) {
-    const ly = Math.floor((y + 0.5) * m / r), gy = Math.floor((y + 0.5) * g.h / r);
-    for (let x = 0; x < r; x++) {
-      if (!lab[ly * m + Math.floor((x + 0.5) * m / r)]) continue;
-      px[y * r + x] = L.value(g.data[gy * g.w + Math.floor((x + 0.5) * g.w / r)]);
+const FILES = ['densityMap_fruits.gdm', 'densityMap_ground.gdm', ...Object.values(CARE).map(c => c.file)];
+
+// Welche Zahl in der Dichtekarte welche Frucht ist: aus der Mod, sonst aus fields.xml gelernt (häufigste Zahl je Feld).
+// fruits: [{ name, density }], fields: [{ id, fruit }] aus fields.xml, polys: { feldId: [[x, z], …] } aus dem Export.
+function fruitValues(fruitIdx, size, mapSize, fruits, fields, polys) {
+  const game = new Map();
+  for (const f of fruits) if (Number.isInteger(f.density) && f.density > 0) game.set(f.density, f.name);
+  const learned = learnValues(fruitIdx, size, mapSize, fields, polys);
+  // Die Zahlen der Mod gelten, solange fields.xml ihnen nicht überwiegend widerspricht (andere Spielversion, andere Zählung)
+  if (game.size) {
+    const checked = [...learned];
+    const wrong = checked.filter(([v, name]) => game.get(v) !== name).length;
+    if (!checked.length || wrong * 2 <= checked.length) return { map: game, learned: false };
+  }
+  return { map: learned, learned: true };
+}
+function learnValues(fruitIdx, size, mapSize, fields, polys) {
+  const map = new Map();
+  const votes = new Map();
+  for (const f of fields || []) {
+    const pts = polys[f.id];
+    if (!f.fruit || !pts || pts.length < 3) continue;
+    const count = new Map();
+    let all = 0;
+    forPixelsIn(pts, size, mapSize, i => { const v = fruitIdx[i]; if (v) { count.set(v, (count.get(v) || 0) + 1); all++; } });
+    const top = [...count].sort((a, b) => b[1] - a[1])[0];
+    if (!top || top[1] < all * 0.5) continue;
+    const v = votes.get(top[0]) || new Map();
+    v.set(f.fruit, (v.get(f.fruit) || 0) + top[1]);
+    votes.set(top[0], v);
+  }
+  for (const [value, v] of votes) map.set(value, [...v].sort((a, b) => b[1] - a[1])[0][0]);
+  return map;
+}
+// Alle Pixel (Raster size × size über die ganze Karte) innerhalb eines Vielecks in Weltkoordinaten, Zeile für Zeile
+function forPixelsIn(pts, size, mapSize, fn) {
+  const k = size / mapSize, h = mapSize / 2;
+  const P = pts.map(([x, z]) => [(x + h) * k, (z + h) * k]);
+  const y0 = Math.max(0, Math.floor(Math.min(...P.map(p => p[1])))), y1 = Math.min(size - 1, Math.ceil(Math.max(...P.map(p => p[1]))));
+  for (let y = y0; y <= y1; y++) {
+    const cy = y + 0.5, xs = [];
+    for (let i = 0; i < P.length; i++) {
+      const [ax, ay] = P[i], [bx, by] = P[(i + 1) % P.length];
+      if ((ay <= cy && by > cy) || (by <= cy && ay > cy)) xs.push(ax + (cy - ay) / (by - ay) * (bx - ax));
+    }
+    xs.sort((a, b) => a - b);
+    for (let j = 0; j + 1 < xs.length; j += 2) {
+      for (let x = Math.max(0, Math.ceil(xs[j] - 0.5)); x <= Math.min(size - 1, Math.floor(xs[j + 1] - 0.5)); x++) fn(y * size + x);
     }
   }
-  return png(r, r, px, L.colors);
+}
+
+// Wachstumsstufe → Zustand, wenn die Mod die Stufen der Frucht kennt (sonst nur die Bodenart)
+function growthState(fruit, g, ground) {
+  if (fruit && g) {
+    if (fruit.cut && g === fruit.cut) return 'geerntet';
+    if (fruit.withered && g === fruit.withered) return 'verdorrt';
+    if (fruit.harvestMin && g >= fruit.harvestMin && (!fruit.harvestMax || g <= fruit.harvestMax)) return 'reif';
+    if (fruit.harvestMin && g < fruit.harvestMin) return g >= 2 ? 'waechst' : 'gesaet';
+  }
+  const s = GROUND_STATE[ground & 15];
+  return s === 'gesaet' && g >= 2 ? 'waechst' : s;
+}
+
+// Rechnet alles: Bilder je Legendeneintrag nach dir/ras-*.png, Flächen je Grundstück und je Eintrag.
+// ctx: { mapSize, fruits: [{ name, density, cut, withered, harvestMin, harvestMax }], fields (fields.xml), polys, grid: { size, lab } }
+function build(dir, ctx) {
+  const mapSize = ctx.mapSize || 2048;
+  const fruitsBuf = fs.readFileSync(path.join(dir, 'sg-densityMap_fruits.gdm'));
+  const groundFile = path.join(dir, 'sg-densityMap_ground.gdm');
+  // Halbe Auflösung bei 4096er Karten: ein Pixel je Meter reicht und spart Speicher
+  const head = 1 << (fruitsBuf[8] + fruitsBuf[9]);
+  const step = Math.max(1, Math.round(head / Math.min(head, 2048)));
+  const fr = readGdmRegions(fruitsBuf, [0, 1], step);
+  const R = fr.size, fruitIdx = fr.data[0], growth = fr.data[1];
+  let ground = null;
+  if (fs.existsSync(groundFile)) {
+    const gb = fs.readFileSync(groundFile), gfull = 1 << (gb[8] + gb[9]);
+    const g = readGdm(gb, 0, Math.max(1, Math.round(gfull / R)));
+    if (g.size === R) ground = g.data;
+  }
+  const care = {};
+  for (const [k, c] of Object.entries(CARE)) {
+    const f = path.join(dir, 'sg-' + c.file);
+    if (fs.existsSync(f)) { try { care[k] = readGrle(fs.readFileSync(f)); } catch (e) { console.error('Farming Hub, Ebene', k, e.message); } }
+  }
+  const { map: values, learned } = fruitValues(fruitIdx, R, mapSize, ctx.fruits || [], ctx.fields || [], ctx.polys || {});
+  const byName = new Map((ctx.fruits || []).map(f => [f.name, f]));
+  const grid = ctx.grid && ctx.grid.lab ? ctx.grid : null;
+  const pxHa = (mapSize / R) ** 2 / 10000;
+
+  // Je Pixel: Nummer der Frucht (1…), des Zustands (1…) und je Pflege der Farbe
+  const fruitNames = [], fruitNo = new Map();
+  const fruitOf = v => {
+    if (!v) return 0;
+    const name = values.get(v) || `?${v}`;
+    if (!fruitNo.has(name)) { fruitNames.push(name); fruitNo.set(name, fruitNames.length); }
+    return fruitNo.get(name);
+  };
+  const fPix = new Uint8Array(R * R), sPix = new Uint8Array(R * R), cPix = Object.fromEntries(Object.keys(care).map(k => [k, new Uint8Array(R * R)]));
+  const parcels = {};
+  const totals = { fruits: {}, states: {}, care: {} };
+  const put = (o, k, n = 1) => { o[k] = (o[k] || 0) + n; };
+  for (let y = 0; y < R; y++) {
+    for (let x = 0; x < R; x++) {
+      const i = y * R + x;
+      const gt = ground ? ground[i] & 15 : 0, fv = fruitIdx[i];
+      if (!gt && !fv) continue;
+      const no = fruitOf(fv);
+      const name = no ? fruitNames[no - 1] : null;
+      const state = growthState(name && byName.get(name), fv ? growth[i] : 0, gt);
+      fPix[i] = no;
+      if (state) sPix[i] = STATE_KEYS.indexOf(state) + 1;
+      const pid = grid ? grid.lab[Math.floor(y * grid.size / R) * grid.size + Math.floor(x * grid.size / R)] : 0;
+      const pc = pid ? (parcels[pid] = parcels[pid] || { px: 0, fruits: {}, states: {}, care: {} }) : null;
+      if (pc) pc.px++;
+      if (name) { put(totals.fruits, name); if (pc) put(pc.fruits, name); }
+      if (state) { put(totals.states, state); if (pc) put(pc.states, state); }
+      // Pflege nur auf Ackerboden, nicht auf Grünland
+      if (gt && gt < 14) {
+        for (const [k, g] of Object.entries(care)) {
+          const v = CARE[k].value(g.data[Math.floor(y * g.h / R) * g.w + Math.floor(x * g.w / R)]);
+          if (!v) continue;
+          cPix[k][i] = v;
+          const key = k === 'duenger' ? (v === 1 ? 'duenger1' : 'duenger2') : k;
+          put(totals.care, key);
+          if (pc) put(pc.care, key);
+        }
+      }
+    }
+  }
+  // Bilder: eins je Frucht, Zustand und Pflege; alte weg
+  for (const f of fs.readdirSync(dir)) if (/^ras-.*\.png$/.test(f)) fs.rmSync(path.join(dir, f), { force: true });
+  const mask = (pix, no) => { const out = new Uint8Array(R * R); for (let i = 0; i < out.length; i++) if (pix[i] === no) out[i] = 1; return out; };
+  const slug = s => String(s).replace(/[^A-Za-z0-9_]/g, '_');
+  const images = { fruits: {}, states: {}, care: {} };
+  fruitNames.forEach((name, i) => {
+    const file = `ras-f-${slug(name)}.png`;
+    fs.writeFileSync(path.join(dir, file), png(R, R, mask(fPix, i + 1), [ctx.colorOf ? ctx.colorOf(name) : '#8fd16a']));
+    images.fruits[name] = file;
+  });
+  STATE_KEYS.forEach((k, i) => {
+    if (!totals.states[k]) return;
+    const file = `ras-s-${k}.png`;
+    fs.writeFileSync(path.join(dir, file), png(R, R, mask(sPix, i + 1), [ctx.stateColor ? ctx.stateColor(k) : '#5aa83c']));
+    images.states[k] = file;
+  });
+  for (const k of Object.keys(care)) {
+    if (k === 'duenger') {
+      for (const lvl of [1, 2]) {
+        if (!totals.care['duenger' + lvl]) continue;
+        const file = `ras-c-duenger${lvl}.png`;
+        fs.writeFileSync(path.join(dir, file), png(R, R, mask(cPix[k], lvl), [CARE.duenger.colors[lvl - 1]]));
+        images.care['duenger' + lvl] = file;
+      }
+    } else if (totals.care[k]) {
+      const file = `ras-c-${k}.png`;
+      fs.writeFileSync(path.join(dir, file), png(R, R, cPix[k], CARE[k].colors));
+      images.care[k] = file;
+    }
+  }
+  // Pixel → Hektar
+  const ha = o => Object.fromEntries(Object.entries(o).map(([k, n]) => [k, Math.round(n * pxHa * 100) / 100]));
+  for (const p of Object.values(parcels)) { p.ha = Math.round(p.px * pxHa * 100) / 100; delete p.px; p.fruits = ha(p.fruits); p.states = ha(p.states); p.care = ha(p.care); }
+  return { size: R, learned, values: Object.fromEntries(values), images, totals: { fruits: ha(totals.fruits), states: ha(totals.states), care: ha(totals.care) }, parcels };
 }
 
 // ---------- Zwischenspeicher ----------
-// dir: Datenordner des Hubs. files: { name: { sig } } aus dem FTP-Stand, fields und mapSize aus dem Modell.
+// files: { name: { sig } } aus dem FTP-Stand. Ohne densityMap_fruits.gdm gibt es nichts je Fleck (null).
 let mem = null;
-function signature(files, fields, mapSize, outlines) {
+function signature(files, extra) {
   const h = crypto.createHash('sha1');
-  h.update(String(mapSize) + ';' + ((outlines && outlines.sig) || '-'));
-  for (const n of ['densityMap_ground.gdm', ...Object.values(LAYERS).map(l => l.file)]) h.update(n + '=' + ((files[n] && files[n].sig) || '-') + ';');
-  for (const f of fields) h.update(`${f.id}:${Math.round(f.x)}:${Math.round(f.z)}${f.parcel ? "p" : ""};`);
+  h.update(String(extra || ''));
+  for (const n of FILES) h.update(n + '=' + ((files[n] && files[n].sig) || '-') + ';');
   return h.digest('hex').slice(0, 16);
 }
-// outlines: { sig, polys } aus der Karte oder null. own: { sig, polys: { id: [[x, z], …] } } aus fs_outlines.
-// game: { sig, shapes: { id: { pts, kind } } } aus der Mod „Farming Hub Export“ (src/fsexport.js).
-// Reihenfolge, das Spätere gewinnt: Feldboden, map.i3d, aus dem Kartenbild erkannt, aus dem Spiel, von Hand gezeichnet.
-function load(dir, files, fields, mapSize, outlines = null, own = null, game = null) {
-  const ground = !!files['densityMap_ground.gdm'] && fs.existsSync(path.join(dir, 'sg-densityMap_ground.gdm'));
-  const polys = outlines && outlines.polys && outlines.polys.length ? outlines.polys : null;
-  const mine = own && own.polys && Object.keys(own.polys).length ? own : null;
-  const fromGame = game && game.shapes && Object.keys(game.shapes).length ? game : null;
-  if ((!ground && !polys && !mine && !fromGame) || !fields.length) return null;
-  const sig = signature(ground ? files : {}, fields, mapSize, { sig: ((polys && outlines.sig) || '-') + '/' + ((mine && mine.sig) || '-') + '/' + ((fromGame && fromGame.sig) || '-') });
+function load(dir, files, ctx) {
+  if (!files['densityMap_fruits.gdm'] || !fs.existsSync(path.join(dir, 'sg-densityMap_fruits.gdm'))) return null;
+  const sig = signature(files, ctx.sig);
   if (mem && mem.sig === sig) return mem;
-  const store = path.join(dir, 'shapes.json');
+  const store = path.join(dir, 'patches.json');
   try {
     const saved = JSON.parse(fs.readFileSync(store, 'utf8'));
-    if (saved.sig === sig) { mem = saved; return mem; }
+    if (saved.sig === sig && Object.values(saved.images || {}).every(g => Object.values(g).every(f => fs.existsSync(path.join(dir, f))))) { mem = saved; return mem; }
   } catch { /* noch nichts gerechnet */ }
   try {
     const t = Date.now();
-    // Grundstücke ohne Feld haben keinen Feldboden und kein Feld-Vieleck, dort fände die Suche nur den Nachbarn
-    const real = fields.filter(f => !f.parcel);
-    const r = ground ? buildShapes(fs.readFileSync(path.join(dir, 'sg-densityMap_ground.gdm')), real, mapSize) : { shapes: {} };
-    const exact = polys ? fsfields.matchFields(polys, real, mapSize) : {};
-    const shapes = {};
-    for (const [id, s] of Object.entries(r.shapes)) shapes[id] = { ...s, src: 'boden' };
-    for (const [id, s] of Object.entries(exact)) shapes[id] = { ...s, src: 'karte' };
-    const ids = new Set(fields.map(f => String(f.id)));
-    const own = Object.entries((mine && mine.polys) || {}).filter(([id, p]) => ids.has(String(id)) && p.pts.length >= 3);
-    for (const [id, p] of own) if (p.source !== 'hand') shapes[id] = { ...fsfields.polyShape(p.pts, mapSize), src: p.source };
-    let nGame = 0;
-    for (const [id, p] of Object.entries((fromGame && fromGame.shapes) || {})) if (ids.has(String(id)) && p.pts.length >= 3) { shapes[id] = { ...fsfields.polyShape(p.pts, mapSize), src: 'spiel' }; nGame++; }
-    for (const [id, p] of own) if (p.source === 'hand') shapes[id] = { ...fsfields.polyShape(p.pts, mapSize), src: p.source };
-    const layers = [];
-    for (const [key, L] of Object.entries(LAYERS)) {
-      const file = path.join(dir, 'sg-' + L.file);
-      if (!ground || !files[L.file] || !fs.existsSync(file)) { fs.rmSync(path.join(dir, `layer-${key}.png`), { force: true }); continue; }
-      try { fs.writeFileSync(path.join(dir, `layer-${key}.png`), layerPng(key, fs.readFileSync(file), r.lab, r.size)); layers.push(key); } catch (e) { console.error('Farming Hub, Ebene', key, e.message); }
-    }
-    mem = { sig, at: Math.floor(Date.now() / 1000), ms: Date.now() - t, shapes, layers, exact: Object.keys(exact).length, game: nGame };
-    fs.writeFileSync(store, JSON.stringify(mem));
-    return mem;
+    mem = { sig, at: Math.floor(Date.now() / 1000), ...build(dir, ctx), ms: Date.now() - t };
   } catch (e) {
-    console.error('Farming Hub, Feldformen:', e.message);
-    mem = { sig, at: Math.floor(Date.now() / 1000), shapes: {}, layers: [], error: e.message };
-    return mem;
+    console.error('Farming Hub, Dichtekarten:', e.message);
+    mem = { sig, at: Math.floor(Date.now() / 1000), images: { fruits: {}, states: {}, care: {} }, totals: { fruits: {}, states: {}, care: {} }, parcels: {}, error: e.message };
   }
+  fs.writeFileSync(store, JSON.stringify(mem));
+  return mem;
 }
 function forget() { mem = null; }
 
-module.exports = { readGdm, readGrle, png, fieldMask, grow, outline, simplify, buildShapes, layerPng, LAYERS, load, forget, signature };
+module.exports = { readGdm, readGdmRegions, readGrle, png, outline, simplify, polyPath, forPixelsIn, fruitValues, growthState, build, load, forget, signature, FILES, CARE, STATE_KEYS, GROUND_STATE };

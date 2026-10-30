@@ -7,7 +7,11 @@
 //   Felder       Umriss jedes Felds in Weltkoordinaten, auch Felder, die noch kein Acker sind
 //   Grundstücke  Nummer, Mitte, Größe, Preis, Besitzer und die Grundstückskarte (Läufe „Nummer*Länge“ je Zeile).
 //                Aus der Karte werden hier Umrisse für jedes Grundstück, dann braucht die XML nicht im Speicher zu bleiben.
-//   Gebäude      uniqueId (wie in placeables.xml), Position, Kartensymbol, was sie annehmen oder verkaufen, Rezepte
+//   Gebäude      uniqueId (wie in placeables.xml), Position, Kartensymbol, was sie annehmen oder verkaufen, Rezepte,
+//                welche Produktionen laufen und was im Lager liegt (Füllstand und Platz)
+//   Waren        (ab Version 2) Name in der Sprache des Spiels, Grundpreis, Gewicht
+//   Früchte      (ab Version 2) Wachstumsstufen, Saat- und Erntemonate, Ertrag, Saatgut, Kartenfarbe, Wert in der Dichtekarte
+//   Katalog      (ab Version 2) alle Produktionen aus dem Shop mit Preis, Rezepten und Lagerplatz
 //
 // Warum eine Mod: DLC-Karten liegen verschlüsselt in .dlc-Dateien, das Grundspiel gepackt in .gar. Beides liest der Hub
 // nicht, und den Schutz zu umgehen kommt nicht in Frage. Das laufende Spiel kennt alles und darf es weitergeben.
@@ -52,34 +56,54 @@ function parcels(rows, size, mapSize) {
   return out;
 }
 
+const recipe = r => ({
+  id: r.a.id, name: r.a.name || '', cycles: num(r.a.cyclesPerMonth), cost: num(r.a.costsPerMonth), active: r.a.active === 'true', status: num(r.a.status),
+  inputs: X.all(X.kid(r, 'inputs'), 'input').map(i => ({ fill: i.a.fillType, amount: num(i.a.amount, 0) })).filter(i => i.fill),
+  outputs: X.all(X.kid(r, 'outputs'), 'output').map(o => ({ fill: o.a.fillType, amount: num(o.a.amount, 0), sell: o.a.sellDirectly === 'true' })).filter(o => o.fill),
+});
+const periods = s => String(s || '').split(/\s+/).map(Number).filter(p => Number.isInteger(p) && p >= 1 && p <= 12).map(p => p - 1);
+
 function read(xml, at = Math.floor(Date.now() / 1000)) {
   const s = X.parse(xml);
   if (s.n !== 'farmingHubExport') throw new Error('Keine Datei der Mod „Farming Hub Export“.');
   const mapSize = num(s.a.mapSize, 2048);
-  const fields = X.all(s, 'field').map(f => ({ id: num(f.a.id), farmland: num(f.a.farmland), ha: num(f.a.areaHa, 0), pts: pts(f.a.pts) }))
+  const fields = X.all(s, 'field').map(f => ({ id: num(f.a.id), farmland: num(f.a.farmland), ha: num(f.a.areaHa, 0), x: num(f.a.x), z: num(f.a.z), pts: pts(f.a.pts) }))
     .filter(f => f.id !== null && f.pts.length >= 3);
   const lands = X.kid(s, 'farmlands');
-  const farmlands = X.kids(lands, 'farmland').map(f => ({ id: num(f.a.id), area: num(f.a.areaHa, 0), price: num(f.a.price, 0), owner: num(f.a.owner, 0), x: num(f.a.x), z: num(f.a.z) }))
+  const farmlands = X.kids(lands, 'farmland').map(f => ({ id: num(f.a.id), area: num(f.a.areaHa, 0), price: num(f.a.price, 0), owner: num(f.a.owner, 0), x: num(f.a.x), z: num(f.a.z), hidden: f.a.hidden === 'true' }))
     .filter(f => f.id !== null);
   const map = X.kid(lands, 'map');
-  const placeables = X.all(s, 'placeable').map(p => {
+  const grid = map ? { size: num(map.a.size, 0), rows: X.kids(map, 'row').map(r => r.t) } : null;
+  const placeables = X.kids(X.kid(s, 'placeables'), 'placeable').map(p => {
     const point = X.kid(p, 'productionPoint');
     return {
       uid: p.a.uniqueId || '', file: p.a.filename || '', type: p.a.type || '', name: p.a.name || '', farmId: num(p.a.farmId, 0), x: num(p.a.x), z: num(p.a.z),
       hotspot: p.a.hotspot || '', price: num(p.a.price), sells: fills(p.a.sells), buys: fills(p.a.buys),
       production: point ? {
         shared: point.a.shared !== 'false',
-        recipes: X.kids(point, 'production').map(r => ({
-          id: r.a.id, name: r.a.name || '', cycles: num(r.a.cyclesPerMonth), cost: num(r.a.costsPerMonth),
-          inputs: X.all(X.kid(r, 'inputs'), 'input').map(i => ({ fill: i.a.fillType, amount: num(i.a.amount, 0) })).filter(i => i.fill),
-          outputs: X.all(X.kid(r, 'outputs'), 'output').map(o => ({ fill: o.a.fillType, amount: num(o.a.amount, 0), sell: o.a.sellDirectly === 'true' })).filter(o => o.fill),
-        })).filter(r => r.id),
+        recipes: X.kids(point, 'production').map(recipe).filter(r => r.id),
+        storage: X.kids(X.kid(point, 'storage'), 'fill').map(f => ({ fill: f.a.fillType, level: num(f.a.level, 0), cap: num(f.a.capacity) })).filter(f => f.fill),
       } : null,
     };
   });
+  // Version 2: Waren, Früchte und der Katalog aller Produktionen aus dem Shop
+  const ft = X.kid(s, 'fillTypes');
+  const fillTypes = X.kids(ft, 'fillType').filter(f => f.a.name).map(f => ({ name: f.a.name, title: f.a.title || '', price: num(f.a.price), mass: num(f.a.mass), priceTable: f.a.priceTable === 'true' }));
+  const fruitTypes = X.kids(X.kid(s, 'fruitTypes'), 'fruitType').filter(f => f.a.name).map(f => ({
+    name: f.a.name, index: num(f.a.index), density: num(f.a.density), fill: f.a.fillType || f.a.name, states: num(f.a.growthStates),
+    harvestMin: num(f.a.harvestMin), harvestMax: num(f.a.harvestMax), cut: num(f.a.cut), withered: num(f.a.withered), regrows: f.a.regrows === 'true',
+    literPerSqm: num(f.a.literPerSqm), seedPerSqm: num(f.a.seedPerSqm), windrow: f.a.windrow || '', color: /^#[0-9a-f]{6}$/i.test(f.a.color || '') ? f.a.color : null,
+    sow: periods(f.a.plant), harvest: periods(f.a.harvest), seeding: f.a.noSeeding !== 'true',
+  }));
+  const catalog = X.kids(X.kid(s, 'catalog'), 'building').filter(b => b.a.filename).map(b => ({
+    file: b.a.filename, name: b.a.name || '', price: num(b.a.price), category: b.a.category || '', dlc: b.a.dlc || '', shared: b.a.shared !== 'false', capacity: num(b.a.capacity),
+    recipes: X.kids(b, 'production').map(recipe).filter(r => r.id),
+    storage: X.kids(X.kid(b, 'storage'), 'capacity').map(c => ({ fill: c.a.fillType, cap: num(c.a.capacity) })).filter(c => c.fill),
+  }));
   return {
-    version: num(s.a.version, 1), mapId: s.a.mapId || '', mapTitle: s.a.mapTitle || '', mapSize, saveDate: s.a.saveDate || '', day: num(s.a.day), at,
-    fields, farmlands, placeables, parcels: map ? parcels(X.kids(map, 'row').map(r => r.t), num(map.a.size, 0), mapSize) : {},
+    version: num(s.a.version, 1), mapId: s.a.mapId || '', mapTitle: s.a.mapTitle || '', mapSize, saveDate: s.a.saveDate || '', day: num(s.a.day), dpp: num(s.a.daysPerPeriod), at,
+    fields, farmlands, placeables, grid, parcels: grid ? parcels(grid.rows, grid.size, mapSize) : {},
+    language: (ft && ft.a.language) || '', fillTypes, fruitTypes, catalog,
   };
 }
 
@@ -115,17 +139,40 @@ function summary(e) {
   if (!e) return null;
   const prods = e.placeables.filter(p => p.production);
   return { source: e.source, mapTitle: e.mapTitle, saveDate: e.saveDate, at: e.at, fields: e.fields.length, farmlands: e.farmlands.length, parcels: Object.keys(e.parcels).length,
-    stations: e.placeables.filter(p => p.x !== null).length, productions: prods.length, recipes: prods.reduce((a, p) => a + p.production.recipes.length, 0) };
+    stations: e.placeables.filter(p => p.x !== null).length, productions: prods.length, recipes: prods.reduce((a, p) => a + p.production.recipes.length, 0),
+    version: e.version || 1, fillTypes: (e.fillTypes || []).length, fruitTypes: (e.fruitTypes || []).length, catalog: (e.catalog || []).length };
 }
 const sig = e => (e ? `${e.source}:${e.at}:${e.fields.length}:${Object.keys(e.parcels).length}` : '-');
 
 // ---------- Anwenden ----------
-// Umrisse je Feld- bzw. Grundstücksnummer (der Hub zählt Felder nach Grundstück): erst das Grundstück, darüber das Feld
-function shapes(e) {
-  const out = {};
-  for (const [id, p] of Object.entries(e.parcels)) out[id] = { pts: p, kind: 'grundstueck' };
-  for (const f of e.fields) out[f.farmland ?? f.id] = { pts: f.pts, kind: 'feld' };
-  return out;
+// Grundstück, zu dem ein Punkt gehört (Weltkoordinaten), aus der Grundstückskarte; 0 = keins
+function parcelAt(e, x, z) {
+  const g = e && e.grid, lab = gridLabels(e);
+  if (!lab || !Number.isFinite(x) || !Number.isFinite(z)) return 0;
+  const S = e.mapSize || 2048, c = Math.floor((x + S / 2) / S * g.size), r = Math.floor((z + S / 2) / S * g.size);
+  return c < 0 || r < 0 || c >= g.size || r >= g.size ? 0 : lab[r * g.size + c];
+}
+// Grundstücksnummer je Zelle der Grundstückskarte (size × size), gemerkt je Export (nicht im Export selbst, der wird als JSON gespeichert)
+const labCache = new WeakMap();
+function gridLabels(e) {
+  const g = e && e.grid;
+  if (!g || !g.size || g.rows.length !== g.size) return null;
+  if (!labCache.has(g)) labCache.set(g, labels(g.rows, g.size));
+  return labCache.get(g);
+}
+function labels(rows, size) {
+  const lab = new Uint16Array(size * size);
+  rows.forEach((row, y) => {
+    let x = 0;
+    for (const run of String(row).trim().split(/\s+/)) {
+      const [id, len] = run.split('*').map(Number);
+      if (!Number.isFinite(id) || !(len > 0)) continue;
+      const end = Math.min(size, x + len);
+      if (id > 0 && id < 255) lab.fill(id, y * size + x, y * size + end);
+      x = end;
+    }
+  });
+  return lab;
 }
 // Positionen aus dem Spiel für Gebäude aus placeables.xml, die dort keine haben (vorplatzierte)
 function withPositions(plc, e) {
@@ -161,4 +208,4 @@ function modZip() {
   return zip.toBuffer();
 }
 
-module.exports = { FILE, MOD_NAME, read, parcels, upload, uploaded, removeUpload, current, summary, sig, shapes, withPositions, modZip, icon };
+module.exports = { FILE, MOD_NAME, read, parcels, labels, gridLabels, parcelAt, upload, uploaded, removeUpload, current, summary, sig, withPositions, modZip, icon };

@@ -2534,8 +2534,8 @@ async function main() {
         assert.match(page, /<b>Hof Anna<\/b>/);
         assert.match(page, /18 <small>Felder · 57,2 ha<\/small>/, 'Hof startet mit den Kacheln');
         assert.match(page, /class="fs-tile" href="\/farming\/hof\/1\?tab=inventar"/);
-        assert.match(page, /<span class="fi fi-s" style="--c:#9ab0a0" title="Forelle"/, 'Symbol der Forelle im Inventar');
-        assert.match((await anna.req('/farming/hof/1?tab=inventar')).text_, /Forelle<\/a><\/b>/);
+        assert.match(page, /<span class="fi fi-s" style="--c:#9ab0a0" title="Forellen"/, 'Symbol der Forelle im Inventar');
+        assert.match((await anna.req('/farming/hof/1?tab=inventar')).text_, /Forellen<\/a><\/b>/);
         assert.match((await anna.req('/farming/hof/1?tab=finanzen')).text_, /Land \(20 Grundstücke, Kaufpreis\)/);
         assert.match((await anna.req('/farming/hof/1?tab=fahrzeuge&sort=preis')).text_, /JAGUAR 990 TERRA TRAC/);
         assert.match((await anna.req('/farming/hof/1?tab=finanzen')).text_, /Fuhrpark \(59 Stück, Neupreis\)/);
@@ -2569,34 +2569,24 @@ async function main() {
         page = (await anna.req('/farming/hof/1?tab=aufgaben')).text_;
         assert.doesNotMatch(page, /value="wear:1"|value="diesel:1"/);
 
-        // Hofkalender, Feld melden, Karte
+        // Hofkalender, Karte
         const weizen = sql.prepare("SELECT id FROM fs_crops WHERE name = 'Weizen'").get().id;
         assert.equal((await anna.form('/farming/hof/1/plan', { _csrf: t, field: '7', crop_id: String(weizen), sow_month: '', harvest_month: '' })).status, 302);
         page = (await anna.req('/farming/hof/1?tab=kalender')).text_;
-        assert.match(page, /Weizen<small>Feld 7<\/small>[\s\S]*?<span class="seg s l/, 'Planzeile mit Säen');
+        assert.match(page, /Weizen<small>Grundstück 7<\/small>[\s\S]*?<span class="seg s l/, 'Planzeile mit Säen');
         assert.match(page, /<th colspan="2" class="">Jan<\/th>[\s\S]*?<th colspan="2" class="now">Mai<\/th>[\s\S]*?<th colspan="2" class="">Dez<\/th>/, 'Januar bis Dezember, zwei Tage je Monat');
         assert.match(page, /data-day="174" data-label="Mai, Tag 2 · Jahr 8"/, 'Klick auf einen Tag');
         // Aufgabe aus dem Kalender: Spieltag und jedes Spieljahr
         assert.equal((await anna.form('/farming/hof/1/aufgaben', { _csrf: t, title: 'Kalken', due: 'gday', due_day: '180', repeat: 'gmonths:12', back: '/farming/hof/1?tab=kalender' })).headers.get('location'), '/farming/hof/1?tab=kalender&ok=aufgabe');
         assert.deepEqual({ ...sql.prepare("SELECT due_day, repeat, repeat_n FROM fs_tasks WHERE title = 'Kalken'").get() }, { due_day: 180, repeat: 'gmonths', repeat_n: 12 });
         assert.match((await anna.req('/farming/hof/1?tab=kalender&wdh=1')).text_, /<span class="dotx" title="Kalken">/);
-        assert.equal((await bernd.form('/farming/feld/7', { _csrf: bernd.jar.get('csrf'), crop_id: String(weizen), state: 'reif' })).status, 403);
-        assert.equal((await anna.form('/farming/feld/7', { _csrf: t, crop_id: String(weizen), state: 'reif' })).status, 302);
-        page = (await anna.req('/farming/karte?feld=7&ansicht=zustand')).text_;
-        assert.match(page, /<h2>Feld 7<\/h2>/);
-        assert.match(page, /<span class="t">Zustand<\/span><span class="v"><b>Erntereif<\/b>/);
-        assert.match(page, /data-layer="wachstum" role="img"/, 'alte Ansicht „zustand“ heißt jetzt Wachstum');
-        assert.match(page, /data-wachstum="state:reif"/);
-        assert.match(page, /gemeldet von anna/);
-        // Feldumrisse: nur Admins sehen den Editor und dürfen speichern
-        assert.doesNotMatch(page, /id="fs-umriss"/);
-        assert.equal((await anna.form('/farming/umrisse', { _csrf: t, data: '{}' })).status, 403);
+        // Felder melden und Umrisse zeichnen gibt es nicht mehr: alles kommt aus dem Spiel
+        assert.equal((await anna.form('/farming/feld/7', { _csrf: t, state: 'reif' })).status, 404);
+        assert.equal((await admin.form('/farming/umrisse', { _csrf: admin.jar.get('csrf'), data: '{}' })).status, 404);
+        page = (await anna.req('/farming/karte?feld=7&ansicht=wachstum')).text_;
+        assert.match(page, /data-field="7"/);
+        assert.doesNotMatch(page, /fs-umriss/);
         const ak = admin.jar.get('csrf');
-        assert.match((await admin.req('/farming/karte')).text_, /id="fs-umriss-data"/);
-        const sq = JSON.stringify({ fields: { 7: [[0, 0], [40, 0], [40, 40], [0, 40]] }, source: 'hand' });
-        assert.equal(JSON.parse((await admin.form('/farming/umrisse', { _csrf: ak, data: sq })).text_).n, 1);
-        assert.match((await admin.req('/farming/karte')).text_, /"id":7,[^}]*"src":"hand"/);
-        assert.equal((await admin.form('/farming/umrisse/7/loeschen', { _csrf: ak })).status, 200);
         // Kartenbild ausrichten: nur Admins, Bild wird um die Mitte skaliert und verschoben
         assert.equal((await anna.form('/farming/karte/ausrichten', { _csrf: t, scale: '120' })).status, 403);
         assert.equal((await admin.form('/farming/karte/ausrichten', { _csrf: ak, scale: '110', dx: '20.48', dz: '-20,48' })).status, 302);
@@ -2605,37 +2595,42 @@ async function main() {
         assert.ok(im, 'Kartenbild da');
         assert.ok(Math.abs(Number(im[1]) - Number(im[2]) - 20) < 0.1, '±20,48 m = ±10 im Kartenmaß');
         await admin.form('/farming/karte/ausrichten', { _csrf: ak, reset: '1' });
-        // Stationen setzen: nur Admins, Weltkoordinaten, clear nimmt die Position weg
-        assert.equal((await anna.form('/farming/stationen', { _csrf: t, uid: 'preplaced_x', x: '1', z: '2' })).status, 403);
-        assert.equal(JSON.parse((await admin.form('/farming/stationen', { _csrf: ak, uid: 'preplaced_x', x: '10,5', z: '-20' })).text_).ok, true);
-        assert.deepEqual({ ...sql.prepare("SELECT x, z FROM fs_stations WHERE uid = 'preplaced_x'").get() }, { x: 10.5, z: -20 });
-        assert.equal((await admin.form('/farming/stationen', { _csrf: ak, uid: 'preplaced_x', x: 'weit weg', z: '1' })).status, 400);
-        await admin.form('/farming/stationen', { _csrf: ak, uid: 'preplaced_x', clear: '1' });
-        assert.equal(sql.prepare("SELECT 1 FROM fs_stations WHERE uid = 'preplaced_x'").get(), undefined);
-        // Bodenverteilung von Hand: nur Admins, Infokarte zeigt sie
+        // Bodenverteilung von Hand (steht in keiner Datei): nur Admins, Infokarte zeigt sie
         assert.equal((await anna.form('/farming/boden/7', { _csrf: t, loam: '50' })).status, 403);
         assert.equal((await admin.form('/farming/boden/7', { _csrf: ak, loamy_sand: '17', sandy_loam: '53', loam: '28', yield: '101' })).status, 302);
         page = (await anna.req('/farming/karte?feld=7&ansicht=bodenart')).text_;
         assert.match(page, /data-bodenart="soil:sandy_loam"/);
-        assert.match(page, /Sandiger Lehm 53 %/);
-        assert.match(page, /Ertragspotenzial<\/span><span class="v">101 %/);
-        // Produktionsplaner: alle sehen ihn, Admins tragen Gebäude und Rezepte ein, der Rechner läuft über die Adresse
+        assert.match(page, /"label":"Sandiger Lehm","color":"#[0-9a-f]+","pct":53\}/, 'Infokarte bekommt die Bodenart');
+        assert.match(page, /"yield":101/);
+        // Produktionsplaner ohne Mod: Gebäude, aber keine Handeinträge mehr
         assert.match((await anna.req('/farming/produktion')).text_, /<h1>Produktionsplaner<\/h1>/);
-        assert.equal((await anna.form('/farming/produktion/gebaeude', { _csrf: t, name: 'Ich' })).status, 403);
-        const nb = await admin.form('/farming/produktion/gebaeude', { _csrf: ak, name: 'Bananenwäsche', price: '370.000', mode: 'parallel' });
-        const gk = new URL('http://x' + nb.headers.get('location')).searchParams.get('g');
-        const nr = await admin.form(`/farming/produktion/${gk}/rezept`, { _csrf: ak, name: 'Bananen-Wäsche', cycles: '408', cost: '360', in_amount_0: '15', in_fill_0: 'Bananen', out_amount_0: '15', out_fill_0: 'Bananen Kartons' });
-        const rk = new URL('http://x' + nr.headers.get('location')).searchParams.get('p');
-        page = (await anna.req(`/farming/produktion?g=${gk}&p=${rk}&rechnen=1&in0=1500`)).text_;
-        assert.match(page, /370\.000 €/);
-        assert.match(page, /<b>100<\/b> Zyklen/);
-        assert.match(page, /<b>1\.500<\/b> Bananen Kartons/);
-        assert.match(page, /<small>pro Jahr<\/small><b>4\.896<\/b>/);
+        assert.equal((await admin.form('/farming/produktion/gebaeude', { _csrf: ak, name: 'Bananenwäsche' })).status, 404);
         // Ort aus einem Palettenhaufen
         const spot = (await anna.req('/farming/hof/1?tab=produktion')).text_.match(/name="x" value="(-?\d+)"><input type="hidden" name="z" value="(-?\d+)"/);
         assert.ok(spot, 'Palettenhaufen ohne Ort');
         assert.equal((await anna.form('/farming/hof/1/ort', { _csrf: t, name: 'Fischzucht', x: spot[1], z: spot[2], radius: '40' })).status, 302);
         assert.match((await anna.req('/farming/hof/1?tab=produktion')).text_, /<b>Fischzucht<\/b> <span class="hint">\d+ Paletten/);
+
+        // Spieldaten der Mod hochladen: Planer mit drei Bereichen, Preise zeigen, wo eine Ware verarbeitet wird
+        const exd = new FormData();
+        exd.append('_csrf', admin.jar.get('csrf'));
+        exd.append('export', new Blob([fs.readFileSync(path.join(FX, 'farmingHubExport.xml'), 'utf8').replace('mapTitle="Riverbend Springs"', 'mapTitle="Bilk"')]), 'farmingHubExport.xml');
+        assert.equal((await admin.req('/admin/farming/spieldaten', { method: 'POST', body: exd })).headers.get('location'), '/admin/farming?ok=spiel2#spieldaten');
+        assert.match((await admin.req('/admin/farming')).text_, /\(Mod-Version 2\): 3 Grundstücke, 2 Felder/);
+        page = (await anna.req('/farming/produktion')).text_;
+        assert.match(page, /Spinnerei am Hof/, 'eigenes Gebäude zuerst');
+        assert.match(page, /Alpakavlies/);
+        page = (await anna.req('/farming/produktion?bereich=katalog')).text_;
+        assert.match(page, /Farbenfabrik/);
+        page = (await anna.req('/farming/produktion?g=preplaced_bakery_cccccccccccccccccccccccccccccccc&p=bread&rechnen=1&in0=1500')).text_;
+        assert.match(page, /<b>30<\/b> Zyklen/);
+        assert.match(page, /<b>900<\/b> Brot/);
+        page = (await anna.req('/farming/preise?w=MILK')).text_;
+        assert.match(page, /Wird verarbeitet in[\s\S]*?href="\/farming\/produktion\?g=preplaced_bakery_c+&amp;p=butter">Bäckerei: Butter<\/a>/);
+        page = (await anna.req('/farming/preise?w=BREAD')).text_;
+        assert.match(page, /Wird hergestellt in[\s\S]*?href="\/farming\/produktion\?g=k%3A%24data%2Fplaceables%2Fbakery.xml&amp;p=bread">Bäckerei: Brot<\/a>/, 'Katalog zuerst');
+        page = (await anna.req('/farming/preise?w=WHEAT')).text_;
+        assert.match(page, /Verkaufen bei:.*?<a href="\/farming\/karte\?station=preplaced_grainElevator_a+">Getreidesilo<\/a>/);
 
         // Preise und Modliste
         page = (await anna.req('/farming/preise?w=WHEAT')).text_;
@@ -2684,9 +2679,18 @@ async function main() {
         assert.match(page, /📅 Geplant/);
         assert.match(page, /Machen wir im Herbst/);
 
-        // Datum korrigieren, Gäste zulassen
-        assert.equal((await admin.form('/admin/farming/datum', { _csrf: admin.jar.get('csrf'), dom: '2', month: '3', year: '8' })).status, 302);
-        assert.match((await anna.req('/farming')).text_, /<b>2\. Juni<\/b>[\s\S]*?Jahr 8 · Spieltag 176 · korrigiert/);
+        // Hintergrund der Übersicht je Karte, Gäste zulassen
+        const bgd = new FormData();
+        bgd.append('_csrf', admin.jar.get('csrf'));
+        bgd.append('bg', new Blob([require('./png').png(4, 4)], { type: 'image/png' }), 'hof.png');
+        const bgr = await admin.req('/admin/farming/hintergrund', { method: 'POST', body: bgd });
+        assert.equal(bgr.headers.get('location'), '/admin/farming?ok=hintergrund#hintergrund', bgr.status + ' ' + String(bgr.text_).slice(0, 300));
+        const bgv = /has-bg" style="--fs-bg:url\('\/farming\/hintergrund\.bild\?v=([a-z0-9]+)'\)"/.exec((await anna.req('/farming')).text_);
+        assert.ok(bgv, 'Übersicht mit Hintergrund');
+        assert.equal((await anna.req('/farming/hintergrund.bild?v=' + bgv[1])).headers.get('content-type'), 'image/png');
+        assert.doesNotMatch((await anna.req('/farming/karte')).text_, /has-bg/, 'nur auf der Übersicht');
+        assert.equal((await admin.form('/admin/farming/hintergrund/bilk/loeschen', { _csrf: admin.jar.get('csrf') })).status, 302);
+        assert.equal((await anna.req('/farming/hintergrund.bild')).status, 404);
         assert.equal((await admin.form('/admin/farming/allgemein', { _csrf: admin.jar.get('csrf'), fs_enabled: '1', fs_view: 'public', fs_edit: 'farm', fs_auto_wear: '50', fs_auto_diesel: '50', fs_auto_pallets: '6', fs_map_border: '25' })).status, 302);
         page = (await guest.req('/farming')).text_;
         assert.match(page, /<b>Chaosfarm<\/b>/);

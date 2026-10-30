@@ -1,10 +1,9 @@
 'use strict';
 // Farming Simulator Hub: Stationen auf der Karte (Fabriken, Verkaufsstellen, Tankstellen, Händler …) wie die Hotspots im Spiel.
 //
-//   Welche es gibt, steht in placeables.xml (src/fsfeeds.js): Kartensymbol (mapIcon_<art>), Art aus der uniqueId, was eine
-//   Verkaufsstelle annimmt. Vorplatzierte Stationen haben dort keine Position, die steht nur in der Karte (.dlc, verschlüsselt).
-//   Ein Admin setzt sie deshalb einmal je Spielstand per Klick auf die Karte (fs_stations). Selbst gebaute haben ihre Position.
-const { db, now } = require('./db');
+//   Welche es gibt und wo sie stehen, schreibt die Mod „Farming Hub Export“ (src/fsexport.js): Position, Kartensymbol, was
+//   eine Verkaufsstelle annimmt und eine Ladestation verkauft. placeables.xml ergänzt das Kartensymbol (mapIcon_<art>).
+//   Ohne die Mod kennt der Hub die Stationen, aber nicht ihre Lage (vorplatzierte stehen nur in der Karte selbst).
 const prod = require('./fsprod');
 
 // Reihenfolge = Reihenfolge der Filter, Farben angelehnt an die Hotspots im Spiel
@@ -29,12 +28,12 @@ const ICON_NAMES = {
 
 // Art der Station aus Kartensymbol, Typ und Inhalt
 function catOf(p, type) {
-  const k = (p.icon || '') + ' ' + type;
-  if (/gasStation|chargingStation|electricCharging|biomethane|fuelStation/i.test(k)) return 'tanken';
-  if (/vehicleShop|sellingStationVehicles|animalDealer|animalTrader/i.test(k)) return 'haendler';
-  if (/buyingStation/i.test(k)) return 'einkauf';
-  if (p.kind === 'production' || p.productions.length) return 'produktion';
-  if (p.sells.length) return 'verkauf';
+  const k = (p.icon || '') + ' ' + type + ' ' + (p.hotspot || '');
+  if (/gasStation|chargingStation|electricCharging|biomethane|methaneGas|fuelStation|FUEL/i.test(k)) return 'tanken';
+  if (/vehicleShop|sellingStationVehicles|animalDealer|animalTrader|SHOP|ANIMAL/i.test(k)) return 'haendler';
+  if (p.production || (p.productions || []).length || /PRODUCTION/i.test(k)) return 'produktion';
+  if (/buyingStation|limeStation/i.test(k) || (p.buys || []).length) return 'einkauf';
+  if ((p.sells || []).length) return 'verkauf';
   return 'sonstiges';
 }
 function nameOf(p, type) {
@@ -43,19 +42,19 @@ function nameOf(p, type) {
   if (ICON_NAMES[type]) return ICON_NAMES[type];
   return prod.buildingName(p.kind === 'production' || !p.icon ? type : p.icon);
 }
-const positions = () => new Map(db.prepare('SELECT * FROM fs_stations').all().map(r => [r.uid, r]));
-
-// Alle Stationen mit Position (aus dem Spielstand oder von Hand gesetzt, sonst x/z null). Gleichnamige bekommen eine Nummer.
-function list(plc) {
-  const pos = positions(), out = [];
-  for (const p of plc || []) {
-    // Stationen der Karte: ohne Besitzer, oder mit Kartensymbol (gehört zu einem Grundstück, z. B. Biomethan-Tankstelle)
-    if (!p.uid || p.kind === 'orchard' || (p.farmId !== 0 && !p.icon)) continue;
-    if (p.kind !== 'station' && p.kind !== 'production' && !p.icon && !(p.sells || []).length) continue;
-    const s = { ...p, sells: p.sells || [] }, type = prod.typeOf(s), cat = catOf(s, type), own = pos.get(p.uid);
-    const x = p.x ?? (own ? own.x : null), z = p.z ?? (own ? own.z : null);
-    out.push({ uid: p.uid, type, icon: p.icon || '', name: nameOf(s, type), cat, sells: s.sells, productions: p.productions.map(r => r.id),
-      planner: cat === 'produktion' ? type : null, x, z, placed: x !== null && x !== undefined, fixed: p.x !== null && p.x !== undefined });
+// Alle Stationen der Karte: ohne Besitzer oder mit Kartensymbol (gehört zu einem Grundstück, z. B. Biomethan-Tankstelle).
+// ex: Export (mit Position), plc: placeables.xml (Kartensymbol, ohne Mod die ganze Liste). Gleichnamige bekommen eine Nummer.
+function list(ex, plc) {
+  const icons = new Map((plc || []).filter(p => p.uid).map(p => [p.uid, p]));
+  const src = ex && ex.placeables.length ? ex.placeables.map(p => ({ ...p, icon: (icons.get(p.uid) || {}).icon || '', productions: p.production ? p.production.recipes : [] }))
+    : (plc || []).filter(p => p.kind === 'station' || p.kind === 'production').map(p => ({ ...p, buys: [], hotspot: '' }));
+  const out = [];
+  for (const p of src) {
+    if (!p.uid || (p.farmId !== 0 && !p.icon && !p.hotspot && !prod.isPreplaced(p))) continue;
+    const s = { ...p, sells: p.sells || [], buys: p.buys || [] }, type = prod.typeOf(s), cat = catOf(s, type);
+    const placed = Number.isFinite(p.x) && Number.isFinite(p.z);
+    out.push({ uid: p.uid, type, icon: p.icon || '', name: nameOf(s, type), cat, sells: s.sells, buys: s.buys, productions: (p.productions || []).map(r => r.id),
+      farmId: p.farmId || 0, planner: cat === 'produktion' ? p.uid : null, x: placed ? p.x : null, z: placed ? p.z : null, placed });
   }
   const seen = new Map();
   for (const s of out) seen.set(s.name, (seen.get(s.name) || 0) + 1);
@@ -65,16 +64,4 @@ function list(plc) {
   return out.sort((a, b) => order.indexOf(a.cat) - order.indexOf(b.cat) || a.name.localeCompare(b.name, 'de'));
 }
 
-// Position setzen (Weltkoordinaten) oder mit null wieder wegnehmen
-function place(uid, x, z, userId) {
-  uid = String(uid || '').slice(0, 120);
-  if (!uid) return false;
-  if (x === null || z === null) { db.prepare('DELETE FROM fs_stations WHERE uid = ?').run(uid); return true; }
-  if (![x, z].every(v => Number.isFinite(v) && Math.abs(v) <= 10000)) return false;
-  db.prepare(`INSERT INTO fs_stations(uid, x, z, updated_by, updated_at) VALUES (?, ?, ?, ?, ?)
-              ON CONFLICT(uid) DO UPDATE SET x = excluded.x, z = excluded.z, updated_by = excluded.updated_by, updated_at = excluded.updated_at`)
-    .run(uid, Math.round(x * 10) / 10, Math.round(z * 10) / 10, userId || null, now());
-  return true;
-}
-
-module.exports = { CATS, ICON_NAMES, catOf, list, place, positions };
+module.exports = { CATS, ICON_NAMES, catOf, list };

@@ -276,18 +276,6 @@ details.fs-fold > .in { padding: 0 12px 12px; }
 .fs-legend .note { color: var(--g-muted); font-size: 12.5px; }
 .fs-legend .shows { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--g-line); }
 /* Feldumrisse (Admins, public/fshub-umriss.js) */
-.fs-umriss > summary { padding: 10px 12px; font-size: 14px; }
-.fs-umriss > .in { display: grid; gap: 8px; }
-.fs-umriss .btns { display: flex; flex-wrap: wrap; gap: 6px; }
-.fs-umriss [hidden] { display: none !important; }
-.fs-map .umr-prev { fill: rgba(255, 214, 0, .18); stroke: #ffd400; stroke-width: 1.5; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; pointer-events: none; }
-.fs-map .umr-edit { fill: rgba(255, 214, 0, .22); stroke: #ffd400; stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
-.fs-map polyline.umr-edit { fill: none; }
-.fs-map .umr-pt { fill: #ffd400; stroke: #000; stroke-width: 1; vector-effect: non-scaling-stroke; cursor: grab; }
-.fs-map .umr-pt.first { fill: #fff; }
-.fs-map .umr-mid { fill: rgba(255, 255, 255, .55); stroke: #000; stroke-width: .8; vector-effect: non-scaling-stroke; cursor: copy; }
-.fs-map.umr-on .flds { pointer-events: none; opacity: .55; }
-.fs-map.umr-on { cursor: crosshair; }
 .fs-mapbox { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #262c22; touch-action: none; cursor: grab; }
 .fs-mapbox.drag { cursor: grabbing; }
 .fs-mapbox > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -301,18 +289,19 @@ details.fs-fold > .in { padding: 0 12px 12px; }
 .fs-map .plant path { fill: none; stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linecap: round; pointer-events: none; opacity: .9; }
 .fs-map .plant .row-coffee { stroke: #d9654c; }
 .fs-map .plant .row-banana { stroke: #f2de55; }
-.fs-map.hide-plant .plant { display: none; }
+.fs-map .plant .row-grape { stroke: #a05ab8; }
+.fs-map .plant .row-olive { stroke: #a8b84a; }
 .fs-soilform { display: grid; gap: 4px; margin: 8px 0; }
 .fs-soilform label.inline { justify-content: space-between; }
 .fs-soilform .lb { flex: 1; }
 .fs-soilform .sw { width: 12px; height: 12px; border-radius: 2px; flex: none; }
 .fs-soilform input { width: 74px; min-height: 30px !important; padding: 4px 6px !important; }
-.fs-map .ras image { display: none; }
-.fs-map[data-layer="boden"] .ras image { display: inline; }
-.fs-map .ras image.hid { display: none; }
+.fs-map .ras image.hl { filter: brightness(1.35) saturate(1.2); }
+.fs-map .plant path.hl { stroke-width: 3; }
 .fs-map .fld.hid { fill: rgba(255,255,255,.06) !important; }
-.fs-map .fld.parcel { stroke: rgba(255,255,255,.45); stroke-dasharray: 4 3; fill-opacity: 1; }
-.fs-item .sw.parcel { outline: 1px dashed rgba(255,255,255,.6); outline-offset: -1px; }
+.fs-map[data-layer="besitz"] .fld { stroke-width: 1.4; }
+.fs-map .veh a, .fs-map .pal a { cursor: pointer; }
+.fs-map [data-vehicle].sel rect, .fs-map [data-vehicle].sel circle { stroke: var(--g-accent); stroke-width: 2.5; }
 .fs-map a:hover .fld, .fs-map .fld.hl { stroke: #fff; stroke-width: 2; fill-opacity: .95; }
 .fs-map .fld.sel { stroke: var(--g-accent); stroke-width: 3; }
 .fs-map .ras { pointer-events: none; image-rendering: pixelated; }
@@ -325,9 +314,6 @@ details.fs-fold > .in { padding: 0 12px 12px; }
 .fs-map .st rect { stroke: rgba(0,0,0,.55); stroke-width: 1; }
 .fs-map .st:hover .sc, .fs-map .st.sel .sc { transform: scale(calc(var(--z, 1) * 1.3)); }
 .fs-map .st.sel rect { stroke: var(--g-accent); stroke-width: 2; }
-.fs-map .st.unplaced { display: none; }
-.fs-map.st-placing .st.unplaced.sel { display: inline; opacity: .55; }
-.fs-map.st-placing { cursor: crosshair; }
 .fs-map.hide-st-verkauf .st-verkauf, .fs-map.hide-st-einkauf .st-einkauf, .fs-map.hide-st-produktion .st-produktion,
 .fs-map.hide-st-tanken .st-tanken, .fs-map.hide-st-haendler .st-haendler, .fs-map.hide-st-sonstiges .st-sonstiges { display: none; }
 .fs-stfilter { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--g-line); }
@@ -453,7 +439,7 @@ details.fs-fold > .in { padding: 0 12px 12px; }
 .pl-b .pl-p { font: 700 15px var(--g-display); color: var(--g-accent); font-variant-numeric: tabular-nums; }
 .pl-b.sel .pl-p { color: var(--g-ink); }
 .pl-b .pl-m { font-size: 12px; color: var(--g-muted); }
-.pl-b.sel .pl-m, .pl-b.sel .warn { color: #2b3410; }
+.pl-b.sel .pl-m, .pl-b.sel .warn, .pl-b.sel .ok { color: #2b3410; }
 .pl-new { margin-top: 6px; }
 .pl-new > summary { list-style: none; }
 .pl-new > summary::-webkit-details-marker { display: none; }
@@ -504,3 +490,16 @@ details.fs-fold > .in { padding: 0 12px 12px; }
 .fs-fitform label.inline { display: grid !important; grid-template-columns: 92px minmax(0, 1fr) 70px auto; align-items: center; gap: 6px; }
 .fs-fitform input[type=range] { accent-color: var(--g-accent); width: 100%; }
 .fs-fitform input[type=number] { min-height: 28px !important; padding: 3px 5px !important; }
+
+/* Hub 3.0: Hintergrund der Übersicht (je Karte, Seitenverwaltung), Preise → Produktionen, Planer-Gruppen und Lager */
+.fs-main.has-bg { background: linear-gradient(rgba(22, 25, 22, .7), rgba(22, 25, 22, .85)), var(--fs-bg) center / cover no-repeat fixed; }
+.fs-uses .fs-uses-h { margin-top: 8px; }
+.fs-uses-l { margin: 4px 0 0; padding-left: 18px; }
+.fs-uses-l li { margin: 2px 0; }
+.fs-uses-l .hint { margin-left: 6px; }
+.pl-group { margin: 10px 0 4px; font: 600 13px/1.2 var(--g-display); letter-spacing: .06em; text-transform: uppercase; color: var(--g-muted); }
+.pl-store { display: grid; gap: 6px; }
+.pl-fill { display: grid; grid-template-columns: minmax(120px, 1fr) 2fr auto; align-items: center; gap: 8px; }
+.pl-fill .bar { width: 100%; }
+.fs-veh tr:target { outline: 2px solid var(--g-accent); background: var(--g-tile-hi); }
+.fs-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }

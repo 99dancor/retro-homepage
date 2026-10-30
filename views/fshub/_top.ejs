@@ -23,7 +23,7 @@
     <%- tile('ideas', '/farming/vorschlaege', 'bulb', 'Vorschläge') %>
     <% if (isAdmin) { %><a class="tile" href="/admin/farming" target="_top"><svg aria-hidden="true"><use href="#i-gear"/></svg><span class="lbl">Einstellungen</span></a><% } %>
   </nav>
-  <main class="fs-main<%= locals.full ? ' full' : '' %>">
+  <main class="fs-main<%= locals.full ? ' full' : '' %><%= locals.bg ? ' has-bg' : '' %>"<% if (locals.bg) { %> style="--fs-bg:url('/farming/hintergrund.bild?v=<%= bg.v %>')"<% } %>>
     <% if (msg) { %><div class="msg">✔ <%= msg %></div><% } %>
     <% if (!m.configured && section !== 'changelog' && section !== 'ideas') { %>
       <div class="msg">Der Hub kennt den Server noch nicht. <% if (isAdmin) { %>Trag in der <a href="/admin/farming" target="_top">Seitenverwaltung → Farming</a> die Adressen aus dem Webinterface ein.<% } else { %>Ein Admin trägt die Adressen des Servers bald ein.<% } %></div>

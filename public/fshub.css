@@ -307,7 +307,11 @@ details.fs-fold > .in { padding: 0 12px 12px; }
 .fs-map a:hover .fld, .fs-map .fld.hl { stroke: #fff; stroke-width: 2; fill-opacity: .95; }
 .fs-map .fld.sel { stroke: var(--g-accent); stroke-width: 3; }
 .fs-map .ras { pointer-events: none; image-rendering: pixelated; }
-.fs-map .nr text { font: 700 13px var(--g-body); fill: #fff; text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: rgba(0,0,0,.8); stroke-width: 3px; pointer-events: none; }
+/* Grundstücksnummer: kleiner Kreis, immer etwa gleich groß auf dem Bildschirm (--z wie bei den Stationen) */
+.fs-map .nr { pointer-events: none; }
+.fs-map .nr .nc { transform: scale(var(--z, 1)); }
+.fs-map .nr circle { fill: rgba(20,24,18,.55); stroke: rgba(255,255,255,.45); stroke-width: .8; }
+.fs-map .nr text { font: 700 8.5px var(--g-body); fill: rgba(255,255,255,.92); text-anchor: middle; dominant-baseline: central; }
 .fs-map .ort { fill: rgba(255,255,255,.1); stroke: #fff; stroke-dasharray: 4 3; stroke-width: 1.5; vector-effect: non-scaling-stroke; pointer-events: none; }
 .fs-map .ort-t { font: 600 14px var(--g-body); fill: #fff; text-anchor: middle; paint-order: stroke; stroke: #000; stroke-width: 3px; pointer-events: none; }
 .fs-map.hide-nr .nr, .fs-map.hide-veh .veh, .fs-map.hide-pal .pal, .fs-map.hide-orte .orte { display: none; }

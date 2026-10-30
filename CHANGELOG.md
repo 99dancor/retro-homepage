@@ -1,5 +1,9 @@
 # Changelog
 
+## 30.10.2026 – Farming Hub: Grundstücksnummern auf der Karte
+
+- **Nummern immer sichtbar:** Jedes Grundstück zeigt seine Nummer in einem kleinen, dezenten Kreis, nicht erst nach dem Anklicken. Die Kreise bleiben beim Zoomen gleich groß und lassen sich wie bisher unter „Grundstücksnummern“ ausblenden.
+
 ## 30.10.2026 – Farming Hub: Karte schneller, Grenzen gerade
 
 - **Gerade Grundstücksgrenzen:** Statt Pixeltreppen sind die Grenzen jetzt glatte Linien mit weniger als der Hälfte der Punkte. Zwei Nachbarn teilen sich genau dieselbe Linie, die doppelten, leicht versetzten Striche sind weg. Das gilt auch für den schon hochgeladenen Export.

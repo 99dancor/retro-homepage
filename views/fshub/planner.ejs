@@ -158,6 +158,8 @@
     <% } %>
     </div>
   </section>
+  <% } else if (list.length) { %>
+  <section class="pl-win pl-empty" aria-label="Kein Gebäude gewählt"><p class="hint">Links ein Gebäude wählen, dann siehst du hier Lager, Produktionen und den Rechner.</p></section>
   <% } %>
 </div>
 <%- include('_bottom') %>

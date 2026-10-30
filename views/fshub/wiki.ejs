@@ -126,9 +126,9 @@
               <div class="chips"><% for (const x of s.makes) { %><a class="chip" href="/farming/preise?w=<%= encodeURIComponent(x.fill) %>"><%- icon(x.fill, x.name, 's') %><%= x.name %> <%= liters(x.perMonth) %></a><% } %><%= s.makes.length ? '' : 'nichts' %></div></div>
           </div>
           <details class="pl-fold"><summary>Nach Alter</summary>
-            <% const cols = Object.keys(s.curves).filter(k => CURVES[k]); %>
-            <div class="wk-scroll"><table class="list tight wk-tbl"><tr><th class="num">Alter</th><% for (const k of cols) { %><th class="num"><%= k === 'pallets' && s.curves.pallets.fill ? N.fill(s.curves.pallets.fill) : CURVES[k][0] %></th><% } %></tr>
-              <% for (const r of s.table) { %><tr><td class="num"><%= de(r.age) %> Mon.</td><% for (const k of cols) { %><td class="num"><%= CURVES[k][2] === 'price' ? eur(r[k]) : liters(r[k]) %></td><% } %></tr><% } %>
+            <% const cols = Object.keys(s.curves).filter(k => CURVES[k] || s.curves[k].fill); %>
+            <div class="wk-scroll"><table class="list tight wk-tbl"><tr><th class="num">Alter</th><% for (const k of cols) { %><th class="num"><%= (k === 'pallets' || k === 'milk' || !CURVES[k]) && s.curves[k].fill ? N.fill(s.curves[k].fill) : CURVES[k][0] %></th><% } %></tr>
+              <% for (const r of s.table) { %><tr><td class="num"><%= de(r.age) %> Mon.</td><% for (const k of cols) { %><td class="num"><%= CURVES[k] && CURVES[k][2] === 'price' ? eur(r[k]) : liters(r[k]) %></td><% } %></tr><% } %>
             </table></div>
             <p class="hint">Futter, Wasser, Stroh und Erzeugnisse pro Tier und Monat bei voller Produktivität, Preise je Tier.</p>
           </details>

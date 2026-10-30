@@ -552,7 +552,7 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   assert.equal(dds.toString('latin1', 0, 4), 'DDS ');
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
-  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>2\.5\.0\.0<\/version>/);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>2\.6\.0\.0<\/version>/);
   assert.throws(() => E.read('<placeables/>'), /Farming Hub Export/);
 });
 
@@ -634,6 +634,13 @@ test('Wiki: Tierdaten aus dem Export, wiki.xml, Tiere für den Planer, Stall, An
   assert.equal(W.hemisphere({ mapId: 'pdlc_beansAndAlpacasPack.beansAndAlpacasMap' }, ''), 'south');
   assert.equal(W.hemisphere({ mapId: 'MapUS', hemisphere: 'south' }, ''), 'south');
   assert.equal(W.hemisphere({ mapId: 'pdlc_beansAndAlpacasPack.x' }, 'nord'), 'north');
+  // Sprung in einer Kurve wie im Spiel: Milch erst ab 12 Monaten, dann voll; Erzeugnisse auch unter eigenem Namen (Mod 2.6)
+  assert.deepEqual([W.at([[0, 0], [12, 0], [12, 150]], 11), W.at([[0, 0], [12, 0], [12, 150]], 12), W.at([[0, 0], [12, 0], [12, 150]], 30)], [0, 150, 150]);
+  const zoo = E.read('<farmingHubExport version="2"><animals><animal type="COW"><subType name="C"><curve kind="milk" fillType="MILK" pts="0:0 12:0 12:150"/></subType></animal>'
+    + '<animal type="ALPACA"><subType name="A"><curve kind="wool" fillType="ALPACA_WOOL" pts="0:0 8:20"/></subType></animal></animals></farmingHubExport>').animals;
+  const [cowSub, alpaca] = zoo.types.map(t => t.subs[0]);
+  assert.deepEqual(W.products(cowSub, W.adultAge(cowSub), 1).map(p => [p.fill, p.perMonth]), [['MILK', 150]]);
+  assert.deepEqual(W.products(alpaca, W.adultAge(alpaca), 1).map(p => [p.fill, p.perMonth]), [['ALPACA_WOOL', 20]]);
   // Kalender ab Januar: Periode 11 (Januar im Norden) steht vorn, Dezember→Januar wird geteilt
   assert.deepEqual([W.months()[0], W.months(true)[2]], ['Januar', 'Mär']);
   assert.deepEqual(W.runs([0, 1, 4, 10, 11]), [[0, 4], [6, 1]]);

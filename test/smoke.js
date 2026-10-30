@@ -2619,6 +2619,10 @@ async function main() {
         assert.match((await admin.req('/admin/farming')).text_, /\(Mod-Version 2\): 3 Grundstücke, 2 Felder/);
         page = (await anna.req('/farming/produktion')).text_;
         assert.match(page, /Spinnerei am Hof/, 'eigenes Gebäude zuerst');
+        assert.match(page, /Links ein Gebäude wählen/, 'ohne Auswahl ist nichts gewählt, auch nach einem Reiterwechsel');
+        assert.doesNotMatch(page, /class="pl-b[^"]* sel"/);
+        const spinnerei = page.match(/class="pl-b" href="([^"]+)"/)[1].replace(/&amp;/g, '&');
+        page = (await anna.req(spinnerei)).text_;
         assert.match(page, /Alpakavlies/);
         page = (await anna.req('/farming/produktion?bereich=katalog')).text_;
         assert.match(page, /Farbenfabrik/);
@@ -2655,7 +2659,7 @@ async function main() {
         page = (await anna.req('/farming/wiki/tiere?tier=ALPACA')).text_;
         assert.match(page, /Die Tiere fressen alle Gruppen gleichzeitig/);
         assert.match(page, /Wer verarbeitet das\?[\s\S]*?Spinnerei/);
-        assert.match((await anna.req('/farming/produktion')).text_, /Tiere für einen vollen Monat[\s\S]*?<b class="n">\d+<\/b> <a href="\/farming\/wiki\/tiere\?tier=ALPACA">/);
+        assert.match((await anna.req(spinnerei)).text_, /Tiere für einen vollen Monat[\s\S]*?<b class="n">\d+<\/b> <a href="\/farming\/wiki\/tiere\?tier=ALPACA">/);
         assert.match((await admin.req('/admin/farming')).text_, /✔ 2 Tierarten mit 4 Rassen, 2 Ställe \(aus dem Export\)/);
         assert.match((await admin.req('/admin/farming/wiki.xml')).text_, /<farmingWiki version="1" source="export"/);
         assert.equal((await admin.form('/admin/farming/halbkugel', { _csrf: admin.jar.get('csrf'), h: 'sued' })).status, 302);

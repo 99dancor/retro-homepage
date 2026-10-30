@@ -12,6 +12,8 @@
 //   Waren        (ab Version 2) Name in der Sprache des Spiels, Grundpreis, Gewicht
 //   Früchte      (ab Version 2) Wachstumsstufen, Saat- und Erntemonate, Ertrag, Saatgut, Kartenfarbe, Wert in der Dichtekarte
 //   Katalog      (ab Version 2) alle Produktionen aus dem Shop mit Preis, Rezepten und Lagerplatz
+//   Tiere        (ab 2.4) Tierarten mit Futter, Erzeugnissen, Preisen, Nachwuchs, Futtergruppen (→ src/fswiki.js, wiki.xml),
+//                bei jedem Stall Tiere, Produktivität und Füllstände wie im Menü „Tiere“
 //
 // Warum eine Mod: DLC-Karten liegen verschlüsselt in .dlc-Dateien, das Grundspiel gepackt in .gar. Beides liest der Hub
 // nicht, und den Schutz zu umgehen kommt nicht in Frage. Das laufende Spiel kennt alles und darf es weitergeben.
@@ -63,6 +65,12 @@ const recipe = r => ({
   inputs: X.all(X.kid(r, 'inputs'), 'input').map(i => ({ fill: i.a.fillType, amount: num(i.a.amount, 0) })).filter(i => i.fill),
   outputs: X.all(X.kid(r, 'outputs'), 'output').map(o => ({ fill: o.a.fillType, amount: num(o.a.amount, 0), sell: o.a.sellDirectly === 'true' })).filter(o => o.fill),
 });
+// Stall (ab 2.4): Tiere, Produktivität, Zustand (Stroh, Wasser, Mist, Gülle, Milch …) und Futter je Gruppe wie im Menü „Tiere“
+const husbandry = h => (h ? {
+  type: h.a.type || '', animals: num(h.a.animals), max: num(h.a.maxAnimals), productivity: num(h.a.productivity),
+  infos: X.kids(h, 'info').map(i => ({ kind: i.a.kind === 'food' ? 'food' : 'condition', title: i.a.title || '', value: num(i.a.value, 0), cap: num(i.a.capacity), ratio: num(i.a.ratio), inverted: i.a.inverted === 'true' })),
+  clusters: X.kids(h, 'cluster').map(c => ({ sub: c.a.subType || '', n: num(c.a.num, 0), age: num(c.a.age, 0), health: num(c.a.health), repro: num(c.a.reproduction) })),
+} : null);
 const periods = s => String(s || '').split(/\s+/).map(Number).filter(p => Number.isInteger(p) && p >= 1 && p <= 12).map(p => p - 1);
 
 function read(xml, at = Math.floor(Date.now() / 1000)) {
@@ -86,6 +94,7 @@ function read(xml, at = Math.floor(Date.now() / 1000)) {
         recipes: X.kids(point, 'production').map(recipe).filter(r => r.id),
         storage: X.kids(X.kid(point, 'storage'), 'fill').map(f => ({ fill: f.a.fillType, level: num(f.a.level, 0), cap: num(f.a.capacity) })).filter(f => f.fill),
       } : null,
+      stall: husbandry(X.kid(p, 'husbandry')),
     };
   });
   // Version 2: Waren, Früchte und der Katalog aller Produktionen aus dem Shop
@@ -103,9 +112,9 @@ function read(xml, at = Math.floor(Date.now() / 1000)) {
     storage: X.kids(X.kid(b, 'storage'), 'capacity').map(c => ({ fill: c.a.fillType, cap: num(c.a.capacity) })).filter(c => c.fill),
   }));
   return {
-    version: num(s.a.version, 1), mapId: s.a.mapId || '', mapTitle: s.a.mapTitle || '', mapSize, saveDate: s.a.saveDate || '', day: num(s.a.day), dpp: num(s.a.daysPerPeriod), at,
+    version: num(s.a.version, 1), mapId: s.a.mapId || '', mapTitle: s.a.mapTitle || '', mapSize, hemisphere: s.a.hemisphere || '', saveDate: s.a.saveDate || '', day: num(s.a.day), dpp: num(s.a.daysPerPeriod), at,
     fields, farmlands, placeables, grid, parcels: grid ? parcels(grid.rows, grid.size, mapSize) : {},
-    language: (ft && ft.a.language) || '', fillTypes, fruitTypes, catalog,
+    language: (ft && ft.a.language) || '', fillTypes, fruitTypes, catalog, animals: require('./fswiki').parse(X.kid(s, 'animals')),
   };
 }
 
@@ -143,7 +152,8 @@ function summary(e) {
   const prods = e.placeables.filter(p => p.production);
   return { source: e.source, mapTitle: e.mapTitle, saveDate: e.saveDate, at: e.at, fields: e.fields.length, farmlands: e.farmlands.length, parcels: Object.keys(e.parcels).length,
     stations: e.placeables.filter(p => p.x !== null).length, productions: prods.length, recipes: prods.reduce((a, p) => a + p.production.recipes.length, 0),
-    version: e.version || 1, fillTypes: (e.fillTypes || []).length, fruitTypes: (e.fruitTypes || []).length, catalog: (e.catalog || []).length };
+    version: e.version || 1, fillTypes: (e.fillTypes || []).length, fruitTypes: (e.fruitTypes || []).length, catalog: (e.catalog || []).length,
+    animals: e.animals ? e.animals.types.length : 0, stalls: e.placeables.filter(p => p.stall).length };
 }
 const sig = e => (e ? `${e.source}:${e.at}:${e.fields.length}:${Object.keys(e.parcels).length}` : '-');
 

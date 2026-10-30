@@ -18,6 +18,7 @@ const prod = require('./fsprod');
 const fsst = require('./fsstations');
 const fscrops = require('./fscrops');
 const fsexport = require('./fsexport');
+const fswiki = require('./fswiki');
 const notify = require('./notify');
 
 const DEFAULT_COLORS = ['#2e8b2e', '#2f6fd8', '#c0392b', '#d4a017', '#8e44ad', '#16a085', '#d35400', '#7f8c8d'];
@@ -144,6 +145,8 @@ function model() {
   // Kartendaten aus dem Spiel (Mod „Farming Hub Export“): Positionen der vorplatzierten Gebäude, Grundstücke ohne Stats-Feed
   const ex = fsexport.current();
   N.setGameTitles(ex && ex.fillTypes, ex && ex.language);
+  // Tierdaten fürs Wiki: neue aus dem Export in wiki.xml ablegen
+  try { fswiki.sync(ex); } catch (e) { console.error('Farming Hub, Wiki:', e); }
   const plcRaw = ftpFile('placeables.xml');
   const farmsX = ftpFile('farms.xml'), plc = fsexport.withPositions(plcRaw, ex), items = ftpFile('items.xml');
   const bank = ftpFile('bankCredit.xml');
@@ -254,6 +257,7 @@ function model() {
   // sonst auch die, die Mitglieder hier angelegt haben
   const rows = farmRows(), members = membersByFarm();
   const exNames = new Map(((ex && ex.placeables) || []).filter(p => p.uid && p.name).map(p => [p.uid, p.name]));
+  const exStalls = new Map(((ex && ex.placeables) || []).filter(p => p.uid && p.stall).map(p => [p.uid, p.stall]));
   const ids = new Set(farmsX ? [] : [...rows.keys()]);
   for (const v of vehicles) if (v.farmId > 0) ids.add(v.farmId);
   for (const f of lands.values()) if (f.owner > 0) ids.add(f.owner);
@@ -287,8 +291,9 @@ function model() {
       for (const f of fills) if (!f.food && !/water|straw|milk|manure|liquidManure/i.test(f.sec)) put(f.fill, f.amount, label, p.kind === 'production' ? 'Produktion' : 'Silo');
       const animals = {};
       for (const [t, n] of p.animals) animals[t] = (animals[t] || 0) + n;
-      return { idx: k, uid: p.uid || '', name, kind: p.kind, where: loc.label, x: p.x, z: p.z, fills, animals: Object.entries(animals).map(([t, n]) => ({ type: t, name: N.pretty(t), n })),
-        productions: p.productions, food: fills.filter(f => f.food).reduce((a, f) => a + f.amount, 0), hasFood: fills.some(f => f.food) };
+      return { idx: k, uid: p.uid || '', name, kind: p.kind, where: loc.label, x: p.x, z: p.z, fills, animals: Object.entries(animals).map(([t, n]) => ({ type: t, name: N.FILL[t] || N.pretty(t), n })),
+        productions: p.productions, food: fills.filter(f => f.food).reduce((a, f) => a + f.amount, 0), hasFood: fills.some(f => f.food),
+        stall: p.kind === 'husbandry' ? fswiki.stall(exStalls.get(p.uid), fills, Object.keys(animals)) : null };
     });
     const bales = (items || []).filter(b => b.farmId === id);
     for (const b of bales) put(b.fill, b.level, where(b.x, b.z).label, 'Ballen');
@@ -1067,7 +1072,7 @@ function start() {
 
 module.exports = {
   mapName, backgrounds, backgroundFile, saveBackground, removeBackground, slug,
-  STATUS, stations: fsst, fscrops, exportData: () => fsexport.current(), parcelAt: (x, z) => fsexport.parcelAt(fsexport.current(), x, z), REPEAT, MAX, SUPPLIES, DEFAULT_COLORS, enabled, canView, canEditFarm, farmOf, model, invalidate, farm, feed, ftpFile,
+  STATUS, stations: fsst, fscrops, wiki: fswiki, exportData: () => fsexport.current(), parcelAt: (x, z) => fsexport.parcelAt(fsexport.current(), x, z), REPEAT, MAX, SUPPLIES, DEFAULT_COLORS, enabled, canView, canEditFarm, farmOf, model, invalidate, farm, feed, ftpFile,
   currentDay, setDay, estimateDay, calendarYear, dateOf, dayOfMonth, fmtDay, hhmm, daysPerPeriod, today, accountFor, history, record,
   join, leave, setMember, saveFarm, notes, addNote, note, canChangeNote, editNote, removeNote,
   tasks, openTasks, task, addTask, editTask, completeTask, reopenTask, removeTask, isDue, dueLabel, repeatLabel,

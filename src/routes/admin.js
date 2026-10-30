@@ -346,6 +346,7 @@ router.get('/farming', (req, res) => {
     customMap: fsfiles.find(f => /^map-custom\./.test(f)) || null, hasServerMap: fsfiles.includes('map-server'), iconCount: require('../fsicons').list().size,
     saves: { list: saves.list(), id: saves.identity(), unsure: saves.unsure(), counts: saves.liveCounts() },
     gameExport: require('../fsexport').summary(require('../fsexport').current()), gameUploaded: require('../fsexport').uploaded(),
+    wiki: require('../fswiki').stored(), hemisphere: getSetting('fs_hemisphere', ''),
     gameShapes: (() => { const shp = hub.shapes(m); return (shp && shp.game) || 0; })(),
     bgs: hub.backgrounds(), bgName: hub.mapName(), bgKey: hub.slug(hub.mapName()) || 'karte',
     users: db.prepare('SELECT u.id, u.username, u.display_name, m.farm_id FROM users u LEFT JOIN fs_members m ON m.user_id = u.id WHERE u.disabled = 0 ORDER BY u.username COLLATE NOCASE').all(),
@@ -453,6 +454,26 @@ router.post('/farming/spieldaten/loeschen', (req, res) => {
   require('../fsexport').removeUpload();
   require('../fshub').invalidate();
   res.redirect('/admin/farming?ok=1#spieldaten');
+});
+// Wiki (src/fswiki.js): Tierdaten als wiki.xml herunterladen, eigene hochladen, löschen; Halbkugel für den Anbaukalender
+router.get('/farming/wiki.xml', (req, res) => {
+  const buf = require('../fswiki').download();
+  if (!buf) return res.status(404).send('Noch keine Tierdaten.');
+  res.set('content-type', 'application/xml; charset=utf-8').attachment('wiki.xml').send(buf);
+});
+router.post('/farming/wiki', fsI3dUpload.single('wiki'), multipartCsrf, (req, res) => {
+  if (!req.file) return res.redirect('/admin/farming?err=' + encodeURIComponent('Bitte eine wiki.xml oder farmingHubExport.xml wählen.') + '#wiki');
+  try { require('../fswiki').upload(req.file.buffer); } catch (e) { return res.redirect('/admin/farming?err=' + encodeURIComponent(e.message) + '#wiki'); }
+  res.redirect('/admin/farming?ok=1#wiki');
+});
+router.post('/farming/wiki/loeschen', (req, res) => {
+  require('../fswiki').remove();
+  require('../fshub').invalidate();
+  res.redirect('/admin/farming?ok=1#wiki');
+});
+router.post('/farming/halbkugel', (req, res) => {
+  setSetting('fs_hemisphere', ['nord', 'sued'].includes(req.body.h) ? req.body.h : '');
+  res.redirect('/admin/farming?ok=1#wiki');
 });
 // Spielstände (src/fssaves.js): Daten beiseitelegen, zurückholen, löschen
 router.post('/farming/spielstand/:action', (req, res) => {

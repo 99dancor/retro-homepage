@@ -2640,6 +2640,26 @@ async function main() {
         assert.match(page, /Wird hergestellt in[\s\S]*?href="\/farming\/produktion\?g=k%3A%24data%2Fplaceables%2Fbakery.xml&amp;p=bread">Bäckerei: Brot<\/a>/, 'Katalog zuerst');
         page = (await anna.req('/farming/preise?w=WHEAT')).text_;
         assert.match(page, /Verkaufen bei:.*?<a href="\/farming\/karte\?station=preplaced_grainElevator_a+">Getreidesilo<\/a>/);
+        // Wiki: Anbaukalender aus dem Export, Tiere aus wiki.xml, Planer sagt, wie viele Tiere ein Rezept braucht
+        page = (await anna.req('/farming/wiki')).text_;
+        assert.match(page, /<h1>Wiki<\/h1>/);
+        assert.match(page, /role="columnheader" title="März">Mär</, 'Nordhalbkugel: beginnt mit März');
+        assert.match(page, /<span class="wk-n" role="rowheader">[\s\S]*?Weizen<\/span>/);
+        assert.match((await anna.req('/farming/wiki?frucht=WHEAT')).text_, /id="frucht" aria-label="Weizen"/);
+        page = (await anna.req('/farming/wiki/tiere')).text_;
+        assert.match(page, /<span class="pl-n">Kühe<\/span>/);
+        assert.match(page, /Totalmischration/);
+        assert.match(page, /Die Tiere fressen eine Gruppe nach der anderen/);
+        assert.match(page, /Cow Barn \(big\)/);
+        page = (await anna.req('/farming/wiki/tiere?tier=ALPACA')).text_;
+        assert.match(page, /Die Tiere fressen alle Gruppen gleichzeitig/);
+        assert.match(page, /Wer verarbeitet das\?[\s\S]*?Spinnerei/);
+        assert.match((await anna.req('/farming/produktion')).text_, /Tiere für einen vollen Monat[\s\S]*?<b class="n">\d+<\/b> <a href="\/farming\/wiki\/tiere\?tier=ALPACA">/);
+        assert.match((await admin.req('/admin/farming')).text_, /✔ 2 Tierarten mit 4 Rassen, 2 Ställe \(aus dem Export\)/);
+        assert.match((await admin.req('/admin/farming/wiki.xml')).text_, /<farmingWiki version="1" source="export"/);
+        assert.equal((await admin.form('/admin/farming/halbkugel', { _csrf: admin.jar.get('csrf'), h: 'sued' })).status, 302);
+        assert.match((await anna.req('/farming/wiki')).text_, /role="columnheader" title="September">Sep</);
+        await admin.form('/admin/farming/halbkugel', { _csrf: admin.jar.get('csrf'), h: '' });
 
         // Preise und Modliste
         page = (await anna.req('/farming/preise?w=WHEAT')).text_;

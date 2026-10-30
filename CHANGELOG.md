@@ -1,5 +1,11 @@
 # Changelog
 
+## 30.10.2026 – Farming Hub: Kalender ab Januar, Anbaumonate repariert
+
+- **Jeder Kalender beginnt mit Januar:** Anbaukalender im Wiki, Hofkalender, Preisverlauf und die Monatsauswahl bei Plänen und Aufgaben laufen von Januar bis Dezember, auch auf der Südhalbkugel.
+- **Richtige Monatsnamen auf Catuaí:** Auf der Südhalbkugel beginnt der Frühling im September. Der ganze Hub nennt die Spielmonate jetzt passend (Datum oben, Hofkalender, Pläne, Preise), nicht mehr wie im Norden.
+- **Saat- und Erntemonate repariert (Mod 2.5):** Die Mod 2.4 hat jede Frucht als „säen und ernten Februar bis Dezember“ gemeldet, weil sie das Spiel falsch gefragt hat. Version 2.5 fragt richtig. Bis der neue Export da ist, erkennt der Hub die falschen Daten und nimmt die üblichen FS25-Monate.
+
 ## 30.10.2026 – Farming Hub: Wiki mit Anbaukalender und Tieren
 
 - **Wiki:** Neuer Bereich in der Leiste links. Der **Anbaukalender** sieht aus wie im Spiel: je Frucht ein grüner Balken für die Saat und ein orangefarbener für die Ernte, heute als gestrichelte Linie. Auf der Südhalbkugel (Catuaí) beginnt er wie im Spiel mit September. Ein Klick auf eine Frucht zeigt Wachstumsstufen, Ertrag und Saatgut je Hektar.

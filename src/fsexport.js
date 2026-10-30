@@ -106,6 +106,9 @@ function read(xml, at = Math.floor(Date.now() / 1000)) {
     literPerSqm: num(f.a.literPerSqm), seedPerSqm: num(f.a.seedPerSqm), windrow: f.a.windrow || '', color: /^#[0-9a-f]{6}$/i.test(f.a.color || '') ? f.a.color : null,
     sow: periods(f.a.plant), harvest: periods(f.a.harvest), seeding: f.a.noSeeding !== 'true',
   }));
+  // Mod bis 2.4 las die Monate falsch aus: jede Frucht „2–12“ zum Säen und Ernten. Dann lieber die Vorlage im Hub nehmen.
+  const broken = list => list.length === 11 && list[0] === 1 && list[10] === 11;
+  if (fruitTypes.length > 1 && fruitTypes.every(f => broken(f.sow) && broken(f.harvest))) for (const f of fruitTypes) { f.sow = []; f.harvest = []; }
   const catalog = X.kids(X.kid(s, 'catalog'), 'building').filter(b => b.a.filename).map(b => ({
     file: b.a.filename, name: b.a.name || '', price: num(b.a.price), category: b.a.category || '', dlc: b.a.dlc || '', shared: b.a.shared !== 'false', capacity: num(b.a.capacity),
     recipes: X.kids(b, 'production').map(recipe).filter(r => r.id),

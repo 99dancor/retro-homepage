@@ -374,8 +374,8 @@ function wikiCalendar(m) {
   const crops = hub.fscrops.list(ex).filter(c => c.planned && (c.sow.length || c.harvest.length) && !seen.has(c.fill) && seen.add(c.fill))
     .map(c => ({ ...c, sowRuns: hub.wiki.runs(c.sow), harvestRuns: hub.wiki.runs(c.harvest) })).sort((a, b) => a.label.localeCompare(b.label, 'de'));
   // Heute als gestrichelte Linie: Monat, Tag im Monat und Uhrzeit
-  const d = m.date, now = d ? (d.month + ((d.dom - 1) + (m.dayTime ? m.dayTime / 864e5 : 0.5)) / d.dpp) / 12 : null;
-  return { h, crops, months: hub.wiki.months(h), monthsShort: hub.wiki.months(h, true), now, fromGame: crops.some(c => c.fromGame), ex };
+  const d = m.date, now = d ? (N.calPos(d.month) + ((d.dom - 1) + (m.dayTime ? m.dayTime / 864e5 : 0.5)) / d.dpp) / 12 : null;
+  return { h, crops, months: hub.wiki.months(), monthsShort: hub.wiki.months(true), now, fromGame: crops.some(c => c.fromGame), ex };
 }
 router.get('/wiki', (req, res) => {
   const m = hub.model(), cal = wikiCalendar(m);

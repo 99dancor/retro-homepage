@@ -342,8 +342,8 @@
       <select name="field" aria-label="Grundstück"><option value="">Ohne Grundstück</option><% for (const x of myFields) { %><option value="<%= x.id %>"<%= Number(query.feld) === x.id ? ' selected' : '' %>><%= fieldName(x) %> (<%= ha(x.area) %>)</option><% } %></select>
       <input name="label" maxlength="40" placeholder="oder Name, z. B. Wiesen" aria-label="Name statt Feld">
       <select name="crop_id" aria-label="Frucht" required><% for (const c of crops) { %><option value="<%= c.id %>" data-sow="<%= c.sowM[0] ?? '' %>" data-harvest="<%= c.harvestM[0] ?? '' %>"><%= c.name %></option><% } %></select>
-      <label>säen <select name="sow_month"><option value="">wie Vorlage</option><% N.MONTHS.forEach((mo, i) => { %><option value="<%= i %>"><%= mo %></option><% }) %></select></label>
-      <label>ernten <select name="harvest_month"><option value="">wie Vorlage</option><% N.MONTHS.forEach((mo, i) => { %><option value="<%= i %>"><%= mo %></option><% }) %></select></label>
+      <label>säen <select name="sow_month"><option value="">wie Vorlage</option><% N.ORDER.forEach(i => { const mo = N.MONTHS[i]; %><option value="<%= i %>"><%= mo %></option><% }) %></select></label>
+      <label>ernten <select name="harvest_month"><option value="">wie Vorlage</option><% N.ORDER.forEach(i => { const mo = N.MONTHS[i]; %><option value="<%= i %>"><%= mo %></option><% }) %></select></label>
       <button class="def">Planen</button>
     </form>
   <% } %>

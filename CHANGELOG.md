@@ -1,5 +1,10 @@
 # Changelog
 
+## 30.10.2026 – Farming Hub: Karte schneller, Grenzen gerade
+
+- **Gerade Grundstücksgrenzen:** Statt Pixeltreppen sind die Grenzen jetzt glatte Linien mit weniger als der Hälfte der Punkte. Zwei Nachbarn teilen sich genau dieselbe Linie, die doppelten, leicht versetzten Striche sind weg. Das gilt auch für den schon hochgeladenen Export.
+- **Schnelleres Zoomen und Verschieben:** Die Ebenen für Früchte, Wachstum und Pflege sind nur noch so groß wie ihr Inhalt statt jeweils so groß wie die ganze Karte. Die Karte zeichnet beim Mausrad und Ziehen höchstens einmal je Bild neu, und beim Ziehen prüft sie nicht mehr jede Form auf Mausberührung.
+
 ## 30.10.2026 – Farming Hub: Planer und Preise aufgeräumt, Anbaumonate aus dem Spiel
 
 - **Suche:** Produktionsplaner und Preisliste haben ein Suchfeld. Im Planer findet es Gebäude auch über eine Produktion oder Ware („Reismehl“ zeigt alle Gebäude, die Reismehl brauchen oder machen) und springt in den Bereich mit Treffern. Gefiltert wird schon beim Tippen.

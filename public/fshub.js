@@ -127,15 +127,22 @@
     // Zoomen und Verschieben über die viewBox
     var vb = [0, 0, 1000, 1000];
     // Symbole bleiben beim Zoomen gleich groß (fshub.css: .st .sc { transform: scale(var(--z)) }): Kartenmaß je Bildpunkt
-    var setZ = function () { var r = map.getBoundingClientRect(), px = Math.min(r.width, r.height); if (px) map.style.setProperty('--z', (vb[2] / px * 1.1).toFixed(4)); };
-    var setVb = function () { map.setAttribute('viewBox', vb.map(function (v) { return v.toFixed(1); }).join(' ')); setZ(); };
+    // --z nur an der Stationsgruppe: an der ganzen Karte müsste der Browser bei jedem Zoomschritt alle Formen neu durchrechnen
+    var stn = map.querySelector('.stn') || map;
+    var setZ = function () { var r = map.getBoundingClientRect(), px = Math.min(r.width, r.height); if (px) stn.style.setProperty('--z', (vb[2] / px * 1.1).toFixed(4)); };
+    // Höchstens einmal je Bild neu zeichnen, auch wenn Mausrad und Ziehen schneller Ereignisse schicken
+    var frame = 0;
+    var setVb = function () {
+      if (frame) return;
+      frame = requestAnimationFrame(function () { frame = 0; map.setAttribute('viewBox', vb.map(function (v) { return v.toFixed(1); }).join(' ')); setZ(); });
+    };
     setZ();
     window.addEventListener('resize', setZ);
+    // Bildschirm → Kartenmaß aus der aktuellen vb (nicht aus der gezeichneten Karte, die hängt bis zum nächsten Bild hinterher)
     var toMap = function (cx, cy) {
-      var m = map.getScreenCTM();
+      var r = map.getBoundingClientRect(), m = Math.min(r.width, r.height);
       if (!m) return [500, 500];
-      var p = new DOMPoint(cx, cy).matrixTransform(m.inverse());
-      return [p.x, p.y];
+      return [vb[0] + (cx - r.left - (r.width - m) / 2) * vb[2] / m, vb[1] + (cy - r.top - (r.height - m) / 2) * vb[3] / m];
     };
     var zoom = function (f, cx, cy) {
       var w = Math.max(40, Math.min(1600, vb[2] / f)), k = w / vb[2];

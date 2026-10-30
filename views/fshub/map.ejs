@@ -79,7 +79,7 @@
       <% if (hasImage) { %><image id="fs-mapimg" href="/farming/karte.bild?v=<%= mapV %>" x="<%= box.x %>" y="<%= box.y %>" width="<%= box.w %>" height="<%= box.w %>" preserveAspectRatio="none"/><% } %>
       <%# Was je Fleck wächst: ein Bild je Eintrag der Legende, Ansicht steht in data-of %>
       <g class="ras">
-        <% for (const k of ['fruechte', 'wachstum', 'boden']) for (const it of groups[k].filter(x => x.image)) { %><image href="/farming/karte/ebene/<%= it.image %>?v=<%= ras.at %>" x="0" y="0" width="1000" height="1000" preserveAspectRatio="none" data-of="<%= k %>" data-item="<%= it.key %>"/><% } %>
+        <% for (const k of ['fruechte', 'wachstum', 'boden']) for (const it of groups[k].filter(x => x.image)) { %><% const bx = (ras.boxes && ras.boxes[it.image]) || [0, 0, 1000, 1000]; %><image href="/farming/karte/ebene/<%= it.image %>?v=<%= ras.at %>" x="<%= bx[0] %>" y="<%= bx[1] %>" width="<%= bx[2] %>" height="<%= bx[3] %>" preserveAspectRatio="none" data-of="<%= k %>" data-item="<%= it.key %>"<%- layer === k ? '' : ' style="display:none"' %>/><% } %>
       </g>
       <g class="plant"><% for (const o of m.orchards) { %><path d="<%= o.rows.map(r => `M${P(r[0])} ${P(r[1])}L${P(r[2])} ${P(r[3])}`).join('') %>" class="row-<%= o.type.toLowerCase() %>" data-of="fruechte" data-item="f:<%= o.type %>"><title><%= N.fill(o.type) %>-Plantage · <%= o.rows.length %> Reihen</title></path><% } %></g>
       <g class="flds">

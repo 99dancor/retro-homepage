@@ -450,7 +450,6 @@ details.fs-fold > .in { padding: 0 12px 12px; }
 .pl-new > summary::-webkit-details-marker { display: none; }
 .pl-new[open] > form { margin-top: 8px; padding: 12px; background: var(--g-panel); border: 1px solid var(--g-line); border-radius: 4px; }
 .pl-win { background: var(--g-panel); border: 1px solid var(--g-line); border-radius: 4px; padding: 16px 18px; display: grid; gap: 12px; min-width: 0; }
-.pl-empty { align-content: center; justify-items: center; min-height: 180px; text-align: center; }
 .pl-head { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
 .pl-sub { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
 .pl-sub > b { font: 700 20px var(--g-display); color: var(--g-accent); font-variant-numeric: tabular-nums; }

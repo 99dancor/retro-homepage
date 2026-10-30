@@ -2619,9 +2619,7 @@ async function main() {
         assert.match((await admin.req('/admin/farming')).text_, /\(Mod-Version 2\): 3 Grundstücke, 2 Felder/);
         page = (await anna.req('/farming/produktion')).text_;
         assert.match(page, /Spinnerei am Hof/, 'eigenes Gebäude zuerst');
-        assert.match(page, /Links ein Gebäude wählen/, 'ohne Auswahl ist nichts gewählt, auch nach einem Reiterwechsel');
-        assert.doesNotMatch(page, /class="pl-b[^"]* sel"/);
-        const spinnerei = page.match(/class="pl-b" href="([^"]+)"/)[1].replace(/&amp;/g, '&');
+        const spinnerei = page.match(/class="pl-b sel" href="([^"]+)"/)[1].replace(/&amp;/g, '&');
         page = (await anna.req(spinnerei)).text_;
         assert.match(page, /Alpakavlies/);
         page = (await anna.req('/farming/produktion?bereich=katalog')).text_;

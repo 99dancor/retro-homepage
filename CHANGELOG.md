@@ -1,10 +1,13 @@
 # Changelog
 
-## 30.10.2026 – Farming Hub: Tier-Erzeugnisse vollständig, Planer ohne alte Auswahl
+## 30.10.2026 – Farming Hub: Auswahl bleibt, Alpakavlies
+
+- **Jeder Bereich merkt sich, wo du warst:** Wer im Planer die Spinnerei, in den Preisen eine Ware, im Wiki ein Tier oder am Hof einen Reiter offen hat, landet beim Zurückkommen über die Leiste links wieder genau dort. Im Planer merkt sich auch jeder Bereich (Karte, eigene, Katalog) sein Gebäude. Gemerkt wird im Browser.
+- **Alpakavlies (Mod 2.7):** Alpakas liefern kein Erzeugnis wie Kühe, ihr Vlies wächst nach und wird geschoren. Die Mod liest jetzt die Vliesmenge je Alter und wie schnell es nachwächst; Wiki und Planer rechnen daraus das Vlies pro Monat.
+
+## 30.10.2026 – Farming Hub: Tier-Erzeugnisse vollständig
 
 - **Milch und Eier im Wiki und im Planer:** Kühe, Büffel und Hühner liefern ab einem bestimmten Alter auf einen Schlag. Diesen Sprung hat der Hub als 0 gelesen, jetzt stehen Milch, Büffelmilch und Eier bei den ausgewachsenen Tieren und im Planer.
-- **Alpakas (Mod 2.6):** Die Mod schreibt jetzt alles mit, was eine Rasse liefert, auch Erzeugnisse unter eigenem Namen wie das Alpakavlies. Nach dem nächsten Export erscheint es im Wiki.
-- **Planer merkt sich nichts mehr:** Wer den Bereich oder den Reiter wechselt und zurückkommt, sieht wieder die Liste ohne gewähltes Gebäude, statt dass zum Beispiel die Spinnerei schon offen ist.
 
 ## 30.10.2026 – Farming Hub: Kalender ab Januar, Anbaumonate repariert
 

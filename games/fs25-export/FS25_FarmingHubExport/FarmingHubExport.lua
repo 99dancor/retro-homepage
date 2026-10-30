@@ -1073,6 +1073,30 @@ function FarmingHubExport:writeSubType(xml, k, st)
             put(kind, o.curve or o, o.fillType)
         end
     end
+    -- Alles Weitere, was die Rasse liefert oder braucht (z. B. Alpakavlies aus einem DLC): unter seinem eigenen Namen, und
+    -- die Schlüssel zur Diagnose, falls ein Erzeugnis woanders steht
+    local known = { food = true, straw = true, water = true, manure = true, liquidManure = true, milk = true, pallets = true }
+    local keys = {}
+    for _, side in ipairs({ { "in", input }, { "out", output } }) do
+        for key, o in pairs(side[2]) do
+            table.insert(keys, side[1] .. ":" .. tostring(key))
+            if not known[key] and type(key) == "string" then
+                if type(o) == "table" and (o.curve ~= nil or o.fillType ~= nil) then
+                    put(key, o.curve or o, o.fillType)
+                else
+                    put(key, o)
+                end
+            end
+        end
+    end
+    table.sort(keys)
+    xml:setString(k .. "#keys", table.concat(keys, " "))
+    local fields = {}
+    for key in pairs(st) do
+        table.insert(fields, tostring(key))
+    end
+    table.sort(fields)
+    xml:setString(k .. "#fields", table.concat(fields, " "))
 end
 
 -- Ställe aus dem Shop (Preis, Platz für wie viele Tiere): einmal lesen und merken

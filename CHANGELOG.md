@@ -1,5 +1,11 @@
 # Changelog
 
+## 30.10.2026 – Farming Hub: Tier-Erzeugnisse vollständig, Planer ohne alte Auswahl
+
+- **Milch und Eier im Wiki und im Planer:** Kühe, Büffel und Hühner liefern ab einem bestimmten Alter auf einen Schlag. Diesen Sprung hat der Hub als 0 gelesen, jetzt stehen Milch, Büffelmilch und Eier bei den ausgewachsenen Tieren und im Planer.
+- **Alpakas (Mod 2.6):** Die Mod schreibt jetzt alles mit, was eine Rasse liefert, auch Erzeugnisse unter eigenem Namen wie das Alpakavlies. Nach dem nächsten Export erscheint es im Wiki.
+- **Planer merkt sich nichts mehr:** Wer den Bereich oder den Reiter wechselt und zurückkommt, sieht wieder die Liste ohne gewähltes Gebäude, statt dass zum Beispiel die Spinnerei schon offen ist.
+
 ## 30.10.2026 – Farming Hub: Kalender ab Januar, Anbaumonate repariert
 
 - **Jeder Kalender beginnt mit Januar:** Anbaukalender im Wiki, Hofkalender, Preisverlauf und die Monatsauswahl bei Plänen und Aufgaben laufen von Januar bis Dezember, auch auf der Südhalbkugel.

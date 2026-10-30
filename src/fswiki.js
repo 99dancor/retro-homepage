@@ -34,6 +34,9 @@ const CURVES = {
   buy: ['Kaufpreis', '€', 'price'], sell: ['Verkaufspreis', '€', 'price'], transport: ['Transport', '€', 'price'],
 };
 const OUT_FILL = { manure: 'MANURE', liquidManure: 'LIQUIDMANURE' };
+// Erzeugnisse: Milch, Paletten (Wolle, Eier, Ziegenmilch) und alles, was die Mod ab 2.6 sonst mit Ware liefert (z. B. Alpakavlies)
+const outputs = s => Object.entries(s.curves).filter(([k, c]) => c.fill && (!CURVES[k] || CURVES[k][2] === 'out'));
+const goods = s => outputs(s).filter(([k]) => k !== 'manure' && k !== 'liquidManure');
 
 // Titel aus dem Spiel (Futtergruppen, Zustand im Stall) kommen in der Sprache des Servers: englische auf Deutsch, „(80%)“ bleibt
 const TITLES = {
@@ -149,20 +152,22 @@ function remove() { fs.rmSync(file(), { force: true }); mem = null; }
 function download() { try { return fs.readFileSync(file()); } catch { return null; } }
 
 // ---------- Rechnen ----------
-// Wert einer Kurve bei einem Alter (linear zwischen den Stützpunkten, außen der Randwert)
+// Wert einer Kurve bei einem Alter (linear zwischen den Stützpunkten, außen der Randwert). Zwei Punkte mit gleichem Alter sind
+// ein Sprung wie im Spiel: Milch „12:0 12:150“ heißt ab 12 Monaten 150, darum gilt bei gleichem Alter der letzte Punkt.
 function at(p, age) {
   if (!p || !p.length) return null;
-  if (age <= p[0][0]) return p[0][1];
-  for (let i = 1; i < p.length; i++) {
-    if (age <= p[i][0]) { const [a0, v0] = p[i - 1], [a1, v1] = p[i]; return a1 === a0 ? v1 : v0 + (v1 - v0) * (age - a0) / (a1 - a0); }
-  }
-  return p[p.length - 1][1];
+  let k = -1;
+  for (let i = 0; i < p.length; i++) if (p[i][0] <= age) k = i;
+  if (k < 0) return p[0][1];
+  if (k === p.length - 1) return p[k][1];
+  const [a0, v0] = p[k], [a1, v1] = p[k + 1];
+  return a1 === a0 ? v1 : v0 + (v1 - v0) * (age - a0) / (a1 - a0);
 }
 // Faktor „pro Tag“ im Spiel → pro Monat
 const monthFactor = (d, dpp) => (d && d.ta ? d.ta : 1) * Math.max(1, dpp || 1);
 // Ausgewachsen: ab wann das Tier am meisten liefert (Erzeugnis), sonst ab wann es Nachwuchs bekommen kann, sonst der letzte Stützpunkt
 function adultAge(s) {
-  const out = s.curves.milk || s.curves.pallets;
+  const out = (goods(s)[0] || [])[1];
   if (out && out.pts.length) { const max = Math.max(...out.pts.map(p => p[1])); return out.pts.find(p => p[1] >= max - 1e-9)[0]; }
   if (s.repro && s.repro.minAge) return s.repro.minAge;
   const food = s.curves.food;
@@ -171,10 +176,7 @@ function adultAge(s) {
 // Die Ware, die ein Tier liefert, mit Menge pro Monat bei einem Alter
 function products(s, age, f) {
   const out = [];
-  for (const kind of ['milk', 'pallets', 'manure', 'liquidManure']) {
-    const c = s.curves[kind];
-    if (c && c.fill) { const v = at(c.pts, age); if (v > 0) out.push({ kind, fill: c.fill, name: N.fill(c.fill), perMonth: v * f }); }
-  }
+  for (const [kind, c] of outputs(s)) { const v = at(c.pts, age); if (v > 0) out.push({ kind, fill: c.fill, name: N.fill(c.fill), perMonth: v * f }); }
   return out;
 }
 // Ausgewählte Alter für Tabellen: alle Stützpunkte der Kurven, höchstens 8
@@ -289,4 +291,4 @@ function runs(ms) {
   return out;
 }
 
-module.exports = { TYPES, CURVES, title, stall, parse, toXml, stored, sync, upload, remove, download, file, at, adultAge, animals, producers, herd, hemisphere, months, runs, monthFactor, typeName };
+module.exports = { TYPES, CURVES, title, stall, parse, toXml, stored, sync, upload, remove, download, file, at, adultAge, animals, producers, herd, hemisphere, months, runs, monthFactor, typeName, products };

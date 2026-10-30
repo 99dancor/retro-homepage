@@ -6,31 +6,46 @@
    const escT = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
    const item = (x, n) => `<a class="pl-it" href="/farming/preise?w=${encodeURIComponent(x.fill)}" title="Preis von ${escT(x.name)}">${icon(x.fill, x.name, 's')}${escT(amt(n === undefined ? x.amount : n))} ${escT(x.name)}</a>`;
    const items = xs => xs.map(x => item(x)).join('');
-   const link = (b, p, extra) => plannerUrl(b.key, p) + (extra || '');
+   const link = (b, p, extra) => plannerUrl(b.key, p) + (q ? '&q=' + encodeURIComponent(q) : '') + (extra || '');
    const secUrl = k => '/farming/produktion?bereich=' + k; %>
 <div class="fs-title"><h1>Produktionsplaner</h1>
   <% if (m.money !== null) { %><div class="fs-money">Kontostand: <b><%= eur(m.money) %></b></div><% } %>
   <div class="sub">Gebäude wählen, dann eine Produktion: Rezept, Zyklen und der Rechner. <%= dpp > 1 ? `Ein Monat hat ${dpp} Spieltage.` : '' %></div>
 </div>
-<nav class="fs-tabs" aria-label="Bereiche des Planers">
-  <% for (const [k, l] of Object.entries(SECTIONS)) { %><a href="<%= secUrl(k) %>"<%- section === k ? ' class="on" aria-current="page"' : '' %>><%= l %> <span class="n"><%= lists[k].length %></span></a><% } %>
-</nav>
+<div class="fs-bar">
+  <nav class="fs-tabs" aria-label="Bereiche des Planers">
+    <% for (const [k, l] of Object.entries(SECTIONS)) { %><a href="<%= secUrl(k) %><%= q ? '&q=' + encodeURIComponent(q) : '' %>"<%- section === k ? ' class="on" aria-current="page"' : '' %>><%= l %> <span class="n"><%= lists[k].length %></span></a><% } %>
+  </nav>
+  <form class="fs-search" method="get" action="/farming/produktion" role="search">
+    <input type="hidden" name="bereich" value="<%= section %>">
+    <input type="search" name="q" value="<%= q %>" placeholder="Gebäude, Produktion oder Ware" aria-label="Im Planer suchen" data-filter=".pl-list">
+    <button class="small">Suchen</button><% if (q) { %> <a class="btn small" href="<%= secUrl(section) %>">Alle zeigen</a><% } %>
+  </form>
+</div>
 <% if (!gameData) { %><p class="hint">Rezepte, Lager und den Katalog kennt der Hub erst mit der Mod „Farming Hub Export“.<%= isAdmin ? ' Seitenverwaltung → Farming → Kartendaten aus dem Spiel.' : '' %></p>
 <% } else if (gameData.version < 2) { %><p class="hint">Die Mod „Farming Hub Export“ auf dem Server ist noch Version 1. Mit Version 2 kommen alle Produktionen aus dem Shop und die Lager dazu.</p><% } %>
 <% if (!list.length) { %>
-  <p class="hint"><%= section === 'eigene' ? 'Noch kein Hof hat selbst ein Produktionsgebäude gebaut.' : section === 'karte' ? 'Auf dieser Karte stehen keine Produktionen, oder der Hub kennt sie noch nicht.' : 'Der Katalog kommt mit der Mod „Farming Hub Export“.' %></p>
+  <p class="hint"><%= q ? `Nichts gefunden für „${q}“.` : section === 'eigene' ? 'Noch kein Hof hat selbst ein Produktionsgebäude gebaut.' : section === 'karte' ? 'Auf dieser Karte stehen keine Produktionen, oder der Hub kennt sie noch nicht.' : 'Der Katalog kommt mit der Mod „Farming Hub Export“.' %></p>
 <% } %>
+<%# Links die Gebäude, nach DLC bzw. Hof gruppiert und zuklappbar; die Liste scrollt für sich, die Ansicht rechts bleibt stehen %>
+<% const groups = []; for (const b of list) { const g = section === 'katalog' ? (b.dlc || 'Grundspiel') : section === 'eigene' ? (b.farm ? b.farm.name : '') : ''; let e = groups.find(x => x.name === g); if (!e) groups.push(e = { name: g, items: [] }); e.items.push(b); } %>
 <div class="fs-planner">
-  <div class="pl-list" role="list">
-    <% let lastGroup = null; for (const b of list) { const group = section === 'katalog' ? (b.dlc || '') : section === 'eigene' ? (b.farm ? b.farm.name : '') : ''; %>
-      <% if (group !== lastGroup && (section !== 'katalog' || list.some(x => x.dlc))) { lastGroup = group; %><div class="pl-group"><%= group || (section === 'katalog' ? 'Grundspiel' : '') %></div><% } %>
-      <a role="listitem" class="pl-b<%= sel && sel.key === b.key ? ' sel' : '' %>" href="<%= link(b) %>"<%= sel && sel.key === b.key ? ' aria-current=true' : '' %>>
-        <svg class="pl-ic" aria-hidden="true"><use href="#i-factory"/></svg>
-        <span class="pl-n"><%= b.label %></span>
-        <span class="pl-p"><%= section === 'katalog' || !b.farm ? (b.price ? eur(b.price) : '') : b.farm.name %></span>
-        <span class="pl-m"><%= b.recipes.length %> <%= b.recipes.length === 1 ? 'Produktion' : 'Produktionen' %><%= b.mode ? ' · ' + MODES[b.mode].toLowerCase() : '' %><% const on = b.recipes.filter(r => r.active).length; if (section !== 'katalog' && on) { %> · <span class="ok"><%= on %> läuft</span><% } %><%= section === 'karte' && b.farm ? ' · ' + b.farm.name : '' %></span>
-      </a>
+  <div class="pl-list" role="list" aria-label="Gebäude">
+    <% for (const g of groups) { const hasSel = sel && g.items.some(b => b.key === sel.key); const open = q || groups.length <= 2 || hasSel; %>
+      <% if (g.name && groups.length > 1) { %><details class="pl-grp"<%= open ? ' open' : '' %>><summary><%= g.name %> <span class="n"><%= g.items.length %></span></summary><% } %>
+      <% const seen = new Set(); for (const b0 of g.items) { const base = baseName(b0.label); if (seen.has(base)) continue; seen.add(base);
+           const vs = section === 'eigene' ? [b0] : g.items.filter(x => baseName(x.label) === base); const b = (sel && vs.find(x => x.key === sel.key)) || vs[0];
+           const on = b.recipes.filter(r => r.active).length, prices = vs.map(x => x.price).filter(Boolean); %>
+        <% const isSel = sel && vs.some(x => x.key === sel.key); %>
+        <a role="listitem" class="pl-b<%= isSel ? ' sel' : '' %>" href="<%= link(b) %>"<%= isSel ? ' aria-current=true' : '' %> data-q="<%= vs.map(searchText).join(' ') %>">
+          <span class="pl-n"><%= vs.length > 1 ? base : b.label %></span>
+          <span class="pl-p"><%= section === 'katalog' || !b.farm ? (vs.length > 1 && prices.length > 1 ? 'ab ' + eur(Math.min(...prices)) : b.price ? eur(b.price) : '') : b.farm.name %></span>
+          <span class="pl-m"><%= vs.length > 1 ? vs.length + ' Größen · ' : '' %><%= b.recipes.length %> <%= b.recipes.length === 1 ? 'Produktion' : 'Produktionen' %><%= b.mode ? ' · ' + MODES[b.mode].toLowerCase() : '' %><% if (section !== 'katalog' && on) { %> · <span class="ok"><%= on %> läuft</span><% } %><%= section === 'karte' && b.farm ? ' · ' + b.farm.name : '' %></span>
+        </a>
+      <% } %>
+      <% if (g.name && groups.length > 1) { %></details><% } %>
     <% } %>
+    <p class="hint pl-none" hidden>Nichts gefunden.</p>
   </div>
 
   <% if (sel) { %>
@@ -49,34 +64,39 @@
       </div>
     </header>
     <p class="hint pl-modehint"><%= sel.mode === 'seriell' ? 'Seriell: Die Produktionen teilen sich die Zyklen des Gebäudes. Laufen zwei gleichzeitig, braucht jede doppelt so lange.' : sel.mode === 'parallel' ? 'Parallel: Alle eingeschalteten Produktionen laufen gleichzeitig, jede mit ihren vollen Zyklen.' : '' %></p>
-    <% if (sel.where) { %><div class="pl-where">Steht bei <%= sel.where %></div><% } %>
-    <% if (same.length) { %><div class="pl-where">Gibt es auch: <% same.forEach((b, i) => { %><%= i ? ' · ' : '' %><a href="<%= link(b) %>"><%= b.section === 'katalog' ? 'im Katalog' : b.label + (b.farm ? ' (' + b.farm.name + ')' : ' (Karte)') %></a><% }) %></div><% } %>
+    <% if (sel.where) { %><div class="pl-where">Steht <%= /^bei /.test(sel.where) ? sel.where : "bei " + sel.where %></div><% } %>
+    <% if (variants.length > 1) { %>
+      <nav class="pl-sizes" aria-label="Größen"><% for (const v of variants) { %><a href="<%= link(v) %>"<%- v.key === sel.key ? ' class="on" aria-current="true"' : '' %>><b><%= sizeName(v) %></b><small><%= v.price ? eur(v.price) : '' %><%= v.recipes[0] && v.recipes[0].cycles ? ' · ' + amt(v.recipes[0].cycles) + ' Zyklen' : '' %></small></a><% } %></nav>
+    <% } %>
+    <% if (same.length) { %><div class="pl-where">Gibt es auch: <% same.forEach((b, i) => { %><%= i ? ' · ' : '' %><a href="<%= link(b) %>"><%= b.section === 'katalog' ? 'im Katalog' + (b.dlc ? ' (' + b.dlc + ')' : ' (Grundspiel)') + (b.price ? ', ' + eur(b.price) : '') : b.label + (b.farm ? ' (' + b.farm.name + ')' : ' (Karte)') %></a><% }) %></div><% } %>
 
     <% const store = sel.storage.filter(x => x.cap || x.level); %>
     <% if (store.length) { %>
-      <fieldset class="groupbox pl-store"><legend><%= sel.section === 'katalog' ? 'Lagerplatz' : 'Lager beim letzten Speichern' %></legend>
+      <details class="pl-fold pl-store"<%= store.length <= 8 ? ' open' : '' %>><summary><%= sel.section === 'katalog' ? 'Lagerplatz' : 'Lager beim letzten Speichern' %> <span class="n"><%= store.length %></span></summary>
+        <div class="pl-storegrid">
         <% for (const x of store.sort((a, b) => (b.level || 0) / (b.cap || 1) - (a.level || 0) / (a.cap || 1))) { const pct = x.cap ? Math.min(100, Math.round((x.level || 0) / x.cap * 100)) : null; %>
           <div class="pl-fill"><span class="fs-name"><%- icon(x.fill, x.name, 's') %><a href="/farming/preise?w=<%= encodeURIComponent(x.fill) %>"><%= x.name %></a></span>
             <% if (x.level !== null && x.level !== undefined) { %><span class="bar wide" title="<%= pct === null ? '' : pct + ' %' %>"><i style="width:<%= pct === null ? 0 : pct %>%;<%= pct !== null && pct >= 90 ? 'background:var(--g-warn)' : '' %>"></i></span><% } %>
             <span class="v"><%= x.level !== null && x.level !== undefined ? liters(x.level) : '' %><%= x.cap ? (x.level !== null && x.level !== undefined ? ' / ' : '') + liters(x.cap) : '' %></span></div>
         <% } %>
+        </div>
         <% if (sel.section !== 'katalog') { %><p class="hint">So voll wie beim letzten Autosave des Servers.</p><% } %>
-      </fieldset>
+      </details>
     <% } %>
 
-    <table class="list pl-recipes">
-      <tr><th>Produktion</th><th>Braucht je Zyklus</th><th>Liefert je Zyklus</th><th class="num">Zyklen / Monat</th><th class="num">Kosten / Monat</th></tr>
+    <div class="pl-body">
+    <div class="pl-recipes" role="list" aria-label="Produktionen">
+      <div class="pl-rh" aria-hidden="true"><span>Produktion</span><span>Braucht → liefert je Zyklus</span><span class="num">Zyklen / Monat</span><span class="num">Kosten / Monat</span></div>
       <% for (const r of sel.recipes) { const on = rec && rec.id === r.id; %>
-        <tr class="<%= on ? 'hl' : '' %>">
-          <td><a href="<%= link(sel, r.id) %>"<%= on ? ' aria-current=true' : '' %>><b><%= r.name %></b></a><% if (sel.section !== 'katalog') { %><br><small class="<%= r.active ? 'ok' : 'hint' %>"><%= r.active ? '▶ läuft' : '⏸ aus' %></small><% } %></td>
-          <td><%- r.inputs.length ? items(r.inputs) : '<span class="hint">–</span>' %></td>
-          <td><%- r.outputs.length ? items(r.outputs) : '<span class="hint">–</span>' %></td>
-          <td class="num"><%= r.cycles ? amt(r.cycles) : '–' %></td>
-          <td class="num"><%= r.cost ? eur(r.cost) : '–' %></td>
-        </tr>
+        <div class="pl-r<%= on ? ' hl' : '' %>" role="listitem">
+          <span class="pl-rn"><a href="<%= link(sel, r.id) %>"<%= on ? ' aria-current=true' : '' %>><b><%= r.name %></b></a><% if (sel.section !== 'katalog') { %> <small class="<%= r.active ? 'ok' : 'hint' %>"><%= r.active ? '▶ läuft' : '⏸ aus' %></small><% } %></span>
+          <span class="pl-rf"><%- r.inputs.length ? items(r.inputs) : '<span class="hint">nichts</span>' %><span class="pl-arrow" aria-label="wird zu">▶</span><%- r.outputs.length ? items(r.outputs) : '<span class="hint">–</span>' %></span>
+          <span class="num"><%= r.cycles ? amt(r.cycles) : '–' %></span>
+          <span class="num"><%= r.cost ? eur(r.cost) : '–' %></span>
+        </div>
       <% } %>
-      <% if (!sel.recipes.length) { %><tr><td colspan="5" class="hint">Keine Produktionen.</td></tr><% } %>
-    </table>
+      <% if (!sel.recipes.length) { %><p class="hint">Keine Produktionen.</p><% } %>
+    </div>
 
     <% if (rec) { %>
       <div class="pl-rec">
@@ -126,6 +146,7 @@
         <% } %>
       </div>
     <% } %>
+    </div>
   </section>
   <% } %>
 </div>

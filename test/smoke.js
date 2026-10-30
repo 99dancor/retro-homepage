@@ -2622,6 +2622,15 @@ async function main() {
         assert.match(page, /Alpakavlies/);
         page = (await anna.req('/farming/produktion?bereich=katalog')).text_;
         assert.match(page, /Farbenfabrik/);
+        // Suche: findet Gebäude auch über eine Ware, springt in den Bereich mit Treffern
+        page = (await anna.req('/farming/produktion?bereich=karte&q=alpakavlies')).text_;
+        assert.match(page, /class="on" aria-current="page">Eigene Gebäude <span class="n">1<\/span>/, 'Bereich mit Treffern');
+        assert.match(page, /Spinnerei am Hof/);
+        assert.doesNotMatch(page, /<span class="pl-n">Bäckerei/);
+        assert.match((await anna.req('/farming/produktion?q=gibtsnicht')).text_, /Nichts gefunden für „gibtsnicht“/);
+        page = (await anna.req('/farming/preise?q=milch')).text_;
+        assert.match(page, /Milch/);
+        assert.doesNotMatch(page, /<span>Weizen<\/span>/);
         page = (await anna.req('/farming/produktion?g=preplaced_bakery_cccccccccccccccccccccccccccccccc&p=bread&rechnen=1&in0=1500')).text_;
         assert.match(page, /<b>30<\/b> Zyklen/);
         assert.match(page, /<b>900<\/b> Brot/);

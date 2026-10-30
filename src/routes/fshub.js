@@ -133,11 +133,30 @@ router.get('/', (req, res) => {
 // Produktionsplaner: oben die drei Bereiche (Karte, eigene Gebäude, Katalog), links deren Gebäude, rechts das gewählte mit seinen
 // Produktionen, Lager, Rezept und Rechner. Alles über die Adresse: bereich, g = Gebäude, p = Produktion, rechnen = 1 mit
 // in0 … / zyklen / gleich. Kein JavaScript nötig, nichts zum Eintragen: alles kommt aus dem Spiel.
+// Suche: alle Wörter müssen im Gebäude, in einer Produktion, einer Ware oder dem DLC vorkommen
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const searchText = b => norm([b.label, b.name, b.dlc, b.farm && b.farm.name, ...b.recipes.flatMap(r => [r.name, ...r.inputs.map(x => x.name), ...r.outputs.map(x => x.name)])].join(' '));
+const matches = (text, q) => norm(q).split(/\s+/).filter(Boolean).every(w => text.includes(w));
+helpers.searchText = searchText;
+const SIZE = /\s*\((klein|mittel|groß)(?:, ([^)]+))?\)$/i, POWER = /\s+([\d.,]+\s*(?:kW|MW))$/i;
+const baseName = label => String(label).replace(SIZE, (m, size, extra) => (extra ? ` (${extra})` : '')).replace(POWER, '').trim();
+helpers.baseName = baseName;
+// Name der Größe innerhalb der Gruppe: „klein“, „1MW“
+const sizeName = b => { const m = SIZE.exec(b.label) || POWER.exec(b.label); return m ? m[1] : 'Standard'; };
+helpers.sizeName = sizeName;
+helpers.norm = norm;
+
 router.get('/produktion', (req, res) => {
-  const lists = hub.planner();
-  const all = [...lists.karte, ...lists.eigene, ...lists.katalog];
+  const full = hub.planner();
+  const q = String(req.query.q || '').trim().slice(0, 60);
+  const lists = q ? Object.fromEntries(Object.entries(full).map(([k, l]) => [k, l.filter(b => matches(searchText(b), q))])) : full;
+  const all = [...full.karte, ...full.eigene, ...full.katalog];
   const picked = all.find(b => b.key === req.query.g) || null;
-  const section = picked ? picked.section : Object.hasOwn(hub.prod.SECTIONS, req.query.bereich) ? req.query.bereich : lists.eigene.length ? 'eigene' : lists.karte.length ? 'karte' : 'katalog';
+  const wanted = Object.hasOwn(hub.prod.SECTIONS, req.query.bereich) ? req.query.bereich : null;
+  // Bei einer Suche ohne Treffer im Bereich: in den Bereich mit Treffern wechseln
+  const firstHit = Object.keys(hub.prod.SECTIONS).find(k => lists[k].length);
+  const section = picked ? picked.section : wanted && (!q || lists[wanted].length) ? wanted : q && firstHit ? firstHit
+    : lists.eigene.length ? 'eigene' : lists.karte.length ? 'karte' : 'katalog';
   const list = lists[section];
   const sel = picked || list[0] || null;
   const rec = sel ? sel.recipes.find(r => r.id === req.query.p) || sel.recipes.find(r => r.active) || sel.recipes[0] || null : null;
@@ -150,10 +169,12 @@ router.get('/produktion', (req, res) => {
   }
   const info = rec && rec.cycles > 0 ? hub.prod.calc(rec, { cycles: 0, shared: 1, dpp }) : null;
   // Gleiche Art an anderer Stelle: Katalog ↔ Karte ↔ eigene
-  const same = sel ? all.filter(b => b !== sel && b.type === sel.type) : [];
+  // Größen eines Gebäudes (Gewächshaus klein/mittel/groß, Biogasanlage 99 kW … 1 MW) stehen links als ein Eintrag
+  const variants = sel ? list.filter(b => b.section === sel.section && (b.dlc || '') === (sel.dlc || '') && baseName(b.label) === baseName(sel.label)).sort((a, b) => (a.price || 0) - (b.price || 0)) : [];
+  const same = sel ? all.filter(b => b !== sel && b.type === sel.type && !variants.includes(b)) : [];
   // Katalog gruppiert nach DLC bzw. Shop-Kategorie
   const m = hub.model();
-  page(req, res, 'planner', { title: 'Produktionsplaner – Farming Simulator', lists, section, list, sel, rec, calc, form, info, dpp, same, SECTIONS: hub.prod.SECTIONS, MODES: hub.prod.MODES,
+  page(req, res, 'planner', { title: 'Produktionsplaner – Farming Simulator', lists, q, section, list, sel, rec, calc, form, info, dpp, same, variants, SECTIONS: hub.prod.SECTIONS, MODES: hub.prod.MODES,
     station: sel && sel.uid ? m.stations.find(s => s.uid === sel.uid) || null : null, gameData: m.gameData });
 });
 const plannerUrl = (g, p) => '/farming/produktion?g=' + encodeURIComponent(g || '') + (p ? '&p=' + encodeURIComponent(p) : '');
@@ -327,7 +348,8 @@ router.get('/preise', (req, res) => {
   const m = hub.model();
   const goods = hub.goods(m);
   const filter = ['feld', 'tiere', 'produkte', 'habe'].includes(req.query.f) ? req.query.f : 'alle';
-  const list = goods.filter(g => filter === 'alle' || (filter === 'habe' ? g.have > 0 : g.group === filter));
+  const q = String(req.query.q || '').trim().slice(0, 60);
+  const list = goods.filter(g => (filter === 'alle' || (filter === 'habe' ? g.have > 0 : g.group === filter)) && (!q || matches(norm(g.name + ' ' + g.fill), q)));
   // Ohne Wahl: was ihr am meisten wert auf Lager habt (keine Betriebsmittel), sonst Weizen
   const valued = list.filter(g => g.have > 0 && !hub.SUPPLIES.has(g.fill)).sort((a, b) => b.have * (b.now || b.bestPrice) - a.have * (a.now || a.bestPrice));
   const sel = goods.find(g => g.fill === req.query.w) || valued[0] || list.find(g => g.fill === 'WHEAT') || list[0] || null;
@@ -339,7 +361,7 @@ router.get('/preise', (req, res) => {
   const uses = sel ? hub.prod.uses(hub.planner(), sel.fill) : null;
   const buyers = sel ? m.stations.filter(s => s.sells.includes(sel.fill)) : [];
   const sellers = sel ? m.stations.filter(s => s.buys.includes(sel.fill)) : [];
-  page(req, res, 'prices', { title: 'Preise – Farming Simulator', goods: list, filter, sel, holdings, all: goods.length, uses, buyers, sellers });
+  page(req, res, 'prices', { title: 'Preise – Farming Simulator', goods: list, filter, q, sel, holdings, all: goods.length, uses, buyers, sellers });
 });
 
 router.get('/mods', (req, res) => {

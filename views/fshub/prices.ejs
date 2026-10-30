@@ -5,21 +5,30 @@
   <% if (m.money !== null) { %><div class="fs-money">Kontostand: <b><%= eur(m.money) %></b></div><% } %>
   <div class="sub"><%= m.date ? 'Jetzt: ' + m.date.monthName + ', Preise in € je 1 000 l' : 'Monat unbekannt, Preise im Jahresschnitt' %></div>
 </div>
-<nav class="fs-tabs" aria-label="Filter">
-  <% for (const [k, l] of [['alle', 'Alle'], ['feld', 'Feldfrüchte'], ['tiere', 'Tiere'], ['produkte', 'Produkte'], ['habe', 'Was ihr habt']]) { %><a href="/farming/preise?f=<%= k %>"<%- filter === k ? ' class="on"' : '' %>><%= l %></a><% } %>
-</nav>
+<% const qs = q ? '&q=' + encodeURIComponent(q) : ''; %>
+<div class="fs-bar">
+  <nav class="fs-tabs" aria-label="Filter">
+    <% for (const [k, l] of [['alle', 'Alle'], ['feld', 'Feldfrüchte'], ['tiere', 'Tiere'], ['produkte', 'Produkte'], ['habe', 'Was ihr habt']]) { %><a href="/farming/preise?f=<%= k %><%= qs %>"<%- filter === k ? ' class="on"' : '' %>><%= l %></a><% } %>
+  </nav>
+  <form class="fs-search" method="get" action="/farming/preise" role="search">
+    <input type="hidden" name="f" value="<%= filter %>">
+    <input type="search" name="q" value="<%= q %>" placeholder="Ware suchen" aria-label="Ware suchen" data-filter=".fs-prices table.pr">
+    <button class="small">Suchen</button><% if (q) { %> <a class="btn small" href="/farming/preise?f=<%= filter %>">Alle zeigen</a><% } %>
+  </form>
+</div>
 <% if (m.demands.length) { %>
   <div class="demand"><b>Große Nachfrage:</b> <%= m.demands.map(d => N.fill(d.fill) + ' +' + Math.round((d.mult - 1) * 100) + ' %' + (d.running ? ' (läuft)' : d.day ? ' ab ' + (fmtDay(d.day) || 'Tag ' + d.day) + ', ' + d.hour + ' Uhr, ' + d.hours + ' Std.' : '')).join(' · ') %></div>
 <% } %>
 <% if (!m.economy) { %><p class="hint">Noch keine Preise. Dafür braucht der Hub den Economy-Feed.</p><% } else { %>
+<% if (q && !goods.length) { %><p class="hint">Keine Ware gefunden für „<%= q %>“.</p><% } %>
 <div class="fs-prices">
   <div class="fs-scroll">
     <table class="pr">
       <colgroup><col style="width:34%"><col style="width:14%"><col style="width:12%"><col style="width:22%"><col style="width:18%"></colgroup>
       <tr><th>Ware</th><th>Jetzt</th><th>Tendenz</th><th>Jahr</th><th>Bester Monat</th></tr>
       <% for (const g of goods) { %>
-        <tr class="<%= sel && sel.fill === g.fill ? 'hl' : '' %>">
-          <td class="f"><a href="/farming/preise?f=<%= filter %>&amp;w=<%= g.fill %>"><%- icon(g.fill, g.name, 's') %><span><%= g.name %></span></a><% if (g.have) { %> <span class="tag" title="Habt ihr auf Lager">Lager</span><% } %><% if (g.demand) { %> <span class="tag adm" title="Große Nachfrage">Nachfrage</span><% } %></td>
+        <tr class="<%= sel && sel.fill === g.fill ? 'hl' : '' %>" data-q="<%= norm(g.name + ' ' + g.fill) %>">
+          <td class="f"><a href="/farming/preise?f=<%= filter %>&amp;w=<%= g.fill %><%= qs %>"><%- icon(g.fill, g.name, 's') %><span><%= g.name %></span></a><% if (g.have) { %> <span class="tag" title="Habt ihr auf Lager">Lager</span><% } %><% if (g.demand) { %> <span class="tag adm" title="Große Nachfrage">Nachfrage</span><% } %></td>
           <td><%= g.now !== null ? de(g.now) : de(g.prices.reduce((a, b) => a + b, 0) / 12) %></td>
           <td class="<%= g.trend > 0 ? 'ok' : g.trend < 0 ? 'bad' : '' %>"><%= g.trend === null ? '' : (g.trend > 0 ? '▲ ' : g.trend < 0 ? '▼ ' : '● ') + Math.abs(g.trend) + ' %' %></td>
           <td class="sp"><svg viewBox="0 0 60 16" aria-hidden="true"><path d="<%= spark(g.prices, 60, 16) %>" fill="none" stroke="currentColor" stroke-width="1.2"/><% if (cur !== null) { %><circle cx="<%= (1 + cur * 58 / 11).toFixed(1) %>" cy="<%= (15 - (g.prices[cur] - Math.min(...g.prices)) / ((Math.max(...g.prices) - Math.min(...g.prices)) || 1) * 14).toFixed(1) %>" r="2" fill="#ee9a22"/><% } %></svg></td>
@@ -49,21 +58,21 @@
         <% if (buyers.length) { %><div><b>Verkaufen bei:</b> <% buyers.forEach((s, i) => { %><%= i ? ', ' : '' %><% if (s.placed) { %><a href="/farming/karte?station=<%= encodeURIComponent(s.uid) %>"><%= s.name %></a><% } else { %><%= s.name %><% } %><% }) %></div><% } %>
         <% if (sellers.length) { %><div><b>Kaufen bei:</b> <% sellers.forEach((s, i) => { %><%= i ? ', ' : '' %><% if (s.placed) { %><a href="/farming/karte?station=<%= encodeURIComponent(s.uid) %>"><%= s.name %></a><% } else { %><%= s.name %><% } %><% }) %></div><% } %>
       <% } %>
-      <% for (const [side, label] of [['input', 'Wird verarbeitet in'], ['output', 'Wird hergestellt in']]) { %>
-        <div class="fs-uses-h"><b><%= label %></b></div>
-        <% if (!uses || !uses[side].length) { %><div class="hint">Keine Produktion.</div><% } else { %>
+      <% for (const [side, label] of [['input', 'Wird verarbeitet in'], ['output', 'Wird hergestellt in']]) { const n = uses ? uses[side].length : 0; %>
+        <% if (!n) { %><div class="fs-uses-h"><b><%= label %></b> <span class="hint">keiner Produktion</span></div><% } else { %>
+          <details class="pl-fold"<%= n <= 8 ? ' open' : '' %>><summary><%= label %> <span class="n"><%= n %></span></summary>
           <ul class="fs-uses-l">
             <% for (const u of uses[side]) { const r = u.recipe, other = side === 'input' ? r.outputs : r.inputs; %>
               <li><a href="<%= plannerUrl(u.building.key, r.id) %>"><%= u.building.label %>: <%= r.name %></a>
                 <span class="hint"><%= de(u.amount) %> l je Zyklus<%= other.length ? (side === 'input' ? ' → ' : ' aus ') + other.map(x => x.name).join(', ') : '' %></span></li>
             <% } %>
-          </ul>
+          </ul></details>
         <% } %>
       <% } %>
     </fieldset>
   </div>
   <% } %>
 </div>
-<p class="hint"><%= goods.length %> von <%= all %> Waren</p>
+<p class="hint"><%= goods.length %> von <%= all %> Waren<%= q ? ` für „${q}“` : '' %></p>
 <% } %>
 <%- include('_bottom') %>

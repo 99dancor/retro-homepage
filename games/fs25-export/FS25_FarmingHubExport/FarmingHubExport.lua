@@ -565,7 +565,20 @@ end
 local function periods(ft, kind)
     local gs = g_currentMission.growthSystem
     local out = {}
-    local ok, fromXml = pcall(growthPeriods, ft, kind)
+    -- FS25: jede Frucht weiß selbst, ob sie in einem Monat gesät oder geerntet werden kann
+    local own = kind == "plant" and "getIsPlantableInPeriod" or "getIsHarvestableInPeriod"
+    if type(ft[own]) == "function" then
+        for period = 1, 12 do
+            local ok, v = pcall(ft[own], ft, period)
+            if ok and v == true then
+                table.insert(out, period)
+            end
+        end
+    end
+    local ok, fromXml = true, {}
+    if #out == 0 then
+        ok, fromXml = pcall(growthPeriods, ft, kind)
+    end
     if ok then
         for _, p in ipairs(fromXml) do
             table.insert(out, p)

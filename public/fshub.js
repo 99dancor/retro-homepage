@@ -353,4 +353,28 @@
     rep.addEventListener('change', sync);
     sync();
   });
+  // ---------- Suche in Planer und Preisliste: filtert schon beim Tippen, Enter fragt den Server ----------
+  [].forEach.call(document.querySelectorAll('input[data-filter]'), function (input) {
+    var box = document.querySelector(input.dataset.filter);
+    if (!box) return;
+    var norm = function (s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
+    var run = function () {
+      var words = norm(input.value).split(/\s+/).filter(Boolean), shown = 0;
+      [].forEach.call(box.querySelectorAll('[data-q]'), function (el) {
+        var hit = words.every(function (w) { return el.dataset.q.indexOf(w) >= 0; });
+        el.hidden = !hit;
+        if (hit) shown++;
+      });
+      // Gruppen ohne Treffer weg, mit Treffern beim Suchen aufklappen
+      [].forEach.call(box.querySelectorAll('details'), function (d) {
+        var any = d.querySelector('[data-q]:not([hidden])');
+        d.hidden = !any;
+        if (words.length && any) d.open = true;
+      });
+      var none = box.querySelector('.pl-none');
+      if (none) none.hidden = shown > 0;
+    };
+    input.addEventListener('input', run);
+    if (input.value) run();
+  });
 })();

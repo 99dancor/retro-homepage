@@ -119,7 +119,8 @@ function uploaded() {
 }
 function upload(buf) {
   const data = read(buf.toString('utf8'));
-  fs.writeFileSync(uploadFile(), JSON.stringify({ ...data, source: 'upload' }));
+  // Mit Zeitpunkt, damit ein neuer Upload den älteren Export vom FTP schlägt (current nimmt den neuesten)
+  fs.writeFileSync(uploadFile(), JSON.stringify({ ...data, source: 'upload', at: require('./db').now() }));
   mem = null;
   return data;
 }

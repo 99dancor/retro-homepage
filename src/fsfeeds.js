@@ -404,7 +404,7 @@ function readFtpFile(name, xml) {
     case 'environment.xml': return readEnvironment(xml);
     case 'fields.xml': return { at: now(), list: readFields(xml) };
     case 'bankCredit.xml': return readBankCredit(xml);
-    case 'farmingHubExport.xml': return require('./fsexport').read(xml);
+    case 'farmingHubExport.xml': return { ...require('./fsexport').read(xml), at: now() };
     case 'careerSavegame.xml': return readSavegame(xml);
     case 'vehicles.xml': return readVehicles(xml);
     case 'economy.xml': return readEconomy(xml);

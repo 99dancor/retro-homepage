@@ -1,5 +1,13 @@
 # Changelog
 
+## 30.10.2026 – Farming Hub: Planer und Preise aufgeräumt, Anbaumonate aus dem Spiel
+
+- **Suche:** Produktionsplaner und Preisliste haben ein Suchfeld. Im Planer findet es Gebäude auch über eine Produktion oder Ware („Reismehl“ zeigt alle Gebäude, die Reismehl brauchen oder machen) und springt in den Bereich mit Treffern. Gefiltert wird schon beim Tippen.
+- **Planer übersichtlicher:** Größen eines Gebäudes (Gewächshaus klein/mittel/groß, Biogasanlage 99 kW bis 1 MW) stehen links als ein Eintrag, gewählt wird die Größe rechts. Die Gruppen (Grundspiel, DLCs) lassen sich zuklappen, die Liste scrollt für sich. Rechts stehen die Produktionen als Zeilen, das Rezept mit Rechner daneben, das Lager in Spalten und zum Zuklappen.
+- **Besser lesbar:** größere Schrift im Planer und in der Preisliste; „Wo die Ware vorkommt“ lässt sich auf- und zuklappen.
+- **Mod 2.3:** Saat- und Erntemonate fragt die Mod jetzt direkt bei jeder Frucht im Spiel ab. Die Diagnose aus Version 2.2 hat gezeigt, wo das Spiel sie hat.
+- **Hochgeladener Export:** Eine in der Seitenverwaltung hochgeladene farmingHubExport.xml gilt jetzt auch dann, wenn per FTP eine ältere liegt.
+
 ## 30.10.2026 – Farming Hub: Mod 2.2 sucht die Wachstumsdaten
 
 - **Saat- und Erntemonate:** Mod 2.1 hat die Wachstumsdatei der Karte Catuaí nicht gefunden, weil sie im DLC-Archiv steckt. Version 2.2 lädt sie direkt und schreibt mit, was sie probiert hat. Bis das klappt, nimmt der Hub den eingebauten Kalender.

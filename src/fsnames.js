@@ -80,9 +80,25 @@ const CATEGORY = {
   WHEELLOADERVEHICLES: 'Radlader', WHEELLOADERTOOLS: 'Radlader-Werkzeug', WEIGHTS: 'Gewicht', GRAPETOOLS: 'Weinbau-Gerät', GRAPETRAILERS: 'Traubenwagen',
   MISC: 'Sonstiges', PALLETS: 'Palette', PALLETSILAGE: 'Palette', BIGBAGS: 'Big Bag', IBC: 'IBC-Tank', BARRELS: 'Fass',
 };
-// Monate wie im Spiel: Periode 1 ist der März (EARLY_SPRING)
-const MONTHS = ['März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember', 'Januar', 'Februar'];
-const MONTHS_SHORT = ['Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez', 'Jan', 'Feb'];
+// Monate wie im Spiel: Periode 1 ist der Frühlingsanfang, auf der Nordhalbkugel der März, auf der Südhalbkugel der September.
+// MONTHS[i] ist der Name von Periode i + 1; ORDER sind die Perioden von Januar bis Dezember für jeden Kalender.
+// setHemisphere ändert die Listen an Ort und Stelle, damit jeder, der sie schon hat, die richtigen Namen sieht.
+const NAMES = ['März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember', 'Januar', 'Februar'];
+const NAMES_SHORT = ['Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez', 'Jan', 'Feb'];
+const MONTHS = NAMES.slice(), MONTHS_SHORT = NAMES_SHORT.slice(), ORDER = [];
+let hemisphere = 'north';
+function setHemisphere(h) {
+  hemisphere = h === 'south' ? 'south' : 'north';
+  const shift = hemisphere === 'south' ? 6 : 0, jan = (10 + 12 - shift) % 12;
+  for (let i = 0; i < 12; i++) {
+    MONTHS[i] = NAMES[(i + shift) % 12];
+    MONTHS_SHORT[i] = NAMES_SHORT[(i + shift) % 12];
+    ORDER[i] = (jan + i) % 12;
+  }
+}
+setHemisphere('north');
+// Stelle einer Periode (0–11) im Kalender ab Januar
+const calPos = period => ORDER.indexOf(period);
 const PERIODS = ['EARLY_SPRING', 'MID_SPRING', 'LATE_SPRING', 'EARLY_SUMMER', 'MID_SUMMER', 'LATE_SUMMER',
   'EARLY_AUTUMN', 'MID_AUTUMN', 'LATE_AUTUMN', 'EARLY_WINTER', 'MID_WINTER', 'LATE_WINTER'];
 const WEATHER = { SUN: ['☀️', 'Sonnig'], CLOUDY: ['☁️', 'Bewölkt'], RAIN: ['🌧️', 'Regen'], SNOW: ['🌨️', 'Schnee'], FOG: ['🌫️', 'Nebel'],
@@ -114,4 +130,4 @@ function setGameTitles(list, language) {
 const fill = code => FILL[code] || gameTitles.get(code) || pretty(code);
 const category = code => CATEGORY[code] || pretty(code);
 
-module.exports = { setGameTitles, FILL, CATEGORY, MONTHS, MONTHS_SHORT, PERIODS, WEATHER, STATES, GROUND, GROUND_LABEL, fill, category, pretty };
+module.exports = { setGameTitles, setHemisphere, hemisphere: () => hemisphere, FILL, CATEGORY, MONTHS, MONTHS_SHORT, ORDER, calPos, PERIODS, WEATHER, STATES, GROUND, GROUND_LABEL, fill, category, pretty };

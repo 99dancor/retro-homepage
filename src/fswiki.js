@@ -2,7 +2,7 @@
 // Farming Simulator Hub: Wiki. Zwei Teile:
 //
 //   Anbaukalender  Saat- und Erntemonate jeder Frucht wie im Spiel (Daten aus dem Export, src/fscrops.js). Auf der Südhalbkugel
-//                  (z. B. Catuaí) ist Monat 1 der September statt der März, der Kalender beginnt dann wie im Spiel mit September.
+//                  (z. B. Catuaí) ist Monat 1 der September statt der März. Jeder Kalender beginnt trotzdem mit Januar.
 //   Tiere          Jede Tierart mit ihren Unterarten: was ein Tier je nach Alter frisst, trinkt, an Stroh braucht und liefert
 //                  (Milch, Wolle, Eier, Mist, Gülle), was es kostet, wann es Nachwuchs bekommt, die Futtergruppen mit ihrem
 //                  Anteil an der Leistung, Mischungen und die Ställe aus dem Shop.
@@ -273,14 +273,13 @@ function hemisphere(ex, setting) {
   if (ex && (ex.hemisphere === 'south' || ex.hemisphere === 'north')) return ex.hemisphere;
   return ex && SOUTH_MAPS.test(ex.mapId || '') ? 'south' : 'north';
 }
-// Monatsnamen in der Reihenfolge der Spielmonate (1 = Frühlingsanfang)
-function months(h, short = false) {
-  const m = short ? N.MONTHS_SHORT : N.MONTHS;
-  return h === 'south' ? [...m.slice(6), ...m.slice(0, 6)] : m.slice();
+// Monatsnamen von Januar bis Dezember (N.setHemisphere ist dann schon gesetzt)
+function months(short = false) {
+  return N.ORDER.map(p => (short ? N.MONTHS_SHORT : N.MONTHS)[p]);
 }
-// Monate (0–11) → zusammenhängende Balken [Start, Länge], über den Jahreswechsel geteilt wie im Spiel
+// Spielmonate (0–11) → zusammenhängende Balken [Stelle ab Januar, Länge], am Jahreswechsel geteilt wie im Spiel
 function runs(ms) {
-  const on = new Set(ms), out = [];
+  const on = new Set(ms.map(N.calPos)), out = [];
   for (let i = 0; i < 12; i++) {
     if (!on.has(i) || on.has(i - 1)) continue;
     let n = 1;

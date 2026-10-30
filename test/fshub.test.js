@@ -315,6 +315,20 @@ test('Hofkalender: Januar bis Dezember mit Spieltagen, Januar und Februar vom Sp
   assert.deepEqual(hub.calendar(1, 2).byDay.get(day).map(t => t.title), ['Säen']);
   assert.equal(hub.calendarYear({ date: { year: 3, month: 10 } }), 4, 'Januar in Spieljahr 3 ist Kalenderjahr 4');
   assert.equal(hub.calendarYear({ date: { year: 3, month: 0 } }), 3);
+  // Südhalbkugel: Periode 1 ist der September, der Kalender beginnt trotzdem mit Januar (Periode 5)
+  const N = require('../src/fsnames');
+  N.setHemisphere('south');
+  try {
+    assert.equal(N.MONTHS[0], 'September');
+    assert.deepEqual(N.ORDER.slice(0, 2), [4, 5]);
+    const south = hub.calendar(1, 2);
+    assert.deepEqual(south.cols.map(c => c.short), ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']);
+    assert.equal(south.cols[0].im, 4);
+    assert.equal(south.cols[8].gy, 2, 'September beginnt Spieljahr 2');
+    assert.equal(south.cols[7].days.at(-1).gday + 1, south.cols[8].days[0].gday, 'August und September liegen nebeneinander');
+    assert.equal(hub.calendarYear({ date: { year: 3, month: 4 } }), 4, 'Januar in Spieljahr 3 ist Kalenderjahr 4');
+    assert.equal(hub.dateOf(1, 1).monthName, 'September');
+  } finally { N.setHemisphere('north'); }
 });
 
 test('Changelog: Updates des Hubs aus CHANGELOG.md, jedes nur einmal', () => {
@@ -538,7 +552,7 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   assert.equal(dds.toString('latin1', 0, 4), 'DDS ');
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
-  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>2\.4\.0\.0<\/version>/);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>2\.5\.0\.0<\/version>/);
   assert.throws(() => E.read('<placeables/>'), /Farming Hub Export/);
 });
 
@@ -620,8 +634,14 @@ test('Wiki: Tierdaten aus dem Export, wiki.xml, Tiere für den Planer, Stall, An
   assert.equal(W.hemisphere({ mapId: 'pdlc_beansAndAlpacasPack.beansAndAlpacasMap' }, ''), 'south');
   assert.equal(W.hemisphere({ mapId: 'MapUS', hemisphere: 'south' }, ''), 'south');
   assert.equal(W.hemisphere({ mapId: 'pdlc_beansAndAlpacasPack.x' }, 'nord'), 'north');
-  assert.deepEqual([W.months('south')[0], W.months('north')[0], W.months('south', true)[6]], ['September', 'März', 'Mär']);
-  assert.deepEqual(W.runs([0, 1, 4, 10, 11]), [[0, 2], [4, 1], [10, 2]]);
+  // Kalender ab Januar: Periode 11 (Januar im Norden) steht vorn, Dezember→Januar wird geteilt
+  assert.deepEqual([W.months()[0], W.months(true)[2]], ['Januar', 'Mär']);
+  assert.deepEqual(W.runs([0, 1, 4, 10, 11]), [[0, 4], [6, 1]]);
+  assert.deepEqual(W.runs([9, 10]), [[0, 1], [11, 1]]);
+  // Mod bis 2.4: jede Frucht „2–12“ → Daten verwerfen, die Vorlage gilt
+  const bad = E.read('<farmingHubExport version="2"><fruitTypes><fruitType name="WHEAT" plant="2 3 4 5 6 7 8 9 10 11 12" harvest="2 3 4 5 6 7 8 9 10 11 12"/>'
+    + '<fruitType name="BARLEY" plant="2 3 4 5 6 7 8 9 10 11 12" harvest="2 3 4 5 6 7 8 9 10 11 12"/></fruitTypes></farmingHubExport>');
+  assert.deepEqual(bad.fruitTypes.map(f => f.sow.length + f.harvest.length), [0, 0]);
   assert.equal(W.title('Total Mixed Ration (100 %)'), 'Totalmischration (100%)');
   assert.equal(W.title('Spezialfutter'), 'Spezialfutter');
 });

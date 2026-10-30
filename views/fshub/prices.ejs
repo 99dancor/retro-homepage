@@ -39,12 +39,12 @@
   </div>
   <% if (sel) { %>
   <div class="fs-side">
-    <% const vals = sel.prices, lo = Math.min(...vals) * (Math.min(...vals) === Math.max(...vals) ? 0.8 : 0.9), hi = Math.max(...vals) * (Math.min(...vals) === Math.max(...vals) ? 1.2 : 1.05), Y = v => (190 - (v - lo) / ((hi - lo) || 1) * 170).toFixed(1), X = i => (40 + i * 30).toFixed(1); %>
+    <% const vals = sel.prices, lo = Math.min(...vals) * (Math.min(...vals) === Math.max(...vals) ? 0.8 : 0.9), hi = Math.max(...vals) * (Math.min(...vals) === Math.max(...vals) ? 1.2 : 1.05), Y = v => (190 - (v - lo) / ((hi - lo) || 1) * 170).toFixed(1), X = i => (40 + N.calPos(i) * 30).toFixed(1), byCal = N.ORDER; %>
     <fieldset class="groupbox fs-chart"><legend><span class="fs-name"><%- icon(sel.fill, sel.name) %><%= sel.name %> – € je 1 000 l</span></legend>
       <svg viewBox="0 0 400 220" role="img" aria-label="Preisverlauf <%= sel.name %>">
         <% for (let k = 0; k <= 4; k++) { const v = lo + (hi - lo) * k / 4; %><line x1="36" x2="395" y1="<%= Y(v) %>" y2="<%= Y(v) %>" class="grid"/><text x="32" y="<%= (Number(Y(v)) + 3).toFixed(1) %>" class="ax" text-anchor="end"><%= de(v) %></text><% } %>
         <% if (cur !== null) { %><rect x="<%= (Number(X(cur)) - 14).toFixed(1) %>" y="16" width="28" height="178" class="now"/><% } %>
-        <path d="<%= vals.map((v, i) => (i ? 'L' : 'M') + X(i) + ',' + Y(v)).join(' ') %>" class="line"/>
+        <path d="<%= byCal.map((i, k) => (k ? 'L' : 'M') + X(i) + ',' + Y(vals[i])).join(' ') %>" class="line"/>
         <% vals.forEach((v, i) => { %><circle cx="<%= X(i) %>" cy="<%= Y(v) %>" r="<%= i === sel.best ? 5 : 3 %>" class="<%= i === sel.best ? 'best' : 'pt' %>"><title><%= N.MONTHS[i] %>: <%= de(v) %> €</title></circle><text x="<%= X(i) %>" y="210" class="ax" text-anchor="middle"><%= N.MONTHS_SHORT[i] %></text><% }) %>
       </svg>
       <div>Jetzt <b><%= sel.now !== null ? de(sel.now) + ' €' : '–' %></b> · bester Monat <b><%= N.MONTHS[sel.best] %></b> mit <%= de(sel.bestPrice) %> €<%= sel.demand ? ' · große Nachfrage +' + Math.round((sel.demand.mult - 1) * 100) + ' %' : '' %></div>

@@ -15,7 +15,7 @@
       <% for (const [k, l] of [['none', 'ohne Termin'], ['today', 'heute'], ['date', 'am Datum'], ['gday', 'am Spieltag'], ['gmonth', 'im Spielmonat']]) { %><option value="<%= k %>"<%= dueKind === k ? ' selected' : '' %>><%= l %></option><% } %></select></label>
     <input type="date" name="due_date" value="<%= e && e.due_date ? e.due_date : '' %>" data-for="date" aria-label="Datum">
     <input type="number" name="due_day" min="1" value="<%= e && e.due_day ? e.due_day : (tag || m.day || '') %>" data-for="gday" aria-label="Spieltag" style="width:80px">
-    <select name="due_month" data-for="gmonth" aria-label="Spielmonat"><% N.MONTHS.forEach((mo, i) => { %><option value="<%= i %>"<%= m.date && m.date.month === i ? ' selected' : '' %>><%= mo %></option><% }) %></select>
+    <select name="due_month" data-for="gmonth" aria-label="Spielmonat"><% N.ORDER.forEach(i => { const mo = N.MONTHS[i]; %><option value="<%= i %>"<%= m.date && m.date.month === i ? ' selected' : '' %>><%= mo %></option><% }) %></select>
     <label>Wiederholen <select name="repeat" data-repeat>
       <% for (const [k, l] of [['', 'nein'], ['days', 'alle … Tage'], ['weekly', 'jede Woche'], ['gdays', 'alle … Spieltage'], ['gmonths', 'alle … Spielmonate']]) { %><option value="<%= k %>"<%= e && e.repeat === k ? ' selected' : '' %>><%= l %></option><% } %></select></label>
     <input type="number" name="repeat_n" min="1" max="365" value="<%= e ? e.repeat_n : 1 %>" aria-label="Abstand" style="width:60px" data-for="n">

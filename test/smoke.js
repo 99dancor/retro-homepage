@@ -2643,7 +2643,8 @@ async function main() {
         // Wiki: Anbaukalender aus dem Export, Tiere aus wiki.xml, Planer sagt, wie viele Tiere ein Rezept braucht
         page = (await anna.req('/farming/wiki')).text_;
         assert.match(page, /<h1>Wiki<\/h1>/);
-        assert.match(page, /role="columnheader" title="März">Mär</, 'Nordhalbkugel: beginnt mit März');
+        assert.match(page, /<div class="wk-t"><span role="columnheader" title="Januar">Jan</, 'jeder Kalender beginnt mit Januar');
+        const sowNorth = (await anna.req('/farming/wiki?frucht=WHEAT')).text_.match(/<small>Säen<\/small><b>([^<]*)</)[1];
         assert.match(page, /<span class="wk-n" role="rowheader">[\s\S]*?Weizen<\/span>/);
         assert.match((await anna.req('/farming/wiki?frucht=WHEAT')).text_, /id="frucht" aria-label="Weizen"/);
         page = (await anna.req('/farming/wiki/tiere')).text_;
@@ -2658,7 +2659,9 @@ async function main() {
         assert.match((await admin.req('/admin/farming')).text_, /✔ 2 Tierarten mit 4 Rassen, 2 Ställe \(aus dem Export\)/);
         assert.match((await admin.req('/admin/farming/wiki.xml')).text_, /<farmingWiki version="1" source="export"/);
         assert.equal((await admin.form('/admin/farming/halbkugel', { _csrf: admin.jar.get('csrf'), h: 'sued' })).status, 302);
-        assert.match((await anna.req('/farming/wiki')).text_, /role="columnheader" title="September">Sep</);
+        assert.match((await anna.req('/farming/wiki')).text_, /<div class="wk-t"><span role="columnheader" title="Januar">Jan</, 'auch im Süden ab Januar');
+        const sowSouth = (await anna.req('/farming/wiki?frucht=WHEAT')).text_.match(/<small>Säen<\/small><b>([^<]*)</)[1];
+        assert.notEqual(sowSouth, sowNorth, 'im Süden ein halbes Jahr versetzt');
         await admin.form('/admin/farming/halbkugel', { _csrf: admin.jar.get('csrf'), h: '' });
 
         // Preise und Modliste

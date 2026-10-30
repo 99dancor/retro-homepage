@@ -145,6 +145,8 @@ function model() {
   // Kartendaten aus dem Spiel (Mod „Farming Hub Export“): Positionen der vorplatzierten Gebäude, Grundstücke ohne Stats-Feed
   const ex = fsexport.current();
   N.setGameTitles(ex && ex.fillTypes, ex && ex.language);
+  // Monatsnamen und Kalender je Halbkugel (Einstellung, sonst Export)
+  N.setHemisphere(fswiki.hemisphere(ex, getSetting('fs_hemisphere', '')));
   // Tierdaten fürs Wiki: neue aus dem Export in wiki.xml ablegen
   try { fswiki.sync(ex); } catch (e) { console.error('Farming Hub, Wiki:', e); }
   const plcRaw = ftpFile('placeables.xml');
@@ -730,14 +732,14 @@ function planCells(p) {
   return cells;
 }
 // Hofkalender eines Kalenderjahrs, Januar links bis Dezember rechts, jeder Monat in seine Spieltage geteilt (Tage pro Monat aus
-// dem Spielstand). Das Spieljahr beginnt im März: Januar und Februar des Kalenderjahrs N sind das Ende von Spieljahr N−1.
-// Zellen der Planzeilen: s = säen, g = wächst, h = ernten (gleich für jedes Jahr), Punkte = Aufgaben mit Spieltag.
-const CAL_ORDER = [10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-function calendarYear(m) { return m && m.date ? m.date.year + (m.date.month >= 10 ? 1 : 0) : 1; }
+// dem Spielstand). Das Spieljahr beginnt mit dem Frühling (März, auf der Südhalbkugel September): die Monate ab Januar bis
+// dahin sind das Ende von Spieljahr N−1. Zellen der Planzeilen: s = säen, g = wächst, h = ernten (gleich für jedes Jahr),
+// Punkte = Aufgaben mit Spieltag.
+function calendarYear(m) { return m && m.date ? m.date.year + (m.date.month >= N.ORDER[0] ? 1 : 0) : 1; }
 function calendar(farmId, year, withRepeat = false) {
   const dpp = daysPerPeriod(), today = currentDay();
-  const cols = CAL_ORDER.map(im => {
-    const gy = im >= 10 ? year - 1 : year, first = gy >= 1 ? dayOfMonth(im, gy, dpp) : null;
+  const cols = N.ORDER.map(im => {
+    const gy = im >= N.ORDER[0] ? year - 1 : year, first = gy >= 1 ? dayOfMonth(im, gy, dpp) : null;
     return { im, gy, name: N.MONTHS[im], short: N.MONTHS_SHORT[im], days: Array.from({ length: dpp }, (_, d) => ({ dom: d + 1, gday: first ? first + d : null })) };
   });
   const days = cols.flatMap(c => c.days.filter(d => d.gday)).map(d => d.gday);

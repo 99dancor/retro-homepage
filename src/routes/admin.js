@@ -473,6 +473,7 @@ router.post('/farming/wiki/loeschen', (req, res) => {
 });
 router.post('/farming/halbkugel', (req, res) => {
   setSetting('fs_hemisphere', ['nord', 'sued'].includes(req.body.h) ? req.body.h : '');
+  require('../fshub').invalidate();
   res.redirect('/admin/farming?ok=1#wiki');
 });
 // Spielstände (src/fssaves.js): Daten beiseitelegen, zurückholen, löschen

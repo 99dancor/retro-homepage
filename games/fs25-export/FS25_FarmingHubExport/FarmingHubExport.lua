@@ -572,14 +572,34 @@ local function periods(ft, kind)
     local gs = g_currentMission.growthSystem
     local out = {}
     -- FS25: jede Frucht weiß selbst, ob sie in einem Monat gesät oder geerntet werden kann
+    -- Mod 2.4 rief sie nur mit dem Monat auf und bekam für jede Frucht „2–12“: der erste Wert ist der Wachstumsmodus
+    -- (1 = saisonal), der Monat kommt danach. Darum beide Aufrufe probieren und den nehmen, der sich je Monat unterscheidet.
     local own = kind == "plant" and "getIsPlantableInPeriod" or "getIsHarvestableInPeriod"
     if type(ft[own]) == "function" then
+        -- immer der saisonale Modus, auch wenn auf dem Server Wachstum aus ist: gefragt ist der Kalender
+        local mode = (GrowthMode ~= nil and GrowthMode.SEASONAL) or (GrowthSystem ~= nil and GrowthSystem.MODE ~= nil and GrowthSystem.MODE.SEASONAL) or 1
+        local withMode, onlyPeriod = {}, {}
         for period = 1, 12 do
-            local ok, v = pcall(ft[own], ft, period)
+            local ok, v = pcall(ft[own], ft, mode, period)
             if ok and v == true then
-                table.insert(out, period)
+                table.insert(withMode, period)
+            end
+            ok, v = pcall(ft[own], ft, period)
+            if ok and v == true then
+                table.insert(onlyPeriod, period)
             end
         end
+        local function varies(t)
+            return #t > 0 and #t < 12
+        end
+        -- „2–12“ ohne Modus heißt: Monat 1 wurde als saisonaler Modus gelesen, alle anderen als „ohne Jahreszeiten“
+        local broken = #onlyPeriod == 11 and onlyPeriod[1] == 2
+        if varies(withMode) or (#withMode == 12 and broken) then
+            out = withMode
+        elseif not broken then
+            out = onlyPeriod
+        end
+        FarmingHubExport.periodCall = FarmingHubExport.periodCall or (varies(withMode) and "modus,monat" or not broken and "monat" or nil)
     end
     local ok, fromXml = true, {}
     if #out == 0 then
@@ -670,6 +690,9 @@ function FarmingHubExport:writeDebug(xml, list)
     for _, ft in ipairs(list) do
         if ft.name == "WHEAT" then
             xml:setString(k .. ".fruitType#names", names(ft))
+            if type(ft.growthDataSeasonal) == "table" then
+                xml:setString(k .. ".fruitType#seasonal", names(ft.growthDataSeasonal))
+            end
         end
     end
     xml:setString(k .. ".fruitTypeManager#names", names(g_fruitTypeManager, "grow"))
@@ -743,6 +766,9 @@ function FarmingHubExport:writeFruitTypes(xml)
             end)
             n = n + 1
         end
+    end
+    if FarmingHubExport.periodCall ~= nil then
+        xml:setString("farmingHubExport.fruitTypes#periodCall", FarmingHubExport.periodCall)
     end
     return n
 end
@@ -1309,6 +1335,7 @@ function FarmingHubExport:deleteMap()
     self.growth = nil
     self.growthSource = nil
     self.growthTried = nil
+    FarmingHubExport.periodCall = nil
 end
 
 if FSBaseMission.saveSavegame ~= nil then

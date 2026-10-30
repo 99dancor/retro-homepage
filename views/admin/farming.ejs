@@ -116,7 +116,7 @@
     <form method="post" action="/admin/farming/wiki" enctype="multipart/form-data" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="file" name="wiki" accept=".xml,application/xml,text/xml" required><button>wiki.xml hochladen</button></form>
     <% if (wiki) { %><form method="post" action="/admin/farming/wiki/loeschen" class="actions" data-confirm="Tierdaten löschen? Mit dem nächsten Export kommen sie wieder."><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Tierdaten löschen</button></form><% } %>
     <form method="post" action="/admin/farming/halbkugel" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>">
-      <label>Anbaukalender beginnt mit <select name="h"><option value=""<%= hemisphere === '' ? ' selected' : '' %>>automatisch (aus dem Spiel)</option><option value="nord"<%= hemisphere === 'nord' ? ' selected' : '' %>>März (Nordhalbkugel)</option><option value="sued"<%= hemisphere === 'sued' ? ' selected' : '' %>>September (Südhalbkugel)</option></select></label> <button>Speichern</button></form>
+      <label>Frühling beginnt im <select name="h"><option value=""<%= hemisphere === '' ? ' selected' : '' %>>automatisch (aus dem Spiel)</option><option value="nord"<%= hemisphere === 'nord' ? ' selected' : '' %>>März (Nordhalbkugel)</option><option value="sued"<%= hemisphere === 'sued' ? ' selected' : '' %>>September (Südhalbkugel)</option></select></label> <button>Speichern</button></form>
   </fieldset>
 
   <fieldset class="groupbox" id="symbole"><legend>Symbole der Erzeugnisse</legend>

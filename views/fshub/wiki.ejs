@@ -123,7 +123,7 @@
             <div><small>Ausgewachsen (ab <%= de(s.adult) %> Monaten) braucht ein Tier pro Monat</small>
               <div class="chips"><% for (const [k, fill] of [['food', 'FORAGE'], ['water', 'WATER'], ['straw', 'STRAW']]) { if (s.needs[k] === null) continue; %><span class="chip"><%- icon(fill, '', 's') %><%= k === 'food' ? 'Futter' : N.fill(fill) %> <%= liters(s.needs[k]) %></span><% } %></div></div>
             <div><small>und liefert pro Monat</small>
-              <div class="chips"><% for (const x of s.makes) { %><a class="chip" href="/farming/preise?w=<%= encodeURIComponent(x.fill) %>"<% if (x.perShear) { %> title="Bei vollem Vlies <%= liters(x.perShear) %> je Schur; pro Monat geschätzt aus dem Nachwachsen"<% } %>><%- icon(x.fill, x.name, 's') %><%= x.name %> <%= liters(x.perMonth) %></a><% } %><%= s.makes.length ? '' : 'nichts' %></div></div>
+              <div class="chips"><% for (const x of s.makes) { %><a class="chip" href="/farming/preise?w=<%= encodeURIComponent(x.fill) %>"<% if (x.perShear) { %> title="Volles Vlies: <%= liters(x.perShear) %> je Schur, wächst in <%= x.days %> Tagen nach"<% } %>><%- icon(x.fill, x.name, 's') %><%= x.name %> <%= liters(x.perMonth) %></a><% } %><%= s.makes.length ? '' : 'nichts' %></div></div>
           </div>
           <details class="pl-fold"><summary>Nach Alter</summary>
             <% const cols = Object.keys(s.curves).filter(k => CURVES[k] || s.curves[k].fill); %>

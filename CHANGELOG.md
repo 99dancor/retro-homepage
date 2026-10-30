@@ -1,5 +1,9 @@
 # Changelog
 
+## 30.10.2026 – Farming Hub: Alpakavlies richtig gerechnet
+
+- **Alpakavlies:** Das Nachwachsen steht im Spiel in Prozent pro Tag (10 %, also alle 10 Tage ein volles Vlies mit 500 l). Der Hub hat die 10 als Faktor genommen und zehn Mal ein volles Vlies pro Tag gerechnet. Jetzt liefert ein ausgewachsenes Alpaka 50 l am Tag; der Planer rechnet damit die Zahl der Tiere.
+
 ## 30.10.2026 – Farming Hub: Auswahl bleibt, Alpakavlies
 
 - **Jeder Bereich merkt sich, wo du warst:** Wer im Planer die Spinnerei, in den Preisen eine Ware, im Wiki ein Tier oder am Hof einen Reiter offen hat, landet beim Zurückkommen über die Leiste links wieder genau dort. Im Planer merkt sich auch jeder Bereich (Karte, eigene, Katalog) sein Gebäude. Gemerkt wird im Browser.

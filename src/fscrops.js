@@ -20,11 +20,11 @@ const PRESET = {
   GRASS: ['#6cc04a', [0, 1, 2, 3, 4, 5, 6, 7], [2, 3, 4, 5, 6, 7], 'grass'], MEADOW: ['#5fa83c', [], [2, 3, 4, 5, 6, 7], 'grass'],
   ALFALFA: ['#5fa040', [0, 1, 2], [2, 3, 4, 5, 6], 'grass'], CLOVER: ['#4f9a4a', [0, 1, 2], [2, 3, 4, 5, 6], 'grass'],
   GRAPE: ['#7b3f8c', [], [6, 7], 'perm'], OLIVE: ['#7f8f3a', [], [7, 8], 'perm'], POPLAR: ['#8a9a5a', [], [], 'perm'],
-  COFFEE: ['#9b3b2c', [], [6, 7], 'perm'], BANANA: ['#e3cf3f', [], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 'perm'],
+  COFFEE: ['#9b3b2c', [], [6, 7], 'perm'], COFFEECHERRIES: ['#9b3b2c', [], [6, 7], 'perm'], BANANA: ['#e3cf3f', [], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 'perm'],
 };
 // Ware einer Frucht, wo sie anders heißt (sonst gleich)
 const PRESET_FILL = { GRASS: 'GRASS_WINDROW', MEADOW: 'GRASS_WINDROW', ALFALFA: 'ALFALFA_WINDROW', CLOVER: 'CLOVER_WINDROW' };
-const PERM = new Set(['GRAPE', 'OLIVE', 'POPLAR', 'COFFEE', 'BANANA', 'TREE']);
+const PERM = new Set(['GRAPE', 'OLIVE', 'POPLAR', 'COFFEE', 'COFFEECHERRIES', 'BANANA', 'TREE']);
 const GRASS = new Set(['GRASS', 'MEADOW', 'ALFALFA', 'CLOVER', 'FIELDGRASS']);
 // Keine Frucht zum Planen: Unkraut, Deko, Zwischenfrüchte zum Unterpflügen bleiben auf der Karte, aber nicht im Kalender
 const NOT_PLANNED = /^(WEED|DECO|UNKNOWN|STONE|.*_DECO)$/;

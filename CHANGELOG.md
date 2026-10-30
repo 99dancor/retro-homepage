@@ -1,5 +1,13 @@
 # Changelog
 
+## 30.10.2026 – Farming Hub: Feinschliff nach dem ersten echten Export
+
+- **Deutsch auch auf englischen Servern:** Läuft der Server auf Englisch, heißen Gebäude und Produktionen trotzdem deutsch (Bäckerei statt Bakery, Brot aus Mehl und Brot aus Reismehl statt zweimal Bread). Platzhalter wie „%s (%s)“ tauchen nicht mehr auf.
+- **Katalog aufgeräumt:** Gebäude, die es für jede Region der Grundspielkarten gibt, stehen nur noch einmal drin. Die kleinen Fassungen heißen „(klein)“.
+- **Keine „Unbekannte Frucht“ mehr:** Bewuchs und Deko der Karte (Wiesen, Büsche) stehen nicht mehr in der Fruchtliste und verdecken die Karte nicht mehr.
+- **Kaffeekirschen** zählen als Plantage, Eisenerz, Kupfererz, Fungizid, Alpakas und Schleppschlauch haben deutsche Namen.
+- **Mod 2.1:** Saat- und Erntemonate liest die Mod jetzt aus der Wachstumsdatei der Karte, weil das Spiel sie anders nicht herausgibt. Die neue Version gibt es in der Seitenverwaltung.
+
 ## 30.10.2026 – Farming Hub 3.0: alles aus dem Spiel
 
 - **Karte je Fleck:** Grundstücke kommen mit ihrer echten Form aus dem Spiel, die Unterscheidung gestrichelt/durchgezogen ist weg. Früchte, Wachstum, Kalk, Dünger und Pflug zeigt die Karte so, wie sie auf dem Acker liegen: Wer nur einen Streifen kalkt oder zwei Früchte auf einem Grundstück hat, sieht das. Ein Klick aufs Grundstück zeigt Größe, Besitzer, Felder, jede Frucht und jeden Zustand mit Fläche, Pflege, Stationen und Anbauplan. Plantagen wie Kaffee und Bananen blenden sich mit den anderen Früchten aus und ein.

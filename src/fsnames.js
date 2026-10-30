@@ -57,6 +57,8 @@ const FILL = {
   COFFEEYOGURT: 'Kaffeejoghurt', BANANABOX: 'Bananen (Kisten)', BANANACAKE: 'Bananenkuchen', BANANACANDY: 'Bananenbonbons', BANANACHIPS: 'Bananenchips',
   BANANAFRIEDBOX: 'Gebratene Bananen', BANANAJAM: 'Bananenmarmelade', BANANAMILK: 'Bananenmilch', ALPACASOCKS: 'Alpakasocken', ALPACAPLUSH: 'Alpaka-Plüschtiere',
   ALPACAPILLOW: 'Alpakakissen', ALPACACHAIR: 'Alpakastühle', ALPACAARMCHAIR: 'Alpakasessel',
+  ALPACA_WHITE: 'Alpakas (weiß)', ALPACA_BROWN: 'Alpakas (braun)', ALPACA_GREY: 'Alpakas (grau)', ALPACA_FAWN: 'Alpakas (rehbraun)',
+  IRONORE: 'Eisenerz', COPPERORE: 'Kupfererz', FUNGICIDE: 'Fungizid', UMBILICAL_HOSE: 'Schleppschlauch',
   // Textilien und Waren
   FABRIC: 'Stoff', CLOTHES: 'Kleidung', ROPE: 'Seile', POLYESTER: 'Polyester', SHOES: 'Schuhe', BELTS: 'Gürtel', PIGMENTS: 'Pigmente', PAINTBUCKETS: 'Farbeimer',
   BARREL: 'Fässer', BUCKET: 'Eimer', BATHTUB: 'Badewannen', PIANO: 'Klaviere', WAGON: 'Holzwagen', TOYTRACTOR: 'Spielzeugtraktoren',

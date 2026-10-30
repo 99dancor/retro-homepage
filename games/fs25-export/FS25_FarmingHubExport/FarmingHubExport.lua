@@ -88,13 +88,18 @@ local function text(s, env)
     if s == nil then
         return nil
     end
+    local v = tostring(s)
     if g_i18n ~= nil and type(s) == "string" and string.sub(s, 1, 6) == "$l10n_" then
-        local ok, v = pcall(g_i18n.convertText, g_i18n, s, env)
-        if ok and v ~= nil then
-            return v
+        local ok, t = pcall(g_i18n.convertText, g_i18n, s, env)
+        if ok and t ~= nil then
+            v = t
         end
     end
-    return tostring(s)
+    -- Platzhalter wie „%s (%s)“ füllt das Spiel erst beim Anzeigen: dann lieber kein Name
+    if string.find(v, "%%s") then
+        return nil
+    end
+    return v
 end
 
 -- ---------- Felder ----------
@@ -413,13 +418,143 @@ function FarmingHubExport:writeFillTypes(xml)
 end
 
 -- ---------- Früchte ----------
+-- Wachstum laut growth.xml der Karte: je Frucht und Monat, ob gesät werden darf und wie die Stufen weiterspringen.
+-- Daraus rechnet die Mod, in welchen Monaten sich die Frucht ernten lässt (wie der Kalender im Spiel).
+local function parseRange(s)
+    local a, b = string.match(tostring(s or ""), "^%s*(%d+)%s*%-%s*(%d+)%s*$")
+    if a ~= nil then
+        return tonumber(a), tonumber(b)
+    end
+    local n = tonumber(s)
+    return n, n
+end
+
+function FarmingHubExport:growthFile()
+    local info = g_currentMission.missionInfo or {}
+    local candidates = {}
+    local mapXml = info.mapXMLFilename
+    if mapXml ~= nil then
+        local file = XMLFile.load("farmingHubMap", Utils.getFilename(mapXml, info.baseDirectory))
+        if file ~= nil then
+            local g = file:getString("map.growth#filename")
+            if g ~= nil then
+                table.insert(candidates, Utils.getFilename(g, info.baseDirectory))
+            end
+            file:delete()
+        end
+    end
+    table.insert(candidates, "data/maps/maps_growth.xml")
+    table.insert(candidates, "dataS/maps/maps_growth.xml")
+    for _, f in ipairs(candidates) do
+        if f ~= nil and fileExists(f) then
+            return f
+        end
+    end
+    return nil
+end
+
+function FarmingHubExport:growthData()
+    if self.growth ~= nil then
+        return self.growth
+    end
+    self.growth = {}
+    local name = self:growthFile()
+    self.growthSource = name
+    local file = name ~= nil and XMLFile.load("farmingHubGrowth", name) or nil
+    if file == nil then
+        return self.growth
+    end
+    local i = 0
+    while true do
+        local k = string.format("growth.seasonal.fruit(%d)", i)
+        if not file:hasProperty(k) then
+            break
+        end
+        local fruit = { initial = file:getInt(k .. "#initialState", 1), periods = {} }
+        local j = 0
+        while true do
+            local pk = string.format("%s.period(%d)", k, j)
+            if not file:hasProperty(pk) then
+                break
+            end
+            local p = { plant = file:getBool(pk .. "#plantingAllowed", false), updates = {} }
+            local u = 0
+            while true do
+                local uk = string.format("%s.update(%d)", pk, u)
+                if not file:hasProperty(uk) then
+                    break
+                end
+                local lo, hi = parseRange(file:getString(uk .. "#range"))
+                table.insert(p.updates, { lo = lo, hi = hi, add = file:getInt(uk .. "#add"), set = file:getInt(uk .. "#set") })
+                u = u + 1
+            end
+            fruit.periods[file:getInt(pk .. "#index", j + 1)] = p
+            j = j + 1
+        end
+        self.growth[string.upper(file:getString(k .. "#name") or "")] = fruit
+        i = i + 1
+    end
+    file:delete()
+    return self.growth
+end
+
+-- Säen erlaubt laut growth.xml; Ernte: ab jedem Saatmonat zwölf Monate weiterrechnen, erntereif = zwischen den
+-- Erntestufen der Frucht
+local function growthPeriods(ft, kind)
+    local g = FarmingHubExport:growthData()[string.upper(ft.name or "")]
+    if g == nil then
+        return {}
+    end
+    local plant, harvest = {}, {}
+    for p = 1, 12 do
+        if g.periods[p] ~= nil and g.periods[p].plant then
+            table.insert(plant, p)
+        end
+    end
+    if kind == "plant" then
+        return plant
+    end
+    local lo, hi = ft.minHarvestingGrowthState, ft.maxHarvestingGrowthState or ft.minHarvestingGrowthState
+    if lo == nil then
+        return {}
+    end
+    local seen = {}
+    for _, start in ipairs(plant) do
+        local state = math.max(1, g.initial or 1)
+        for step = 1, 12 do
+            local p = (start + step - 1) % 12 + 1
+            for _, u in ipairs((g.periods[p] or {}).updates or {}) do
+                if u.lo ~= nil and state >= u.lo and state <= u.hi then
+                    if u.set ~= nil then
+                        state = u.set
+                    elseif u.add ~= nil then
+                        state = state + u.add
+                    end
+                    break
+                end
+            end
+            if state >= lo and state <= hi and not seen[p] then
+                seen[p] = true
+                table.insert(harvest, p)
+            end
+        end
+    end
+    return harvest
+end
+
 -- Monate, in denen sich eine Frucht säen bzw. ernten lässt (1 = März … 12 = Februar)
 local function periods(ft, kind)
     local gs = g_currentMission.growthSystem
     local out = {}
+    local ok, fromXml = pcall(growthPeriods, ft, kind)
+    if ok then
+        for _, p in ipairs(fromXml) do
+            table.insert(out, p)
+        end
+    end
     local names = kind == "plant" and { "canFruitBePlanted", "getCanFruitBePlanted", "getIsPlantableInPeriod", "canPlantInPeriod" }
         or { "canFruitBeHarvested", "getCanFruitBeHarvested", "getIsHarvestableInPeriod", "canHarvestInPeriod" }
-    if gs ~= nil then
+    if gs ~= nil and #out == 0 then
         for period = 1, 12 do
             if call(gs, names, ft.index, period) == true then
                 table.insert(out, period)
@@ -465,6 +600,10 @@ end
 function FarmingHubExport:writeFruitTypes(xml)
     local list = call(g_fruitTypeManager, { "getFruitTypes" }) or g_fruitTypeManager.fruitTypes or {}
     local n = 0
+    try("Wachstum", function() self:growthData() end)
+    if self.growthSource ~= nil then
+        xml:setString("farmingHubExport.fruitTypes#growth", self.growthSource)
+    end
     for _, ft in ipairs(list) do
         if ft.name ~= nil then
             local k = string.format("farmingHubExport.fruitTypes.fruitType(%d)", n)
@@ -746,6 +885,8 @@ function FarmingHubExport:deleteMap()
     removeConsoleCommand("hubExport")
     self.grid = nil
     self.catalogCache = nil
+    self.growth = nil
+    self.growthSource = nil
 end
 
 if FSBaseMission.saveSavegame ~= nil then

@@ -19,6 +19,31 @@ const NAMES = {
   riceMill: 'Reismühle', grapeProcessing: 'Traubenverarbeitung', winery: 'Weingut', greenhouse: 'Gewächshaus', compostPlant: 'Kompostanlage',
   bga1mw: 'Biogasanlage', sanctuary: 'Gnadenhof',
 };
+// Gebäude, wie sie ein englischer Server nennt (Shop-Name) → deutsch wie im Spiel
+const NAMES_EN = {
+  'Bakery': 'Bäckerei', 'Biogas Plant': 'Biogasanlage', 'Canning Factory': 'Konservenfabrik', 'Carpentry': 'Tischlerei', 'Cement Factory': 'Zementwerk',
+  'Cereal Factory': 'Müslifabrik', 'Coffee Processing Plant': 'Kaffeeverarbeitung', 'Coffee Roastery': 'Kaffeerösterei', 'Coffee Shop': 'Café', 'Cooper': 'Böttcherei',
+  'Dairy': 'Molkerei', 'Grain Mill': 'Getreidemühle', 'Grape Processing Unit': 'Traubenverarbeitung', 'Oil Mill': 'Ölmühle', 'Paint Production': 'Farbenfabrik',
+  'Paper Factory': 'Papierfabrik', 'Pigment Factory': 'Pigmentfabrik', 'Potato Processing Plant': 'Kartoffelverarbeitung', 'Preserved Food Factory': 'Konservenfabrik',
+  'Rope Maker': 'Seilerei', 'Sawmill': 'Sägewerk', 'Soup Factory': 'Suppenfabrik', 'Spinnery': 'Spinnerei', 'Sugar Mill': 'Zuckerfabrik', 'Tailor Shop': 'Schneiderei',
+  'Banana Drying Station': 'Bananentrocknung', 'Banana Washing Station': 'Bananenwäsche', 'Fish Food Factory': 'Fischfutterfabrik', 'Fish Lake': 'Fischteich',
+  'Quarry': 'Steinbruch', 'Stone Mason': 'Steinmetz', 'Vegetable Processing Plant': 'Gemüseverarbeitung', 'Windmill': 'Windmühle', 'Young Fish Breeding': 'Jungfischzucht',
+  'Liquid Manure Dryer': 'Gülletrockner', 'Apple Orchard': 'Apfelplantage', 'Apricot Orchard': 'Aprikosenplantage', 'Pear Orchard': 'Birnenplantage', 'Plum Orchard': 'Pflaumenplantage',
+  'Fruit and Vegetable Processing Plant': 'Obst- und Gemüseverarbeitung', 'Pellet Heat Plant': 'Pelletheizwerk', 'Greenhouse For Rice Saplings': 'Gewächshaus für Reissetzlinge',
+  'Glass Greenhouse': 'Glasgewächshaus', 'Mushroom Greenhouse': 'Pilzgewächshaus', 'Tarp Greenhouse': 'Foliengewächshaus', 'Greenhouse - Advanced': 'Gewächshaus (modern)',
+};
+const SIZE_EN = { Small: 'klein', Medium: 'mittel', Large: 'groß' };
+// Englischer Name → deutsch: ganzer Name, sonst ohne Größe (Small/Medium/Large) bzw. Zusatz in Klammern und Leistung (99kW)
+function germanBuilding(name) {
+  if (NAMES_EN[name]) return NAMES_EN[name];
+  const m = /^(Small|Medium|Large) (.+?)( \((.+)\))?$/.exec(name);
+  if (m && NAMES_EN[m[2]]) return `${NAMES_EN[m[2]]} (${SIZE_EN[m[1]]}${m[4] ? ', ' + (N.FILL[m[4].toUpperCase()] || m[4]) : ''})`;
+  const p = /^(.+?) \(([^)]+)\)$/.exec(name);
+  if (p && NAMES_EN[p[1]]) return `${NAMES_EN[p[1]]} (${p[2]})`;
+  const k = /^(.+?) (\d+\s*k?MW|\d+\s*kW)$/i.exec(name);
+  if (k && NAMES_EN[k[1]]) return `${NAMES_EN[k[1]]} ${k[2]}`;
+  return null;
+}
 const MODES = { parallel: 'Parallel', seriell: 'Seriell' };
 const SECTIONS = { karte: 'Auf der Karte', eigene: 'Eigene Gebäude', katalog: 'Katalog' };
 
@@ -43,10 +68,29 @@ function recipeName(id) {
 }
 const isPreplaced = p => /^preplaced_/i.test(p.uid || '');
 const rows = list => (list || []).filter(x => x.fill && x.amount > 0).map(x => ({ fill: x.fill, name: N.fill(x.fill), amount: x.amount, sell: !!x.sell }));
-function recipe(r) {
+// Name aus dem Spiel nur, wenn es deutsch spricht (de) und keine Platzhalter drinstehen; sonst nach dem Erzeugnis
+function recipe(r, de) {
   const inputs = rows(r.inputs), outputs = rows(r.outputs);
-  return { id: r.id, name: r.name && !/^\$l10n/.test(r.name) ? r.name : recipeName(r.id), cycles: r.cycles > 0 ? r.cycles : null, cost: r.cost ?? null,
-    inputs, outputs, active: !!r.active, complete: r.cycles > 0 && outputs.length > 0 };
+  const game = r.name && !/^\$l10n|%s/.test(r.name) ? r.name : null;
+  return { id: r.id, name: de && game ? game : outputs.length ? outputs[0].name : game || recipeName(r.id), fromGame: !!(de && game), cycles: r.cycles > 0 ? r.cycles : null,
+    cost: r.cost ?? null, inputs, outputs, active: !!r.active, complete: r.cycles > 0 && outputs.length > 0 };
+}
+// Mehrere Rezepte eines Gebäudes mit gleichem Namen (Brot aus Mehl, Brot aus Reismehl): um die Zutaten ergänzen, die sie unterscheiden
+function distinct(recipes) {
+  const groups = new Map();
+  for (const r of recipes) if (!r.fromGame) groups.set(r.name, [...(groups.get(r.name) || []), r]);
+  for (const [name, list] of groups) {
+    if (list.length < 2) continue;
+    const all = list.map(r => new Set(r.inputs.map(x => x.fill)));
+    const owns = list.map(r => r.inputs.filter(x => !all.every(s => s.has(x.fill))));
+    // Ein Rezept ohne eigene Zutat ist das Grundrezept und behält den schlichten Namen
+    const plain = owns.filter(o => !o.length).length === 1;
+    list.forEach((r, i) => {
+      const own = owns[i];
+      r.name = own.length ? `${name} aus ${own.map(x => x.name).join(' + ')}` : plain ? name : `${name} ${i + 1}`;
+    });
+  }
+  return recipes;
 }
 const modeOf = (shared, n) => (n > 1 ? (shared ? 'seriell' : 'parallel') : '');
 
@@ -55,10 +99,13 @@ const modeOf = (shared, n) => (n > 1 ? (shared ? 'seriell' : 'parallel') : '');
 function all(ex, plc, where = () => null) {
   const out = { karte: [], eigene: [], katalog: [] };
   const cat = new Map(((ex && ex.catalog) || []).map(b => [b.file, b]));
+  // Spricht das Spiel nicht deutsch, gelten unsere Namen; eigene Namen, die ein Spieler vergeben hat, bleiben
+  const de = !ex || !ex.language || /^de/i.test(ex.language);
+  const nameOf = (game, type) => (game ? (de ? game : germanBuilding(game) || (NAMES[type] && !NAMES_EN[game] ? NAMES[type] : null) || game) : buildingName(type));
   const place = (p, section) => {
     const type = typeOf(p), c = cat.get(p.file);
-    const name = p.name || (c && c.name) || buildingName(type);
-    const recipes = p.recipes.map(recipe);
+    const name = nameOf(p.name || (c && c.name), type);
+    const recipes = distinct(p.recipes.map(r => recipe(r, de)));
     return { key: p.uid, section, type, file: p.file, name, price: p.price || (c && c.price) || null, mode: modeOf(p.shared, recipes.length),
       recipes, storage: p.storage || [], farmId: p.farmId || 0, x: p.x, z: p.z, where: where(p.x, p.z), catalog: c ? 'k:' + c.file : null, uid: p.uid };
   };
@@ -79,9 +126,15 @@ function all(ex, plc, where = () => null) {
     }
   }
   if (cat.size) {
+    // Gleiche Gebäude in mehreren Fassungen (Bäckerei für jede Region der Grundspielkarten): nur einmal
+    const seen = new Set();
     for (const c of cat.values()) {
-      const recipes = c.recipes.map(recipe);
-      out.katalog.push({ key: 'k:' + c.file, section: 'katalog', type: typeOf({ file: c.file }), file: c.file, name: c.name || buildingName(typeOf({ file: c.file })),
+      const recipes = distinct(c.recipes.map(r => recipe(r, de)));
+      // Regionale Fassungen unterscheiden sich oft nur in der Taktzahl; es zählt die erste (Grundspiel vor DLC)
+      const sig = [c.name, c.dlc, c.price, recipes.map(r => r.id).join(',')].join('|');
+      if (seen.has(sig)) continue;
+      seen.add(sig);
+      out.katalog.push({ key: 'k:' + c.file, section: 'katalog', type: typeOf({ file: c.file }), file: c.file, name: nameOf(c.name, typeOf({ file: c.file })) + (/productionPointsSmall/i.test(c.file) ? ' (klein)' : ''),
         price: c.price, mode: modeOf(c.shared, recipes.length), recipes, storage: c.storage.map(s => ({ fill: s.fill, name: N.fill(s.fill), level: null, cap: s.cap })),
         capacity: c.capacity, category: c.category, dlc: c.dlc });
     }

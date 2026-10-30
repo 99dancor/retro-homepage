@@ -10,6 +10,7 @@
     <%- tile('map', '/farming/karte', 'map', 'Karte') %>
     <%- tile('prices', '/farming/preise', 'chart', 'Preise') %>
     <%- tile('planner', '/farming/produktion', 'factory', 'Produktions&shy;planer', '', true) %>
+    <%- tile('wiki', '/farming/wiki', 'book', 'Wiki') %>
     <%- tile('mods', '/farming/mods', 'puzzle', 'Mods', m.mods.length ? `<span class="cnt" style="background:var(--g-tile-hi)">${m.mods.length}</span>` : '') %>
     <span class="sep" aria-hidden="true"></span>
     <% for (const f of m.farms) { const on = section === 'farm' && locals.f && locals.f.id === f.id, ini = f.name.split(/\s+/).filter(w => /[\p{L}\d]/u.test(w)).slice(0, 2).map(w => [...w.replace(/^[^\p{L}\d]+/u, '')][0] || '').join('').toUpperCase() || '#'; %>

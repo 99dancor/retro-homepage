@@ -569,3 +569,72 @@ details.fs-fold > .in { padding: 0 12px 12px; }
 .pl-storegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px 28px; }
 .pl-fill { grid-template-columns: minmax(140px, 1fr) minmax(50px, .9fr) auto; }
 .pl-fill .v { grid-column: 3; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Wiki (views/fshub/wiki.ejs): Anbaukalender wie im Spiel, Tiere */
+.fs-tabs .ti, .wk-head .ti { width: 18px; height: 18px; flex: none; }
+.wk-cal { background: var(--g-panel); border: 1px solid var(--g-line); border-radius: 4px; padding: 14px 18px 12px; display: grid; gap: 10px; }
+.wk-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 20px; flex-wrap: wrap; }
+.wk-head h2 { display: flex; align-items: center; gap: 10px; }
+.wk-head h2 .ti { width: 34px; height: 34px; padding: 6px; border-radius: 8px; background: var(--g-accent); color: var(--g-ink); }
+.wk-legend { display: flex; gap: 18px; font: 600 13px var(--g-display); letter-spacing: .08em; text-transform: uppercase; }
+.wk-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.wk-legend i { width: 16px; height: 16px; border-radius: 3px; }
+.wk-legend i.now { width: 0; height: 16px; border-left: 2px dashed var(--g-fg); border-radius: 0; }
+.wk-cal .sow, .wk-legend .sow { background: #86b21b; }
+.wk-cal .har, .wk-legend .har { background: #cf4f14; }
+.wk-grid { display: grid; overflow-x: auto; scrollbar-color: var(--g-line) transparent; }
+.wk-r { display: grid; grid-template-columns: minmax(150px, 210px) minmax(560px, 1fr); align-items: stretch; }
+.wk-t { position: relative; display: grid; grid-template-columns: repeat(12, 1fr);
+  background: repeating-linear-gradient(90deg, var(--g-line) 0 1px, transparent 1px calc(100% / 12)); }
+.wk-seasons .wk-t, .wk-months .wk-t { background: none; }
+.wk-seasons .wk-t > span { display: grid; place-items: center; height: 40px; color: var(--g-fg); }
+.wk-seasons svg { width: 32px; height: 32px; }
+.wk-months .wk-t > span { text-align: center; font: 700 15px var(--g-display); letter-spacing: .06em; text-transform: uppercase; padding: 4px 0 8px; border-left: 1px solid var(--g-line); }
+.wk-months { border-bottom: 2px solid var(--g-accent); }
+.wk-crop { color: var(--g-fg) !important; text-decoration: none; min-height: 46px; }
+.wk-crop:nth-of-type(even) { background: #ffffff06; }
+.wk-crop:hover, .wk-crop:focus-visible { background: var(--g-tile-hi); outline: none; }
+.wk-crop.sel { background: #9cc71e22; box-shadow: inset 3px 0 0 var(--g-accent); }
+.wk-n { display: flex; align-items: center; gap: 10px; font: 600 15px var(--g-body); padding: 4px 10px 4px 8px; min-width: 0; }
+.wk-crop .wk-t > i { position: absolute; height: 12px; border-radius: 3px; }
+.wk-crop .wk-t > i.sow { top: calc(50% - 13px); }
+.wk-crop .wk-t > i.har { top: calc(50% + 1px); }
+.wk-crop .wk-t > .now { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed #ffffffc0; pointer-events: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.wk-fruit { scroll-margin-top: 10px; }
+.wk-food { display: grid; gap: 8px; }
+.wk-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.wk-g { background: var(--g-tile); border-radius: 4px; padding: 9px 12px; display: grid; grid-template-columns: 1fr auto; gap: 5px 10px; align-items: center; }
+.wk-g .t { font: 600 15px var(--g-display); letter-spacing: .04em; text-transform: uppercase; }
+.wk-g .v { font: 700 18px var(--g-display); color: var(--g-accent); font-variant-numeric: tabular-nums; }
+.wk-g .bar, .wk-g .chips { grid-column: 1 / -1; }
+.wk-subs { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 10px; }
+.wk-sub { background: #00000026; border: 1px solid var(--g-line); border-radius: 4px; padding: 10px 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; align-content: start; min-width: 0; }
+.wk-sub > header b { font: 700 17px var(--g-display); letter-spacing: .04em; text-transform: uppercase; }
+.wk-sub .pl-cyc { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+.wk-sub .pl-cyc b { font-size: 17px; }
+.wk-io { display: grid; gap: 8px; }
+.wk-io small { display: block; color: var(--g-muted); font-size: 12.5px; margin-bottom: 4px; }
+.wk-io a.chip, .wk-uses a.chip { text-decoration: none; }
+.wk-io a.chip:hover, .wk-uses a.chip:hover { background: var(--g-accent); color: var(--g-ink); }
+.wk-scroll { overflow-x: auto; max-width: 100%; }
+.wk-sub .pl-fold { min-width: 0; }
+.wk-tbl th { font: 600 12px var(--g-display); letter-spacing: .06em; text-transform: uppercase; color: var(--g-muted); text-align: left; }
+.wk-tbl .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wk-uses { display: grid; gap: 8px; }
+.wk-uses > div { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.wk-uses .fs-name { margin-right: 6px; }
+@media (max-width: 760px) { .wk-r { grid-template-columns: 120px minmax(480px, 1fr); } .wk-n { font-size: 13px; gap: 6px; } .wk-subs { grid-template-columns: 1fr; } }
+
+/* Tiere im Planer und Ställe in der Hofübersicht */
+.pl-herd { background: var(--g-tile); border-radius: 4px; padding: 10px 12px; display: grid; gap: 6px; }
+.pl-herd h4 { margin: 0; font: 600 14px var(--g-display); letter-spacing: .08em; text-transform: uppercase; color: var(--g-muted); }
+.pl-herd .r { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.pl-herd .r b.n { font: 700 22px var(--g-display); color: var(--g-accent); font-variant-numeric: tabular-nums; }
+.st-box { display: grid; gap: 4px; }
+.st-box h4 { margin: 6px 0 0; font: 600 13px var(--g-display); letter-spacing: .08em; text-transform: uppercase; color: var(--g-muted); }
+.st-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 10px; font-size: 13.5px; }
+.st-row .v { font-variant-numeric: tabular-nums; color: var(--g-accent); white-space: nowrap; }
+.st-row .bar { grid-column: 1 / -1; height: 5px; }
+.st-row.low .v { color: var(--g-bad); }
+.st-row.low .bar > i { background: var(--g-bad); }

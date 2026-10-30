@@ -114,6 +114,16 @@
           </div>
           <% if (sel.mode === 'seriell') { %><p class="hint">Seriell: Die Zyklen gelten, solange diese Produktion allein läuft.</p><% } %>
         <% } %>
+        <% if (herd.length) { %>
+          <div class="pl-herd" aria-label="Benötigte Tiere">
+            <h4>Tiere für einen vollen Monat</h4>
+            <% for (const h of herd) { %>
+              <div class="r"><span class="fs-name"><%- icon(h.fill, h.name, 's') %><%= amt(h.need) %> <%= h.name %> pro Monat</span><span class="hint">braucht</span>
+                <% h.options.slice(0, 3).forEach((o, i) => { %><%= i ? ' oder ' : '' %><span><b class="n"><%= de(o.n) %></b> <a href="/farming/wiki/tiere?tier=<%= encodeURIComponent(o.type) %>"><%= o.labels.length > 2 ? o.typeLabel : o.labels.join(' / ') %></a> <small class="hint">(je <%= amt(o.perMonth) %> pro Monat)</small></span><% }) %></div>
+            <% } %>
+            <p class="hint">Ausgewachsene Tiere bei voller Produktivität (gut gefüttert, Wasser<%= herd.some(h => /MANURE/.test(h.fill)) ? ', Stroh' : '' %> da). Mehr im <a href="/farming/wiki/tiere?tier=<%= encodeURIComponent(herd[0].options[0].type) %>">Wiki</a>.</p>
+          </div>
+        <% } %>
 
         <% if (rec.inputs.length || rec.cycles) { %>
           <% if (!form) { %>

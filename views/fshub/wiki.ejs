@@ -1,0 +1,155 @@
+<%- include('_top') %>
+<%# Wiki: Anbaukalender wie im Spiel (Saat grün, Ernte orange, heute gestrichelt) und Tiere mit Futter, Erzeugnissen, Preisen und
+    Nachwuchs. Daten: src/fswiki.js (Tiere aus wiki.xml), src/fscrops.js (Früchte aus dem Export). Kein JavaScript nötig. %>
+<% const amt = v => (v === null || v === undefined ? '–' : de(v, Math.abs(v) < 10 && !Number.isInteger(v) ? 1 : 0));
+   const pct = v => de(v * 100) + ' %';
+   const chips = fills => fills.map(f => `<span class="chip">${icon(f, N.fill(f), 's')}${N.fill(f).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>`).join(''); %>
+<div class="fs-title"><h1>Wiki</h1>
+  <div class="sub"><%= tab === 'anbau' ? 'Wann jede Frucht gesät und geerntet wird, so wie im Spiel.' : 'Was Tiere fressen, liefern, kosten und wann sie Nachwuchs bekommen.' %></div>
+</div>
+<nav class="fs-tabs" aria-label="Bereiche des Wikis">
+  <a href="/farming/wiki"<%- tab === 'anbau' ? ' class="on" aria-current="page"' : '' %>><svg class="ti" aria-hidden="true"><use href="#i-cal"/></svg>Anbaukalender</a>
+  <a href="/farming/wiki/tiere"<%- tab === 'tiere' ? ' class="on" aria-current="page"' : '' %>><svg class="ti" aria-hidden="true"><use href="#i-cow"/></svg>Tiere</a>
+</nav>
+
+<% if (tab === 'anbau') { %>
+  <% const SEASONS = [['flower', 'Frühling'], ['sun', 'Sommer'], ['leaf', 'Herbst'], ['snow', 'Winter']]; %>
+  <section class="wk-cal" aria-label="Anbaukalender">
+    <header class="wk-head">
+      <h2><svg class="ti" aria-hidden="true"><use href="#i-cal"/></svg>Anbaukalender</h2>
+      <div class="wk-legend"><span><i class="sow"></i>Saatzeitpunkt</span><span><i class="har"></i>Erntezeitraum</span><% if (cal.now !== null) { %><span><i class="now"></i>Heute</span><% } %></div>
+    </header>
+    <% if (!cal.crops.length) { %><p class="hint">Der Hub kennt noch keine Früchte. Sie kommen mit der Mod „Farming Hub Export“.</p><% } else { %>
+    <div class="wk-grid" role="table" aria-label="Saat- und Erntemonate">
+      <div class="wk-r wk-seasons" aria-hidden="true"><span></span><div class="wk-t"><% for (let i = 0; i < 12; i++) { %><span><% if (i % 3 === 1) { %><svg title="<%= SEASONS[(i - 1) / 3][1] %>"><use href="#i-<%= SEASONS[(i - 1) / 3][0] %>"/></svg><% } %></span><% } %></div></div>
+      <div class="wk-r wk-months" role="row"><span role="columnheader"><span class="sr">Frucht</span></span><div class="wk-t"><% cal.monthsShort.forEach((mn, i) => { %><span role="columnheader" title="<%= cal.months[i] %>"><%= mn %></span><% }) %></div></div>
+      <% for (const c of cal.crops) { const on = crop && crop.fill === c.fill;
+           const label = r => r.map(([s, n]) => cal.months[s] + (n > 1 ? '–' + cal.months[(s + n - 1) % 12] : '')).join(', '); %>
+        <a class="wk-r wk-crop<%= on ? ' sel' : '' %>" role="row" href="/farming/wiki?frucht=<%= encodeURIComponent(c.fill) %>#frucht"<%= on ? ' aria-current=true' : '' %>>
+          <span class="wk-n" role="rowheader"><%- icon(c.fill, c.label, 's') %><%= c.label %></span>
+          <div class="wk-t" role="cell" aria-label="Säen: <%= label(c.sowRuns) || 'nie' %>. Ernten: <%= label(c.harvestRuns) || 'nie' %>.">
+            <% for (const [s, n] of c.sowRuns) { %><i class="sow" style="left:<%= (s / 12 * 100).toFixed(3) %>%;width:<%= (n / 12 * 100).toFixed(3) %>%"></i><% } %>
+            <% for (const [s, n] of c.harvestRuns) { %><i class="har" style="left:<%= (s / 12 * 100).toFixed(3) %>%;width:<%= (n / 12 * 100).toFixed(3) %>%"></i><% } %>
+            <% if (cal.now !== null) { %><b class="now" style="left:<%= (cal.now * 100).toFixed(2) %>%"></b><% } %>
+          </div>
+        </a>
+      <% } %>
+    </div>
+    <% } %>
+    <p class="hint"><%= cal.h === 'south' ? 'Diese Karte liegt auf der Südhalbkugel: Das Jahr beginnt im Spiel mit dem Frühling im September.' : 'Das Jahr beginnt im Spiel mit dem Frühling im März.' %>
+      <%= cal.fromGame ? 'Saat- und Erntemonate kommen aus dem laufenden Spiel.' : 'Saat- und Erntemonate sind die üblichen Werte aus FS25; mit der Mod „Farming Hub Export“ kommen die der Karte.' %>
+      Auf eine Frucht tippen für mehr.</p>
+  </section>
+
+  <% if (crop) { const ha = v => (v === null || v === undefined ? '–' : de(v * 10000) + ' l'); %>
+    <section class="pl-win wk-fruit" id="frucht" aria-label="<%= crop.label %>">
+      <header class="pl-head"><div><h2><span class="fs-name"><%- icon(crop.fill, crop.label) %><%= crop.label %></span></h2>
+        <div class="pl-sub"><span class="pl-mode"><%= crop.kind === 'perm' ? 'Dauerkultur' : crop.kind === 'grass' ? 'wächst nach dem Schnitt nach' : 'Feldfrucht' %></span></div></div>
+        <a class="btn small" href="/farming/wiki">Schließen</a></header>
+      <div class="pl-cyc">
+        <div><small>Säen</small><b><%= crop.sow.length ? crop.sow.map(i => cal.monthsShort[i]).join(', ') : '–' %></b></div>
+        <div><small>Ernten</small><b><%= crop.harvest.length ? crop.harvest.map(i => cal.monthsShort[i]).join(', ') : '–' %></b></div>
+        <div><small>Wachstumsstufen</small><b><%= crop.states || '–' %></b></div>
+        <div><small>Ertrag je ha</small><b><%= ha(crop.literPerSqm) %></b></div>
+        <div><small>Saatgut je ha</small><b><%= ha(crop.seedPerSqm) %></b></div>
+        <% if (crop.windrow) { %><div><small>Schwad</small><b><%= N.fill(crop.windrow) %></b></div><% } %>
+      </div>
+      <p class="hint">Ertrag ohne Dünger, Kalk und Pflege-Boni, wie die Frucht im Spiel hinterlegt ist. <a href="/farming/preise?w=<%= encodeURIComponent(crop.fill) %>">Preis von <%= crop.label %></a> · <a href="/farming/produktion?q=<%= encodeURIComponent(crop.label) %>">In Produktionen</a></p>
+    </section>
+  <% } %>
+<% } %>
+
+<% if (tab === 'tiere') { %>
+  <% if (!a) { %>
+    <div class="pl-win"><p>Die Tierdaten liefert die Mod <b>Farming Hub Export</b> ab Version 2.4. Sobald der Server einmal mit ihr gespeichert hat, legt der Hub sie als eigene Datei ab (<code>wiki.xml</code>) und hier steht alles zu Futter, Erzeugnissen, Preisen und Nachwuchs.</p>
+      <% if (isAdmin) { %><p class="hint">Seitenverwaltung → Farming → Kartendaten aus dem Spiel: neue Mod herunterladen und auf dem Server ersetzen. Eine wiki.xml lässt sich dort auch hochladen.</p><% } %></div>
+  <% } else { %>
+  <div class="fs-planner">
+    <div class="pl-list" role="list" aria-label="Tierarten">
+      <% for (const t of types) { %>
+        <a role="listitem" class="pl-b<%= sel && sel.type === t.type ? ' sel' : '' %>" href="/farming/wiki/tiere?tier=<%= encodeURIComponent(t.type) %>"<%= sel && sel.type === t.type ? ' aria-current=true' : '' %>>
+          <span class="pl-n"><%= t.label %></span><span class="pl-p"><%= t.subs.length %></span>
+          <% const main = [...new Set(t.subs.flatMap(s => s.makes.filter(x => x.kind === 'milk' || x.kind === 'pallets').map(x => x.name)))], side = [...new Set(t.subs.flatMap(s => s.makes.map(x => x.name)))]; %>
+          <span class="pl-m"><%= main.join(', ') || side.join(', ') || 'keine Erzeugnisse' %></span>
+        </a>
+      <% } %>
+    </div>
+
+    <% if (sel) { %>
+    <section class="pl-win wk-animal" aria-label="<%= sel.label %>">
+      <header class="pl-head"><div><h2><%= sel.label %></h2>
+        <div class="pl-sub"><span class="pl-mode"><%= sel.subs.length %> <%= sel.subs.length === 1 ? 'Rasse' : 'Rassen' %></span>
+          <% if (sel.consumption) { %><span class="pl-mode <%= sel.consumption === 'PARALLEL' ? 'parallel' : '' %>">Futter <%= sel.consumption === 'PARALLEL' ? 'gemischt' : 'nacheinander' %></span><% } %></div></div></header>
+
+      <% if (sel.stalls.length) { %>
+        <details class="pl-fold" open><summary>Ställe im Shop <span class="n"><%= sel.stalls.length %></span></summary>
+          <table class="list tight wk-tbl"><tr><th>Stall</th><th class="num">Preis</th><th class="num">Tiere</th><th class="num">Futterplatz</th></tr>
+            <% for (const s of sel.stalls) { %><tr><td><%= s.name %><%= s.dlc ? ' ' : '' %><% if (s.dlc) { %><small class="hint"><%= s.dlc %></small><% } %></td><td class="num"><%= s.price ? eur(s.price) : '–' %></td><td class="num"><%= s.max ?? '–' %></td><td class="num"><%= s.food ? liters(s.food) : '–' %></td></tr><% } %>
+          </table></details>
+      <% } %>
+
+      <% if (sel.groups.length) { %>
+        <div class="wk-food">
+          <h3>Futter</h3>
+          <p class="hint"><%= sel.consumption === 'PARALLEL'
+            ? 'Die Tiere fressen alle Gruppen gleichzeitig. Jede Gruppe trägt ihren Anteil zur Leistung bei, zusammen 100 %. Fehlt eine Gruppe, fehlt ihr Anteil.'
+            : 'Die Tiere fressen eine Gruppe nach der anderen, die beste zuerst. Der Anteil sagt, wie viel Leistung die Tiere bringen, solange sie von dieser Gruppe fressen.' %></p>
+          <div class="wk-groups">
+            <% for (const g of sel.groups) { %>
+              <div class="wk-g"><span class="t"><%= g.label %></span><span class="v"><%= pct(g.weight) %></span>
+                <span class="bar wide"><i style="width:<%= Math.min(100, g.weight * 100).toFixed(1) %>%"></i></span>
+                <div class="chips"><%- chips(g.fills) %></div></div>
+            <% } %>
+          </div>
+          <% for (const mx of sel.mixtures) { %><p class="hint"><b><%= N.fill(mx.fill) %></b> wird beim Abladen aufgeteilt: <%= mx.parts.map(p => pct(p.weight) + ' ' + p.fills.map(N.fill).join('/')).join(', ') %>.</p><% } %>
+          <% for (const r of sel.recipes) { %><p class="hint"><b><%= N.fill(r.fill) %></b> im Futtermischwagen: <%= r.parts.map(p => p.label + ' ' + de(p.min * 100) + '–' + de(p.max * 100) + ' %').join(', ') %>.</p><% } %>
+        </div>
+      <% } %>
+
+      <h3>Rassen</h3>
+      <div class="wk-subs">
+      <% for (const s of sel.subs) { %>
+        <article class="wk-sub">
+          <header><b><%= s.label %></b> <small class="hint"><%= s.gender === 'female' ? 'weiblich' : s.gender === 'male' ? 'männlich' : s.gender %></small></header>
+          <div class="pl-cyc">
+            <div><small>Kauf jung</small><b><%= s.buyYoung !== null ? eur(s.buyYoung) : '–' %></b></div>
+            <div><small>Kauf ausgewachsen</small><b><%= s.buy !== null ? eur(s.buy) : '–' %></b></div>
+            <div><small>Verkauf ausgewachsen</small><b><%= s.sell !== null ? eur(s.sell) : '–' %></b></div>
+            <div><small>Nachwuchs</small><b><%= s.repro && !s.repro.none && s.repro.minAge !== null ? 'ab ' + de(s.repro.minAge) + ' Mon.' : s.repro && s.repro.none ? 'keiner' : '–' %></b></div>
+            <% if (s.repro && !s.repro.none && s.repro.duration) { %><div><small>Trächtig</small><b><%= de(s.repro.duration) %> Mon.</b></div><% } %>
+            <% if (s.repro && !s.repro.none && s.repro.minHealth) { %><div><small>Gesundheit mind.</small><b><%= pct(s.repro.minHealth) %></b></div><% } %>
+          </div>
+          <div class="wk-io">
+            <div><small>Ausgewachsen (ab <%= de(s.adult) %> Monaten) braucht ein Tier pro Monat</small>
+              <div class="chips"><% for (const [k, fill] of [['food', 'FORAGE'], ['water', 'WATER'], ['straw', 'STRAW']]) { if (s.needs[k] === null) continue; %><span class="chip"><%- icon(fill, '', 's') %><%= k === 'food' ? 'Futter' : N.fill(fill) %> <%= liters(s.needs[k]) %></span><% } %></div></div>
+            <div><small>und liefert pro Monat</small>
+              <div class="chips"><% for (const x of s.makes) { %><a class="chip" href="/farming/preise?w=<%= encodeURIComponent(x.fill) %>"><%- icon(x.fill, x.name, 's') %><%= x.name %> <%= liters(x.perMonth) %></a><% } %><%= s.makes.length ? '' : 'nichts' %></div></div>
+          </div>
+          <details class="pl-fold"><summary>Nach Alter</summary>
+            <% const cols = Object.keys(s.curves).filter(k => CURVES[k]); %>
+            <div class="wk-scroll"><table class="list tight wk-tbl"><tr><th class="num">Alter</th><% for (const k of cols) { %><th class="num"><%= k === 'pallets' && s.curves.pallets.fill ? N.fill(s.curves.pallets.fill) : CURVES[k][0] %></th><% } %></tr>
+              <% for (const r of s.table) { %><tr><td class="num"><%= de(r.age) %> Mon.</td><% for (const k of cols) { %><td class="num"><%= CURVES[k][2] === 'price' ? eur(r[k]) : liters(r[k]) %></td><% } %></tr><% } %>
+            </table></div>
+            <p class="hint">Futter, Wasser, Stroh und Erzeugnisse pro Tier und Monat bei voller Produktivität, Preise je Tier.</p>
+          </details>
+        </article>
+      <% } %>
+      </div>
+
+      <% const used = uses.filter(u => u.uses.input.length); %>
+      <% if (used.length) { %>
+        <h3>Wer verarbeitet das?</h3>
+        <div class="wk-uses">
+          <% for (const u of used) { const seen = new Set(); %>
+            <div><span class="fs-name"><%- icon(u.fill, u.name, 's') %><b><%= u.name %></b></span>
+              <% for (const x of u.uses.input) { const k = x.building.type + x.recipe.id; if (seen.has(k)) continue; seen.add(k); %><a class="chip" href="<%= plannerUrl(x.building.key, x.recipe.id) %>"><%= baseName(x.building.label) %>: <%= x.recipe.name %></a><% } %></div>
+          <% } %>
+        </div>
+      <% } %>
+      <p class="hint">Werte aus dem Spiel<%= a.source === 'upload' ? ' (hochgeladene wiki.xml)' : '' %><%= a.saved ? ', Stand ' + a.saved : '' %>. Bei voller Produktivität: gut gefüttert, Wasser und Stroh da, sauber.</p>
+    </section>
+    <% } %>
+  </div>
+  <% } %>
+<% } %>
+<%- include('_bottom') %>

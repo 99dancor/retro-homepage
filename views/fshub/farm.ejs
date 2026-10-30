@@ -101,6 +101,13 @@
       </div>
     </a>
 
+    <% for (const b of stalls.filter(x => x.stall)) { %>
+      <a class="fs-tile" href="/farming/hof/<%= f.id %>?tab=produktion"><%- go('produktion', 'cow', b.name.replace(/&/g, '&amp;').replace(/</g, '&lt;')) %>
+        <div class="fs-big"><%= b.stall.animals !== null ? b.stall.animals : b.animals.reduce((n, a) => n + a.n, 0) %><%= b.stall.max ? ' / ' + b.stall.max : '' %> <small><%= b.animals.length ? b.animals.map(a => a.name).join(', ') : 'Tiere' %></small></div>
+        <%- include('_stall', { s: b.stall, short: true }) %>
+      </a>
+    <% } %>
+
     <% const mo = m.date ? m.date.month : null, sow = mo === null ? [] : cal.rows.filter(r => r.sow_month === mo), har = mo === null ? [] : cal.rows.filter(r => r.harvest_month === mo); %>
     <% const soon = cal.tasks.filter(t => !t.done_at && t.due_day >= (cal.today || 0)).slice(0, 3); %>
     <a class="fs-tile" href="/farming/hof/<%= f.id %>?tab=kalender"><%- go('kalender', 'cal', 'Kalender') %>
@@ -172,9 +179,8 @@
       </fieldset>
       <fieldset class="groupbox"><legend>Ställe (letzter Autosave)</legend>
         <% if (!stalls.length) { %><p class="hint">Keine.</p><% } %>
-        <% for (const b of stalls) { %><div class="fs-place"><b><%= b.name %></b> <span class="hint"><%= b.animals.map(a => a.n + ' ' + a.name).join(', ') %></span>
-          <div class="<%= b.hasFood && b.food < 1 ? 'bad' : '' %>">Futter: <%= b.hasFood ? '' : '–' %><% if (b.hasFood && !b.fills.some(x => x.food && x.amount > 0.5)) { %>leer<% } %></div>
-          <div class="chips"><% for (const x of b.fills.filter(x => x.amount > 0.5)) { %><span class="chip"><%- icon(x.fill, x.name, 's') %><%= x.name %> <%= liters(x.amount) %></span><% } %></div></div><% } %>
+        <% for (const b of stalls) { %><div class="fs-place"><b><%= b.name %></b> <span class="hint"><%= b.stall && b.stall.animals !== null ? b.stall.animals + (b.stall.max ? ' / ' + b.stall.max : '') + ' Tiere' : b.animals.map(a => a.n + ' ' + a.name).join(', ') %></span>
+          <% if (b.stall) { %><%- include('_stall', { s: b.stall, short: false }) %><% } %></div><% } %>
       </fieldset>
     </div>
   <% } %>

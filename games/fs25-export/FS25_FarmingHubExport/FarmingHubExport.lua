@@ -10,6 +10,8 @@
 --   Waren        jede Ware mit ihrem Namen in der Sprache des Spiels und dem Grundpreis
 --   Früchte      jede Frucht mit Wachstumsstufen, wann sie gesät und geerntet wird, Ertrag, Saatgut und Kartenfarbe
 --   Katalog      alle Produktionen, die man im Shop kaufen kann, mit Preis, Rezepten und Lager
+--   Tiere        (ab 2.4) alle Tierarten: Futter, Wasser, Stroh, Milch, Wolle, Mist je Alter, Preise, Nachwuchs, Futtergruppen
+--                mit Anteil an der Leistung, Mischungen, Ställe aus dem Shop; bei jedem Stall Tiere, Futter und Füllstände
 --
 -- Alles kommt aus dem laufenden Spiel, so wie es die Karte und der Shop im Spiel auch anzeigen. Die Mod ändert nichts am
 -- Spielstand. Im Mehrspieler schreibt nur der Server. Teile, die eine Spielversion anders benennt, fehlen dann einfach in
@@ -334,7 +336,8 @@ function FarmingHubExport:writePlaceables(xml)
             local sell = p.spec_sellingStation ~= nil and p.spec_sellingStation.sellingStation or nil
             local buy = p.spec_buyingStation ~= nil and p.spec_buyingStation.buyingStation or nil
             local hotspots = p.spec_hotspots ~= nil and p.spec_hotspots.mapHotspots or {}
-            if prod == nil and sell == nil and buy == nil and #hotspots == 0 then
+            local stall = p.spec_husbandryAnimals ~= nil
+            if prod == nil and sell == nil and buy == nil and not stall and #hotspots == 0 then
                 return
             end
             local key = string.format("farmingHubExport.placeables.placeable(%d)", n)
@@ -383,6 +386,9 @@ function FarmingHubExport:writePlaceables(xml)
             end
             if prod ~= nil then
                 self:writeProductions(xml, key .. ".productionPoint", prod)
+            end
+            if stall then
+                try("Stall", self.writeHusbandry, self, xml, key, p)
             end
         end)
     end
@@ -879,6 +885,333 @@ function FarmingHubExport:writeCatalog(xml)
     return #list
 end
 
+-- ---------- Tiere ----------
+-- Für das Wiki der Website: alle Tierarten mit Unterarten (Rassen, Geschlecht), was sie je nach Alter fressen, trinken,
+-- an Stroh brauchen und liefern, was sie kosten, wann sie Nachwuchs bekommen, dazu die Futtergruppen mit ihrem Anteil an
+-- der Leistung, Futtermischungen und die Ställe aus dem Shop. Die Werte des Spiels sind Kurven über das Alter in Monaten;
+-- „pro Tag“ im Spiel heißt: je Spielstunde ein 24stel, mal timeAdjustment.
+
+-- Erstes Feld einer Tabelle, das es gibt (Spielversionen benennen manches anders)
+local function pick(t, keys)
+    if type(t) ~= "table" then
+        return nil
+    end
+    for _, k in ipairs(keys) do
+        if t[k] ~= nil then
+            return t[k]
+        end
+    end
+    return nil
+end
+
+local function short(v)
+    return (string.gsub(string.format("%.3f", v), "%.?0+$", ""))
+end
+
+-- Kurve des Spiels (Alter in Monaten → Wert) als „alter:wert alter:wert …“: die Stützpunkte, sonst Monat für Monat abgetastet
+local function curve(c)
+    if type(c) ~= "table" then
+        return nil
+    end
+    local out = {}
+    for _, kf in ipairs(c.keyframes or {}) do
+        local t, v = kf.time, kf[1] or kf.value
+        if type(t) == "number" and type(v) == "number" then
+            table.insert(out, short(t) .. ":" .. short(v))
+        end
+    end
+    if #out == 0 and type(c.get) == "function" then
+        local last
+        for age = 0, 120 do
+            local ok, v = pcall(c.get, c, age)
+            if ok and type(v) == "number" and short(v) ~= last then
+                last = short(v)
+                table.insert(out, age .. ":" .. last)
+            end
+        end
+    end
+    return #out > 0 and table.concat(out, " ") or nil
+end
+
+local function indexList(list)
+    local out = {}
+    for _, index in pairs(list or {}) do
+        local name = type(index) == "number" and fillName(index) or nil
+        if name ~= nil then
+            table.insert(out, name)
+        end
+    end
+    return table.concat(out, " ")
+end
+
+-- Name einer Konstante, z. B. AnimalFoodSystem.FOOD_CONSUME_TYPE_PARALLEL → „PARALLEL“
+local function constName(class, prefix, value)
+    if type(class) ~= "table" or value == nil then
+        return nil
+    end
+    for name, v in pairs(class) do
+        if v == value and type(name) == "string" and string.sub(name, 1, #prefix) == prefix then
+            return string.sub(name, #prefix + 1)
+        end
+    end
+    return nil
+end
+
+function FarmingHubExport:writeAnimalFood(xml, k, typeIndex)
+    local food = g_currentMission.animalFoodSystem
+    if food == nil then
+        return
+    end
+    local af = call(food, { "getAnimalFood" }, typeIndex)
+    if af ~= nil then
+        local ct = af.consumptionType
+        xml:setString(k .. ".food#consumption", constName(AnimalFoodSystem, "FOOD_CONSUME_TYPE_", ct) or tostring(ct or ""))
+        for i, g in ipairs(af.groups or {}) do
+            local kk = string.format("%s.food.group(%d)", k, i - 1)
+            xml:setString(kk .. "#title", text(g.title) or "")
+            xml:setString(kk .. "#productionWeight", num(g.productionWeight, 3))
+            xml:setString(kk .. "#eatWeight", num(g.eatWeight, 3))
+            xml:setString(kk .. "#fillTypes", indexList(g.fillTypes))
+        end
+    end
+    for i, ft in ipairs(call(food, { "getMixturesByAnimalTypeIndex" }, typeIndex) or {}) do
+        local kk = string.format("%s.food.mixture(%d)", k, i - 1)
+        xml:setString(kk .. "#fillType", fillName(ft) or "")
+        local mix = call(food, { "getMixtureByFillType" }, ft)
+        for j, ing in ipairs((mix or {}).ingredients or {}) do
+            local ki = string.format("%s.ingredient(%d)", kk, j - 1)
+            xml:setString(ki .. "#weight", num(ing.weight, 3))
+            xml:setString(ki .. "#fillTypes", indexList(ing.fillTypes))
+        end
+    end
+end
+
+function FarmingHubExport:writeSubType(xml, k, st)
+    xml:setString(k .. "#name", tostring(st.name or ""))
+    local fill = fillName(st.fillTypeIndex)
+    if fill ~= nil then
+        xml:setString(k .. "#fillType", fill)
+        local title = g_fillTypeManager.getFillTypeTitleByIndex ~= nil and g_fillTypeManager:getFillTypeTitleByIndex(st.fillTypeIndex) or nil
+        if title ~= nil then
+            xml:setString(k .. "#title", tostring(title))
+        end
+    end
+    if st.gender ~= nil then
+        xml:setString(k .. "#gender", tostring(st.gender))
+    end
+    if st.breed ~= nil then
+        xml:setString(k .. "#breed", tostring(text(st.breed) or st.breed))
+    end
+    local minAge = pick(st, { "reproductionMinAgeMonth", "reproductionMinAge" })
+    local duration = pick(st, { "reproductionDurationMonth", "reproductionDuration" })
+    local health = pick(st, { "reproductionMinHealth", "reproductionMinHealthFactor" })
+    if type(minAge) == "number" then
+        xml:setString(k .. ".reproduction#minAgeMonth", short(minAge))
+    end
+    if type(duration) == "number" then
+        xml:setString(k .. ".reproduction#durationMonth", short(duration))
+    end
+    if type(health) == "number" then
+        xml:setString(k .. ".reproduction#minHealth", short(health))
+    end
+    if st.supportsReproduction == false then
+        xml:setBool(k .. ".reproduction#none", true)
+    end
+    local prices = type(st.prices) == "table" and st.prices or {}
+    local c = 0
+    local function put(kind, value, fillType)
+        local s = curve(value)
+        if s == nil then
+            return
+        end
+        local kk = string.format("%s.curve(%d)", k, c)
+        c = c + 1
+        xml:setString(kk .. "#kind", kind)
+        if fillType ~= nil then
+            xml:setString(kk .. "#fillType", fillName(fillType) or "")
+        end
+        xml:setString(kk .. "#pts", s)
+    end
+    put("buy", st.buyPrice or prices.buy)
+    put("sell", st.sellPrice or prices.sell)
+    put("transport", st.transportPrice or prices.transport)
+    local input, output = st.input or {}, st.output or {}
+    put("food", input.food)
+    put("straw", input.straw)
+    put("water", input.water)
+    put("manure", output.manure)
+    put("liquidManure", output.liquidManure)
+    for _, kind in ipairs({ "milk", "pallets" }) do
+        local o = output[kind]
+        if type(o) == "table" then
+            put(kind, o.curve or o, o.fillType)
+        end
+    end
+end
+
+-- Ställe aus dem Shop (Preis, Platz für wie viele Tiere): einmal lesen und merken
+function FarmingHubExport:stalls()
+    if self.stallCache ~= nil then
+        return self.stallCache
+    end
+    local out = {}
+    for _, item in ipairs(call(g_storeManager, { "getItems" }) or g_storeManager.items or {}) do
+        local isPlaceable = item.species == "placeable" or (StoreSpecies ~= nil and item.species == StoreSpecies.PLACEABLE)
+        if isPlaceable and item.xmlFilename ~= nil then
+            try("Stall " .. tostring(item.xmlFilename), function()
+                local file = XMLFile.load("farmingHubStall", item.xmlFilename)
+                if file == nil then
+                    return
+                end
+                local animalType = file:getString("placeable.husbandry.animals#type")
+                if animalType ~= nil then
+                    table.insert(out, { name = tostring(item.name or ""), price = item.price, type = animalType, dlc = item.dlcTitle or item.customEnvironment,
+                        max = file:getInt("placeable.husbandry.animals#maxNumAnimals"), food = file:getInt("placeable.husbandry.food#capacity"),
+                        file = NetworkUtil.convertToNetworkFilename(item.xmlFilename) })
+                end
+                file:delete()
+            end)
+        end
+    end
+    self.stallCache = out
+    return out
+end
+
+function FarmingHubExport:writeAnimals(xml)
+    local sys = g_currentMission.animalSystem
+    if sys == nil then
+        return 0
+    end
+    local root = "farmingHubExport.animals"
+    local env = g_currentMission.environment
+    if env ~= nil and type(env.timeAdjustment) == "number" then
+        xml:setString(root .. "#timeAdjustment", string.format("%.6f", env.timeAdjustment))
+    end
+    local n = 0
+    for _, t in ipairs(call(sys, { "getTypes" }) or sys.types or {}) do
+        if t.name ~= nil then
+            local k = string.format("%s.animal(%d)", root, n)
+            n = n + 1
+            xml:setString(k .. "#type", t.name)
+            local title = text(pick(t, { "groupTitle", "title" }))
+            if title ~= nil then
+                xml:setString(k .. "#title", title)
+            end
+            try("Futter " .. t.name, function() self:writeAnimalFood(xml, k, t.typeIndex) end)
+            for j, si in ipairs(t.subTypes or {}) do
+                local st = type(si) == "table" and si or sys:getSubTypeByIndex(si)
+                if st ~= nil then
+                    try("Tier " .. tostring(st.name), function() self:writeSubType(xml, string.format("%s.subType(%d)", k, j - 1), st) end)
+                end
+            end
+        end
+    end
+    -- Futtermischungen, die man im Futtermischwagen anmischt (Totalmischration): Zutaten mit Mindest- und Höchstanteil
+    local food = g_currentMission.animalFoodSystem
+    for i, r in ipairs((food or {}).recipes or {}) do
+        local k = string.format("%s.recipe(%d)", root, i - 1)
+        xml:setString(k .. "#fillType", fillName(r.fillType) or "")
+        for j, ing in ipairs(r.ingredients or {}) do
+            local kk = string.format("%s.ingredient(%d)", k, j - 1)
+            xml:setString(kk .. "#title", text(ing.title) or tostring(ing.name or ""))
+            xml:setString(kk .. "#min", num(ing.minPercentage, 3))
+            xml:setString(kk .. "#max", num(ing.maxPercentage, 3))
+            xml:setString(kk .. "#fillTypes", indexList(ing.fillTypes))
+        end
+    end
+    try("Ställe", function()
+        for i, s in ipairs(self:stalls()) do
+            local k = string.format("%s.stall(%d)", root, i - 1)
+            xml:setString(k .. "#name", s.name)
+            xml:setString(k .. "#type", s.type)
+            xml:setString(k .. "#filename", s.file)
+            if s.price ~= nil then
+                xml:setInt(k .. "#price", math.floor(s.price))
+            end
+            if s.max ~= nil then
+                xml:setInt(k .. "#maxAnimals", s.max)
+            end
+            if s.food ~= nil then
+                xml:setInt(k .. "#foodCapacity", s.food)
+            end
+            if s.dlc ~= nil then
+                xml:setString(k .. "#dlc", tostring(s.dlc))
+            end
+        end
+    end)
+    -- Diagnose: Feldnamen einer Unterart, einer Art, des Futtersystems und der Umwelt (falls oben etwas fehlt)
+    local types = call(sys, { "getTypes" }) or sys.types or {}
+    local first = types[1]
+    if first ~= nil then
+        local si = (first.subTypes or {})[1]
+        local st = type(si) == "table" and si or (si ~= nil and sys:getSubTypeByIndex(si)) or nil
+        xml:setString(root .. ".debug#type", names(first))
+        if st ~= nil then
+            xml:setString(root .. ".debug#subType", names(st))
+        end
+    end
+    xml:setString(root .. ".debug#foodSystem", names(food))
+    xml:setString(root .. ".debug#environment", names(env))
+    return n
+end
+
+-- Ein Stall im Spiel: Tiere, Zustand (Stroh, Wasser, Mist, Gülle, Milch …) und Futter je Gruppe wie im Menü „Tiere“
+function FarmingHubExport:writeHusbandry(xml, key, p)
+    local k = key .. ".husbandry"
+    local typeIndex = call(p, { "getAnimalTypeIndex" })
+    local sys = g_currentMission.animalSystem
+    local t = sys ~= nil and typeIndex ~= nil and call(sys, { "getTypeByIndex" }, typeIndex) or nil
+    if t ~= nil and t.name ~= nil then
+        xml:setString(k .. "#type", t.name)
+    end
+    local numAnimals, maxAnimals = call(p, { "getNumOfAnimals" }), call(p, { "getMaxNumOfAnimals" })
+    if type(numAnimals) == "number" then
+        xml:setInt(k .. "#animals", numAnimals)
+    end
+    if type(maxAnimals) == "number" then
+        xml:setInt(k .. "#maxAnimals", maxAnimals)
+    end
+    local prod = call(p, { "getGlobalProductionFactor" })
+    if type(prod) == "number" then
+        xml:setString(k .. "#productivity", num(prod, 3))
+    end
+    local n = 0
+    for _, kind in ipairs({ "condition", "food" }) do
+        local infos = call(p, { kind == "condition" and "getConditionInfos" or "getFoodInfos" }) or {}
+        for _, info in ipairs(infos) do
+            local kk = string.format("%s.info(%d)", k, n)
+            n = n + 1
+            xml:setString(kk .. "#kind", kind)
+            xml:setString(kk .. "#title", tostring(info.title or ""))
+            if type(info.value) == "number" then
+                xml:setString(kk .. "#value", num(info.value, 1))
+            end
+            if type(info.capacity) == "number" then
+                xml:setString(kk .. "#capacity", num(info.capacity, 0))
+            end
+            if type(info.ratio) == "number" then
+                xml:setString(kk .. "#ratio", num(info.ratio, 3))
+            end
+            if info.invertedBar then
+                xml:setBool(kk .. "#inverted", true)
+            end
+        end
+    end
+    for i, c in ipairs(call(p, { "getClusters" }) or {}) do
+        local st = sys ~= nil and sys:getSubTypeByIndex(c.subTypeIndex) or nil
+        local kk = string.format("%s.cluster(%d)", k, i - 1)
+        xml:setString(kk .. "#subType", st ~= nil and tostring(st.name) or "")
+        xml:setInt(kk .. "#num", call(c, { "getNumAnimals" }) or c.numAnimals or 0)
+        xml:setInt(kk .. "#age", call(c, { "getAge" }) or c.age or 0)
+        if type(c.health) == "number" then
+            xml:setString(kk .. "#health", num(c.health, 0))
+        end
+        if type(c.reproduction) == "number" then
+            xml:setString(kk .. "#reproduction", num(c.reproduction, 0))
+        end
+    end
+end
+
 -- ---------- Datei ----------
 function FarmingHubExport:write(filename)
     local mission = g_currentMission
@@ -898,6 +1231,19 @@ function FarmingHubExport:write(filename)
         if mission.environment.daysPerPeriod ~= nil then
             xml:setInt("farmingHubExport#daysPerPeriod", mission.environment.daysPerPeriod)
         end
+        -- Südhalbkugel: Monat 1 ist dort September statt März (der Anbaukalender im Spiel beginnt dann mit September)
+        local env = mission.environment
+        local south = call(env, { "getIsSouthernHemisphere" })
+        if south == nil then
+            south = pick(env, { "isSouthernHemisphere", "southernHemisphere" })
+        end
+        local lat = pick(env, { "latitude" }) or pick(env.daylight, { "latitude" })
+        if south == nil and type(lat) == "number" then
+            south = lat < 0
+        end
+        if type(south) == "boolean" then
+            xml:setString("farmingHubExport#hemisphere", south and "south" or "north")
+        end
     end
     local counts = {}
     try("Felder", function() counts.fields = self:writeFields(xml) end)
@@ -906,6 +1252,7 @@ function FarmingHubExport:write(filename)
     try("Waren", function() counts.fillTypes = self:writeFillTypes(xml) end)
     try("Früchte", function() counts.fruitTypes = self:writeFruitTypes(xml) end)
     try("Katalog", function() counts.catalog = self:writeCatalog(xml) end)
+    try("Tiere", function() counts.animals = self:writeAnimals(xml) end)
     xml:save()
     xml:delete()
     return true, counts
@@ -946,8 +1293,8 @@ function FarmingHubExport:consoleCommandExport()
     if not ok then
         return "hubExport: Schreiben fehlgeschlagen"
     end
-    return string.format("hubExport: %s geschrieben (%d Felder, %d Grundstücke, %d Gebäude, %d Waren, %d Früchte, %d Produktionen im Shop)", file,
-        counts.fields or 0, counts.farmlands or 0, counts.placeables or 0, counts.fillTypes or 0, counts.fruitTypes or 0, counts.catalog or 0)
+    return string.format("hubExport: %s geschrieben (%d Felder, %d Grundstücke, %d Gebäude, %d Waren, %d Früchte, %d Produktionen im Shop, %d Tierarten)", file,
+        counts.fields or 0, counts.farmlands or 0, counts.placeables or 0, counts.fillTypes or 0, counts.fruitTypes or 0, counts.catalog or 0, counts.animals or 0)
 end
 
 function FarmingHubExport:loadMap(filename)
@@ -958,6 +1305,7 @@ function FarmingHubExport:deleteMap()
     removeConsoleCommand("hubExport")
     self.grid = nil
     self.catalogCache = nil
+    self.stallCache = nil
     self.growth = nil
     self.growthSource = nil
     self.growthTried = nil

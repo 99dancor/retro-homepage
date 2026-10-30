@@ -1,5 +1,13 @@
 # Changelog
 
+## 30.10.2026 – Farming Hub: Wiki mit Anbaukalender und Tieren
+
+- **Wiki:** Neuer Bereich in der Leiste links. Der **Anbaukalender** sieht aus wie im Spiel: je Frucht ein grüner Balken für die Saat und ein orangefarbener für die Ernte, heute als gestrichelte Linie. Auf der Südhalbkugel (Catuaí) beginnt er wie im Spiel mit September. Ein Klick auf eine Frucht zeigt Wachstumsstufen, Ertrag und Saatgut je Hektar.
+- **Tiere:** Für jede Tierart die Ställe aus dem Shop mit Preis und Platz, die Futtergruppen mit ihrem Anteil an der Leistung (nacheinander wie bei Kühen oder gemischt wie bei Schweinen), Mischration und für jede Rasse Kaufpreis, Nachwuchs, Futter, Wasser und Stroh pro Monat, was sie liefert und eine Tabelle nach Alter.
+- **Planer rechnet Tiere:** Braucht eine Produktion Wolle, Milch, Eier, Alpakavlies oder Gülle, steht beim Rezept, wie viele ausgewachsene Tiere einen vollen Monat decken.
+- **Ställe in der Hofübersicht:** Jeder Stall hat eine eigene Kachel mit Tieren, Produktivität, Stroh, Wasser und den Futtergruppen mit Füllstand und Balken wie im Menü „Tiere“.
+- **Mod 2.4:** Die Mod schreibt die Tierdaten und den Zustand jedes Stalls mit. Der Hub legt die Tierdaten als eigene Datei ab (wiki.xml), die sich in der Seitenverwaltung herunter- und hochladen lässt.
+
 ## 30.10.2026 – Farming Hub: Grundstücksnummern auf der Karte
 
 - **Nummern immer sichtbar:** Jedes Grundstück zeigt seine Nummer in einem kleinen, dezenten Kreis, nicht erst nach dem Anklicken. Die Kreise bleiben beim Zoomen gleich groß und lassen sich wie bisher unter „Grundstücksnummern“ ausblenden.

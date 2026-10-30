@@ -9,6 +9,7 @@
 //   GET  /farming/produktion      Produktionsplaner (?bereich=karte|eigene|katalog, ?g=Gebäude, ?p=Produktion, Rechner)
 //   GET  /farming/preise          Preise mit Graph und Produktionen (?w=WHEAT)   GET /farming/mods  Modliste und Abgleich
 //   GET  /farming/hof/<id>        Hof, ?tab=uebersicht (Kacheln) | inventar | produktion | fahrzeuge | finanzen | kalender | aufgaben
+//   GET  /farming/wiki            Wiki: Anbaukalender (?frucht=WHEAT)      GET /farming/wiki/tiere  Tiere (?tier=COW)
 //   GET  /farming/changelog       Änderungen am Server und am Hub        GET /farming/vorschlaege Wünsche und Ideen
 //   POST …                        Formulare (Notizen, Aufgaben, Pläne, Orte, Bodenverteilung, Hof, Changelog, Vorschläge)
 const fs = require('node:fs');
@@ -168,13 +169,15 @@ router.get('/produktion', (req, res) => {
     if (form.amounts.some(a => a !== null) || form.cycles !== null) calc = hub.prod.calc(rec, { ...form, shared: sel.mode === 'seriell' ? form.shared : 1, dpp });
   }
   const info = rec && rec.cycles > 0 ? hub.prod.calc(rec, { cycles: 0, shared: 1, dpp }) : null;
+  // Tierprodukte als Input (Wolle, Milch, Eier, Gülle …): wie viele ausgewachsene Tiere decken den Bedarf eines vollen Monats
+  const herd = rec ? hub.wiki.herd(rec, dpp) : [];
   // Gleiche Art an anderer Stelle: Katalog ↔ Karte ↔ eigene
   // Größen eines Gebäudes (Gewächshaus klein/mittel/groß, Biogasanlage 99 kW … 1 MW) stehen links als ein Eintrag
   const variants = sel ? list.filter(b => b.section === sel.section && (b.dlc || '') === (sel.dlc || '') && baseName(b.label) === baseName(sel.label)).sort((a, b) => (a.price || 0) - (b.price || 0)) : [];
   const same = sel ? all.filter(b => b !== sel && b.type === sel.type && !variants.includes(b)) : [];
   // Katalog gruppiert nach DLC bzw. Shop-Kategorie
   const m = hub.model();
-  page(req, res, 'planner', { title: 'Produktionsplaner – Farming Simulator', lists, q, section, list, sel, rec, calc, form, info, dpp, same, variants, SECTIONS: hub.prod.SECTIONS, MODES: hub.prod.MODES,
+  page(req, res, 'planner', { title: 'Produktionsplaner – Farming Simulator', lists, q, section, list, sel, rec, calc, form, info, herd, dpp, same, variants, SECTIONS: hub.prod.SECTIONS, MODES: hub.prod.MODES,
     station: sel && sel.uid ? m.stations.find(s => s.uid === sel.uid) || null : null, gameData: m.gameData });
 });
 const plannerUrl = (g, p) => '/farming/produktion?g=' + encodeURIComponent(g || '') + (p ? '&p=' + encodeURIComponent(p) : '');
@@ -362,6 +365,30 @@ router.get('/preise', (req, res) => {
   const buyers = sel ? m.stations.filter(s => s.sells.includes(sel.fill)) : [];
   const sellers = sel ? m.stations.filter(s => s.buys.includes(sel.fill)) : [];
   page(req, res, 'prices', { title: 'Preise – Farming Simulator', goods: list, filter, q, sel, holdings, all: goods.length, uses, buyers, sellers });
+});
+
+// Wiki: Anbaukalender wie im Spiel (?frucht=WHEAT zeigt eine Frucht genauer) und Tiere (?tier=COW)
+function wikiCalendar(m) {
+  const ex = hub.exportData(), h = hub.wiki.hemisphere(ex, getSetting('fs_hemisphere', ''));
+  const seen = new Set();
+  const crops = hub.fscrops.list(ex).filter(c => c.planned && (c.sow.length || c.harvest.length) && !seen.has(c.fill) && seen.add(c.fill))
+    .map(c => ({ ...c, sowRuns: hub.wiki.runs(c.sow), harvestRuns: hub.wiki.runs(c.harvest) })).sort((a, b) => a.label.localeCompare(b.label, 'de'));
+  // Heute als gestrichelte Linie: Monat, Tag im Monat und Uhrzeit
+  const d = m.date, now = d ? (d.month + ((d.dom - 1) + (m.dayTime ? m.dayTime / 864e5 : 0.5)) / d.dpp) / 12 : null;
+  return { h, crops, months: hub.wiki.months(h), monthsShort: hub.wiki.months(h, true), now, fromGame: crops.some(c => c.fromGame), ex };
+}
+router.get('/wiki', (req, res) => {
+  const m = hub.model(), cal = wikiCalendar(m);
+  const crop = cal.crops.find(c => c.fill === req.query.frucht || c.name === req.query.frucht) || null;
+  page(req, res, 'wiki', { title: 'Wiki – Anbaukalender – Farming Simulator', tab: 'anbau', cal, crop });
+});
+router.get('/wiki/tiere', (req, res) => {
+  const m = hub.model(), dpp = hub.daysPerPeriod(), a = hub.wiki.animals(dpp);
+  const types = a ? a.types : [];
+  const sel = types.find(t => t.type === req.query.tier) || types[0] || null;
+  // Wer welche Tierprodukte verarbeitet (Planer): je Erzeugnis die Produktionen, die es brauchen
+  const uses = sel ? [...new Set(sel.subs.flatMap(s => s.makes.map(x => x.fill)))].map(fill => ({ fill, name: N.fill(fill), uses: hub.prod.uses(hub.planner(), fill) })) : [];
+  page(req, res, 'wiki', { title: 'Wiki – Tiere – Farming Simulator', tab: 'tiere', a, types, sel, uses, dpp, CURVES: hub.wiki.CURVES });
 });
 
 router.get('/mods', (req, res) => {

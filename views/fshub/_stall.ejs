@@ -1,0 +1,14 @@
+<%# Ein Stall wie im Menü „Tiere“: Produktivität, Zustand (Stroh, Wasser, Mist, Gülle, Milch …) und Futter je Gruppe.
+    Mit Mod 2.4 aus dem Spiel (mit Platz und Balken), sonst nur die Füllstände aus placeables.xml.
+    locals: s (b.stall), short (Kachel: ohne Erzeugnisse wie Mist und Milch) %>
+<% const OUT = /mist|gülle|milch|wolle|eier|manure|slurry|milk|wool|egg/i;
+   const escT = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+   const row = (title, text, ratio, low) => `<div class="st-row${low ? ' low' : ''}"><span class="t">${escT(title)}</span><span class="v">${escT(text)}</span>${ratio !== null && ratio !== undefined ? `<span class="bar wide"><i style="width:${(Math.max(0, Math.min(1, ratio)) * 100).toFixed(1)}%"></i></span>` : ''}</div>`;
+   const fill = r => row(r.title, liters(r.value) + (r.cap ? ' / ' + liters(r.cap) : ''), r.ratio, !OUT.test(r.title) && r.ratio !== null && r.ratio !== undefined && r.ratio < 0.1);
+   const cond = locals.short ? s.condition.filter(r => !OUT.test(r.title)) : s.condition; %>
+<div class="st-box">
+  <% if (s.productivity !== null && s.productivity !== undefined) { %><%- row('Produktivität', Math.round(s.productivity * 100) + ' %', s.productivity, s.productivity < 0.5) %><% } %>
+  <% if (cond.length) { %><h4>Zustand</h4><% for (const r of cond) { %><%- fill(r) %><% } %><% } %>
+  <% if (s.food.length) { %><h4>Futter</h4><% for (const r of s.food) { %><%- fill(r) %><% } %><% } %>
+  <% if (!s.fromGame && !locals.short) { %><p class="hint">Füllstände vom letzten Autosave. Platz und Balken wie im Spiel kommen mit der Mod „Farming Hub Export“ 2.4.</p><% } %>
+</div>

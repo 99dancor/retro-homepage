@@ -51,6 +51,8 @@ function list(ex, plc) {
   const out = [];
   for (const p of src) {
     if (!p.uid || (p.farmId !== 0 && !p.icon && !p.hotspot && !prod.isPreplaced(p))) continue;
+    // Ställe (ab Mod 2.4 im Export) sind keine Stationen, außer sie haben ein eigenes Kartensymbol
+    if (p.stall && !p.hotspot && !p.icon) continue;
     const s = { ...p, sells: p.sells || [], buys: p.buys || [] }, type = prod.typeOf(s), cat = catOf(s, type);
     const placed = Number.isFinite(p.x) && Number.isFinite(p.z);
     out.push({ uid: p.uid, type, icon: p.icon || '', name: nameOf(s, type), cat, sells: s.sells, buys: s.buys, productions: (p.productions || []).map(r => r.id),

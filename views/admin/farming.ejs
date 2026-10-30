@@ -99,7 +99,7 @@
       <li>Server neu starten, die Mod im Spielstand aktivieren. Mitspieler laden sie beim Beitreten automatisch.</li>
       <li>Einmal speichern (oder Autosave abwarten). Im Einzelspieler geht es auch sofort: Konsole öffnen, <code>hubExport</code> eingeben und die Datei unten hochladen.</li>
     </ol>
-    <p><% if (gx) { %>✔ <%= gx.source === 'upload' ? 'Hochgeladen' : 'Per FTP' %>, gespeichert <%= gx.saveDate || ago(gx.at) %><%= gx.mapTitle ? ' · ' + gx.mapTitle : '' %> (Mod-Version <%= gx.version %>): <%= gx.farmlands %> Grundstücke, <%= gx.fields %> Felder, <%= gx.stations %> Gebäude mit Position, <%= gx.productions %> <%= gx.productions === 1 ? "Produktion" : "Produktionen" %> mit <%= gx.recipes %> <%= gx.recipes === 1 ? "Rezept" : "Rezepten" %><% if (gx.version >= 2) { %>, <%= gx.fruitTypes %> Früchte, <%= gx.fillTypes %> Waren, <%= gx.catalog %> Gebäude im Katalog<% } %>
+    <p><% if (gx) { %>✔ <%= gx.source === 'upload' ? 'Hochgeladen' : 'Per FTP' %>, gespeichert <%= gx.saveDate || ago(gx.at) %><%= gx.mapTitle ? ' · ' + gx.mapTitle : '' %> (Mod-Version <%= gx.version %>): <%= gx.farmlands %> Grundstücke, <%= gx.fields %> Felder, <%= gx.stations %> Gebäude mit Position, <%= gx.productions %> <%= gx.productions === 1 ? "Produktion" : "Produktionen" %> mit <%= gx.recipes %> <%= gx.recipes === 1 ? "Rezept" : "Rezepten" %><% if (gx.version >= 2) { %>, <%= gx.fruitTypes %> Früchte, <%= gx.fillTypes %> Waren, <%= gx.catalog %> Gebäude im Katalog<% } %><% if (gx.animals) { %>, <%= gx.animals %> Tierarten, <%= gx.stalls %> Ställe<% } %>
       <% if (gx.version < 2) { %><br>⚠ Das ist noch Version 1 der Mod. Bitte die neue Version herunterladen und auf dem Server ersetzen: erst sie liefert Lagerstände, Früchte, Warennamen und den Katalog.<% } %>
       <% } else if (gameUploaded) { %>Die hochgeladene Datei gehört zu einer anderen Karte (<%= gameUploaded.mapTitle %>).
       <% } else { %>Noch keine Daten aus dem Spiel.<% } %></p>
@@ -107,6 +107,16 @@
     <div class="actions"><a class="btn" href="/admin/farming/export-mod.zip" download>Mod herunterladen (FS25_FarmingHubExport.zip)</a></div>
     <form method="post" action="/admin/farming/spieldaten" enctype="multipart/form-data" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="file" name="export" accept=".xml,application/xml,text/xml" required><button>farmingHubExport.xml hochladen</button></form>
     <% if (gameUploaded) { %><form method="post" action="/admin/farming/spieldaten/loeschen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Hochgeladene Datei vergessen</button></form><% } %>
+  </fieldset>
+
+  <fieldset class="groupbox" id="wiki"><legend>Wiki: Tiere und Anbaukalender</legend>
+    <p>Die Tierdaten fürs Wiki (Futter, Erzeugnisse, Preise, Nachwuchs, Futtergruppen, Ställe) liefert die Mod ab Version 2.4. Der Hub legt sie als eigene Datei <code>wiki.xml</code> ab und schreibt sie neu, wenn ein Export andere Daten bringt. Eine selbst hochgeladene wiki.xml (oder farmingHubExport.xml, z. B. aus dem Einzelspieler mit anderen DLCs) bleibt, bis du sie löschst.</p>
+    <p><% if (wiki) { %>✔ <%= wiki.types.length %> Tierarten mit <%= wiki.types.reduce((n, t) => n + t.subs.length, 0) %> Rassen, <%= wiki.stalls.length %> Ställe<%= wiki.source === 'upload' ? ' (hochgeladen)' : ' (aus dem Export)' %><%= wiki.saved ? ', Stand ' + wiki.saved : '' %><%= wiki.mapTitle ? ' · ' + wiki.mapTitle : '' %><% } else { %>Noch keine Tierdaten.<% } %></p>
+    <div class="actions"><% if (wiki) { %><a class="btn" href="/admin/farming/wiki.xml" download>wiki.xml herunterladen</a><% } %></div>
+    <form method="post" action="/admin/farming/wiki" enctype="multipart/form-data" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="file" name="wiki" accept=".xml,application/xml,text/xml" required><button>wiki.xml hochladen</button></form>
+    <% if (wiki) { %><form method="post" action="/admin/farming/wiki/loeschen" class="actions" data-confirm="Tierdaten löschen? Mit dem nächsten Export kommen sie wieder."><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Tierdaten löschen</button></form><% } %>
+    <form method="post" action="/admin/farming/halbkugel" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label>Anbaukalender beginnt mit <select name="h"><option value=""<%= hemisphere === '' ? ' selected' : '' %>>automatisch (aus dem Spiel)</option><option value="nord"<%= hemisphere === 'nord' ? ' selected' : '' %>>März (Nordhalbkugel)</option><option value="sued"<%= hemisphere === 'sued' ? ' selected' : '' %>>September (Südhalbkugel)</option></select></label> <button>Speichern</button></form>
   </fieldset>
 
   <fieldset class="groupbox" id="symbole"><legend>Symbole der Erzeugnisse</legend>

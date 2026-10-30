@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="104">
     <author>Chaosfarm</author>
-    <version>2.3.0.0</version>
+    <version>2.4.0.0</version>
     <title>
         <en>Farming Hub Export</en>
         <de>Farming Hub Export</de>
     </title>
     <description>
-        <en><![CDATA[Writes field outlines, farmlands, station positions, production recipes and storage, all fill types and fruit types (growth, sowing and harvest months) and every production from the shop to farmingHubExport.xml in the savegame folder on every save, for the Farming Hub website.
+        <en><![CDATA[Writes field outlines, farmlands, station positions, production recipes and storage, all fill types and fruit types (growth, sowing and harvest months), every production from the shop, all animals (food, products, prices, offspring, food groups) and the fill levels of every barn to farmingHubExport.xml in the savegame folder on every save, for the Farming Hub website.
 Console: hubExport]]></en>
-        <de><![CDATA[Schreibt bei jedem Speichern Feldumrisse, Grundstücke, Positionen der Stationen, Rezepte und Lager der Produktionen, alle Waren und Früchte (Wachstum, Saat- und Erntemonate) und alle Produktionen aus dem Shop in farmingHubExport.xml im Spielstand-Ordner, für den Farming Hub der Website.
+        <de><![CDATA[Schreibt bei jedem Speichern Feldumrisse, Grundstücke, Positionen der Stationen, Rezepte und Lager der Produktionen, alle Waren und Früchte (Wachstum, Saat- und Erntemonate), alle Produktionen aus dem Shop, alle Tiere (Futter, Erzeugnisse, Preise, Nachwuchs, Futtergruppen) und die Füllstände jedes Stalls in farmingHubExport.xml im Spielstand-Ordner, für den Farming Hub der Website.
 Konsole: hubExport]]></de>
     </description>
     <iconFilename>icon_farmingHubExport.dds</iconFilename>

@@ -120,6 +120,17 @@
                 </storage>
             </productionPoint>
         </placeable>
+        <placeable uniqueId="placeable_77" filename="$data/placeables/cowBarnBig.xml" type="cowBarn" name="Kuhstall" farmId="1" x="-420.0" z="-380.0" price="285000">
+            <husbandry type="COW" animals="12" maxAnimals="80" productivity="0.620">
+                <info kind="condition" title="Straw" value="0.0" capacity="12000" ratio="0.000"/>
+                <info kind="condition" title="Water" value="5400.0" capacity="10000" ratio="0.540"/>
+                <info kind="condition" title="Slurry" value="800.0" capacity="50000" ratio="0.016" inverted="true"/>
+                <info kind="food" title="Total Mixed Ration (100%)" value="500.0" capacity="20000" ratio="0.025"/>
+                <info kind="food" title="Hay (80%)" value="0.0" capacity="20000" ratio="0.000"/>
+                <info kind="food" title="Meadow (40%)" value="35332.0" capacity="40000" ratio="0.883"/>
+                <cluster subType="COW_HOLSTEIN" num="12" age="26" health="100" reproduction="40"/>
+            </husbandry>
+        </placeable>
     </placeables>
     <fillTypes language="de">
         <fillType name="WHEAT" title="Weizen" price="380" mass="0.79" priceTable="true"/>
@@ -145,4 +156,52 @@
             </production>
         </building>
     </catalog>
+    <animals timeAdjustment="0.500000">
+        <animal type="COW" title="Cows">
+            <food consumption="SERIAL">
+                <group title="Total Mixed Ration" productionWeight="1.000" eatWeight="1.000" fillTypes="FORAGE"/>
+                <group title="Hay" productionWeight="0.800" eatWeight="1.000" fillTypes="DRYGRASS_WINDROW"/>
+                <group title="Silage" productionWeight="0.800" eatWeight="1.000" fillTypes="SILAGE"/>
+                <group title="Meadow" productionWeight="0.400" eatWeight="1.000" fillTypes="GRASS_WINDROW"/>
+            </food>
+            <subType name="COW_HOLSTEIN" fillType="COW_HOLSTEIN" title="Holstein" gender="female">
+                <reproduction minAgeMonth="12" durationMonth="10" minHealth="0.75"/>
+                <curve kind="buy" pts="0:250 12:1500 60:1200"/>
+                <curve kind="sell" pts="0:200 12:1200"/>
+                <curve kind="food" pts="0:30 18:350"/>
+                <curve kind="water" pts="0:10 18:120"/>
+                <curve kind="straw" pts="0:0 12:70"/>
+                <curve kind="milk" fillType="MILK" pts="0:0 13:0 14:600"/>
+                <curve kind="liquidManure" pts="0:0 12:250"/>
+            </subType>
+            <subType name="COW_ANGUS" fillType="COW_ANGUS" title="Angus" gender="male">
+                <reproduction none="true"/>
+                <curve kind="buy" pts="0:300 18:2200"/>
+                <curve kind="food" pts="0:30 18:380"/>
+            </subType>
+        </animal>
+        <animal type="ALPACA" title="Alpacas">
+            <food consumption="PARALLEL">
+                <group title="Hay" productionWeight="0.600" eatWeight="0.600" fillTypes="DRYGRASS_WINDROW"/>
+                <group title="Grass" productionWeight="0.400" eatWeight="0.400" fillTypes="GRASS_WINDROW"/>
+            </food>
+            <subType name="ALPACA_WHITE" fillType="ALPACA_WHITE" title="White" gender="female">
+                <reproduction minAgeMonth="18" durationMonth="11" minHealth="0.8"/>
+                <curve kind="buy" pts="0:900 18:3000"/>
+                <curve kind="food" pts="0:15 18:90"/>
+                <curve kind="pallets" fillType="ALPACAFLEECE" pts="0:0 12:20 18:40"/>
+            </subType>
+            <subType name="ALPACA_BROWN" fillType="ALPACA_BROWN" title="Brown" gender="female">
+                <curve kind="buy" pts="0:900 18:3000"/>
+                <curve kind="pallets" fillType="ALPACAFLEECE" pts="0:0 12:20 18:40"/>
+            </subType>
+        </animal>
+        <recipe fillType="FORAGE">
+            <ingredient title="Hay" min="0.300" max="0.400" fillTypes="DRYGRASS_WINDROW"/>
+            <ingredient title="Silage" min="0.400" max="0.500" fillTypes="SILAGE"/>
+            <ingredient title="Mineral feed" min="0.050" max="0.100" fillTypes="MINERAL_FEED"/>
+        </recipe>
+        <stall name="Cow Barn (big)" type="COW" filename="$data/placeables/cowBarnBig.xml" price="285000" maxAnimals="80" foodCapacity="20000"/>
+        <stall name="Alpaca Pasture" type="ALPACA" filename="$pdlcdir$beansAndAlpacasPack/alpaca.xml" price="60000" maxAnimals="25" dlc="Beans and Alpacas"/>
+    </animals>
 </farmingHubExport>

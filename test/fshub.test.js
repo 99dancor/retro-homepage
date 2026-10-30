@@ -538,7 +538,7 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   assert.equal(dds.toString('latin1', 0, 4), 'DDS ');
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
-  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>2\.3\.0\.0<\/version>/);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>2\.4\.0\.0<\/version>/);
   assert.throws(() => E.read('<placeables/>'), /Farming Hub Export/);
 });
 
@@ -559,4 +559,69 @@ test('Export auf Englisch: deutsche Gebäude- und Rezeptnamen, Platzhalter weg, 
   // Auf Deutsch gelten die Namen aus dem Spiel, Platzhalter nie
   const de = P.all({ ...ex, language: 'de' }, []).katalog;
   assert.deepEqual(de[0].recipes.map(r => r.name), ['Bread', 'Bread', 'Kuchen']);
+});
+
+test('Wiki: Tierdaten aus dem Export, wiki.xml, Tiere für den Planer, Stall, Anbaukalender', () => {
+  const E = require('../src/fsexport');
+  const W = require('../src/fswiki');
+  const ST = require('../src/fsstations');
+  const e = E.read(fs.readFileSync(path.join(__dirname, 'fixtures', 'fs', 'farmingHubExport.xml'), 'utf8'));
+  assert.deepEqual(e.animals.types.map(t => [t.type, t.consumption, t.subs.length]), [['COW', 'SERIAL', 2], ['ALPACA', 'PARALLEL', 2]]);
+  assert.deepEqual(e.animals.types[0].subs[0].curves.milk, { fill: 'MILK', pts: [[0, 0], [13, 0], [14, 600]] });
+  assert.equal(e.animals.types[0].subs[0].curves.liquidManure.fill, 'LIQUIDMANURE');
+  // Ställe sind keine Stationen, haben aber ihren Zustand aus dem Spiel
+  const barn = e.placeables.find(p => p.uid === 'placeable_77');
+  assert.deepEqual([barn.stall.type, barn.stall.animals, barn.stall.max, barn.stall.infos.length], ['COW', 12, 80, 6]);
+  assert.ok(!ST.list(e, []).some(s => s.uid === 'placeable_77'));
+
+  // wiki.xml: einmal aus dem Export, gleich bleibt gleich, gelesen wie geschrieben
+  W.remove();
+  assert.equal(W.sync(e), true);
+  assert.equal(W.sync(e), false, 'nichts Neues');
+  const st = W.stored();
+  assert.equal(st.source, 'export');
+  assert.deepEqual(JSON.stringify([st.ta, st.types, st.recipes, st.stalls]), JSON.stringify([e.animals.ta, e.animals.types, e.animals.recipes, e.animals.stalls]));
+  assert.match(fs.readFileSync(W.file(), 'utf8'), /<farmingWiki version="1" source="export" mapTitle="Riverbend Springs"/);
+
+  // Je Monat: Wert × timeAdjustment (0,5) × Tage pro Monat (2); ausgewachsen = volle Milch ab 14 Monaten
+  const a = W.animals(2);
+  const cow = a.types[0], holstein = cow.subs[0];
+  assert.deepEqual([cow.label, holstein.label, holstein.adult], ['Kühe', 'Kühe (Holstein)', 14]);
+  assert.deepEqual(holstein.makes.map(x => [x.fill, Math.round(x.perMonth)]), [['MILK', 600], ['LIQUIDMANURE', 250]]);
+  assert.equal(Math.round(holstein.needs.food), 279, '30 → 350 bis 18 Monate, bei 14 Monaten');
+  assert.deepEqual([holstein.buyYoung, holstein.buy], [250, 1500 - 300 * 2 / 48]);
+  assert.deepEqual(cow.groups.map(g => [g.label, g.weight]), [['Totalmischration', 1], ['Heu', 0.8], ['Silage', 0.8], ['Weide', 0.4]]);
+  assert.deepEqual(cow.recipes[0].parts.map(p => p.label), ['Heu', 'Silage', 'Mineralfutter']);
+  assert.deepEqual(cow.stalls.map(s => [s.name, s.max]), [['Cow Barn (big)', 80]]);
+  assert.equal(a.types[1].label, 'Alpakas');
+  // Planer: 10 Alpakavlies je Zyklus × 200 Zyklen = 2 000 im Monat, ein Alpaka liefert 40 → 50 Alpakas (weiß und braun gleich)
+  const herd = W.herd({ cycles: 200, inputs: [{ fill: 'ALPACAFLEECE', amount: 10, name: 'Alpakavlies' }, { fill: 'WATER', amount: 5 }] }, 2);
+  assert.deepEqual(herd.map(h => [h.fill, h.need, h.options.map(o => [o.n, o.labels.length])]), [['ALPACAFLEECE', 2000, [[50, 2]]]]);
+  assert.deepEqual(W.herd({ cycles: 0, inputs: [{ fill: 'MILK', amount: 1 }] }, 2), []);
+
+  // Stall: aus dem Spiel mit deutschen Titeln; ohne Mod nur Füllstände, Futter nach den Gruppen des Wikis
+  const s1 = W.stall(barn.stall, [], []);
+  assert.deepEqual(s1.condition.map(r => r.title), ['Stroh', 'Wasser', 'Gülle']);
+  assert.deepEqual(s1.food.map(r => [r.title, r.ratio]), [['Totalmischration (100%)', 0.025], ['Heu (80%)', 0], ['Weide (40%)', 0.883]]);
+  const s2 = W.stall(null, [{ fill: 'GRASS_WINDROW', name: 'Gras', amount: 2000, food: true }, { fill: 'STRAW', name: 'Stroh', amount: 30, food: false }], ['COW_HOLSTEIN']);
+  assert.deepEqual(s2.food.map(r => [r.title, r.value]), [['Totalmischration (100%)', 0], ['Heu (80%)', 0], ['Silage (80%)', 0], ['Weide (40%)', 2000]]);
+  assert.deepEqual(s2.condition.map(r => [r.title, r.value]), [['Stroh', 30]]);
+
+  // Hochladen: bleibt, auch wenn ein Export anderes bringt
+  W.upload(Buffer.from(fs.readFileSync(W.file(), 'utf8').replace('price="60000"', 'price="61000"')));
+  assert.equal(W.stored().source, 'upload');
+  assert.equal(W.sync(e), false);
+  assert.equal(W.stored().stalls[1].price, 61000);
+  assert.throws(() => W.upload(Buffer.from('<farmingWiki><animals/></farmingWiki>')), /keine Tiere/);
+  W.remove();
+  assert.equal(W.animals(1), null);
+
+  // Anbaukalender: Südhalbkugel beginnt mit September, Balken über den Jahreswechsel geteilt
+  assert.equal(W.hemisphere({ mapId: 'pdlc_beansAndAlpacasPack.beansAndAlpacasMap' }, ''), 'south');
+  assert.equal(W.hemisphere({ mapId: 'MapUS', hemisphere: 'south' }, ''), 'south');
+  assert.equal(W.hemisphere({ mapId: 'pdlc_beansAndAlpacasPack.x' }, 'nord'), 'north');
+  assert.deepEqual([W.months('south')[0], W.months('north')[0], W.months('south', true)[6]], ['September', 'März', 'Mär']);
+  assert.deepEqual(W.runs([0, 1, 4, 10, 11]), [[0, 2], [4, 1], [10, 2]]);
+  assert.equal(W.title('Total Mixed Ration (100 %)'), 'Totalmischration (100%)');
+  assert.equal(W.title('Spezialfutter'), 'Spezialfutter');
 });

@@ -46,6 +46,35 @@ const GLYPH = {
   KETCHUP: ['bottle', '#d0302a'], PICKLES: ['jar', '#7a9a3a'], MOLASSES: ['drop', '#4a2a1a'], CEMENT: ['sack', '#b0b0b0'], STONE: ['stone', '#a0a0a0'],
   COAL: ['stone', '#3a3a3a'], TROUT: ['fish', '#9ab0a0'], TROUTYOUNG: ['fish', '#b0c8b8'], SALMON: ['fish', '#e8906a'], SALMONYOUNG: ['fish', '#f0b090'],
   CHICKEN: ['egg', '#f0e0c0'], GOAT: ['wool', '#e0d8c8'], WEED: ['leaf', '#a0b040'],
+  // Feld und Futter (FS25)
+  COFFEE: ['coffee', '#6a3a22'], COFFEECHERRIES: ['fruit', '#b8322a'], BANANA: ['banana', '#f0d23a'], POPLAR: ['log', '#b8a070'], TREE: ['sapling', '#4f8a3a'],
+  FLOWERINGCATCHCROP: ['flower', '#c8a0e0'], GREENRYE: ['grain', '#8fb84a'], VETCHRYE: ['leaf', '#7a9a4a'], HUMUSACTIVE: ['leaf', '#6a8a3a'], FIELDGRASS: ['leaf', '#7cc242'],
+  ONION_DIRTY: ['onion', '#c8955a'], WHEAT_CUT: ['grain', '#c9a24a'], BARLEY_CUT: ['grain', '#b8975a'], OAT_CUT: ['grain', '#c8bf90'], RYE_CUT: ['grain', '#b8934a'],
+  TRITICALE_CUT: ['grain', '#c6a14e'], SPELT_CUT: ['grain', '#c2995b'], CANOLA_CUT: ['flower', '#d8c83a'], SOYBEAN_CUT: ['bean', '#b3a44c'],
+  ALFALFA_WINDROW: ['leaf', '#5fa040'], DRYALFALFA: ['hay', '#c8c070'], DRYALFALFA_WINDROW: ['hay', '#c8c070'], ALFALFA_FERMENTED: ['silage', '#8f9e3a'],
+  CLOVER_WINDROW: ['leaf', '#4f9a4a'], DRYCLOVER: ['hay', '#b8c070'], DRYCLOVER_WINDROW: ['hay', '#b8c070'], CLOVER_FERMENTED: ['silage', '#7f9e4a'],
+  HAY_PELLETS: ['pellet', '#c8b060'], STRAW_PELLETS: ['pellet', '#e0c878'], PIGFOODWF: ['sack', '#c8a070'], CHICKENFOOD: ['sack', '#d8c088'],
+  ROUNDBALE_GRASS: ['bale', '#8fbf4a'], ROUNDBALE_DRYGRASS: ['bale', '#d8c07a'], ROUNDBALE_COTTON: ['bale', '#f2f2ee'], ROUNDBALE_WOOD: ['bale', '#a87a4a'],
+  SQUAREBALE_GRASS: ['bale', '#8fbf4a'], SQUAREBALE_DRYGRASS: ['bale', '#d8c07a'], SQUAREBALE_COTTON: ['bale', '#f2f2ee'], SQUAREBALE_WOOD: ['bale', '#a87a4a'],
+  SEPARATED_MANURE: ['heap', '#8a6a48'], COMPOSTRAW: ['heap', '#6a5a3a'], ORGANICWASTE: ['heap', '#6a7a3a'], CHICKEN_ROOSTER: ['egg', '#e0c0a0'],
+  // Tiere und Alpakas
+  ALPACAWOOL: ['wool', '#e8dcc4'], ALPACAFLEECE: ['wool', '#d8c0a0'], ALPACASOCKS: ['shirt', '#c8a882'], ALPACAPLUSH: ['alpaca', '#e8dcc4'],
+  ALPACAPILLOW: ['box', '#e0d0b8'], ALPACACHAIR: ['chair', '#b89870'], ALPACAARMCHAIR: ['chair', '#a07850'],
+  // Lebensmittel
+  COFFEEBAGS: ['sack', '#7a4a2a'], COFFEEPACKED: ['box', '#6a3a22'], COFFEECAPSULES: ['can', '#8a5a3a'], COFFEEBEVERAGE: ['cup', '#8a5a3a'], COFFEEYOGURT: ['jar', '#c8a07a'],
+  BANANABOX: ['box', '#f0d23a'], BANANACAKE: ['cake', '#f0d070'], BANANACANDY: ['box', '#f8e070'], BANANACHIPS: ['box', '#e8c050'], BANANAFRIEDBOX: ['box', '#d8a040'],
+  BANANAJAM: ['jar', '#f0c840'], BANANAMILK: ['bottle', '#f8ec9a'], TIRAMISU: ['cake', '#a07050'], RICE_BOXES: ['box', '#e9e2c4'],
+  JARRED_GREENBEAN: ['jar', '#6fb045'], PRESERVEDCARROTS: ['jar', '#ef8a2c'], PRESERVEDPARSNIP: ['jar', '#efe2b8'], PRESERVEDBEETROOT: ['jar', '#a0304a'],
+  FERMENTEDNAPACABBAGE: ['jar', '#d8503a'], SOUPCANSMIXED: ['can', '#c87a3a'], SOUPCANSCARROTS: ['can', '#ef8a2c'], SOUPCANSPARSNIP: ['can', '#e8dcb0'],
+  SOUPCANSBEETROOT: ['can', '#a0304a'], SOUPCANSPOTATO: ['can', '#c9a06a'], NOODLESOUP: ['cup', '#e8c060'], ONIONSOUP: ['can', '#c8955a'], ONIONSALT: ['jar', '#f0e8d8'],
+  ONIONBAG: ['sack', '#e3b07a'], FRIEDONION: ['box', '#b8783a'], STRAWBERRYJUICE: ['bottle', '#e0304a'], APRICOTJAM: ['jar', '#f0a040'], PLUMJAM: ['jar', '#7a3a8a'],
+  GRAPEJUICE_BULK: ['drop', '#7b3f8c'], GRAPEJUICE_PREMIUM: ['bottle', '#5a2a6a'], GRAPEJUICE_BUBBLE: ['bottle', '#9a5aaa'], GRAPESEED: ['bean', '#6a4030'],
+  GRAPELEATHER: ['box', '#7b3f8c'],
+  // Waren und Bau
+  PIGMENTS: ['heap', '#c8504a'], PAINTBUCKETS: ['bucket', '#3a7ad8'], BUCKET: ['bucket', '#a0a0a0'], BARREL: ['can', '#8a6040'], BATHTUB: ['box', '#f0f0f0'],
+  PIANO: ['box', '#2a2a2a'], WAGON: ['box', '#a87a4a'], TOYTRACTOR: ['box', '#d8302a'], POLYESTER: ['roll', '#c0d0e8'], SHOES: ['shirt', '#6a4a2a'],
+  BELTS: ['roll', '#7a5030'], RESIN: ['drop', '#d89a2a'], SHINGLEROOF: ['plank', '#8a4a3a'], ROOFPLATES: ['plank', '#9aa0a8'], CEMENTBRICKS: ['stone', '#b8b8b8'],
+  STONEBIG: ['stone', '#909090'], CASTLEROCK: ['stone', '#a89880'], TARP: ['roll', '#3a6a3a'],
 };
 const LIQUID = /MILK|OIL|JUICE|WATER|MANURE|MUST|SYRUP|LIQUID|DIGESTATE|DIESEL|FUEL|BEER|WINE/;
 const key = s => String(s || '').toLowerCase().replace(/\.(png|webp|jpe?g)$/, '').replace(/^hud_fill_/, '').replace(/^hud_/, '').replace(/[^a-z0-9]/g, '');

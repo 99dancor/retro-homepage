@@ -7,11 +7,10 @@
 //   FTP (z. B. GPORTAL): farms.xml (Geld je Hof), placeables.xml (Silos, Produktionen, Ställe), items.xml (Ballen),
 //                        environment.xml (Datum, Wetter), fields.xml (Frucht, Wachstum und Boden je Feld),
 //                        bankCredit.xml (Kredite aus dem Mod „Bank Credit“, wenn vorhanden), farmingHubExport.xml (Kartendaten
-//                        aus der Mod „Farming Hub Export“, src/fsexport.js), densityMap_ground.gdm und die
-//                        Kalk-, Dünger- und Pflug-Ebenen (echte Feldformen, src/fsmap.js). Ist eine Webinterface-Adresse leer, liest er careerSavegame.xml,
-//                        vehicles.xml und economy.xml auch von dort. Die Dateien sind so aktuell wie der letzte Autosave.
-//                        Aus der Karten-Mod im mods-Ordner liest er die Feldumrisse (map.i3d, src/fsfields.js), ohne die
-//                        ganze Mod herunterzuladen. Wird ein anderer Ordner eingetragen, holt er alles neu.
+//                        aus der Mod „Farming Hub Export“, src/fsexport.js), die Dichtekarten der Früchte und des Bodens und
+//                        die Kalk-, Dünger- und Pflug-Ebenen (was je Fleck wächst, src/fsmap.js). Ist eine Webinterface-Adresse
+//                        leer, liest er careerSavegame.xml, vehicles.xml und economy.xml auch von dort. Die Dateien sind so
+//                        aktuell wie der letzte Autosave. Wird ein anderer Ordner eingetragen, holt er alles neu.
 //
 // Jeder Zugang hat seinen eigenen Abstand. Klappt ein Abruf nicht, wartet er länger (bis 10 Minuten) und behält den
 // letzten Stand. Der Stand jedes Zugangs liegt ausgelesen in fs_cache, damit nach einem Neustart sofort etwas da ist.
@@ -20,13 +19,10 @@ const path = require('node:path');
 const { Writable } = require('node:stream');
 const { db, now, getSetting, DATA_DIR } = require('./db');
 const X = require('./fsxml');
-const fsfields = require('./fsfields');
 
 const FS_DIR = path.join(DATA_DIR, 'fshub');
 fs.mkdirSync(FS_DIR, { recursive: true });
 const MAP_FILE = path.join(FS_DIR, 'map-server');
-// Feldumrisse aus der Karte: { source: ftp | upload, mod, mapTitle, sig, entry, at, polys }
-const OUTLINES = path.join(FS_DIR, 'map-fields.json');
 
 // Zugänge: Schlüssel, Name, Vorgabe-Abstand in Sekunden, kleinster Abstand
 const FEEDS = {
@@ -38,15 +34,14 @@ const FEEDS = {
   ftp: { name: 'FTP', every: 300, min: 60, hint: 'Savegame-Ordner beim Hoster' },
 };
 const FTP_FILES = ['farms.xml', 'placeables.xml', 'items.xml', 'environment.xml', 'fields.xml', 'bankCredit.xml', 'farmingHubExport.xml'];
-// Dichtekarten für die Feldformen: werden nur gespeichert (sg-<Name> im Datenordner), nicht ausgelesen
-const FTP_BINARY = ['densityMap_ground.gdm', 'infoLayer_limeLevel.grle', 'infoLayer_sprayLevel.grle', 'infoLayer_plowLevel.grle'];
+// Dichtekarten (was je Fleck wächst, src/fsmap.js): werden nur gespeichert (sg-<Name> im Datenordner), nicht ausgelesen
+const FTP_BINARY = ['densityMap_fruits.gdm', 'densityMap_ground.gdm', 'infoLayer_limeLevel.grle', 'infoLayer_sprayLevel.grle', 'infoLayer_plowLevel.grle'];
 // Dateien von Mods und Dichtekarten: fehlen sie, ist das kein Fehler
 const FTP_OPTIONAL = new Set(['bankCredit.xml', 'farmingHubExport.xml', ...FTP_BINARY]);
 // Diese drei liest der FTP-Abruf zusätzlich, wenn die Webinterface-Adresse dafür leer ist
 const FTP_FALLBACK = { savegame: 'careerSavegame.xml', vehicles: 'vehicles.xml', economy: 'economy.xml' };
 const TIMEOUT = 15000;
 const MAX_BYTES = 30 * 1024 * 1024;
-const MAX_I3D = 120 * 1024 * 1024;   // gepackte Größe der Karten-i3d
 
 const url = key => (getSetting('fs_url_' + key, '') || '').trim();
 function interval(key) {
@@ -355,92 +350,7 @@ async function fetchFile(client, remote) {
   await client.downloadTo(new Writable({ write(c, e, cb) { chunks.push(c); cb(); } }), remote);
   return Buffer.concat(chunks);
 }
-// Ein Stück aus der Mitte einer großen Datei (REST): eigene Verbindung, die nach len Bytes abbricht
-async function ftpRange(cfg, remote, start, len) {
-  const client = await ftpConnect(cfg);
-  const chunks = [];
-  let got = 0;
-  try {
-    await client.downloadTo(new Writable({ write(c, e, cb) { if (got < len) { chunks.push(c); got += c.length; } cb(); if (got >= len) client.close(); } }), remote, start);
-  } catch (e) { if (got < len) throw e; } finally { client.close(); }
-  if (got < len) throw new Error('Teil-Download unvollständig.');
-  return Buffer.concat(chunks).subarray(0, len);
-}
 function dropBinaries() { for (const n of FTP_BINARY) fs.rmSync(path.join(FS_DIR, 'sg-' + n), { force: true }); }
-
-// Feldumrisse
-let outlineMem = null;
-function outlines() {
-  try {
-    const t = fs.statSync(OUTLINES).mtimeMs;
-    if (!outlineMem || outlineMem.t !== t) outlineMem = { t, data: JSON.parse(fs.readFileSync(OUTLINES, 'utf8')) };
-    return outlineMem.data;
-  } catch { outlineMem = null; return null; }
-}
-function saveOutlines(o) { fs.writeFileSync(OUTLINES, JSON.stringify(o)); outlineMem = null; }
-function removeOutlines() { fs.rmSync(OUTLINES, { force: true }); outlineMem = null; }
-// Die Umrisse, wenn sie zur Karte des laufenden Spielstands gehören
-function currentOutlines() {
-  const o = outlines();
-  if (!o || !o.polys || !o.polys.length) return null;
-  const mod = mapMod(), live = liveSave();
-  if (o.mod && mod) return o.mod === mod ? o : null;
-  return !o.mapTitle || !live || o.mapTitle === live.mapTitle ? o : null;
-}
-// Felder aus einer hochgeladenen map.i3d oder einem ZIP mit ihr (Seitenverwaltung)
-function outlinesFromUpload(buf) {
-  let polys = [], entry = 'map.i3d';
-  if (buf.length > 4 && buf.readUInt32LE(0) === 0x04034b50) {
-    const zip = new (require('adm-zip'))(buf);
-    for (const c of fsfields.mapCandidates(zip.getEntries().map(e => ({ name: e.entryName, size: e.header.size, e })))) {
-      polys = fsfields.i3dFields(c.e.getData().toString('utf8'));
-      entry = c.name;
-      if (polys.length) break;
-    }
-    if (!polys.length) throw new Error('Im ZIP steckt keine i3d-Datei mit Feldern.');
-  } else {
-    polys = fsfields.i3dFields(buf.toString('utf8'));
-    if (!polys.length) throw new Error('In dieser i3d-Datei stehen keine Felder (polygonPoints).');
-  }
-  const live = liveSave();
-  saveOutlines({ source: 'upload', mod: mapMod(), mapTitle: live ? live.mapTitle : '', sig: 'upload:' + now(), entry, at: now(), polys });
-  return polys.length;
-}
-// Aus der Karten-Mod im mods-Ordner: erst das Inhaltsverzeichnis am Ende des ZIPs, dann nur die i3d-Datei der Karte
-async function mapOutlines(cfg, client, dir, career) {
-  const cur = outlines();
-  const mod = mapMod(career || undefined);
-  if (!mod) return null;
-  if (cur && cur.source === 'upload' && (!cur.mod || cur.mod === mod)) return null;
-  let zip = null, modsDir = null;
-  for (const d of new Set([path.posix.join(path.posix.dirname(dir), 'mods'), '/mods'])) {
-    let list;
-    try { list = await client.list(d); } catch { continue; }
-    zip = list.find(f => f.isFile && f.name.toLowerCase() === mod.toLowerCase() + '.zip') || null;
-    if (zip) { modsDir = d; break; }
-  }
-  if (!zip) return `Feldumrisse: ${mod}.zip nicht im mods-Ordner gefunden`;
-  const sig = `${mod}:${zip.size}:${zip.rawModifiedAt || ''}`;
-  if (cur && cur.sig === sig) return null;
-  const remote = path.posix.join(modsDir, zip.name);
-  const tailLen = Math.min(zip.size, 1 << 20), tailStart = zip.size - tailLen;
-  const tail = await ftpRange(cfg, remote, tailStart, tailLen);
-  let cd;
-  try { cd = fsfields.zipDirectory(tail, tailStart); } catch (e) { throw new Error(`${e.message} Kann der FTP-Server keine Teil-Downloads (REST)?`); }
-  const list = cd.offset >= tailStart ? tail.subarray(cd.offset - tailStart, cd.offset - tailStart + cd.size) : await ftpRange(cfg, remote, cd.offset, cd.size);
-  for (const e of fsfields.mapCandidates(fsfields.zipEntries(list))) {
-    if (e.csize > MAX_I3D) continue;
-    const local = await ftpRange(cfg, remote, e.offset, Math.min(zip.size - e.offset, 30 + 65535 * 2 + e.csize));
-    const polys = fsfields.i3dFields(fsfields.zipData(local, e).toString('utf8'));
-    if (polys.length) {
-      saveOutlines({ source: 'ftp', mod, mapTitle: career ? career.mapTitle : '', sig, entry: e.name, at: now(), polys });
-      return null;
-    }
-  }
-  // Merken, damit er es nicht alle fünf Minuten neu versucht
-  saveOutlines({ source: 'ftp', mod, mapTitle: career ? career.mapTitle : '', sig, entry: null, at: now(), polys: [] });
-  return null;
-}
 
 // FTP: Ordner auflisten und nur geänderte Dateien holen (Größe oder Zeit anders als beim letzten Mal)
 async function runFtp(force = false) {
@@ -469,7 +379,7 @@ async function runFtp(force = false) {
       }
       const sig = `${f.size}:${f.rawModifiedAt || ''}`;
       if (!force && seen[name] === sig && files[name] !== undefined) continue;
-      if (f.size > MAX_BYTES) { notes.push(`${name} ist zu groß`); continue; }
+      if (f.size > (FTP_BINARY.includes(name) ? 150 * 1024 * 1024 : MAX_BYTES)) { notes.push(`${name} ist zu groß`); continue; }
       const buf = await fetchFile(client, path.posix.join(dir, name));
       if (FTP_BINARY.includes(name)) {
         fs.writeFileSync(path.join(FS_DIR, 'sg-' + name), buf);
@@ -481,9 +391,6 @@ async function runFtp(force = false) {
         files[name] = readFtpFile(name, buf.toString('utf8'));
         seen[name] = sig;
       } catch (e) { notes.push(`${name}: ${e.message}`); }
-    }
-    if (shapes) {
-      try { const n = await mapOutlines(cfg, client, dir, files['careerSavegame.xml'] || null); if (n) notes.push(n); } catch (e) { notes.push('Feldumrisse: ' + (e.message || e)); }
     }
   } finally { client.close(); }
   const data = { files, at: now(), dir };
@@ -531,10 +438,8 @@ function summarizeFtp(files, notes) {
   const bc = files['bankCredit.xml'];
   if (bc) { const open = bc.loans.filter(l => !l.paidOff).length; parts.push(`bankCredit.xml: ${open} ${open === 1 ? 'laufender Kredit' : 'laufende Kredite'}`); }
   const ex = files['farmingHubExport.xml'];
-  if (ex) parts.push(`farmingHubExport.xml: ${ex.fields.length} Feldumrisse, ${ex.placeables.filter(p => p.x !== null).length} Stationen aus dem Spiel`);
-  if (files['densityMap_ground.gdm']) parts.push(`Dichtekarte: Feldformen${FTP_BINARY.slice(1).some(n => files[n]) ? ' und Boden-Ebenen' : ''}`);
-  const o = outlines();
-  if (o && o.source === 'ftp') parts.push(o.polys.length ? `Feldumrisse aus ${o.mod}.zip: ${o.polys.length} Felder` : `${o.mod}.zip: keine Feldumrisse gefunden`);
+  if (ex) parts.push(`farmingHubExport.xml: ${ex.farmlands.length} Grundstücke, ${ex.placeables.filter(p => p.x !== null).length} Gebäude${ex.version >= 2 ? `, ${ex.fruitTypes.length} Früchte, ${ex.catalog.length} Produktionen im Shop` : ' (Version 1)'}`);
+  if (files['densityMap_fruits.gdm']) parts.push(`Dichtekarten: Früchte${FTP_BINARY.slice(1).some(n => files[n]) ? ', Boden und Pflege' : ''} je Fleck`);
   for (const [k, n] of Object.entries(FTP_FALLBACK)) if (files[n]) parts.push(`${n} statt ${FEEDS[k].name}-Adresse`);
   return parts.concat(notes).join(' · ');
 }
@@ -590,6 +495,6 @@ function soon(key) { nextAt.set(key, 0); }
 
 module.exports = {
   FEEDS, FTP_FILES, FTP_BINARY, FTP_FALLBACK, MAP_FILE, FS_DIR, url, interval, ftpConfig, configured, get, status, on, onError, run, runAll, start, reschedule, soon, forget,
-  liveSave, mapMod, outlines, currentOutlines, outlinesFromUpload, removeOutlines,
+  liveSave, mapMod,
   readStats, readSavegame, readVehicles, readEconomy, readFarms, readPlaceables, readItems, readEnvironment, readFields, readBankCredit, imageSize, load,
 };

@@ -3,12 +3,14 @@
 // Abruf der Feeds: src/fsfeeds.js, Einstellungen: Seitenverwaltung → Farming (src/routes/admin.js).
 //
 //   GET  /farming                 Serverübersicht mit Heute erledigen und Notizen
-//   GET  /farming/karte           Karte (Früchte, Wachstum, Boden, Besitz) GET /farming/karte.bild  Kartenbild
-//   GET  /farming/karte/ebene/<k>.png  Boden-Ebene aus der Dichtekarte     GET /farming/symbol/<k>.png  hochgeladenes Symbol
-//   GET  /farming/preise          Preise mit Graph (?w=WHEAT)            GET /farming/mods        Modliste und Abgleich
+//   GET  /farming/karte           Karte (Früchte, Wachstum, Boden, Bodenart, Besitz; ?feld=, ?station=, ?fahrzeug= wählt aus)
+//   GET  /farming/karte.bild      Kartenbild                             GET /farming/hintergrund.bild  Hintergrund der Übersicht
+//   GET  /farming/karte/ebene/<k>.png  Bild je Fleck (Dichtekarten)      GET /farming/symbol/<k>.png  hochgeladenes Symbol
+//   GET  /farming/produktion      Produktionsplaner (?bereich=karte|eigene|katalog, ?g=Gebäude, ?p=Produktion, Rechner)
+//   GET  /farming/preise          Preise mit Graph und Produktionen (?w=WHEAT)   GET /farming/mods  Modliste und Abgleich
 //   GET  /farming/hof/<id>        Hof, ?tab=uebersicht (Kacheln) | inventar | produktion | fahrzeuge | finanzen | kalender | aufgaben
 //   GET  /farming/changelog       Änderungen am Server und am Hub        GET /farming/vorschlaege Wünsche und Ideen
-//   POST …                        Formulare (Notizen, Aufgaben, Pläne, Feldmeldungen, Orte, Stationen, Hof, Changelog, Vorschläge)
+//   POST …                        Formulare (Notizen, Aufgaben, Pläne, Orte, Bodenverteilung, Hof, Changelog, Vorschläge)
 const fs = require('node:fs');
 const path = require('node:path');
 const express = require('express');
@@ -23,7 +25,7 @@ const profiles = require('../profiles');
 const router = express.Router();
 const TABS = { uebersicht: 'Übersicht', inventar: 'Inventar', produktion: 'Produktion', fahrzeuge: 'Fahrzeuge', finanzen: 'Finanzen', kalender: 'Kalender', aufgaben: 'Aufgaben' };
 const OK = { notiz: 'Notiz gespeichert.', geloescht: 'Gelöscht.', aufgabe: 'Aufgabe angelegt.', erledigt: 'Erledigt.', gespeichert: 'Gespeichert.', beigetreten: 'Willkommen auf dem Hof!',
-  ausgetreten: 'Du gehörst keinem Hof mehr an.', plan: 'In den Hofkalender eingetragen.', gemeldet: 'Danke für die Meldung.', ort: 'Ort angelegt.', ausgeblendet: 'Ausgeblendet, bis sich etwas ändert.',
+  ausgetreten: 'Du gehörst keinem Hof mehr an.', plan: 'In den Hofkalender eingetragen.', ort: 'Ort angelegt.', ausgeblendet: 'Ausgeblendet, bis sich etwas ändert.',
   uebernommen: 'Als Aufgabe übernommen.', vorschlag: 'Danke für deinen Vorschlag!', abgeglichen: 'Server-Haken der Modliste abgeglichen.', eintrag: 'Eintrag gespeichert.' };
 const limit = auth.rateLimit('farming', 300, 3600);
 
@@ -76,8 +78,8 @@ function frame(gs, pad = 20) {
   const w = Math.max(x1 - x0, y1 - y0, 120), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
   return [cx - w / 2, cy - w / 2, w, w].map(v => v.toFixed(0)).join(' ');
 }
-const fieldName = f => (f.parcel ? 'Grundstück ' : 'Feld ') + f.id;
-const helpers = { fieldName, icon: fsicons.html, geo, frame, de, eur, big, liters, ha, ago, mins, when, spark, N, TABS, hhmm: hub.hhmm, fmtDay: hub.fmtDay, STATUS: hub.STATUS, displayName: profiles.displayName };
+const fieldName = f => 'Grundstück ' + f.id;
+const helpers = { fieldName, icon: fsicons.html, geo, frame, de, eur, big, liters, ha, ago, mins, when, spark, N, TABS, hhmm: hub.hhmm, fmtDay: hub.fmtDay, STATUS: hub.STATUS, displayName: profiles.displayName, recipeName: hub.prod.recipeName };
 
 // ---------- Zugriff ----------
 router.use((req, res, next) => {
@@ -124,19 +126,22 @@ router.get('/', (req, res) => {
   });
   const seen = hub.sessionsToday().map(s => ({ ...s, account: hub.accountFor(s.name) }));
   const owned = m.lands.filter(l => l.owner > 0);
-  page(req, res, 'overview', { columns, players, seen, owned, notes: hub.notes(), editNote: Number(req.query.notiz) || null,
+  page(req, res, 'overview', { columns, players, seen, owned, notes: hub.notes(), bg: background(), editNote: Number(req.query.notiz) || null,
     lastCount: hub.changelog(20).filter(c => c.kind === 'mods' && c.created_at > Date.now() / 1000 - 86400).length });
 });
 
-// Produktionsplaner: links die Gebäude mit Preis, rechts das gewählte mit seinen Produktionen, Rezept und Rechner.
-// Alles über die Adresse (g = Gebäude, p = Produktion, rechnen = 1 mit in0 … / zyklen / gleich), Admins bearbeiten (bearbeiten = gebaeude | <Produktion> | neu).
+// Produktionsplaner: oben die drei Bereiche (Karte, eigene Gebäude, Katalog), links deren Gebäude, rechts das gewählte mit seinen
+// Produktionen, Lager, Rezept und Rechner. Alles über die Adresse: bereich, g = Gebäude, p = Produktion, rechnen = 1 mit
+// in0 … / zyklen / gleich. Kein JavaScript nötig, nichts zum Eintragen: alles kommt aus dem Spiel.
 router.get('/produktion', (req, res) => {
-  const list = hub.planner();
-  const sel = list.find(b => b.key === req.query.g) || list[0] || null;
-  const rec = sel ? sel.recipes.find(r => r.id === req.query.p) || sel.recipes[0] || null : null;
+  const lists = hub.planner();
+  const all = [...lists.karte, ...lists.eigene, ...lists.katalog];
+  const picked = all.find(b => b.key === req.query.g) || null;
+  const section = picked ? picked.section : Object.hasOwn(hub.prod.SECTIONS, req.query.bereich) ? req.query.bereich : lists.eigene.length ? 'eigene' : lists.karte.length ? 'karte' : 'katalog';
+  const list = lists[section];
+  const sel = picked || list[0] || null;
+  const rec = sel ? sel.recipes.find(r => r.id === req.query.p) || sel.recipes.find(r => r.active) || sel.recipes[0] || null : null;
   const dpp = hub.daysPerPeriod();
-  const isAdmin = !!(req.user && req.user.isAdmin);
-  const edit = isAdmin ? String(req.query.bearbeiten || '') : '';
   let calc = null, form = null;
   if (rec && req.query.rechnen) {
     const n = v => { const x = Number(String(v ?? '').replace(',', '.')); return v === undefined || v === '' || !Number.isFinite(x) || x < 0 ? null : x; };
@@ -144,21 +149,16 @@ router.get('/produktion', (req, res) => {
     if (form.amounts.some(a => a !== null) || form.cycles !== null) calc = hub.prod.calc(rec, { ...form, shared: sel.mode === 'seriell' ? form.shared : 1, dpp });
   }
   const info = rec && rec.cycles > 0 ? hub.prod.calc(rec, { cycles: 0, shared: 1, dpp }) : null;
-  page(req, res, 'planner', { title: 'Produktionsplaner – Farming Simulator', list, sel, rec, calc, form, info, dpp, edit, MODES: hub.prod.MODES, ROWS: hub.prod.MAX_ROWS,
-    fills: Object.entries(N.FILL).sort((a, b) => a[1].localeCompare(b[1], 'de')) });
+  // Gleiche Art an anderer Stelle: Katalog ↔ Karte ↔ eigene
+  const same = sel ? all.filter(b => b !== sel && b.type === sel.type) : [];
+  // Katalog gruppiert nach DLC bzw. Shop-Kategorie
+  const m = hub.model();
+  page(req, res, 'planner', { title: 'Produktionsplaner – Farming Simulator', lists, section, list, sel, rec, calc, form, info, dpp, same, SECTIONS: hub.prod.SECTIONS, MODES: hub.prod.MODES,
+    station: sel && sel.uid ? m.stations.find(s => s.uid === sel.uid) || null : null, gameData: m.gameData });
 });
+const plannerUrl = (g, p) => '/farming/produktion?g=' + encodeURIComponent(g || '') + (p ? '&p=' + encodeURIComponent(p) : '');
+helpers.plannerUrl = plannerUrl;
 const adminPage = (req, res, next) => (req.user && req.user.isAdmin ? next() : deny(res, 'Das dürfen nur Admins.'));
-const plannerUrl = (g, p, extra = '') => '/farming/produktion?g=' + encodeURIComponent(g || '') + (p ? '&p=' + encodeURIComponent(p) : '') + extra;
-router.post('/produktion/gebaeude', login, adminPage, (req, res) => {
-  const key = hub.prod.saveBuilding(req.body.key || null, req.body);
-  res.redirect(key ? plannerUrl(key, null, '&ok=gespeichert') : '/farming/produktion');
-});
-router.post('/produktion/gebaeude/:key/loeschen', login, adminPage, (req, res) => { hub.prod.removeBuilding(req.params.key); res.redirect('/farming/produktion?ok=geloescht'); });
-router.post('/produktion/:key/rezept', login, adminPage, (req, res) => {
-  const id = hub.prod.saveRecipe(req.params.key, req.body.id || null, req.body);
-  res.redirect(plannerUrl(req.params.key, id, id ? '&ok=gespeichert' : ''));
-});
-router.post('/produktion/:key/rezept/:id/loeschen', login, adminPage, (req, res) => { hub.prod.removeRecipe(req.params.key, req.params.id); res.redirect(plannerUrl(req.params.key, null, '&ok=geloescht')); });
 
 // Kartenbild: das eigene, sonst das vom Server. Die Seite hängt ?v=<Änderungszeit> an, so kommt ein neues Bild sofort.
 function mapImage() {
@@ -174,65 +174,101 @@ router.get('/karte.bild', (req, res) => {
   res.type(custom ? path.extname(custom) : (fs.readFileSync(file).subarray(0, 2).toString('hex') === 'ffd8' ? 'jpg' : 'png')).sendFile(file);
 });
 
-// Karte: vier Ansichten wie im Spiel, je Ansicht Einträge zum Ein- und Ausblenden. Jedes Feld trägt seine Farbe und seinen Eintrag je Ansicht,
-// das Umschalten macht dann nur noch CSS (public/fshub.css) und public/fshub.js.
+// Hintergrund der Übersicht: je Karte ein eigenes Bild (Seitenverwaltung), halb durchsichtig hinter dem Inhalt
+function background() {
+  const f = hub.backgroundFile();
+  try { return f ? { file: f, v: Math.round(fs.statSync(f).mtimeMs).toString(36) } : null; } catch { return null; }
+}
+router.get('/hintergrund.bild', (req, res) => {
+  const bg = background();
+  if (!bg) return res.status(404).end();
+  res.set('Cache-Control', req.query.v === bg.v ? 'private, max-age=604800, immutable' : 'no-cache').sendFile(bg.file);
+});
+
+// Karte: fünf Ansichten wie im Spiel, je Ansicht Einträge zum Ein- und Ausblenden. Grundstücke sind Umrisse aus dem Spiel, was
+// darauf wächst, liegt als Bild je Eintrag darüber (je Fleck aus den Dichtekarten, src/fsmap.js). Ohne Dichtekarten färbt der Hub
+// jedes Grundstück nach fields.xml ein. Das Umschalten macht nur noch CSS (public/fshub.css) und public/fshub.js.
 const MAP_LAYERS = { fruechte: 'Feldfrüchte', wachstum: 'Wachstum', boden: 'Boden', bodenart: 'Bodenart', besitz: 'Besitz' };
 const LAYER_ALIAS = { zustand: 'wachstum', pflege: 'boden' };
-const NONE = 'rgba(255,255,255,.2)';   // leer oder unbekannt: hell, damit das Feld auf jedem Kartenbild zu sehen ist
+const NONE = 'rgba(255,255,255,.2)';   // leer oder unbekannt: hell, damit das Grundstück auf jedem Kartenbild zu sehen ist
+const CLEAR = 'rgba(0,0,0,0)';         // Ansicht mit Bildern je Fleck: Grundstück nur als Umriss
 const SOIL_COLOR = Object.fromEntries(hub.SOILS.map(([k, , c]) => [k, c]));
-const PARCEL = 'rgba(255,255,255,.07)';   // Grundstück ohne Feld (Wiese, Wald, Plantage): nur angedeutet, gestrichelter Rand (fshub.css)
 const CARE = [['kalk', 'Kalk nötig', '#e0c52c'], ['pflug', 'Pflügen fällig', '#c8693a'], ['duenger', 'Düngen', '#4b97ec'], ['unkraut', 'Unkraut', '#b062c8'], ['steine', 'Steine', '#9a9a9a']];
-// Reihenfolge = Zeichenreihenfolge: was zu tun ist, liegt oben
-const RASTER = { duenger: ['Gedüngt', 'linear-gradient(90deg, #4b97ec 50%, #1f4fb8 50%)'], pflug: ['Pflügen fällig', '#c8693a'], kalk: ['Kalk nötig', '#e0c52c'] };
-function mapView(fields, m, shp) {
-  const raster = shp && shp.layers ? Object.keys(RASTER).filter(k => shp.layers.includes(k)) : [];
+// Bilder der Pflege: Reihenfolge = Zeichenreihenfolge, was zu tun ist, liegt oben
+const CARE_RAS = { duenger2: ['Zweimal gedüngt', '#1f4fb8'], duenger1: ['Einmal gedüngt', '#7db8f2'], pflug: ['Pflügen fällig', '#c8693a'], kalk: ['Kalk nötig', '#e0c52c'] };
+function mapView(fields, m, shp, crops) {
+  const ras = shp && shp.ras && shp.ras.images ? shp.ras : null;
+  const img = { fruechte: !!(ras && Object.keys(ras.images.fruits).length), wachstum: !!(ras && Object.keys(ras.images.states).length), boden: !!(ras && Object.keys(ras.images.care).length) };
   const gs = geo(fields, m, shp).map(g => {
     const care = g.source === 'auto' ? (CARE.find(([k]) => g.care.some(c => c.key === k)) || ['ok', 'Alles erledigt', '#5aa83c']) : null;
-    const none = g.parcel ? '-' : '', nc = g.parcel ? PARCEL : NONE;
     return { ...g, layer: {
-      fruechte: g.crop ? ['crop:' + g.crop, g.cropColor || '#8fd16a'] : ['crop:' + none, nc],
-      wachstum: g.state ? ['state:' + g.state, N.STATES[g.state][1]] : ['state:' + none, nc],
-      boden: raster.length ? ['', g.parcel ? PARCEL : 'rgba(20,24,18,.35)'] : care ? ['care:' + care[0], care[2]] : ['care:' + none, nc],
-      bodenart: g.soil && g.soil.top ? ['soil:' + g.soil.top, SOIL_COLOR[g.soil.top]] : ['soil:' + none, nc],
+      fruechte: img.fruechte ? ['', CLEAR] : g.crop ? ['crop:' + g.crop, g.cropColor || '#8fd16a'] : ['crop:', NONE],
+      wachstum: img.wachstum ? ['', CLEAR] : g.state ? ['state:' + g.state, N.STATES[g.state][1]] : ['state:', NONE],
+      boden: img.boden ? ['', CLEAR] : care ? ['care:' + care[0], care[2]] : ['care:', NONE],
+      bodenart: g.soil && g.soil.top ? ['soil:' + g.soil.top, SOIL_COLOR[g.soil.top]] : ['soil:', NONE],
       besitz: g.farm ? ['farm:' + g.farm.id, g.farm.color] : ['farm:0', 'rgba(255,255,255,.22)'],
     } };
   });
   const count = (layer, key) => { const xs = gs.filter(g => g.layer[layer][0] === key); return { n: xs.length, ha: xs.reduce((a, g) => a + (g.area || 0), 0) }; };
-  const crops = [...new Map(gs.filter(g => g.crop).map(g => [g.crop, g])).values()];
-  const LAND = k => ({ key: k + ':-', label: 'Grundstück ohne Feld', color: PARCEL, parcel: true });
-  const groups = {
-    fruechte: [...crops.map(g => ({ key: 'crop:' + g.crop, label: g.crop, color: g.cropColor || '#8fd16a', fill: g.cropFill })), { key: 'crop:', label: 'Leer oder unbekannt', color: NONE }, LAND('crop')],
-    wachstum: [...Object.entries(N.STATES).map(([k, [l, c]]) => ({ key: 'state:' + k, label: l, color: c })), { key: 'state:', label: 'Unbekannt', color: NONE }, LAND('state')],
-    boden: raster.length ? raster.map(k => ({ key: 'ras:' + k, label: RASTER[k][0], color: RASTER[k][1], raster: k }))
-      : [...CARE, ['ok', 'Alles erledigt', '#5aa83c']].map(([k, l, c]) => ({ key: 'care:' + k, label: l, color: c })).concat([{ key: 'care:', label: 'Unbekannt (nur mit FTP)', color: NONE }, LAND('care')]),
-    bodenart: [...hub.SOILS.map(([k, l, c]) => ({ key: 'soil:' + k, label: l, color: c })), { key: 'soil:', label: 'Nicht eingetragen', color: NONE }, LAND('soil')],
-    besitz: [...m.farms.map(f => ({ key: 'farm:' + f.id, label: f.name, color: f.color })), { key: 'farm:0', label: 'Zu kaufen', color: 'rgba(255,255,255,.22)' }],
-  };
-  for (const [layer, items] of Object.entries(groups)) {
-    for (const it of items) Object.assign(it, it.raster ? { n: null, ha: null } : count(layer, it.key));
-    groups[layer] = items.filter(it => it.raster || it.n || it.key.startsWith('farm:'));
-    const last = it => (it.key === 'crop:' ? 1 : it.parcel ? 2 : 0);
-    if (layer === 'fruechte') groups[layer].sort((a, b) => last(a) - last(b) || b.ha - a.ha);
+  const cropOf = name => { const c = crops.find(x => x.name === name || x.fill === name); return c ? { label: c.label, color: c.color, fill: c.fill } : /^\?\d+$/.test(name) ? { label: 'Unbekannte Frucht ' + name.slice(1), color: '#9aa394', fill: null } : { label: N.fill(name), color: '#8fd16a', fill: name }; };
+  const groups = {};
+  // Feldfrüchte: je Frucht ein Bild (Fläche in ha), Plantagen als Reihen dazu
+  if (img.fruechte) {
+    const items = Object.entries(ras.totals.fruits).map(([name, ha]) => ({ key: 'f:' + name, ...cropOf(name), ha, n: null, image: ras.images.fruits[name] }));
+    for (const o of m.orchards) if (!items.some(i => i.key === 'f:' + o.type)) items.push({ key: 'f:' + o.type, ...cropOf(o.type), ha: null, n: o.rows.length, rows: true });
+    groups.fruechte = items.sort((a, b) => (b.ha || 0) - (a.ha || 0));
+  } else {
+    const list = [...new Map(gs.filter(g => g.crop).map(g => [g.crop, g])).values()];
+    groups.fruechte = [...list.map(g => ({ key: 'crop:' + g.crop, label: g.crop, color: g.cropColor || '#8fd16a', fill: g.cropFill })), { key: 'crop:', label: 'Leer oder unbekannt', color: NONE }];
+    for (const o of m.orchards) if (!groups.fruechte.some(i => i.fill === o.type)) groups.fruechte.unshift({ key: 'f:' + o.type, ...cropOf(o.type), n: o.rows.length, rows: true });
   }
-  return { gs, groups, raster };
+  groups.wachstum = img.wachstum ? Object.keys(N.STATES).filter(k => ras.images.states[k]).map(k => ({ key: 's:' + k, label: N.STATES[k][0], color: N.STATES[k][1], ha: ras.totals.states[k], n: null, image: ras.images.states[k] }))
+    : [...Object.entries(N.STATES).map(([k, [l, c]]) => ({ key: 'state:' + k, label: l, color: c })), { key: 'state:', label: 'Unbekannt', color: NONE }];
+  groups.boden = img.boden ? Object.keys(CARE_RAS).filter(k => ras.images.care[k]).map(k => ({ key: 'c:' + k, label: CARE_RAS[k][0], color: CARE_RAS[k][1], ha: ras.totals.care[k], n: null, image: ras.images.care[k] })).reverse()
+    : [...CARE, ['ok', 'Alles erledigt', '#5aa83c']].map(([k, l, c]) => ({ key: 'care:' + k, label: l, color: c })).concat([{ key: 'care:', label: 'Unbekannt (nur mit FTP)', color: NONE }]);
+  groups.bodenart = [...hub.SOILS.map(([k, l, c]) => ({ key: 'soil:' + k, label: l, color: c })), { key: 'soil:', label: 'Nicht eingetragen', color: NONE }];
+  groups.besitz = [...m.farms.map(f => ({ key: 'farm:' + f.id, label: f.name, color: f.color })), { key: 'farm:0', label: 'Zu kaufen', color: 'rgba(255,255,255,.22)' }];
+  for (const [layer, items] of Object.entries(groups)) {
+    for (const it of items) if (!it.image && !it.rows) Object.assign(it, count(layer, it.key));
+    groups[layer] = items.filter(it => it.image || it.rows || it.n || it.key.startsWith('farm:'));
+    if (layer === 'fruechte' && !img.fruechte) groups[layer].sort((a, b) => (a.key === 'crop:') - (b.key === 'crop:') || (b.ha || 0) - (a.ha || 0));
+  }
+  return { gs, groups, img, ras };
 }
-// Daten je Feld für die Infokarte (public/fshub.js baut sie beim Klick)
-function fieldCard(g, req) {
+// Daten je Grundstück für die Infokarte (public/fshub.js baut sie beim Klick)
+function fieldCard(g, req, m, ex) {
   const a = g.source === 'auto' ? g.auto : null;
-  return { id: g.id, parcel: !!g.parcel, soilType: g.soil, orchard: g.orchard ? N.fill(g.orchard) : null, ha: g.area, icon: g.crop ? fsicons.html(g.cropFill, g.crop, 's') : '', farm: g.farm ? { id: g.farm.id, name: g.farm.name, color: g.farm.color } : null, price: g.price || null,
-    crop: g.crop, fill: g.cropFill, state: g.state ? N.STATES[g.state][0] : null, stateKey: g.state, src: g.source, ground: g.ground, growth: a ? a.growth : null,
-    soil: a ? { lime: a.lime, spray: a.spray, plow: !!a.plow, weed: a.weed, stone: a.stone } : null, care: g.care.map(c => c.label), autoAt: a && g.autoAt ? when(g.autoAt) : null,
-    report: g.report ? { by: g.report.username || '–', at: when(g.report.updated_at), day: g.report.game_day ? hub.fmtDay(g.report.game_day) : null, crop: g.report.crop_id, cur: g.source === 'report' } : null,
+  const exFields = new Map(((ex && ex.fields) || []).map(f => [f.id, f]));
+  const pt = g.patch;
+  const here = m.stations.filter(s => s.placed && hub.parcelAt(s.x, s.z) === g.id).map(s => ({ uid: s.uid, name: s.name, cat: s.cat }));
+  return { id: g.id, ha: g.area, farm: g.farm ? { id: g.farm.id, name: g.farm.name, color: g.farm.color } : null, price: g.price || null,
+    fields: (g.fieldIds || []).map(id => ({ id, ha: exFields.has(id) ? exFields.get(id).ha : null })),
+    fieldHa: pt ? pt.ha : null,
+    mix: g.mix.map(x => ({ name: x.name, color: x.color, ha: x.ha, icon: x.fill ? fsicons.html(x.fill, x.name, 's') : '' })),
+    states: g.states.map(x => ({ label: x.label, color: (N.STATES[x.key] || [0, '#999'])[1], ha: x.ha })),
+    crop: g.crop, icon: g.crop && g.cropFill ? fsicons.html(g.cropFill, g.crop, 's') : '', state: g.state ? N.STATES[g.state][0] : null, src: g.source,
+    growth: a ? a.growth : null, soil: a ? { lime: a.lime, spray: a.spray, plow: !!a.plow } : null,
+    care: g.care.map(c => c.label), autoAt: g.autoAt && (a || pt) ? when(g.autoAt) : null, orchard: g.orchard ? N.fill(g.orchard) : null, soilType: g.soil, stations: here,
     plan: g.plan ? `${g.plan.crop}, säen ${N.MONTHS[g.plan.sow_month]}, ernten ${N.MONTHS[g.plan.harvest_month]}` : null,
-    edit: !!req.user && (!g.farm || hub.canEditFarm(req.user, g.farm.id)) };
+    edit: !!req.user && !!g.farm && hub.canEditFarm(req.user, g.farm.id) };
 }
 
-// Daten je Station für Markierung und Infokarte (Lage im Kartenmaß 0–1000, ohne Position: null)
-function stationCard(s) {
-  const S = hub.model().size || 2048, P = v => +((v + S / 2) / S * 1000).toFixed(1);
-  return { uid: s.uid, name: s.name, cat: s.cat, catLabel: hub.stations.CATS[s.cat][0], cx: s.placed ? P(s.x) : null, cy: s.placed ? P(s.z) : null, fixed: s.fixed, where: s.where,
-    sells: s.sells.map(f => ({ fill: f, name: N.fill(f) })).sort((a, b) => a.name.localeCompare(b.name, 'de')), planner: s.planner, productions: s.productions.length,
+// Daten je Station für Markierung und Infokarte (Lage im Kartenmaß 0–1000)
+function stationCard(s, m) {
+  const S = m.size || 2048, P = v => +((v + S / 2) / S * 1000).toFixed(1);
+  const farm = s.farmId ? m.farms.find(f => f.id === s.farmId) : null;
+  const goods = list => list.map(f => ({ fill: f, name: N.fill(f), icon: fsicons.html(f, N.fill(f), 's') })).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  return { uid: s.uid, name: s.name, cat: s.cat, catLabel: hub.stations.CATS[s.cat][0], cx: s.placed ? P(s.x) : null, cy: s.placed ? P(s.z) : null, where: s.where,
+    farm: farm ? { id: farm.id, name: farm.name } : null, sells: goods(s.sells), buys: goods(s.buys), planner: s.planner, productions: s.productions.length,
     demands: s.demands.map(d => ({ name: N.fill(d.fill), mult: d.mult, running: d.running, day: d.day ? hub.fmtDay(d.day) : null })) };
+}
+// Daten je Fahrzeug für die Infokarte, mit Link zum Eintrag im Hof
+function vehicleCard(v, i, m) {
+  const S = m.size || 2048, P = v => +((v + S / 2) / S * 1000).toFixed(1);
+  const farm = v.farmId ? m.farms.find(f => f.id === v.farmId) : null;
+  return { i, uid: v.uid, name: v.name, cat: v.catName, pallet: v.pallet, cx: P(v.x), cy: P(v.z), driver: v.driver, ai: v.ai, damage: v.damage, diesel: v.diesel, hours: v.hours,
+    where: v.where.label, farm: farm ? { id: farm.id, name: farm.name, color: farm.color } : null,
+    fill: v.fill.filter(([t]) => !(v.drivable && ['DIESEL', 'DEF', 'AIR'].includes(t))).map(([t, l]) => ({ name: N.fill(t), amount: Math.round(l), icon: fsicons.html(t, N.fill(t), 's') })) };
 }
 
 // Kartenbild ausrichten (Admins): Größe in Prozent und Verschiebung in Metern, damit Felder und Bild genau aufeinanderliegen.
@@ -256,27 +292,27 @@ router.post('/karte/ausrichten', login, adminPage, (req, res) => {
 });
 router.get('/karte', (req, res) => {
   const m = hub.model();
-  const crops = hub.crops();
+  const crops = hub.fscrops.list(hub.exportData());
   const fields = hub.fieldStates();
   const shp = hub.shapes(m);
-  const view = mapView(fields, m, shp);
+  const view = mapView(fields, m, shp, crops);
   const sel = view.gs.find(f => f.id === Number(req.query.feld)) || null;
   const img = mapImage();
   const border = m.configured && !(img && img.custom) ? Number(getSetting('fs_map_border', '25')) || 0 : 0;
   const hasImage = !!img, mapV = img ? img.v : '';
   const fit = mapFit(), box = imageBox(border, fit, m.size || 2048);
   const want = LAYER_ALIAS[req.query.ansicht] || req.query.ansicht;
-  // Für den Umriss-Editor (Admins): Kartenmaß, Lage des Bilds, je Feld Mitte, Größe und woher die Form kommt
-  const editor = req.user && req.user.isAdmin ? { size: m.size || 2048, img: hasImage ? { x: box.x, y: box.y, w: box.w, base: box.base, fit, src: '/farming/karte.bild?v=' + mapV } : null,
-    fields: view.gs.map(g => ({ id: g.id, cx: g.cx, cy: g.cy, r: g.r, ha: g.area || 0, parcel: !!g.parcel, soil: g.soil ? Object.fromEntries([...g.soil.parts.map(x => [x.key, x.pct]), ['yield', g.soil.yield]]) : null, src: g.d ? (shp.shapes[g.id] || {}).src || 'boden' : 'kreis' })) } : null;
-  page(req, res, 'map', { title: 'Karte – Farming Simulator', full: true, editor, SOILS: hub.SOILS, ...view, CARE_COLORS: Object.fromEntries(CARE.map(([k, , c]) => [k, c])), sel, crops, border, box, hasImage, mapV, shp, LAYERS: MAP_LAYERS,
-    stations: m.stations.map(stationCard), STATION_CATS: hub.stations.CATS,
-    cards: view.gs.map(g => fieldCard(g, req)), layer: Object.hasOwn(MAP_LAYERS, want) ? want : 'fruechte' });
+  const ex = hub.exportData();
+  const vehicles = m.vehicles.map((v, i) => (v.x === null || v.x === undefined ? null : vehicleCard(v, i, m))).filter(Boolean);
+  page(req, res, 'map', { title: 'Karte – Farming Simulator', full: true, SOILS: hub.SOILS, ...view, CARE_COLORS: Object.fromEntries(CARE.map(([k, , c]) => [k, c])), sel, crops, border, box, hasImage, mapV, shp, LAYERS: MAP_LAYERS,
+    fit: req.user && req.user.isAdmin && hasImage ? fit : null, stations: m.stations.map(s => stationCard(s, m)), STATION_CATS: hub.stations.CATS, vehicles,
+    pick: { station: String(req.query.station || ''), vehicle: String(req.query.fahrzeug || '') },
+    cards: view.gs.map(g => fieldCard(g, req, m, ex)), layer: Object.hasOwn(MAP_LAYERS, want) ? want : 'fruechte' });
 });
-// Boden-Ebenen aus der Dichtekarte (src/fsmap.js) und hochgeladene Originalsymbole (src/fsicons.js)
+// Bilder je Fleck (src/fsmap.js) und hochgeladene Originalsymbole (src/fsicons.js)
 router.get('/karte/ebene/:file', (req, res) => {
-  const k = /^([a-z]+)\.png$/.exec(req.params.file);
-  const file = k && Object.hasOwn(RASTER, k[1]) && path.join(feeds.FS_DIR, `layer-${k[1]}.png`);
+  const k = /^(ras-[a-zA-Z0-9_-]+\.png)$/.exec(req.params.file);
+  const file = k && path.join(feeds.FS_DIR, k[1]);
   if (!file || !fs.existsSync(file)) return res.status(404).end();
   res.set('Cache-Control', 'private, max-age=86400').type('png').sendFile(file);
 });
@@ -299,7 +335,11 @@ router.get('/preise', (req, res) => {
     const s = f.stock.find(x => x.fill === sel.fill), c = f.cargo.filter(x => x.fill === sel.fill).reduce((a, x) => a + x.amount, 0);
     return { farm: f, amount: (s ? s.amount : 0) + c };
   }).filter(h => h.amount > 0) : [];
-  page(req, res, 'prices', { title: 'Preise – Farming Simulator', goods: list, filter, sel, holdings, all: goods.length });
+  // Wo die Ware in Produktionen vorkommt (Katalog und Karte) und wer sie annimmt
+  const uses = sel ? hub.prod.uses(hub.planner(), sel.fill) : null;
+  const buyers = sel ? m.stations.filter(s => s.sells.includes(sel.fill)) : [];
+  const sellers = sel ? m.stations.filter(s => s.buys.includes(sel.fill)) : [];
+  page(req, res, 'prices', { title: 'Preise – Farming Simulator', goods: list, filter, sel, holdings, all: goods.length, uses, buyers, sellers });
 });
 
 router.get('/mods', (req, res) => {
@@ -327,6 +367,7 @@ router.get('/hof/:id', farmParam, (req, res) => {
     data.wear = Number(getSetting('fs_auto_wear', '50'));
   }
   if (tab === 'produktion') {
+    data.ownProd = hub.planner().eigene.filter(b => b.farmId === f.id);
     data.spots = hub.palletSpots(f);
     data.placeRows = m.places.filter(p => !p.farm_id || p.farm_id === f.id).map(p => {
       const here = f.pallets.filter(v => v.where.place === p.id);
@@ -429,45 +470,12 @@ router.post('/plan/:id/loeschen', login, (req, res, next) => {
   back(req, res, `/farming/hof/${p.farm_id}?tab=kalender`, 'geloescht');
 });
 
-// Feld melden: Frucht und Zustand. Darf, wem das Feld gehört (zu kaufende Felder: alle Mitglieder).
-router.post('/feld/:id', login, (req, res) => {
-  const owner = hub.fieldOwner(req.params.id);
-  if (owner && !hub.canEditFarm(req.user, owner)) return deny(res, 'Dieses Feld melden nur Mitglieder des Hofs, dem es gehört.');
-  hub.reportField(req.user, req.params.id, req.body);
-  back(req, res, `/farming/karte?feld=${Number(req.params.id)}`, 'gemeldet');
-});
-
-// Feldumrisse (nur Admins, public/fshub-umriss.js): erkannt aus dem Kartenbild oder von Hand, als JSON in data
-// Bodenverteilung je Grundstück (nur Admins, Formular im Abschnitt Feldumrisse der Karte)
+// Bodenverteilung je Grundstück (nur Admins, Formular in der Infokarte): steht in keiner Datei des Spielstands
 router.post('/boden/:id', login, adminPage, (req, res) => {
   const ok = hub.saveSoil(req.params.id, req.body, req.user.id);
   hub.invalidate();
   res.redirect('/farming/karte?ansicht=bodenart&feld=' + encodeURIComponent(req.params.id) + (ok ? '&ok=gespeichert' : ''));
 });
-const adminOnly = (req, res, next) => (req.user && req.user.isAdmin ? next() : res.status(403).json({ ok: false, error: 'Nur für Admins.' }));
-router.post('/umrisse', login, adminOnly, (req, res) => {
-  let d;
-  try { d = JSON.parse(String(req.body.data || '')); } catch { return res.status(400).json({ ok: false, error: 'Daten unlesbar.' }); }
-  if (d.replace === 'bild') hub.removeOutlines('bild');
-  const n = hub.saveOutlines(d.fields, d.source, req.user.id);
-  hub.invalidate();
-  res.json({ ok: true, n });
-});
-router.post('/umrisse/:id/loeschen', login, adminOnly, (req, res) => {
-  if (req.params.id === 'bild') hub.removeOutlines('bild'); else hub.removeOutline(req.params.id);
-  hub.invalidate();
-  res.json({ ok: true });
-});
-
-// Stationen der Karte setzen (nur Admins, public/fshub-stationen.js): Weltkoordinaten, clear=1 nimmt die Position weg
-router.post('/stationen', login, adminOnly, (req, res) => {
-  const b = req.body, num = v => (v === undefined || v === '' ? NaN : Number(String(v).replace(',', '.')));
-  const ok = hub.stations.place(b.uid, b.clear ? null : num(b.x), b.clear ? null : num(b.z), req.user.id);
-  if (!ok) return res.status(400).json({ ok: false, error: 'Position unlesbar.' });
-  hub.invalidate();
-  res.json({ ok: true });
-});
-
 router.post('/hof/:id/ort', login, farmParam, farmEditor, (req, res) => {
   const id = hub.savePlace(null, { ...req.body, farm_id: req.farm.id });
   back(req, res, `/farming/hof/${req.farm.id}?tab=produktion`, id ? 'ort' : null);

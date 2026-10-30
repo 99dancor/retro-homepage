@@ -136,17 +136,12 @@ test('Hub: Felder und Kredite aus dem FTP-Ordner landen auf Karte, Hof und Vorsc
   assert.equal(st.find(f => f.id === 12).state, 'waechst');
   assert.equal(st.find(f => f.id === 30).state, 'gepfluegt');
 
-  // Eine Meldung nach dem Autosave gilt, bis der nächste Autosave kommt
-  const uid = Number(db.prepare("INSERT INTO users(username, password_hash, role, created_at) VALUES ('melder', 'x', 'user', ?)").run(now()).lastInsertRowid);
-  db.prepare('INSERT INTO fs_fields(field, crop_id, state, user_id, game_day, updated_at) VALUES (7, NULL, ?, ?, NULL, ?)').run('geerntet', uid, now() + 5);
-  assert.equal(hub.fieldStates().find(f => f.id === 7).state, 'geerntet');
-
   const farm = hub.model().farms.find(x => x.id === 1);
   assert.equal(farm.creditRest, 1000000);
   assert.equal(farm.credits[0].monthly, 9888.586914);
   const owner = st.find(f => f.id === 11).owner;
   const sug = hub.suggestions(owner).map(s => s.title);
-  assert.ok(sug.some(t => /^Weizen ernten: Feld/.test(t)), sug.join(' | '));
+  assert.ok(sug.some(t => /^Weizen ernten: Grundstück/.test(t)), sug.join(' | '));
 });
 
 // ---------- Dichtekarten (src/fsmap.js) ----------
@@ -183,32 +178,69 @@ function grle(w, h, value) {
   return Buffer.concat([head, Buffer.from(out)]);
 }
 
-test('Dichtekarten: GDM und GRLE lesen, zwei Felder als echte Form, Boden-Ebene als PNG', () => {
+// GDM mit mehreren Bereichen, je 4 Bit ohne Palette: fns[r](x, y) gibt den Wert des Bereichs r
+function gdmR(size, fns) {
+  const cs = 32, n = size / cs, regions = fns.length, head = Buffer.alloc(16 + regions - 1);
+  head.write('"MDF', 0, 'latin1');
+  head[8] = Math.log2(n); head[9] = 5; head[11] = 4 * regions; head[12] = regions;
+  for (let r = 0; r < regions - 1; r++) head[13 + r] = 4 * (r + 1);
+  const parts = [head];
+  for (let cy = 0; cy < n; cy++) for (let cx = 0; cx < n; cx++) {
+    for (const fn of fns) {
+      const bits = Buffer.alloc(cs * cs / 2);
+      for (let i = 0; i < cs * cs; i++) bits[i >> 1] |= (fn(cx * cs + (i & 31), cy * cs + (i >> 5)) & 15) << ((i & 1) * 4);
+      parts.push(Buffer.from([4, 0]), bits);
+    }
+  }
+  return Buffer.concat(parts);
+}
+
+test('Dichtekarten: GDM und GRLE lesen, Früchte, Zustand und Kalk je Fleck und je Grundstück', () => {
   const M = require('../src/fsmap');
-  // 256 Pixel für eine Karte von 128 m: zwei Rechtecke mit Lücke
-  const inA = (x, y) => x >= 20 && x < 100 && y >= 20 && y < 100, inB = (x, y) => x >= 140 && x < 240 && y >= 40 && y < 120;
-  const g = M.readGdm(gdm(256, (x, y) => inA(x, y) || inB(x, y)));
+  const g = M.readGdm(gdm(256, (x, y) => x >= 20 && x < 100 && y >= 20 && y < 100));
   assert.equal(g.size, 256);
   assert.equal(g.data[30 * 256 + 30], 5);
   assert.equal(g.data[10 * 256 + 10], 0);
   assert.throws(() => M.readGdm(Buffer.from('kaputt, keine Datei')), /Keine GDM/);
-
-  const fields = [{ id: 1, x: -34, z: -34, area: 0.16 }, { id: 2, x: 31, z: -24, area: 0.2 }, { id: 3, x: 50, z: 50, area: 1 }];
-  const r = M.buildShapes(gdm(256, (x, y) => inA(x, y) || inB(x, y)), fields, 128);
-  assert.ok(r.shapes[1] && r.shapes[2], 'beide Rechtecke gefunden');
-  assert.ok(!r.shapes[3], 'ohne Feldboden bleibt das Feld ein Kreis');
-  assert.match(r.shapes[1].d, /^M[\d.]+ [\d.]+/);
-  assert.ok(Math.abs(r.shapes[1].ha - 0.16) < 0.03, 'Fläche A ' + r.shapes[1].ha);
-  assert.ok(Math.abs(r.shapes[2].ha - 0.2) < 0.03, 'Fläche B ' + r.shapes[2].ha);
-  assert.ok(Math.abs(r.shapes[1].cx - 234) < 10 && Math.abs(r.shapes[1].cy - 234) < 10, `Mitte A ${r.shapes[1].cx},${r.shapes[1].cy}`);
-
-  const lime = M.readGrle(grle(256, 256, (x, y) => (x < 128 ? 0 : 3)));
+  const lime = M.readGrle(grle(256, 256, x => (x < 128 ? 0 : 3)));
   assert.equal(lime.w, 256);
   assert.equal(lime.data[5], 0);
   assert.equal(lime.data[200], 3);
-  const pngBuf = M.layerPng('kalk', grle(256, 256, (x, y) => (x < 128 ? 0 : 3)), r.lab, r.size);
-  assert.equal(pngBuf.subarray(0, 4).toString('hex'), '89504e47');
-  assert.equal(pngBuf.readUInt32BE(16), r.size, 'Ebene so groß wie die Feldmaske');
+
+  // Karte 128 m, 256 Pixel: Grundstück 1 links (nur Weizen), Grundstück 2 rechts (oben Gerste, unten Weizen).
+  // Gekalkt ist alles außer einem Streifen links (x < 60).
+  const inA = (x, y) => x >= 20 && x < 100 && y >= 20 && y < 100;
+  const inB = (x, y) => x >= 140 && x < 240 && y >= 40 && y < 80, inC = (x, y) => x >= 140 && x < 240 && y >= 80 && y < 120;
+  const fruit = (x, y) => (inA(x, y) || inC(x, y) ? 1 : inB(x, y) ? 2 : 0);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fs-ras-'));
+  fs.writeFileSync(path.join(dir, 'sg-densityMap_fruits.gdm'), gdmR(256, [fruit, (x, y) => (fruit(x, y) ? 3 : 0)]));
+  fs.writeFileSync(path.join(dir, 'sg-densityMap_ground.gdm'), gdmR(256, [(x, y) => (fruit(x, y) ? 7 : 0)]));
+  fs.writeFileSync(path.join(dir, 'sg-infoLayer_limeLevel.grle'), grle(256, 256, x => (x < 60 ? 0 : 1)));
+  const fruits = [{ name: 'WHEAT', density: 1, harvestMin: 3, harvestMax: 4, cut: 5 }, { name: 'BARLEY', density: 2, harvestMin: 5, harvestMax: 6 }];
+  const r = M.build(dir, { mapSize: 128, fruits, grid: { size: 2, lab: [1, 2, 1, 2] }, colorOf: () => '#e2c044', stateColor: () => '#f2a51d' });
+  assert.equal(r.size, 256);
+  assert.equal(r.learned, false, 'Zahlen der Früchte kommen aus der Mod');
+  assert.deepEqual(Object.keys(r.images.fruits).sort(), ['BARLEY', 'WHEAT']);
+  assert.ok(fs.existsSync(path.join(dir, r.images.fruits.WHEAT)), 'Bild je Frucht');
+  assert.equal(fs.readFileSync(path.join(dir, r.images.care.kalk)).subarray(0, 4).toString('hex'), '89504e47');
+  assert.deepEqual(r.parcels[1].fruits, { WHEAT: 0.16 });
+  assert.deepEqual(r.parcels[2].fruits, { WHEAT: 0.1, BARLEY: 0.1 }, 'zwei Früchte auf einem Grundstück');
+  assert.deepEqual(r.parcels[2].states, { reif: 0.1, waechst: 0.1 }, 'Weizen reif, Gerste wächst noch');
+  assert.deepEqual(r.parcels[1].care, { kalk: 0.08 }, 'nur der Streifen braucht Kalk');
+  assert.deepEqual(r.parcels[2].care, {});
+
+  // Ohne Zahlen aus der Mod: aus fields.xml gelernt (häufigste Zahl im Umriss des Felds)
+  const poly = [[-54, -54], [-14, -54], [-14, -14], [-54, -14]];
+  const learn = M.fruitValues(M.readGdm(gdmR(256, [fruit])).data, 256, 128, [{ name: 'WHEAT' }], [{ id: 1, fruit: 'WHEAT' }], { 1: poly });
+  assert.equal(learn.learned, true);
+  assert.equal(learn.map.get(1), 'WHEAT');
+  assert.equal(learn.map.get(2), undefined, 'Gerste kennt fields.xml nicht');
+  // Zahlen der Mod, die fields.xml überwiegend widerspricht, gelten nicht
+  const wrong = M.fruitValues(M.readGdm(gdmR(256, [fruit])).data, 256, 128, [{ name: 'WHEAT', density: 7 }, { name: 'BARLEY', density: 1 }], [{ id: 1, fruit: 'WHEAT' }], { 1: poly });
+  assert.deepEqual([wrong.learned, wrong.map.get(1)], [true, 'WHEAT']);
+  const right = M.fruitValues(M.readGdm(gdmR(256, [fruit])).data, 256, 128, [{ name: 'WHEAT', density: 1 }, { name: 'BARLEY', density: 2 }], [{ id: 1, fruit: 'WHEAT' }], { 1: poly });
+  assert.deepEqual([right.learned, right.map.get(2)], [false, 'BARLEY']);
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test('Symbole: Kürzel, eigene Zeichnung, hochgeladenes Original', () => {
@@ -255,84 +287,6 @@ test('Changelog: Updates des Hubs aus CHANGELOG.md, jedes nur einmal', () => {
   const e = hub.changelog(10).find(c => c.title === 'Farming Hub: Neu');
   assert.equal(e.kind, 'update');
   assert.equal(e.body, '• Eins\n• Zwei');
-});
-
-// ---------- Feldumrisse aus der Karte (src/fsfields.js) ----------
-const I3D = `<?xml version="1.0" encoding="iso-8859-1"?>
-<i3D name="map"><Files><File fileId="1" filename="x.png"/></Files>
-<Scene>
-  <TransformGroup name="gameplay" translation="100 0 0" nodeId="1">
-    <TransformGroup name="fields" translation="0 5 -50" nodeId="2">
-      <!-- Feld 1: liegt gerade -->
-      <TransformGroup name="field1" translation="10 0 10" nodeId="3">
-        <TransformGroup name="polygonPoints" nodeId="4">
-          <TransformGroup name="point1" translation="0 0 0" nodeId="5"/>
-          <TransformGroup name="point2" translation="40 0 0" nodeId="6"/>
-          <TransformGroup name="point3" translation="40 0 40" nodeId="7"/>
-          <TransformGroup name="point4" translation="0 0 40" nodeId="8"/>
-        </TransformGroup>
-        <TransformGroup name="nameIndicator" translation="20 0 20" nodeId="9"><Note name="Note" text="1" nodeId="10"/></TransformGroup>
-        <TransformGroup name="teleportIndicator" nodeId="11"/>
-      </TransformGroup>
-      <!-- Feld 2: um 90 Grad gedreht -->
-      <TransformGroup name="field2" translation="-200 0 100" rotation="0 90 0" nodeId="12">
-        <TransformGroup name="polygonPoints" nodeId="13">
-          <TransformGroup name="point1" translation="0 0 0" nodeId="14"/>
-          <TransformGroup name="point2" translation="10 0 0" nodeId="15"/>
-          <TransformGroup name="point3" translation="10 0 20" nodeId="16"/>
-        </TransformGroup>
-      </TransformGroup>
-    </TransformGroup>
-  </TransformGroup>
-  <Shape name="baum" translation="1 2 3" nodeId="20"/>
-</Scene>
-<UserAttributes><UserAttribute nodeId="2"><Attribute name="onCreate" type="scriptCallback" value="x"/></UserAttribute></UserAttributes>
-</i3D>`;
-
-test('Feldumrisse: map.i3d mit verschachtelten und gedrehten Knoten, aus einem ZIP gelesen, Feldern zugeordnet', () => {
-  const FF = require('../src/fsfields');
-  const polys = FF.i3dFields(I3D);
-  assert.equal(polys.length, 2);
-  assert.equal(polys[0].name, 'field1');
-  assert.deepEqual(polys[0].pts, [[110, -40], [150, -40], [150, 0], [110, 0]]);
-  // Drehung um Y: x → (cos·x, −sin·x), z → (sin·z, cos·z)
-  assert.deepEqual(polys[1].pts.map(p => p.map(v => Math.round(v))), [[-100, 50], [-100, 40], [-80, 40]]);
-  assert.throws(() => FF.i3dFields('<i3D/>'), /Keine i3d/);
-
-  // ZIP wie im mods-Ordner: Inhaltsverzeichnis am Ende, dann nur der eine Eintrag
-  const AdmZip = require('adm-zip');
-  const z = new AdmZip();
-  z.addFile('modDesc.xml', Buffer.from('<modDesc/>'));
-  z.addFile('placeables/shed/shed.i3d', Buffer.from('<i3D><Scene/></i3D>'));
-  z.addFile('maps/map.i3d', Buffer.from(I3D + ' '.repeat(5000)));
-  const zip = z.toBuffer();
-  const tailStart = Math.max(0, zip.length - 200);
-  const dirAt = FF.zipDirectory(zip.subarray(tailStart), tailStart);
-  const entries = FF.zipEntries(zip.subarray(dirAt.offset, dirAt.offset + dirAt.size));
-  assert.deepEqual(entries.map(e => e.name).sort(), ['maps/map.i3d', 'modDesc.xml', 'placeables/shed/shed.i3d']);
-  const best = FF.mapCandidates(entries)[0];
-  assert.equal(best.name, 'maps/map.i3d');
-  const data = FF.zipData(zip.subarray(best.offset), best).toString('utf8');
-  assert.equal(FF.i3dFields(data).length, 2);
-
-  // Mitte im Vieleck → genau dieses, sonst das nächste in 40 m; Karte 2048 m → Maß 0–1000
-  const shapes = FF.matchFields(polys, [{ id: 7, x: 130, z: -20 }, { id: 8, x: -95, z: 60 }, { id: 9, x: 900, z: 900 }], 2048);
-  assert.ok(shapes[7].exact);
-  assert.equal(shapes[7].ha, 0.16);
-  assert.match(shapes[7].d, /^M553\.7 480\.5L/);
-  assert.ok(shapes[8], 'nahe genug am gedrehten Feld');
-  assert.ok(!shapes[9], 'weit weg: bleibt Kreis');
-});
-
-test('Feldumrisse ohne Feldboden: auch noch nicht bestellte Felder bekommen ihre Form', () => {
-  const M = require('../src/fsmap');
-  M.forget();
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fs-shp-'));
-  const polys = require('../src/fsfields').i3dFields(I3D);
-  const r = M.load(dir, {}, [{ id: 1, x: 130, z: -20, area: 0.2 }, { id: 2, x: 0, z: 0, area: 1 }], 2048, { sig: 'a', polys });
-  assert.equal(r.exact, 1);
-  assert.ok(r.shapes[1] && !r.shapes[2]);
-  assert.equal(M.load(dir, {}, [{ id: 1, x: 130, z: -20 }], 2048, null), null, 'ohne Boden und Umrisse nichts');
 });
 
 test('Spielstände: anderer Spielstand legt Höfe und Aufgaben beiseite, zurück holt sie wieder', () => {
@@ -402,45 +356,6 @@ test('Höfe: mit farms.xml zählen nur Höfe aus dem Spielstand', () => {
   assert.ok(hub.model().farms.some(f => f.id === 5), 'ohne farms.xml wieder alle');
 });
 
-test('Felder im Kartenbild: zwei Äcker mit Grenze, Wald drumherum, jedes Feld für sich', () => {
-  const D = require('../public/fsdetect');
-  const w = 120, h = 80, data = new Uint8ClampedArray(w * h * 4);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const i = (y * w + x) * 4;
-    let c = ((x * 7 + y * 13) % 5 < 2) ? [20, 60, 20] : [45, 90, 35];          // unruhiger Wald
-    if (x >= 10 && x < 58 && y >= 10 && y < 70) c = [150, 110, 70];              // Acker A
-    if (x >= 60 && x < 110 && y >= 10 && y < 70) c = [148, 108, 72];             // Acker B, fast gleiche Farbe
-    if ((x === 58 || x === 59) && y >= 10 && y < 70) c = [215, 180, 130];        // helle Feldgrenze
-    data.set([...c, 255], i);
-  }
-  const seeds = [{ id: 1, x: 30, y: 40, max: 4000, min: 200 }, { id: 2, x: 85, y: 40, max: 4000, min: 200 }, { id: 3, x: 3, y: 3, max: 50, min: 40 }];
-  const r = D.detect({ width: w, height: h, data }, seeds);
-  assert.ok(r[1] && r[2], 'beide Äcker');
-  assert.ok(!r[3], 'im Wald nichts');
-  const box = pts => [Math.min(...pts.map(p => p[0])), Math.max(...pts.map(p => p[0])), Math.min(...pts.map(p => p[1])), Math.max(...pts.map(p => p[1]))];
-  const a = box(r[1]), b = box(r[2]);
-  assert.ok(a[1] <= 59 && b[0] >= 59, `Grenze hält: A bis ${a[1]}, B ab ${b[0]}`);
-  assert.ok(a[0] <= 12 && a[2] <= 12 && a[3] >= 68, 'A fast ganz: ' + a.join(','));
-});
-
-test('Eigene Feldumrisse: gehen vor, gehören zum Spielstand, „Automatisch“ nimmt sie weg', () => {
-  const { db } = require('../src/db');
-  const hub = require('../src/fshub');
-  db.prepare('DELETE FROM fs_outlines').run();
-  const id = hub.model().fields[0].id, f = hub.model().fields[0];
-  const sq = [[f.x - 20, f.z - 20], [f.x + 20, f.z - 20], [f.x + 20, f.z + 20], [f.x - 20, f.z + 20]];
-  assert.equal(hub.saveOutlines({ [id]: sq, 99999: [[0, 0], [1, 1]], abc: sq, [id + 1]: [[0, 0], [1e9, 0], [0, 1]] }, 'bild', null), 1, 'nur das gültige');
-  hub.invalidate();
-  const s = hub.shapes();
-  assert.equal(s.shapes[id].src, 'bild');
-  assert.equal(s.shapes[id].ha, 0.16);
-  hub.saveOutlines({ [id]: sq.slice(0, 3) }, 'hand', null);
-  assert.equal(hub.shapes().shapes[id].src, 'hand');
-  hub.removeOutline(id);
-  assert.ok(!hub.shapes() || !hub.shapes().shapes[id] || hub.shapes().shapes[id].src !== 'hand');
-  assert.ok(require('../src/fssaves').TABLES.includes('fs_outlines'));
-});
-
 test('Felder ohne Eintrag im Stats-Feed kommen aus den Grundstücken', () => {
   const { db, now } = require('../src/db');
   const hub = require('../src/fshub');
@@ -471,7 +386,7 @@ test('Grundstücke ohne Feld: auf der Karte als Grundstück, zählen nicht als F
   if (s) for (const p of parcels) assert.ok(!s.shapes[p.id] || ['hand', 'bild'].includes(s.shapes[p.id].src), 'keine Form aus dem Feldboden');
 });
 
-test('Produktionsplaner: Gebäude aus placeables.xml, Rezept eintragen, Rechner', () => {
+test('Produktionsplaner ohne Mod: Gebäude und Produktionen aus placeables.xml, Obstplantagen, Rechner', () => {
   const P = require('../src/fsprod');
   const plc = F.readPlaceables(`<placeables>
     <placeable isPreplaced="true" uniqueId="preplaced_bakery_9110d7de511c929e2cf101b72b5310af" price="150000.000000" farmId="0">
@@ -483,18 +398,14 @@ test('Produktionsplaner: Gebäude aus placeables.xml, Rezept eintragen, Rechner'
   assert.deepEqual(orch.rows[0], [10, -200, 10, -176]);
   assert.equal(orch.type, 'COFFEE');
   assert.equal(P.typeOf(plc[0]), 'bakery');
-  const list = P.buildings(plc);
-  const b = list.find(x => x.key === 'bakery');
-  assert.equal(b.name, 'Bäckerei');
-  assert.equal(b.price, 150000);
-  assert.deepEqual(b.recipes.map(r => r.name), ['Brot', 'Banana Cake']);
-  assert.equal(b.instances[0].on.length, 1);
-  P.saveBuilding('bakery', { name: 'Bäckerei', price: '150.000', mode: 'seriell' });
-  P.saveRecipe('bakery', 'bread', { cycles: '20', cost: '1.200,5', in_amount_0: '300', in_fill_0: 'Mehl', in_amount_1: '50', in_fill_1: 'SUGAR', out_amount_0: '200', out_fill_0: 'Brot', in_fill_2: 'nur Name ohne Menge' });
-  const r = P.recipes('bakery').find(x => x.id === 'bread');
-  assert.deepEqual(r.inputs, [{ fill: 'FLOUR', name: 'Mehl', amount: 300 }, { fill: 'SUGAR', name: 'Zucker', amount: 50 }]);
-  assert.equal(r.cost, 1200.5);
-  // Knappstes Input bestimmt die Zyklen; seriell mit zwei gleichzeitig: halbe Zyklen pro Monat
+  const L = P.all(null, plc);
+  assert.equal(L.eigene.length, 0);
+  const b = L.karte[0];
+  assert.deepEqual([b.key, b.name, b.section, b.price], ['preplaced_bakery_9110d7de511c929e2cf101b72b5310af', 'Bäckerei', 'karte', 150000]);
+  assert.deepEqual(b.recipes.map(r => [r.name, r.active, r.complete]), [['Brot', true, false], ['Bananenkuchen', false, false]]);
+  assert.equal(L.katalog[0].key, 'k:bakery', 'ohne Katalog der Mod: je Art eins aus der Karte');
+  // Rechner: knappstes Input bestimmt die Zyklen; seriell mit zwei gleichzeitig: halbe Zyklen pro Monat
+  const r = { inputs: [{ fill: 'FLOUR', amount: 300 }, { fill: 'SUGAR', amount: 50 }], outputs: [{ fill: 'BREAD', amount: 200 }], cycles: 20, cost: 1200.5 };
   const c = P.calc(r, { amounts: [1000, 500], shared: 2, dpp: 3 });
   assert.equal(c.cycles, 3);
   assert.equal(c.made[0].total, 600);
@@ -503,45 +414,6 @@ test('Produktionsplaner: Gebäude aus placeables.xml, Rezept eintragen, Rechner'
   assert.equal(c.months, 0.3);
   assert.ok(Math.abs(c.days - 0.9) < 1e-9);
   assert.equal(P.calc(r, { cycles: 40 }).months, 2);
-  // Abgleich ändert den eingetragenen Preis nicht
-  P.forget(); P.buildings(plc);
-  assert.equal(P.building('bakery').mode, 'seriell');
-});
-
-test('Stationen der Karte: aus placeables.xml, Position von Hand', () => {
-  const ST = require('../src/fsstations');
-  const plc = F.readPlaceables(`<placeables>
-    <placeable isPreplaced="true" uniqueId="preplaced_gasStation02_0b4aef7a1913e51d2724bd482c754db24" price="0" farmId="0">
-      <customImage filename="$pdlcdir$beansAndAlpacasPack/map/mapIcons/mapIcon_gasStation.png"/></placeable>
-    <placeable isPreplaced="true" uniqueId="preplaced_siloConcrete01_1359881b3aef5ffc573f398828793ac41" price="0" farmId="0">
-      <customImage filename="$pdlcdir$beansAndAlpacasPack/map/mapIcons/mapIcon_grainElevator.png"/>
-      <sellingStation><stats fillType="WHEAT" received="0"/><stats fillType="BARLEY" received="0"/></sellingStation></placeable>
-    <placeable isPreplaced="true" uniqueId="preplaced_siloConcrete01_2359881b3aef5ffc573f398828793ac41" price="0" farmId="0">
-      <customImage filename="$pdlcdir$beansAndAlpacasPack/map/mapIcons/mapIcon_GCHBGrainElevator.png"/>
-      <sellingStation><stats fillType="WHEAT" received="0"/></sellingStation></placeable>
-    <placeable isPreplaced="true" uniqueId="preplaced_buyingStationManure_aa33770270cb54ad38d785dd9adf13d6" price="0" farmId="0">
-      <customImage filename="data/placeables/shared/buyingStations/buyingStationManure/mapIcon_buyingStationManure.png"/>
-      <sellingStation><stats fillType="MANURE"/></sellingStation></placeable>
-    <placeable isPreplaced="true" uniqueId="preplaced_bakery_9110d7de511c929e2cf101b72b5310af" price="150000" farmId="0">
-      <customImage filename="$pdlcdir$beansAndAlpacasPack/map/mapIcons/mapIcon_bakery.png"/>
-      <productionPoint><production id="bread" isEnabled="true"/><storage><node fillType="FLOUR" fillLevel="10"/></storage></productionPoint></placeable>
-    <placeable isPreplaced="true" uniqueId="preplaced_fence02_ab56d0493b074f03225c1e451c2ef846" farmId="0"/>
-    <placeable isPreplaced="true" uniqueId="preplaced_farmStorage01_3d833770270cb54ad38d785dd9adf13d6" farmId="15"><silo><node fillType="WHEAT" fillLevel="5"/></silo></placeable>
-  </placeables>`);
-  assert.equal(plc.find(p => p.icon === 'gasStation').kind, 'station');
-  assert.deepEqual(plc.find(p => p.icon === 'grainElevator').sells, ['WHEAT', 'BARLEY']);
-  const L = ST.list(plc);
-  assert.deepEqual(L.map(s => [s.cat, s.name]), [['verkauf', 'Getreidesilo 1'], ['verkauf', 'Getreidesilo 2'], ['einkauf', 'Mist kaufen'], ['produktion', 'Bäckerei'], ['tanken', 'Tankstelle']]);
-  assert.equal(L.find(s => s.cat === 'produktion').planner, 'bakery');
-  assert.ok(L.every(s => !s.placed), 'vorplatzierte haben keine Position');
-  const uid = L.find(s => s.cat === 'tanken').uid;
-  assert.equal(ST.place(uid, 120.44, -300, null), true);
-  assert.equal(ST.place(uid, NaN, 1, null), false);
-  const t = ST.list(plc).find(s => s.uid === uid);
-  assert.deepEqual([t.x, t.z, t.placed, t.fixed], [120.4, -300, true, false]);
-  ST.place(uid, null, null);
-  assert.equal(ST.list(plc).find(s => s.uid === uid).placed, false);
-  assert.ok(require('../src/fssaves').TABLES.includes('fs_stations'));
 });
 
 test('Bodenverteilung: von Hand je Feld, gehört zum Spielstand', () => {
@@ -558,12 +430,14 @@ test('Bodenverteilung: von Hand je Feld, gehört zum Spielstand', () => {
   assert.equal(hub.soils().has(id), false, 'alles leer löscht');
 });
 
-test('Kartendaten aus dem Spiel: Felder, Grundstücksgrenzen, Stationen und Rezepte aus farmingHubExport.xml', () => {
+test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen mit Lager, Katalog, Waren und Früchte', () => {
   const E = require('../src/fsexport');
   const P = require('../src/fsprod');
-  const M = require('../src/fsmap');
+  const ST = require('../src/fsstations');
+  const C = require('../src/fscrops');
+  const N = require('../src/fsnames');
   const e = E.read(fs.readFileSync(path.join(__dirname, 'fixtures', 'fs', 'farmingHubExport.xml'), 'utf8'));
-  assert.equal(e.mapTitle, 'Riverbend Springs');
+  assert.deepEqual([e.version, e.mapTitle, e.dpp], [2, 'Riverbend Springs', 2]);
   assert.deepEqual(e.fields.map(f => [f.id, f.farmland, f.pts.length]), [[1, 1, 4], [2, 3, 4]]);
   assert.deepEqual(e.fields[1].pts[2], [250, 180]);
   // Grundstückskarte 64 × 64 auf 2048 m: eine Zelle 32 m
@@ -571,35 +445,52 @@ test('Kartendaten aus dem Spiel: Felder, Grundstücksgrenzen, Stationen und Reze
   assert.deepEqual(box(1), [-512, -512, -256, -256]);
   assert.deepEqual(box(2), [-1024, -64, 1024, 0]);
   assert.deepEqual(Object.keys(e.parcels).sort(), ['1', '2', '3']);
-  // Feld 2 liegt auf Grundstück 3: der Hub zählt nach Grundstück, das Feld geht vor der Grundstücksgrenze
-  const sh = E.shapes(e);
-  assert.equal(sh[3].kind, 'feld');
-  assert.equal(sh[2].kind, 'grundstueck');
+  assert.equal(E.parcelAt(e, -400, -400), 1);
+  assert.equal(E.parcelAt(e, 175, 140), 3);
+  assert.equal(E.parcelAt(e, 900, 900), 0);
   const silo = e.placeables.find(p => p.hotspot === 'UNLOADING');
   assert.deepEqual([silo.x, silo.z, silo.sells], [310, -190, ['BARLEY', 'WHEAT']]);
   assert.deepEqual(e.placeables.find(p => p.hotspot === 'FUEL').buys, ['DIESEL']);
-
-  // Positionen für vorplatzierte Gebäude aus placeables.xml
   const plc = [{ uid: silo.uid, x: null, z: null, productions: [] }, { uid: 'eigen', x: 1, z: 2, productions: [] }];
   const withPos = E.withPositions(plc, e);
   assert.deepEqual([withPos[0].x, withPos[0].z, withPos[1].x], [310, -190, 1]);
 
-  // Rezepte: füllen, was fehlt; was ein Admin eingetragen hat (Brot aus dem Planer-Test), bleibt
-  const before = P.recipes('bakery').find(r => r.id === 'bread');
-  P.fromGame({ ...e, source: 'ftp' });
-  const butter = P.recipes('bakery').find(r => r.id === 'butter');
-  assert.deepEqual([butter.name, butter.cycles, butter.cost, butter.inputs[0].fill, butter.inputs[0].amount, butter.outputs[0].amount], ['Butter', 408, 360, 'MILK', 15, 15]);
-  assert.equal(P.recipes('bakery').find(r => r.id === 'bread').cycles, before.cycles);
-  assert.equal(P.building('bakery').mode, 'seriell');
+  // Stationen mit Position aus dem Spiel, Produktionen führen in den Planer
+  const S = ST.list(e, []);
+  assert.deepEqual(S.map(s => [s.cat, s.name, s.placed]).filter(x => x[0] !== 'produktion'), [['verkauf', 'Getreidesilo', true], ['tanken', 'Tankstelle', true]]);
+  assert.equal(S.find(s => s.type === 'bakery').planner, 'preplaced_bakery_cccccccccccccccccccccccccccccccc');
 
-  // Auf der Karte: aus dem Spiel geht vor dem Kartenbild, von Hand gezeichnet geht vor
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fs-exp-'));
-  const fields = [{ id: 1, x: -400, z: -400, area: 5 }, { id: 2, x: 0, z: -30, area: 10, parcel: true }, { id: 3, x: 175, z: 140, area: 2 }];
-  M.forget();
-  const own = { sig: 'a', polys: { 1: { pts: [[0, 0], [10, 0], [10, 10]], source: 'bild' }, 3: { pts: [[0, 0], [10, 0], [10, 10]], source: 'hand' } } };
-  const r = M.load(dir, {}, fields, 2048, null, own, { sig: E.sig({ ...e, source: 'ftp' }), shapes: sh });
-  assert.deepEqual([r.shapes[1].src, r.shapes[2].src, r.shapes[3].src, r.game], ['spiel', 'spiel', 'hand', 3]);
-  assert.equal(r.shapes[1].ha, 4);
+  // Planer: Karte, eigene Gebäude mit Lager, Katalog aus dem Shop
+  const L = P.all(e, [], () => 'Lage');
+  assert.deepEqual(L.karte.map(b => b.name), ['Bäckerei']);
+  assert.deepEqual(L.eigene.map(b => [b.name, b.farmId, b.mode]), [['Spinnerei am Hof', 1, '']]);
+  assert.deepEqual(L.karte[0].storage.find(x => x.fill === 'FLOUR'), { fill: 'FLOUR', name: 'Mehl', level: 1200, cap: 10000 });
+  assert.equal(L.karte[0].mode, 'seriell');
+  assert.equal(L.karte[0].catalog, 'k:$data/placeables/bakery.xml');
+  assert.deepEqual(L.katalog.map(b => [b.name, b.price, b.dlc]), [['Bäckerei', 250000, ''], ['Farbenfabrik', 420000, 'Beans and Alpacas']]);
+  assert.deepEqual(L.katalog[1].recipes[0].inputs.map(x => x.fill), ['ALPACAFLEECE', 'WATER'], 'Farbenfabrik mit Rezept aus dem Spiel');
+  const yarn = L.eigene[0].recipes[0];
+  assert.deepEqual([yarn.name, yarn.active, yarn.complete, yarn.cycles], ['Garn', true, true, 200]);
+  // Wo eine Ware vorkommt: Alpakavlies geht in Spinnerei und Farbenfabrik, Brot kommt aus der Bäckerei (Katalog zuerst, je Art einmal)
+  const U = P.uses(L, 'ALPACAFLEECE');
+  assert.deepEqual(U.input.map(u => [u.building.name, u.recipe.name, u.amount]), [['Farbenfabrik', 'Farbe', 5], ['Spinnerei am Hof', 'Garn', 10]]);
+  assert.deepEqual(U.output, []);
+  assert.deepEqual(P.uses(L, 'BREAD').output.map(u => u.building.key), ['k:$data/placeables/bakery.xml']);
+
+  // Waren: eigenes Wörterbuch geht vor, sonst der Name aus dem Spiel (nur auf Deutsch), sonst lesbar gemacht
+  N.setGameTitles(e.fillTypes, e.language);
+  assert.equal(N.fill('ALPACAFLEECE'), 'Alpakavlies');
+  assert.equal(N.fill('MODFILL'), 'Spezialware');
+  N.setGameTitles(e.fillTypes, 'en');
+  assert.equal(N.fill('MODFILL'), 'Modfill');
+  N.setGameTitles([], '');
+
+  // Früchte: Saat und Ernte aus dem Spiel (Monat 1 = März), sonst Vorlage; Kaffee ist Dauerkultur ohne Saat
+  const crops = C.list(e);
+  const w = crops.find(c => c.name === 'WHEAT'), k = crops.find(c => c.name === 'COFFEE');
+  assert.deepEqual([w.label, w.sow, w.harvest, w.fromGame, w.kind, w.harvestMin], ['Weizen', [6, 7], [4, 5], true, 'field', 8]);
+  assert.deepEqual([k.label, k.kind, k.sow, k.harvest, k.planned], ['Kaffee', 'perm', [], [6, 7], true]);
+  assert.equal(C.list(null).find(c => c.name === 'BANANA').kind, 'perm', 'ohne Mod: Vorlage');
 
   // Die Mod zum Herunterladen: modDesc, Skript und Symbol als DDS
   const AdmZip = require('adm-zip');
@@ -609,5 +500,6 @@ test('Kartendaten aus dem Spiel: Felder, Grundstücksgrenzen, Stationen und Reze
   assert.equal(dds.toString('latin1', 0, 4), 'DDS ');
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>2\.0\.0\.0<\/version>/);
   assert.throws(() => E.read('<placeables/>'), /Farming Hub Export/);
 });

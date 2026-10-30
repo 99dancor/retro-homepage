@@ -1,23 +1,26 @@
 'use strict';
-// Farming Simulator Hub: Produktionsplaner. Welche Produktionsgebäude es gibt, was sie kosten, was ihre Produktionen
-// brauchen und liefern, und ein Rechner: aus so viel Input wird so viel Output in so vielen Zyklen.
+// Farming Simulator Hub: Produktionsplaner. Drei Bereiche:
 //
-//   Gebäude und Produktionen kommen aus placeables.xml (FTP): jedes Gebäude mit <productionPoint> und seinen
-//   <production id="…">, vorplatzierte mit Kaufpreis. Rezepte, Zyklen pro Monat, Kosten und ob die Produktionen
-//   parallel oder seriell laufen, stehen nur in den Spieldateien (.gar/.dlc). Die trägt ein Admin im Planer nach.
-//   Parallel: jede aktive Produktion hat ihre vollen Zyklen. Seriell: alle aktiven teilen sich die Zyklen des Gebäudes.
-const { db, now } = require('./db');
+//   Karte     Produktionen, die zur Karte gehören (vorplatziert), mit Besitzer und Lage. Ziel beim Klick aufs Kartensymbol.
+//   Eigene    Gebäude, die ein Hof selbst gebaut hat, mit Lager (Füllstand und Platz beim letzten Speichern) und welche
+//             Produktionen laufen.
+//   Katalog   alle Produktionen, die man im Shop kaufen kann, mit Preis und Rezepten.
+//
+// Alles kommt aus dem Spiel (Mod „Farming Hub Export“, src/fsexport.js): Rezepte, Zyklen und Kosten pro Monat, ob sich die
+// Produktionen eines Gebäudes die Zyklen teilen (seriell) oder jede für sich läuft (parallel). Ohne die Mod kennt der Hub aus
+// placeables.xml nur Gebäude und Namen der Produktionen. Von Hand eingetragen wird nichts.
 const N = require('./fsnames');
 
 const NAMES = {
-  bakery: 'Bäckerei', carpentry: 'Tischlerei', coffeeDryingPlant: 'Kaffeeverarbeitung', coffeeRoastery: 'Kaffeerösterei', coffeeShop: 'Café',
+  bakery: 'Bäckerei', carpentry: 'Tischlerei', coffeeDryingPlant: 'Kaffeetrocknung', coffeeRoastery: 'Kaffeerösterei', coffeeShop: 'Café',
   dairy: 'Molkerei', oilPlant: 'Ölmühle', oilMill: 'Ölmühle', paperFactory: 'Papierfabrik', pigmentFactory: 'Pigmentfabrik', spinnery: 'Spinnerei',
   sugarMill: 'Zuckerfabrik', cannedFoodFactory: 'Konservenfabrik', tailorShop: 'Schneiderei', paintProductionFactory: 'Farbenfabrik', sawmill: 'Sägewerk',
   grainMill: 'Getreidemühle', cementFactory: 'Zementwerk', cerealFactory: 'Müslifabrik', ropeMaker: 'Seilerei', preservedFoodFactory: 'Konservenfabrik',
   riceMill: 'Reismühle', grapeProcessing: 'Traubenverarbeitung', winery: 'Weingut', greenhouse: 'Gewächshaus', compostPlant: 'Kompostanlage',
+  bga1mw: 'Biogasanlage', sanctuary: 'Gnadenhof',
 };
 const MODES = { parallel: 'Parallel', seriell: 'Seriell' };
-const MAX_ROWS = { in: 6, out: 4 };
+const SECTIONS = { karte: 'Auf der Karte', eigene: 'Eigene Gebäude', katalog: 'Katalog' };
 
 // Art eines Gebäudes: Dateiname der Placeable-XML, bei vorplatzierten aus der uniqueId (preplaced_bakery_<hash>)
 function typeOf(p) {
@@ -32,87 +35,100 @@ function buildingName(type) {
   if (/^bga|biogas/i.test(type)) return 'Biogasanlage';
   return N.pretty(words(type).toUpperCase().replace(/ /g, '_'));
 }
-// Produktion: als Ware bekannt (bread → Brot), sonst lesbar gemacht (bananaCake → Banana Cake)
+// Produktion ohne Namen aus dem Spiel: als Ware bekannt (bread → Brot), sonst lesbar gemacht (bananaCake → Banana Cake)
 function recipeName(id) {
   const code = String(id).toUpperCase();
   if (N.FILL[code]) return N.FILL[code];
   return words(id).replace(/\b\w/g, c => c.toUpperCase());
 }
-// Ware aus der Eingabe: Kürzel (WHEAT) oder deutscher Name (Weizen) → Kürzel, sonst nur der Name
-const BY_NAME = new Map(Object.entries(N.FILL).map(([k, v]) => [v.toLowerCase(), k]));
-function fillOf(text) {
-  const t = String(text || '').trim().slice(0, 40);
-  if (!t) return null;
-  const code = t.toUpperCase().replace(/\s+/g, '_');
-  if (N.FILL[code]) return { fill: code, name: N.FILL[code] };
-  const k = BY_NAME.get(t.toLowerCase());
-  return k ? { fill: k, name: N.FILL[k] } : { fill: null, name: t };
+const isPreplaced = p => /^preplaced_/i.test(p.uid || '');
+const rows = list => (list || []).filter(x => x.fill && x.amount > 0).map(x => ({ fill: x.fill, name: N.fill(x.fill), amount: x.amount, sell: !!x.sell }));
+function recipe(r) {
+  const inputs = rows(r.inputs), outputs = rows(r.outputs);
+  return { id: r.id, name: r.name && !/^\$l10n/.test(r.name) ? r.name : recipeName(r.id), cycles: r.cycles > 0 ? r.cycles : null, cost: r.cost ?? null,
+    inputs, outputs, active: !!r.active, complete: r.cycles > 0 && outputs.length > 0 };
 }
+const modeOf = (shared, n) => (n > 1 ? (shared ? 'seriell' : 'parallel') : '');
 
-// ---------- Abgleich mit dem Spielstand ----------
-let synced = null;
-function sync(plc) {
-  const sig = plc ? plc.length + ':' + plc.reduce((a, p) => a + p.productions.length, 0) : '';
-  if (!plc || synced === sig) return;
-  const addB = db.prepare('INSERT OR IGNORE INTO fs_prod_buildings(key, name, price, updated_at) VALUES (?, ?, ?, ?)');
-  const price = db.prepare('UPDATE fs_prod_buildings SET price = ? WHERE key = ? AND price IS NULL');
-  const addR = db.prepare('INSERT OR IGNORE INTO fs_prod_recipes(building, id, name, position) VALUES (?, ?, ?, ?)');
-  for (const p of plc) {
-    if (p.kind !== 'production' || !p.productions.length) continue;
-    const key = typeOf(p);
-    addB.run(key, buildingName(key), p.price > 0 ? p.price : null, now());
-    if (p.price > 0) price.run(p.price, key);
-    p.productions.forEach((r, i) => addR.run(key, r.id, recipeName(r.id), i));
+// Alle Gebäude in drei Bereichen. ex: Export (oder null), plc: placeables.xml (Fallback ohne Mod und für Füllstände),
+// where(x, z) → Lage als Text, catalogName(file) für den Namen aus dem Shop
+function all(ex, plc, where = () => null) {
+  const out = { karte: [], eigene: [], katalog: [] };
+  const cat = new Map(((ex && ex.catalog) || []).map(b => [b.file, b]));
+  const place = (p, section) => {
+    const type = typeOf(p), c = cat.get(p.file);
+    const name = p.name || (c && c.name) || buildingName(type);
+    const recipes = p.recipes.map(recipe);
+    return { key: p.uid, section, type, file: p.file, name, price: p.price || (c && c.price) || null, mode: modeOf(p.shared, recipes.length),
+      recipes, storage: p.storage || [], farmId: p.farmId || 0, x: p.x, z: p.z, where: where(p.x, p.z), catalog: c ? 'k:' + c.file : null, uid: p.uid };
+  };
+  if (ex && ex.placeables.some(p => p.production)) {
+    for (const p of ex.placeables) {
+      if (!p.production || !p.production.recipes.length) continue;
+      const storage = p.production.storage.map(s => ({ fill: s.fill, name: N.fill(s.fill), level: s.level, cap: s.cap }));
+      const b = place({ ...p, recipes: p.production.recipes, shared: p.production.shared, storage }, isPreplaced(p) || !p.farmId ? 'karte' : 'eigene');
+      out[b.section].push(b);
+    }
+  } else {
+    // Ohne Mod: nur, was placeables.xml weiß (Gebäude, Namen der Produktionen, ob sie laufen, Lagerstand)
+    for (const p of plc || []) {
+      if (p.kind !== 'production' || !p.productions.length) continue;
+      const storage = p.fills.filter(([sec]) => /production/i.test(sec)).map(([, fill, level]) => ({ fill, name: N.fill(fill), level, cap: null }));
+      const b = place({ ...p, recipes: p.productions.map(r => ({ id: r.id, active: r.on })), shared: true, storage }, isPreplaced(p) || !p.farmId ? 'karte' : 'eigene');
+      out[b.section].push(b);
+    }
   }
-  synced = sig;
+  if (cat.size) {
+    for (const c of cat.values()) {
+      const recipes = c.recipes.map(recipe);
+      out.katalog.push({ key: 'k:' + c.file, section: 'katalog', type: typeOf({ file: c.file }), file: c.file, name: c.name || buildingName(typeOf({ file: c.file })),
+        price: c.price, mode: modeOf(c.shared, recipes.length), recipes, storage: c.storage.map(s => ({ fill: s.fill, name: N.fill(s.fill), level: null, cap: s.cap })),
+        capacity: c.capacity, category: c.category, dlc: c.dlc });
+    }
+  } else {
+    // Mod Version 1: Katalog aus den Gebäuden, die es auf der Karte gibt (je Art eins)
+    const seen = new Set();
+    for (const b of [...out.karte, ...out.eigene]) {
+      if (seen.has(b.type)) continue;
+      seen.add(b.type);
+      out.katalog.push({ ...b, key: 'k:' + (b.file || b.type), section: 'katalog', storage: b.storage.map(s => ({ ...s, level: null })), farmId: 0, where: null, x: null, z: null });
+    }
+  }
+  const byName = (a, b) => a.name.localeCompare(b.name, 'de');
+  out.karte.sort(byName);
+  out.eigene.sort((a, b) => a.farmId - b.farmId || byName(a, b));
+  // Katalog: Grundspiel zuerst, dann je DLC bzw. Mod
+  out.katalog.sort((a, b) => !!a.dlc - !!b.dlc || String(a.dlc || '').localeCompare(String(b.dlc || ''), 'de') || byName(a, b));
+  // Gleich benannte Gebäude auf der Karte (zwei Biogasanlagen): mit Lage oder Nummer unterscheiden
+  for (const list of [out.karte, out.eigene]) {
+    const n = new Map();
+    for (const b of list) n.set(b.name, (n.get(b.name) || 0) + 1);
+    const k = new Map();
+    for (const b of list) if (n.get(b.name) > 1) { k.set(b.name, (k.get(b.name) || 0) + 1); b.label = b.where ? `${b.name} (${b.where})` : `${b.name} ${k.get(b.name)}`; }
+  }
+  for (const list of Object.values(out)) for (const b of list) b.label = b.label || b.name;
+  return out;
 }
 
-// Rezepte aus dem Spiel (Mod „Farming Hub Export“, src/fsexport.js): füllt, was noch fehlt. Was ein Admin schon
-// eingetragen hat (Zyklen gesetzt), bleibt. Kaufpreis und parallel/seriell ebenso nur, wenn noch leer.
-let gameSig = null;
-function fromGame(ex) {
-  const sig = ex ? `${ex.source}:${ex.at}` : null;
-  if (!ex || gameSig === sig) return;
-  const addB = db.prepare('INSERT OR IGNORE INTO fs_prod_buildings(key, name, price, updated_at) VALUES (?, ?, ?, ?)');
-  const fillB = db.prepare(`UPDATE fs_prod_buildings SET price = COALESCE(price, ?), mode = CASE WHEN mode = '' THEN ? ELSE mode END WHERE key = ?`);
-  const addR = db.prepare('INSERT OR IGNORE INTO fs_prod_recipes(building, id, name, position) VALUES (?, ?, ?, ?)');
-  const fillR = db.prepare('UPDATE fs_prod_recipes SET cycles = ?, cost = ?, inputs = ?, outputs = ? WHERE building = ? AND id = ? AND cycles IS NULL');
-  const rows = list => JSON.stringify(list.filter(x => x.amount > 0).map(x => ({ fill: x.fill, name: N.fill(x.fill), amount: x.amount })));
+// Wo eine Ware in Produktionen vorkommt: { input: [{ building, recipe }], output: […] }. Katalog zuerst (je Art eins), dazu
+// Gebäude der Karte, die es im Shop nicht gibt.
+function uses(sections, fill) {
+  const out = { input: [], output: [] };
   const seen = new Set();
-  for (const p of ex.placeables) {
-    if (!p.production || !p.production.recipes.length) continue;
-    const key = typeOf({ file: p.file, uid: p.uid });
-    if (seen.has(key)) continue;
-    seen.add(key);
-    addB.run(key, buildingName(key), p.price > 0 ? p.price : null, now());
-    fillB.run(p.price > 0 ? p.price : null, p.production.recipes.length > 1 ? (p.production.shared ? 'seriell' : 'parallel') : '', key);
-    p.production.recipes.forEach((r, i) => {
-      addR.run(key, r.id, r.name || recipeName(r.id), i);
-      if (r.cycles > 0) fillR.run(r.cycles, r.cost, rows(r.inputs), rows(r.outputs), key, r.id);
-    });
-  }
-  gameSig = sig;
-}
-
-const parse = s => { try { const v = JSON.parse(s || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
-function recipes(key) {
-  return db.prepare('SELECT * FROM fs_prod_recipes WHERE building = ? ORDER BY position, name').all(key)
-    .map(r => ({ ...r, inputs: parse(r.inputs), outputs: parse(r.outputs), complete: r.cycles > 0 && parse(r.outputs).length > 0 }));
-}
-// Alle Gebäude mit ihren Produktionen und wo sie auf der Karte stehen (instances: aus placeables.xml)
-function buildings(plc, where = () => null) {
-  sync(plc);
-  const inst = new Map();
-  for (const p of plc || []) {
-    if (p.kind !== 'production' || !p.productions.length) continue;
-    const k = typeOf(p);
-    if (!inst.has(k)) inst.set(k, []);
-    inst.get(k).push({ farmId: p.farmId, where: where(p.x, p.z), on: p.productions.filter(r => r.on).map(r => r.id), fills: p.fills });
-  }
-  return db.prepare('SELECT * FROM fs_prod_buildings ORDER BY name').all().map(b => {
-    const rs = recipes(b.key);
-    return { ...b, recipes: rs, instances: inst.get(b.key) || [], done: rs.filter(r => r.complete).length };
-  });
+  const add = b => {
+    for (const r of b.recipes) {
+      for (const side of ['input', 'output']) {
+        if (!(side === 'input' ? r.inputs : r.outputs).some(x => x.fill === fill)) continue;
+        const k = side + '|' + b.type + '|' + r.id;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out[side].push({ building: b, recipe: r, amount: (side === 'input' ? r.inputs : r.outputs).find(x => x.fill === fill).amount });
+      }
+    }
+  };
+  for (const b of sections.katalog) add(b);
+  for (const b of [...sections.karte, ...sections.eigene]) add(b);
+  return out;
 }
 
 // ---------- Rechner ----------
@@ -135,52 +151,4 @@ function calc(recipe, { amounts = [], cycles = null, shared = 1, dpp = 1 } = {})
   };
 }
 
-// ---------- Bearbeiten (Admins) ----------
-// Zahl aus dem Formular: 1.500,5, 370.000 oder 1500.5
-const numOr = (v, max = 1e9) => { const t = String(v ?? '').trim(), n = Number(t.includes(',') || /^\d{1,3}(\.\d{3})+$/.test(t) ? t.replace(/\./g, '').replace(',', '.') : t);
-  return v === '' || v == null || !Number.isFinite(n) || n < 0 ? null : Math.min(n, max); };
-const text = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
-function building(key) { return db.prepare('SELECT * FROM fs_prod_buildings WHERE key = ?').get(String(key)) || null; }
-function saveBuilding(key, b) {
-  const name = text(b.name, 60);
-  const mode = Object.hasOwn(MODES, b.mode) ? b.mode : '';
-  if (!key) {
-    if (!name) return null;
-    key = 'eigen-' + Date.now().toString(36);
-    db.prepare('INSERT INTO fs_prod_buildings(key, name, price, mode, note, updated_at) VALUES (?, ?, ?, ?, ?, ?)').run(key, name, numOr(b.price), mode, text(b.note, 300), now());
-    return key;
-  }
-  if (!building(key)) return null;
-  db.prepare('UPDATE fs_prod_buildings SET name = COALESCE(NULLIF(?, \'\'), name), price = ?, mode = ?, note = ?, updated_at = ? WHERE key = ?')
-    .run(name, numOr(b.price), mode, text(b.note, 300), now(), key);
-  return key;
-}
-function removeBuilding(key) { db.prepare('DELETE FROM fs_prod_buildings WHERE key = ?').run(String(key)); }
-// Zeilen aus dem Formular: in_fill_0, in_amount_0 … (Ware als Name oder Kürzel, Menge je Zyklus)
-function rows(b, side) {
-  const out = [];
-  for (let i = 0; i < MAX_ROWS[side]; i++) {
-    const f = fillOf(b[`${side}_fill_${i}`]), a = numOr(b[`${side}_amount_${i}`], 1e7);
-    if (f && a > 0) out.push({ ...f, amount: a });
-  }
-  return out;
-}
-function saveRecipe(key, id, b) {
-  if (!building(key)) return null;
-  const name = text(b.name, 60);
-  const cur = id && db.prepare('SELECT * FROM fs_prod_recipes WHERE building = ? AND id = ?').get(key, String(id));
-  if (id && !cur) return null;
-  if (!cur && !name) return null;
-  const vals = [name || cur.name, numOr(b.cycles, 1e6), numOr(b.cost), JSON.stringify(rows(b, 'in')), JSON.stringify(rows(b, 'out'))];
-  if (cur) db.prepare('UPDATE fs_prod_recipes SET name = ?, cycles = ?, cost = ?, inputs = ?, outputs = ? WHERE building = ? AND id = ?').run(...vals, key, cur.id);
-  else {
-    id = 'eigen-' + Date.now().toString(36);
-    const pos = (db.prepare('SELECT MAX(position) AS p FROM fs_prod_recipes WHERE building = ?').get(key).p ?? -1) + 1;
-    db.prepare('INSERT INTO fs_prod_recipes(building, id, name, cycles, cost, inputs, outputs, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(key, id, ...vals, pos);
-  }
-  db.prepare('UPDATE fs_prod_buildings SET updated_at = ? WHERE key = ?').run(now(), key);
-  return cur ? cur.id : id;
-}
-function removeRecipe(key, id) { db.prepare('DELETE FROM fs_prod_recipes WHERE building = ? AND id = ?').run(String(key), String(id)); }
-
-module.exports = { NAMES, MODES, MAX_ROWS, typeOf, buildingName, recipeName, fillOf, sync, fromGame, buildings, recipes, calc, building, saveBuilding, removeBuilding, saveRecipe, removeRecipe, forget: () => { synced = null; gameSig = null; } };
+module.exports = { NAMES, MODES, SECTIONS, typeOf, buildingName, recipeName, isPreplaced, all, uses, calc };

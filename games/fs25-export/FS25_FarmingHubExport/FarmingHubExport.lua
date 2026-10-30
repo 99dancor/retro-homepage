@@ -5,16 +5,20 @@
 --
 --   Felder       Umriss jedes Felds (Ecken in Weltkoordinaten), auch Felder, die noch kein Acker sind
 --   Grundstücke  Nummer, Mitte, Größe, Preis, Besitzer und die Grundstückskarte (wem gehört welcher Fleck)
---   Stationen    Position aller Verkaufsstellen, Ladestationen, Tankstellen, Händler und Produktionen
---   Produktionen Rezepte: was rein geht, was raus kommt, Zyklen und Kosten pro Monat, parallel oder seriell
+--   Gebäude      Position aller Verkaufsstellen, Ladestationen, Tankstellen, Händler und Produktionen, bei Produktionen
+--                die Rezepte, welche gerade laufen und was im Lager liegt (Füllstand und Platz)
+--   Waren        jede Ware mit ihrem Namen in der Sprache des Spiels und dem Grundpreis
+--   Früchte      jede Frucht mit Wachstumsstufen, wann sie gesät und geerntet wird, Ertrag, Saatgut und Kartenfarbe
+--   Katalog      alle Produktionen, die man im Shop kaufen kann, mit Preis, Rezepten und Lager
 --
--- Alles kommt aus dem laufenden Spiel, so wie es die Karte im Spiel auch anzeigt. Die Mod liest keine Spieldateien und
--- ändert nichts am Spielstand. Im Mehrspieler schreibt nur der Server.
+-- Alles kommt aus dem laufenden Spiel, so wie es die Karte und der Shop im Spiel auch anzeigen. Die Mod ändert nichts am
+-- Spielstand. Im Mehrspieler schreibt nur der Server. Teile, die eine Spielversion anders benennt, fehlen dann einfach in
+-- der Datei, der Rest wird trotzdem geschrieben.
 --
 -- Konsole (Taste ~ oder ^): hubExport schreibt die Datei sofort.
 
 FarmingHubExport = {}
-FarmingHubExport.VERSION = 1
+FarmingHubExport.VERSION = 2
 FarmingHubExport.FILENAME = "farmingHubExport.xml"
 FarmingHubExport.MAX_GRID = 1024
 FarmingHubExport.modName = g_currentModName
@@ -61,6 +65,36 @@ local function try(what, fn, ...)
     if not ok then
         Logging.warning("FarmingHubExport: %s: %s", what, tostring(err))
     end
+    return ok
+end
+
+-- Erste Methode eines Objekts, die es gibt und die nicht scheitert (Spielversionen benennen manches anders)
+local function call(obj, names, ...)
+    if obj == nil then
+        return nil
+    end
+    for _, n in ipairs(names) do
+        if type(obj[n]) == "function" then
+            local ok, v = pcall(obj[n], obj, ...)
+            if ok then
+                return v
+            end
+        end
+    end
+    return nil
+end
+
+local function text(s, env)
+    if s == nil then
+        return nil
+    end
+    if g_i18n ~= nil and type(s) == "string" and string.sub(s, 1, 6) == "$l10n_" then
+        local ok, v = pcall(g_i18n.convertText, g_i18n, s, env)
+        if ok and v ~= nil then
+            return v
+        end
+    end
+    return tostring(s)
 end
 
 -- ---------- Felder ----------
@@ -155,6 +189,9 @@ function FarmingHubExport:writeFarmlands(xml)
             xml:setString(key .. "#x", num(f.xWorldPos))
             xml:setString(key .. "#z", num(f.zWorldPos))
         end
+        if f.showOnFarmlandsScreen == false then
+            xml:setBool(key .. "#hidden", true)
+        end
     end
     try("Grundstückskarte", function()
         local grid = self:farmlandGrid()
@@ -209,13 +246,60 @@ local function writeRows(xml, key, list, tag)
     end
 end
 
+-- Lager einer Produktion: je Ware Füllstand und Platz
+local function writeStorage(xml, key, storage)
+    if storage == nil then
+        return
+    end
+    local types = storage.fillTypes or storage.supportedFillTypes or {}
+    local levels = storage.fillLevels or {}
+    local caps = storage.capacities or {}
+    local n = 0
+    local seen = {}
+    local function put(index)
+        if seen[index] then
+            return
+        end
+        seen[index] = true
+        local name = fillName(index)
+        if name == nil or name == "UNKNOWN" then
+            return
+        end
+        local level = call(storage, { "getFillLevel" }, index) or levels[index] or 0
+        local cap = call(storage, { "getCapacity" }, index) or caps[index] or storage.capacityPerFillType or storage.capacity
+        local k = string.format("%s.storage.fill(%d)", key, n)
+        xml:setString(k .. "#fillType", name)
+        xml:setString(k .. "#level", num(level, 1))
+        if cap ~= nil then
+            xml:setString(k .. "#capacity", num(cap, 0))
+        end
+        n = n + 1
+    end
+    for index, on in pairs(types) do
+        if type(index) == "number" and on then
+            put(index)
+        elseif type(on) == "number" then
+            put(on)
+        end
+    end
+    for index in pairs(levels) do
+        if type(index) == "number" then
+            put(index)
+        end
+    end
+end
+
 function FarmingHubExport:writeProductions(xml, key, point)
     xml:setBool(key .. "#shared", point.sharedThroughputCapacity ~= false)
+    local active = {}
+    for _, p in ipairs(point.activeProductions or {}) do
+        active[p] = true
+    end
     for i, p in ipairs(point.productions or {}) do
         local k = string.format("%s.production(%d)", key, i - 1)
         xml:setString(k .. "#id", tostring(p.id))
         if p.name ~= nil then
-            xml:setString(k .. "#name", tostring(p.name))
+            xml:setString(k .. "#name", text(p.name, point.owningPlaceable ~= nil and point.owningPlaceable.customEnvironment or nil))
         end
         local cycles, costs = perMonth(p, "cyclesPer"), perMonth(p, "costsPerActive")
         if cycles ~= nil then
@@ -224,9 +308,16 @@ function FarmingHubExport:writeProductions(xml, key, point)
         if costs ~= nil then
             xml:setString(k .. "#costsPerMonth", num(costs, 2))
         end
+        if active[p] then
+            xml:setBool(k .. "#active", true)
+        end
+        if p.status ~= nil then
+            xml:setInt(k .. "#status", p.status)
+        end
         writeRows(xml, k .. ".inputs", p.inputs, "input")
         writeRows(xml, k .. ".outputs", p.outputs, "output")
     end
+    try("Lager", writeStorage, xml, key, point.storage)
 end
 
 function FarmingHubExport:writePlaceables(xml)
@@ -293,6 +384,289 @@ function FarmingHubExport:writePlaceables(xml)
     return n
 end
 
+-- ---------- Waren ----------
+-- Name in der Sprache des Spiels (auf einem deutschen Server deutsch), Grundpreis je 1000 l, Gewicht je 1000 l
+function FarmingHubExport:writeFillTypes(xml)
+    local list = call(g_fillTypeManager, { "getFillTypes" }) or g_fillTypeManager.fillTypes or {}
+    xml:setString("farmingHubExport.fillTypes#language", tostring(g_languageShort or ""))
+    local n = 0
+    for _, ft in ipairs(list) do
+        if ft.name ~= nil and ft.name ~= "UNKNOWN" then
+            local k = string.format("farmingHubExport.fillTypes.fillType(%d)", n)
+            xml:setString(k .. "#name", ft.name)
+            if ft.title ~= nil then
+                xml:setString(k .. "#title", tostring(ft.title))
+            end
+            if ft.pricePerLiter ~= nil then
+                xml:setString(k .. "#price", num(ft.pricePerLiter * 1000, 0))
+            end
+            if ft.massPerLiter ~= nil then
+                xml:setString(k .. "#mass", num(ft.massPerLiter * 1000, 3))
+            end
+            if ft.showOnPriceTable then
+                xml:setBool(k .. "#priceTable", true)
+            end
+            n = n + 1
+        end
+    end
+    return n
+end
+
+-- ---------- Früchte ----------
+-- Monate, in denen sich eine Frucht säen bzw. ernten lässt (1 = März … 12 = Februar)
+local function periods(ft, kind)
+    local gs = g_currentMission.growthSystem
+    local out = {}
+    local names = kind == "plant" and { "canFruitBePlanted", "getCanFruitBePlanted", "getIsPlantableInPeriod", "canPlantInPeriod" }
+        or { "canFruitBeHarvested", "getCanFruitBeHarvested", "getIsHarvestableInPeriod", "canHarvestInPeriod" }
+    if gs ~= nil then
+        for period = 1, 12 do
+            if call(gs, names, ft.index, period) == true then
+                table.insert(out, period)
+            end
+        end
+    end
+    if #out == 0 then
+        local t = kind == "plant" and (ft.plantPeriods or ft.plantingPeriods) or (ft.harvestPeriods or ft.harvestingPeriods)
+        if type(t) == "table" then
+            for k, v in pairs(t) do
+                local period = (v == true and k) or v
+                if type(period) == "number" and period >= 1 and period <= 12 then
+                    table.insert(out, period)
+                end
+            end
+        end
+    end
+    table.sort(out)
+    local s = {}
+    for _, p in ipairs(out) do
+        table.insert(s, tostring(p))
+    end
+    return table.concat(s, " ")
+end
+
+local function color(c)
+    if type(c) ~= "table" then
+        return nil
+    end
+    local r, g, b = c[1] or c.r, c[2] or c.g, c[3] or c.b
+    if r == nil or g == nil or b == nil then
+        return nil
+    end
+    -- Linear wie im Spiel → sRGB für die Website
+    local function s(v)
+        v = math.max(0, math.min(1, v))
+        v = v <= 0.0031308 and v * 12.92 or 1.055 * v ^ (1 / 2.4) - 0.055
+        return math.floor(v * 255 + 0.5)
+    end
+    return string.format("#%02x%02x%02x", s(r), s(g), s(b))
+end
+
+function FarmingHubExport:writeFruitTypes(xml)
+    local list = call(g_fruitTypeManager, { "getFruitTypes" }) or g_fruitTypeManager.fruitTypes or {}
+    local n = 0
+    for _, ft in ipairs(list) do
+        if ft.name ~= nil then
+            local k = string.format("farmingHubExport.fruitTypes.fruitType(%d)", n)
+            xml:setString(k .. "#name", ft.name)
+            xml:setInt(k .. "#index", ft.index or 0)
+            local dens = ft.densityTypeIndex or ft.foliageTypeIndex or ft.typeIndex
+            if dens ~= nil then
+                xml:setInt(k .. "#density", dens)
+            end
+            if ft.fillType ~= nil and ft.fillType.name ~= nil then
+                xml:setString(k .. "#fillType", ft.fillType.name)
+            end
+            local function int(attr, v)
+                if type(v) == "number" then
+                    xml:setInt(k .. "#" .. attr, v)
+                end
+            end
+            int("growthStates", ft.numGrowthStates)
+            int("harvestMin", ft.minHarvestingGrowthState)
+            int("harvestMax", ft.maxHarvestingGrowthState)
+            int("cut", ft.cutState)
+            int("withered", ft.witheredState)
+            int("prepareMin", ft.minPreparingGrowthState)
+            int("prepareMax", ft.maxPreparingGrowthState)
+            int("regrowState", ft.firstRegrowthState)
+            if ft.regrows then
+                xml:setBool(k .. "#regrows", true)
+            end
+            if ft.literPerSqm ~= nil then
+                xml:setString(k .. "#literPerSqm", num(ft.literPerSqm, 4))
+            end
+            if ft.seedUsagePerSqm ~= nil then
+                xml:setString(k .. "#seedPerSqm", num(ft.seedUsagePerSqm, 5))
+            end
+            if ft.windrowLiterPerSqm ~= nil then
+                xml:setString(k .. "#windrowPerSqm", num(ft.windrowLiterPerSqm, 4))
+            end
+            if ft.windrowName ~= nil then
+                xml:setString(k .. "#windrow", tostring(ft.windrowName))
+            elseif ft.windrowFillType ~= nil and ft.windrowFillType.name ~= nil then
+                xml:setString(k .. "#windrow", ft.windrowFillType.name)
+            end
+            local c = color(ft.defaultMapColor or ft.mapColor)
+            if c ~= nil then
+                xml:setString(k .. "#color", c)
+            end
+            if ft.allowsSeeding == false then
+                xml:setBool(k .. "#noSeeding", true)
+            end
+            try("Anbauzeiten " .. ft.name, function()
+                local plant, harvest = periods(ft, "plant"), periods(ft, "harvest")
+                if plant ~= "" then
+                    xml:setString(k .. "#plant", plant)
+                end
+                if harvest ~= "" then
+                    xml:setString(k .. "#harvest", harvest)
+                end
+            end)
+            n = n + 1
+        end
+    end
+    return n
+end
+
+-- ---------- Katalog: alle Produktionen aus dem Shop ----------
+-- Liest die Gebäude-XML jedes Shop-Eintrags mit Produktion (auch aus DLCs, die das Spiel geladen hat). Ändert sich nicht,
+-- solange das Spiel läuft: einmal lesen und merken.
+local function readRecipes(file, env)
+    local out = { productions = {}, storage = {}, shared = true }
+    out.shared = file:getBool("placeable.productionPoint.productions#sharedThroughputCapacity", true)
+    local i = 0
+    while true do
+        local k = string.format("placeable.productionPoint.productions.production(%d)", i)
+        if not file:hasProperty(k) then
+            break
+        end
+        local r = { id = file:getString(k .. "#id") or tostring(i), name = text(file:getString(k .. "#name"), env), inputs = {}, outputs = {} }
+        local function per(base)
+            local m = file:getFloat(k .. "#" .. base .. "Month")
+            if m ~= nil then
+                return m
+            end
+            local h = file:getFloat(k .. "#" .. base .. "Hour")
+            if h ~= nil then
+                return h * 24
+            end
+            local mi = file:getFloat(k .. "#" .. base .. "Minute")
+            return mi ~= nil and mi * 1440 or nil
+        end
+        r.cycles = per("cyclesPer")
+        r.costs = per("costsPerActive")
+        for _, side in ipairs({ "input", "output" }) do
+            local j = 0
+            while true do
+                local kk = string.format("%s.%ss.%s(%d)", k, side, side, j)
+                if not file:hasProperty(kk) then
+                    break
+                end
+                table.insert(side == "input" and r.inputs or r.outputs, { fill = file:getString(kk .. "#fillType"), amount = file:getFloat(kk .. "#amount", 1), sell = file:getBool(kk .. "#sellDirectly", false) })
+                j = j + 1
+            end
+        end
+        table.insert(out.productions, r)
+        i = i + 1
+    end
+    out.capacity = file:getInt("placeable.productionPoint.storage#capacityPerFillType")
+    local j = 0
+    while true do
+        local kk = string.format("placeable.productionPoint.storage.capacity(%d)", j)
+        if not file:hasProperty(kk) then
+            break
+        end
+        table.insert(out.storage, { fill = file:getString(kk .. "#fillType"), capacity = file:getInt(kk .. "#capacity") })
+        j = j + 1
+    end
+    return out
+end
+
+function FarmingHubExport:catalog()
+    if self.catalogCache ~= nil then
+        return self.catalogCache
+    end
+    local items = call(g_storeManager, { "getItems" }) or g_storeManager.items or {}
+    local out = {}
+    for _, item in ipairs(items) do
+        local isPlaceable = item.species == "placeable" or (StoreSpecies ~= nil and item.species == StoreSpecies.PLACEABLE)
+        if isPlaceable and item.xmlFilename ~= nil then
+            try("Katalog " .. tostring(item.xmlFilename), function()
+                local file = XMLFile.load("farmingHubCatalog", item.xmlFilename)
+                if file == nil then
+                    return
+                end
+                if file:hasProperty("placeable.productionPoint.productions.production(0)") then
+                    local r = readRecipes(file, item.customEnvironment)
+                    r.file = NetworkUtil.convertToNetworkFilename(item.xmlFilename)
+                    r.name = tostring(item.name or "")
+                    r.price = item.price
+                    r.category = item.categoryName
+                    r.dlc = item.dlcTitle or item.customEnvironment
+                    table.insert(out, r)
+                end
+                file:delete()
+            end)
+        end
+    end
+    self.catalogCache = out
+    return out
+end
+
+function FarmingHubExport:writeCatalog(xml)
+    local list = self:catalog()
+    for n, b in ipairs(list) do
+        local key = string.format("farmingHubExport.catalog.building(%d)", n - 1)
+        xml:setString(key .. "#filename", b.file)
+        xml:setString(key .. "#name", b.name)
+        if b.price ~= nil then
+            xml:setInt(key .. "#price", math.floor(b.price))
+        end
+        if b.category ~= nil then
+            xml:setString(key .. "#category", tostring(b.category))
+        end
+        if b.dlc ~= nil then
+            xml:setString(key .. "#dlc", tostring(b.dlc))
+        end
+        xml:setBool(key .. "#shared", b.shared ~= false)
+        if b.capacity ~= nil then
+            xml:setInt(key .. "#capacity", b.capacity)
+        end
+        for i, r in ipairs(b.productions) do
+            local k = string.format("%s.production(%d)", key, i - 1)
+            xml:setString(k .. "#id", r.id)
+            if r.name ~= nil then
+                xml:setString(k .. "#name", r.name)
+            end
+            if r.cycles ~= nil then
+                xml:setString(k .. "#cyclesPerMonth", num(r.cycles, 3))
+            end
+            if r.costs ~= nil then
+                xml:setString(k .. "#costsPerMonth", num(r.costs, 2))
+            end
+            for side, rows in pairs({ input = r.inputs, output = r.outputs }) do
+                for j, row in ipairs(rows) do
+                    local kk = string.format("%s.%ss.%s(%d)", k, side, side, j - 1)
+                    xml:setString(kk .. "#fillType", tostring(row.fill or ""))
+                    xml:setString(kk .. "#amount", num(row.amount, 3))
+                    if row.sell then
+                        xml:setBool(kk .. "#sellDirectly", true)
+                    end
+                end
+            end
+        end
+        for i, s in ipairs(b.storage) do
+            local kk = string.format("%s.storage.capacity(%d)", key, i - 1)
+            xml:setString(kk .. "#fillType", tostring(s.fill or ""))
+            if s.capacity ~= nil then
+                xml:setInt(kk .. "#capacity", s.capacity)
+            end
+        end
+    end
+    return #list
+end
+
 -- ---------- Datei ----------
 function FarmingHubExport:write(filename)
     local mission = g_currentMission
@@ -309,11 +683,17 @@ function FarmingHubExport:write(filename)
     xml:setString("farmingHubExport#saveDate", getDate("%Y-%m-%d %H:%M"))
     if mission.environment ~= nil then
         xml:setInt("farmingHubExport#day", mission.environment.currentMonotonicDay or mission.environment.currentDay or 0)
+        if mission.environment.daysPerPeriod ~= nil then
+            xml:setInt("farmingHubExport#daysPerPeriod", mission.environment.daysPerPeriod)
+        end
     end
     local counts = {}
     try("Felder", function() counts.fields = self:writeFields(xml) end)
     try("Grundstücke", function() counts.farmlands = self:writeFarmlands(xml) end)
     try("Stationen", function() counts.placeables = self:writePlaceables(xml) end)
+    try("Waren", function() counts.fillTypes = self:writeFillTypes(xml) end)
+    try("Früchte", function() counts.fruitTypes = self:writeFruitTypes(xml) end)
+    try("Katalog", function() counts.catalog = self:writeCatalog(xml) end)
     xml:save()
     xml:delete()
     return true, counts
@@ -354,7 +734,8 @@ function FarmingHubExport:consoleCommandExport()
     if not ok then
         return "hubExport: Schreiben fehlgeschlagen"
     end
-    return string.format("hubExport: %s geschrieben (%d Felder, %d Grundstücke, %d Gebäude)", file, counts.fields or 0, counts.farmlands or 0, counts.placeables or 0)
+    return string.format("hubExport: %s geschrieben (%d Felder, %d Grundstücke, %d Gebäude, %d Waren, %d Früchte, %d Produktionen im Shop)", file,
+        counts.fields or 0, counts.farmlands or 0, counts.placeables or 0, counts.fillTypes or 0, counts.fruitTypes or 0, counts.catalog or 0)
 end
 
 function FarmingHubExport:loadMap(filename)
@@ -364,6 +745,7 @@ end
 function FarmingHubExport:deleteMap()
     removeConsoleCommand("hubExport")
     self.grid = nil
+    self.catalogCache = nil
 end
 
 if FSBaseMission.saveSavegame ~= nil then

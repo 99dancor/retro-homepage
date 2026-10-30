@@ -1,5 +1,16 @@
 # Changelog
 
+## 30.10.2026 – Farming Hub 3.0: alles aus dem Spiel
+
+- **Karte je Fleck:** Grundstücke kommen mit ihrer echten Form aus dem Spiel, die Unterscheidung gestrichelt/durchgezogen ist weg. Früchte, Wachstum, Kalk, Dünger und Pflug zeigt die Karte so, wie sie auf dem Acker liegen: Wer nur einen Streifen kalkt oder zwei Früchte auf einem Grundstück hat, sieht das. Ein Klick aufs Grundstück zeigt Größe, Besitzer, Felder, jede Frucht und jeden Zustand mit Fläche, Pflege, Stationen und Anbauplan. Plantagen wie Kaffee und Bananen blenden sich mit den anderen Früchten aus und ein.
+- **Produktionsplaner neu:** drei Bereiche. „Auf der Karte“ für die Produktionen der Karte (dorthin führt ein Klick aufs Kartensymbol), „Eigene Gebäude“ mit Lagerstand und Platz beim letzten Speichern und welche Produktion läuft, „Katalog“ mit allen Produktionen aus dem Shop samt DLCs, Preis und Rezepten. Nichts wird mehr von Hand eingetragen, so fehlt auch keine Produktion mehr.
+- **Preise:** Ein Klick auf eine Ware zeigt, wo sie verarbeitet und wo sie hergestellt wird (mit Link in den Planer) und wo man sie verkaufen oder kaufen kann (mit Link auf die Karte).
+- **Deutsche Namen:** Waren heißen überall gleich und auf Deutsch (Alpakavlies statt Alpacafleece), mit passenden Symbolen. Was der Hub nicht kennt, heißt wie im deutschen Spiel.
+- **Früchte aus dem Spiel:** Saat- und Erntemonate, Wachstumsstufen und Farben kommen von der Karte, auch für Trauben, Oliven, Kaffee und Bananen. Der Reiter „Feldfrüchte“ in der Seitenverwaltung ist weg, ebenso „Feldumrisse“, „Datum im Spiel“ und Feldmeldungen.
+- **Querverweise:** Fahrzeuge auf der Karte zeigen ihre Infos und führen zum Eintrag unter Hof → Fahrzeuge, Produktionen führen überall in den Planer.
+- **Hintergrund:** Die Übersicht kann ein halb durchsichtiges Bild der laufenden Karte zeigen, hochzuladen in der Seitenverwaltung unter Farming Simulator → Server.
+- **Mod Version 2:** Für Lager, Früchte, Warennamen und Katalog braucht es die neue Version der Mod „Farming Hub Export“ (Seitenverwaltung → Kartendaten aus dem Spiel).
+
 ## 29.10.2026 – Farming Hub: Kartendaten direkt aus dem Spiel
 
 - **Mod „Farming Hub Export“:** Eine kleine Mod für den Spieleserver schreibt bei jedem Speichern alles in den Spielstand, was der Hub bisher nicht lesen konnte: die Umrisse aller Felder, die Grenzen aller Grundstücke, die Positionen aller Stationen und die Rezepte der Produktionen. Der Hub holt die Datei per FTP mit den anderen. Download und Anleitung in der Seitenverwaltung unter Farming Simulator → Kartendaten aus dem Spiel.

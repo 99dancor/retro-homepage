@@ -3,31 +3,68 @@
 // Unbekannte Kürzel (z. B. aus Mods) werden lesbar gemacht: „GRAPEJUICE_BULK“ → „Grapejuice Bulk“.
 
 const FILL = {
-  WHEAT: 'Weizen', BARLEY: 'Gerste', OAT: 'Hafer', CANOLA: 'Raps', SORGHUM: 'Sorghum', SUNFLOWER: 'Sonnenblumen', SOYBEAN: 'Sojabohnen',
-  MAIZE: 'Mais', POTATO: 'Kartoffeln', SUGARBEET: 'Zuckerrüben', BEETROOT: 'Rote Bete', CARROT: 'Karotten', PARSNIP: 'Pastinaken', COTTON: 'Baumwolle',
-  RICELONGGRAIN: 'Langkornreis', RICE: 'Reis', GREENBEAN: 'Grüne Bohnen', PEA: 'Erbsen', SPINACH: 'Spinat', SUGARCANE: 'Zuckerrohr', WOOD: 'Holz',
-  WOODCHIPS: 'Hackschnitzel', SUGARBEET_CUT: 'Rübenschnitzel', SILAGE: 'Silage', GRASS: 'Gras', MEADOW: 'Wiese', GRASS_WINDROW: 'Gras (Schwad)',
-  DRYGRASS: 'Heu', DRYGRASS_WINDROW: 'Heu (Schwad)', STRAW: 'Stroh', GRAPE: 'Trauben', OLIVE: 'Oliven', MILK: 'Milch', GOATMILK: 'Ziegenmilch',
-  BUFFALOMILK: 'Büffelmilch', WOOL: 'Wolle', EGG: 'Eier', HONEY: 'Honig', LETTUCE: 'Salat', TOMATO: 'Tomaten', STRAWBERRY: 'Erdbeeren',
-  SPRING_ONION: 'Frühlingszwiebeln', NAPACABBAGE: 'Chinakohl', CHILLI: 'Chili', GARLIC: 'Knoblauch', ENOKI: 'Enoki', OYSTER: 'Austernpilze',
-  BOARDS: 'Bretter', PLANKS: 'Planken', WOODBEAM: 'Holzbalken', PREFABWALL: 'Fertigwände', FLOUR: 'Mehl', RICEFLOUR: 'Reismehl', BREAD: 'Brot',
-  CAKE: 'Kuchen', MILK_BOTTLED: 'Milch (Flaschen)', GOATMILK_BOTTLED: 'Ziegenmilch (Flaschen)', BUFFALOMILK_BOTTLED: 'Büffelmilch (Flaschen)',
-  BUTTER: 'Butter', CHEESE: 'Käse', BUFFALOMOZZARELLA: 'Büffelmozzarella', GOATCHEESE: 'Ziegenkäse', CHOCOLATE: 'Schokolade',
-  POTATOCHIPS: 'Kartoffelchips', RICEROLLS: 'Reisröllchen', FABRIC: 'Stoff', CLOTHES: 'Kleidung', SUGAR: 'Zucker', CEREAL: 'Müsli',
-  FURNITURE: 'Möbel', CARTONROLL: 'Kartonrollen', PAPERROLL: 'Papierrollen', SUNFLOWER_OIL: 'Sonnenblumenöl', CANOLA_OIL: 'Rapsöl',
-  OLIVE_OIL: 'Olivenöl', RICE_OIL: 'Reisöl', RAISINS: 'Rosinen', GRAPEJUICE: 'Traubensaft', CEMENT: 'Zement', SEEDS: 'Saatgut', STONE: 'Steine',
-  MANURE: 'Mist', LIQUIDMANURE: 'Gülle', DIGESTATE: 'Gärrest', FORAGE: 'Futtermischung', FORAGE_MIXING: 'Futtermischung (Mischen)', WATER: 'Wasser',
-  CHAFF: 'Häckselgut', TREESAPLINGS: 'Setzlinge', POPLAR: 'Pappel', DIESEL: 'Diesel', DEF: 'AdBlue', AIR: 'Luft', ELECTRICCHARGE: 'Strom',
-  METHANE: 'Methan', ROADSALT: 'Streusalz', BALE_WRAP: 'Ballenfolie', BALE_NET: 'Ballennetz', BALE_TWINE: 'Ballengarn', RICESAPLINGS: 'Reissetzlinge',
-  FERTILIZER: 'Dünger', LIQUIDFERTILIZER: 'Flüssigdünger', PIGFOOD: 'Schweinefutter', LIME: 'Kalk', HERBICIDE: 'Herbizid',
-  SILAGE_ADDITIVE: 'Siliermittel', MINERAL_FEED: 'Mineralfutter', WEED: 'Unkraut', CHICKEN: 'Hühner', GOAT: 'Ziegen', RYE: 'Roggen',
-  TRITICALE: 'Triticale', SPELT: 'Dinkel', WINTERWHEAT: 'Winterweizen', WINTERBARLEY: 'Wintergerste', ALFALFA: 'Luzerne', CLOVER: 'Klee',
-  ONION: 'Zwiebeln', FISHFOOD: 'Fischfutter', TROUT: 'Forelle', TROUTYOUNG: 'Jungforellen', SALMON: 'Lachs', SALMONYOUNG: 'Junglachse',
-  APPLE: 'Äpfel', PEAR: 'Birnen', APRICOT: 'Aprikosen', PLUM: 'Pflaumen', GREENPEPPER: 'Paprika', CUCUMBER: 'Gurken', WATERMELON: 'Wassermelonen',
-  GRAPESEED: 'Traubenkerne', GRAPEMUST: 'Traubenmost', GRAPESEED_OIL: 'Traubenkernöl', TABLEGRAPE: 'Tafeltrauben', COMPOST: 'Kompost',
-  MUSTARD: 'Senf', OILSEEDRADISH: 'Ölrettich', SILAGEMAIZE: 'Silomais', MOLASSES: 'Melasse', COAL: 'Kohle', LIQUIDSEEDTREATMENT: 'Saatgutbeize',
-  ROUNDBALE: 'Rundballen', SQUAREBALE: 'Quaderballen', CANNED_PEAS: 'Erbsen (Dose)', SPINACH_BAGS: 'Spinat (Beutel)', RICE_BAGS: 'Reis (Säcke)',
-  COFFEE: 'Kaffee', BANANA: 'Bananen', ALPACA_WOOL: 'Alpakawolle', APPLEJUICE: 'Apfelsaft', KETCHUP: 'Ketchup', PICKLES: 'Essiggurken', ROPE: 'Seile', BARREL: 'Fässer', BUCKET: 'Eimer',
+  // Feldfrüchte und Ernte
+  WHEAT: 'Weizen', BARLEY: 'Gerste', OAT: 'Hafer', RYE: 'Roggen', TRITICALE: 'Triticale', SPELT: 'Dinkel', WINTERWHEAT: 'Winterweizen', WINTERBARLEY: 'Wintergerste',
+  CANOLA: 'Raps', SORGHUM: 'Sorghum', SUNFLOWER: 'Sonnenblumen', SOYBEAN: 'Sojabohnen', MAIZE: 'Mais', SILAGEMAIZE: 'Silomais', POTATO: 'Kartoffeln',
+  SUGARBEET: 'Zuckerrüben', SUGARBEET_CUT: 'Zuckerrübenschnitzel', BEETROOT: 'Rote Bete', CARROT: 'Karotten', PARSNIP: 'Pastinaken', ONION: 'Zwiebeln',
+  ONION_DIRTY: 'Zwiebeln (ungewaschen)', COTTON: 'Baumwolle', RICE: 'Reis', RICELONGGRAIN: 'Langkornreis', GREENBEAN: 'Grüne Bohnen', PEA: 'Erbsen',
+  SPINACH: 'Spinat', SUGARCANE: 'Zuckerrohr', GRAPE: 'Trauben', TABLEGRAPE: 'Tafeltrauben', OLIVE: 'Oliven', POPLAR: 'Pappeln', COFFEE: 'Kaffee',
+  COFFEECHERRIES: 'Kaffeekirschen', BANANA: 'Bananen', MUSTARD: 'Senf', OILSEEDRADISH: 'Ölrettich', FLOWERINGCATCHCROP: 'Blühende Zwischenfrucht',
+  GREENRYE: 'Grünroggen', VETCHRYE: 'Wickroggen', HUMUSACTIVE: 'Humusaktiv', ALFALFA: 'Luzerne', CLOVER: 'Klee', FIELDGRASS: 'Feldgras',
+  WHEAT_CUT: 'Weizen (gemäht)', BARLEY_CUT: 'Gerste (gemäht)', OAT_CUT: 'Hafer (gemäht)', RYE_CUT: 'Roggen (gemäht)', TRITICALE_CUT: 'Triticale (gemäht)',
+  SPELT_CUT: 'Dinkel (gemäht)', CANOLA_CUT: 'Raps (gemäht)', SOYBEAN_CUT: 'Sojabohnen (gemäht)',
+  // Gewächshaus und Garten
+  LETTUCE: 'Salat', TOMATO: 'Tomaten', STRAWBERRY: 'Erdbeeren', SPRING_ONION: 'Frühlingszwiebeln', NAPACABBAGE: 'Chinakohl', CHILLI: 'Chilischoten',
+  GARLIC: 'Knoblauch', ENOKI: 'Enoki-Pilze', OYSTER: 'Austernpilze', GREENPEPPER: 'Paprika', CUCUMBER: 'Gurken', WATERMELON: 'Wassermelonen',
+  APPLE: 'Äpfel', PEAR: 'Birnen', APRICOT: 'Aprikosen', PLUM: 'Pflaumen',
+  // Gras, Heu, Stroh, Futter
+  GRASS: 'Gras', GRASS_WINDROW: 'Gras', MEADOW: 'Wiese', DRYGRASS: 'Heu', DRYGRASS_WINDROW: 'Heu', STRAW: 'Stroh', CHAFF: 'Häckselgut', SILAGE: 'Silage',
+  ALFALFA_WINDROW: 'Luzerne', DRYALFALFA: 'Luzerneheu', DRYALFALFA_WINDROW: 'Luzerneheu', ALFALFA_FERMENTED: 'Luzernesilage', CLOVER_WINDROW: 'Klee',
+  DRYCLOVER: 'Kleeheu', DRYCLOVER_WINDROW: 'Kleeheu', CLOVER_FERMENTED: 'Kleesilage', FORAGE: 'Mischration', FORAGE_MIXING: 'Mischration (unfertig)',
+  HAY_PELLETS: 'Heupellets', STRAW_PELLETS: 'Strohpellets', PIGFOOD: 'Schweinefutter', PIGFOODWF: 'Schweinefutter', CHICKENFOOD: 'Hühnerfutter',
+  MINERAL_FEED: 'Mineralfutter', FISHFOOD: 'Fischfutter',
+  ROUNDBALE: 'Rundballen', SQUAREBALE: 'Quaderballen', ROUNDBALE_GRASS: 'Rundballen Gras', ROUNDBALE_DRYGRASS: 'Rundballen Heu', ROUNDBALE_COTTON: 'Rundballen Baumwolle',
+  ROUNDBALE_WOOD: 'Rundballen Holz', SQUAREBALE_GRASS: 'Quaderballen Gras', SQUAREBALE_DRYGRASS: 'Quaderballen Heu', SQUAREBALE_COTTON: 'Quaderballen Baumwolle',
+  SQUAREBALE_WOOD: 'Quaderballen Holz',
+  // Tiere und tierische Erzeugnisse
+  MILK: 'Milch', GOATMILK: 'Ziegenmilch', BUFFALOMILK: 'Büffelmilch', WOOL: 'Wolle', ALPACAWOOL: 'Alpakawolle', ALPACAFLEECE: 'Alpakavlies', EGG: 'Eier',
+  HONEY: 'Honig', MANURE: 'Mist', SEPARATED_MANURE: 'Separierter Mist', LIQUIDMANURE: 'Gülle', DIGESTATE: 'Gärreste', TROUT: 'Forellen', TROUTYOUNG: 'Jungforellen',
+  SALMON: 'Lachse', SALMONYOUNG: 'Junglachse', CHICKEN: 'Hühner', CHICKEN_ROOSTER: 'Hähne', GOAT: 'Ziegen',
+  COW_HOLSTEIN: 'Kühe (Holstein)', COW_SWISS_BROWN: 'Kühe (Braunvieh)', COW_ANGUS: 'Kühe (Angus)', COW_LIMOUSIN: 'Kühe (Limousin)', COW_BRAHMAN: 'Kühe (Brahman)',
+  COW_HIGHLAND_CATTLE: 'Kühe (Hochlandrind)', COW_WATERBUFFALO: 'Wasserbüffel', PIG_LANDRACE: 'Schweine (Landrasse)', PIG_BLACK_PIED: 'Schweine (Schwarzbunt)',
+  PIG_BERKSHIRE: 'Schweine (Berkshire)', SHEEP_LANDRACE: 'Schafe (Landrasse)', SHEEP_STEINSCHAF: 'Schafe (Steinschaf)', SHEEP_SWISS_MOUNTAIN: 'Schafe (Bergschaf)',
+  SHEEP_BLACK_WELSH: 'Schafe (Black Welsh)', HORSE_GRAY: 'Pferd (Schimmel)', HORSE_PINTO: 'Pferd (Schecke)', HORSE_PALOMINO: 'Pferd (Palomino)',
+  HORSE_CHESTNUT: 'Pferd (Fuchs)', HORSE_BAY: 'Pferd (Brauner)', HORSE_BLACK: 'Pferd (Rappe)', HORSE_SEAL_BROWN: 'Pferd (Schwarzbrauner)', HORSE_DUN: 'Pferd (Falbe)',
+  // Holz und Bau
+  WOOD: 'Holz', WOODCHIPS: 'Hackschnitzel', BOARDS: 'Bretter', PLANKS: 'Planken', WOODBEAM: 'Holzbalken', PREFABWALL: 'Fertigwände', FURNITURE: 'Möbel',
+  CARTONROLL: 'Kartonrollen', PAPERROLL: 'Papierrollen', RESIN: 'Harz', SHINGLEROOF: 'Dachschindeln', ROOFPLATES: 'Dachplatten', CEMENT: 'Zement',
+  CEMENTBRICKS: 'Zementsteine', STONE: 'Steine', STONEBIG: 'Große Steine', CASTLEROCK: 'Burgsteine', COAL: 'Kohle', TREESAPLINGS: 'Setzlinge', TREE: 'Baum',
+  // Lebensmittel
+  FLOUR: 'Mehl', RICEFLOUR: 'Reismehl', BREAD: 'Brot', CAKE: 'Kuchen', SUGAR: 'Zucker', CEREAL: 'Müsli', CHOCOLATE: 'Schokolade', BUTTER: 'Butter',
+  CHEESE: 'Käse', GOATCHEESE: 'Ziegenkäse', BUFFALOMOZZARELLA: 'Büffelmozzarella', MILK_BOTTLED: 'Milch (Flaschen)', GOATMILK_BOTTLED: 'Ziegenmilch (Flaschen)',
+  BUFFALOMILK_BOTTLED: 'Büffelmilch (Flaschen)', POTATOCHIPS: 'Kartoffelchips', RICEROLLS: 'Reisröllchen', RICE_BAGS: 'Reis (Säcke)', RICE_BOXES: 'Reis (Kartons)',
+  SPINACH_BAGS: 'Spinat (Beutel)', CANNED_PEAS: 'Erbsen (Dosen)', JARRED_GREENBEAN: 'Grüne Bohnen (Gläser)', PRESERVEDCARROTS: 'Karotten (Konserven)',
+  PRESERVEDPARSNIP: 'Pastinaken (Konserven)', PRESERVEDBEETROOT: 'Rote Bete (Konserven)', FERMENTEDNAPACABBAGE: 'Kimchi', SOUPCANSMIXED: 'Gemüsesuppe (Dosen)',
+  SOUPCANSCARROTS: 'Karottensuppe (Dosen)', SOUPCANSPARSNIP: 'Pastinakensuppe (Dosen)', SOUPCANSBEETROOT: 'Rote-Bete-Suppe (Dosen)',
+  SOUPCANSPOTATO: 'Kartoffelsuppe (Dosen)', NOODLESOUP: 'Nudelsuppe', ONIONSOUP: 'Zwiebelsuppe', ONIONSALT: 'Zwiebelsalz', ONIONBAG: 'Zwiebeln (Netze)',
+  FRIEDONION: 'Röstzwiebeln', KETCHUP: 'Ketchup', PICKLES: 'Essiggurken', RAISINS: 'Rosinen', GRAPEJUICE: 'Traubensaft', GRAPEJUICE_BULK: 'Traubensaft (lose)',
+  GRAPEJUICE_PREMIUM: 'Traubensaft (Premium)', GRAPEJUICE_BUBBLE: 'Traubenschorle', GRAPEMUST: 'Traubenmost', GRAPESEED: 'Traubenkerne',
+  GRAPESEED_OIL: 'Traubenkernöl', GRAPELEATHER: 'Fruchtleder', APPLEJUICE: 'Apfelsaft', STRAWBERRYJUICE: 'Erdbeersaft', APRICOTJAM: 'Aprikosenmarmelade',
+  PLUMJAM: 'Pflaumenmarmelade', SUNFLOWER_OIL: 'Sonnenblumenöl', CANOLA_OIL: 'Rapsöl', OLIVE_OIL: 'Olivenöl', OLIVEOIL: 'Olivenöl', PAINT: 'Farbe', ROASTEDCOFFEE: 'Röstkaffee', ROASTED_COFFEE: 'Röstkaffee', COFFEEBEANS: 'Kaffeebohnen', KIDSCLOTHES: 'Kinderkleidung', RICE_OIL: 'Reisöl', MOLASSES: 'Melasse',
+  TIRAMISU: 'Tiramisu',
+  // Kaffee, Bananen und Alpakas (Beans and Alpacas)
+  COFFEEBAGS: 'Kaffeebohnen (Säcke)', COFFEEPACKED: 'Kaffee (Packungen)', COFFEECAPSULES: 'Kaffeekapseln', COFFEEBEVERAGE: 'Kaffeegetränk',
+  COFFEEYOGURT: 'Kaffeejoghurt', BANANABOX: 'Bananen (Kisten)', BANANACAKE: 'Bananenkuchen', BANANACANDY: 'Bananenbonbons', BANANACHIPS: 'Bananenchips',
+  BANANAFRIEDBOX: 'Gebratene Bananen', BANANAJAM: 'Bananenmarmelade', BANANAMILK: 'Bananenmilch', ALPACASOCKS: 'Alpakasocken', ALPACAPLUSH: 'Alpaka-Plüschtiere',
+  ALPACAPILLOW: 'Alpakakissen', ALPACACHAIR: 'Alpakastühle', ALPACAARMCHAIR: 'Alpakasessel',
+  // Textilien und Waren
+  FABRIC: 'Stoff', CLOTHES: 'Kleidung', ROPE: 'Seile', POLYESTER: 'Polyester', SHOES: 'Schuhe', BELTS: 'Gürtel', PIGMENTS: 'Pigmente', PAINTBUCKETS: 'Farbeimer',
+  BARREL: 'Fässer', BUCKET: 'Eimer', BATHTUB: 'Badewannen', PIANO: 'Klaviere', WAGON: 'Holzwagen', TOYTRACTOR: 'Spielzeugtraktoren',
+  // Betriebsmittel
+  SEEDS: 'Saatgut', FERTILIZER: 'Dünger', LIQUIDFERTILIZER: 'Flüssigdünger', LIME: 'Kalk', HERBICIDE: 'Herbizid', LIQUIDSEEDTREATMENT: 'Saatgutbeize',
+  SILAGE_ADDITIVE: 'Siliermittel', RICESAPLINGS: 'Reissetzlinge', COMPOST: 'Kompost', COMPOSTRAW: 'Kompost (roh)', ORGANICWASTE: 'Bioabfall',
+  DIESEL: 'Diesel', DEF: 'AdBlue', METHANE: 'Methan', ELECTRICCHARGE: 'Strom', WATER: 'Wasser', ROADSALT: 'Streusalz', BALE_WRAP: 'Ballenfolie',
+  BALE_NET: 'Ballennetz', BALE_TWINE: 'Ballengarn', TARP: 'Plane', AIR: 'Luft', WEED: 'Unkraut', SNOW: 'Schnee', UNKNOWN: 'Unbekannt',
 };
 const CATEGORY = {
   TRACTORSS: 'Traktor (klein)', TRACTORSM: 'Traktor (mittel)', TRACTORSL: 'Traktor (groß)', TRUCKS: 'Lkw', CARS: 'Auto', HARVESTERS: 'Mähdrescher',
@@ -48,11 +85,10 @@ const PERIODS = ['EARLY_SPRING', 'MID_SPRING', 'LATE_SPRING', 'EARLY_SUMMER', 'M
   'EARLY_AUTUMN', 'MID_AUTUMN', 'LATE_AUTUMN', 'EARLY_WINTER', 'MID_WINTER', 'LATE_WINTER'];
 const WEATHER = { SUN: ['☀️', 'Sonnig'], CLOUDY: ['☁️', 'Bewölkt'], RAIN: ['🌧️', 'Regen'], SNOW: ['🌨️', 'Schnee'], FOG: ['🌫️', 'Nebel'],
   THUNDER: ['⛈️', 'Gewitter'], TWISTER: ['🌪️', 'Sturm'], HAIL: ['🌨️', 'Hagel'] };
-// Zustände eines Felds für die Karte (gemeldet von Mitgliedern)
+// Zustände eines Flecks oder Felds für die Karte (aus Dichtekarten oder fields.xml)
 const STATES = {
   gepfluegt: ['Gepflügt', '#8b5a2b'], gegrubbert: ['Gegrubbert / Saatbett', '#b07a46'], gesaet: ['Gesät', '#c9e39a'], waechst: ['Wächst', '#5aa83c'],
-  reif: ['Erntereif', '#f2c94c'], geerntet: ['Geerntet', '#d9c79e'], gras: ['Grünland', '#3f9a3a'], gemaeht: ['Gemäht', '#b5d98a'],
-  kalk: ['Kalk nötig', '#e8e8e8'], brach: ['Brach', '#a0a0a0'],
+  reif: ['Erntereif', '#f2c94c'], geerntet: ['Geerntet', '#d9c79e'], verdorrt: ['Verdorrt', '#8a6a4a'], gras: ['Grünland', '#3f9a3a'], gemaeht: ['Gemäht', '#b5d98a'],
 };
 // Bodenart aus fields.xml (groundType) → Zustand auf der Karte; gesät wird ab Wachstumsstufe 2 zu „wächst“
 const GROUND = {
@@ -67,7 +103,13 @@ const GROUND_LABEL = {
 };
 
 const pretty = code => String(code || '').toLowerCase().split('_').filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
-const fill = code => FILL[code] || pretty(code);
+// Namen aus dem Spiel (Mod „Farming Hub Export“, Waren in der Sprache des Servers): nur deutsche, und nur für Waren, die hier
+// fehlen (Mods, neue DLCs). Die Liste oben geht vor, damit alles gleich heißt.
+let gameTitles = new Map();
+function setGameTitles(list, language) {
+  gameTitles = new Map(String(language || '').toLowerCase() === 'de' ? (list || []).filter(f => f.title && !/^\$l10n/.test(f.title)).map(f => [f.name, f.title]) : []);
+}
+const fill = code => FILL[code] || gameTitles.get(code) || pretty(code);
 const category = code => CATEGORY[code] || pretty(code);
 
-module.exports = { FILL, CATEGORY, MONTHS, MONTHS_SHORT, PERIODS, WEATHER, STATES, GROUND, GROUND_LABEL, fill, category, pretty };
+module.exports = { setGameTitles, FILL, CATEGORY, MONTHS, MONTHS_SHORT, PERIODS, WEATHER, STATES, GROUND, GROUND_LABEL, fill, category, pretty };

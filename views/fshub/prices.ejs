@@ -29,6 +29,7 @@
     </table>
   </div>
   <% if (sel) { %>
+  <div class="fs-side">
     <% const vals = sel.prices, lo = Math.min(...vals) * (Math.min(...vals) === Math.max(...vals) ? 0.8 : 0.9), hi = Math.max(...vals) * (Math.min(...vals) === Math.max(...vals) ? 1.2 : 1.05), Y = v => (190 - (v - lo) / ((hi - lo) || 1) * 170).toFixed(1), X = i => (40 + i * 30).toFixed(1); %>
     <fieldset class="groupbox fs-chart"><legend><span class="fs-name"><%- icon(sel.fill, sel.name) %><%= sel.name %> – € je 1 000 l</span></legend>
       <svg viewBox="0 0 400 220" role="img" aria-label="Preisverlauf <%= sel.name %>">
@@ -41,8 +42,26 @@
       <% for (const h of holdings) { %>
         <div><span class="dot" style="background:<%= h.farm.color %>"></span> <%= h.farm.name %> hat <%= liters(h.amount) %> → jetzt <%= eur(h.amount / 1000 * (sel.now ?? sel.bestPrice)) %>, im <%= N.MONTHS[sel.best] %> <%= eur(h.amount / 1000 * sel.bestPrice) %></div>
       <% } %>
-      <p class="hint">Einzelne Verkaufsstellen nennt der Feed nicht, die Preise sind der Durchschnitt des Spiels.</p>
+      <p class="hint">Die Preise sind der Durchschnitt des Spiels, einzelne Stellen zahlen etwas mehr oder weniger.</p>
     </fieldset>
+    <fieldset class="groupbox fs-uses"><legend>Wo <%= sel.name %> vorkommt</legend>
+      <% if (buyers.length || sellers.length) { %>
+        <% if (buyers.length) { %><div><b>Verkaufen bei:</b> <% buyers.forEach((s, i) => { %><%= i ? ', ' : '' %><% if (s.placed) { %><a href="/farming/karte?station=<%= encodeURIComponent(s.uid) %>"><%= s.name %></a><% } else { %><%= s.name %><% } %><% }) %></div><% } %>
+        <% if (sellers.length) { %><div><b>Kaufen bei:</b> <% sellers.forEach((s, i) => { %><%= i ? ', ' : '' %><% if (s.placed) { %><a href="/farming/karte?station=<%= encodeURIComponent(s.uid) %>"><%= s.name %></a><% } else { %><%= s.name %><% } %><% }) %></div><% } %>
+      <% } %>
+      <% for (const [side, label] of [['input', 'Wird verarbeitet in'], ['output', 'Wird hergestellt in']]) { %>
+        <div class="fs-uses-h"><b><%= label %></b></div>
+        <% if (!uses || !uses[side].length) { %><div class="hint">Keine Produktion.</div><% } else { %>
+          <ul class="fs-uses-l">
+            <% for (const u of uses[side]) { const r = u.recipe, other = side === 'input' ? r.outputs : r.inputs; %>
+              <li><a href="<%= plannerUrl(u.building.key, r.id) %>"><%= u.building.label %>: <%= r.name %></a>
+                <span class="hint"><%= de(u.amount) %> l je Zyklus<%= other.length ? (side === 'input' ? ' → ' : ' aus ') + other.map(x => x.name).join(', ') : '' %></span></li>
+            <% } %>
+          </ul>
+        <% } %>
+      <% } %>
+    </fieldset>
+  </div>
   <% } %>
 </div>
 <p class="hint"><%= goods.length %> von <%= all %> Waren</p>

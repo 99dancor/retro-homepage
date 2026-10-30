@@ -347,12 +347,12 @@ router.get('/farming', (req, res) => {
     saves: { list: saves.list(), id: saves.identity(), unsure: saves.unsure(), counts: saves.liveCounts() },
     gameExport: require('../fsexport').summary(require('../fsexport').current()), gameUploaded: require('../fsexport').uploaded(),
     gameShapes: (() => { const shp = hub.shapes(m); return (shp && shp.game) || 0; })(),
-    outlines: (() => { const o = feeds.outlines(), shp = hub.shapes(m); return { o: o ? { ...o, polys: undefined, count: o.polys.length } : null, active: !!feeds.currentOutlines(), mod: feeds.mapMod(), exact: (shp && shp.exact) || 0, fields: m.fields.length }; })(),
+    bgs: hub.backgrounds(), bgName: hub.mapName(), bgKey: hub.slug(hub.mapName()) || 'karte',
     users: db.prepare('SELECT u.id, u.username, u.display_name, m.farm_id FROM users u LEFT JOIN fs_members m ON m.user_id = u.id WHERE u.disabled = 0 ORDER BY u.username COLLATE NOCASE').all(),
-    lists: db.prepare('SELECT slug, title, game FROM modlists ORDER BY game, title').all(), crops: hub.crops(), sessions: hub.sessionTotals(30),
-    msg: { testen: 'Alle Zugänge abgefragt, die Ergebnisse stehen unten.', datum: 'Datum gesetzt.', karte: 'Kartenbild gespeichert.' }[req.query.ok]
-      || (/^spiel\d+$/.test(req.query.ok || '') ? `Kartendaten aus dem Spiel gelesen: ${req.query.ok.slice(5)} Feldumrisse.` : null)
-      || (/^symbole\d+$/.test(req.query.ok || '') ? `${req.query.ok.slice(7)} Symbole gespeichert.` : /^umrisse\d+$/.test(req.query.ok || '') ? `${req.query.ok.slice(7)} Feldumrisse aus der Karte gelesen.` : req.query.ok ? 'Gespeichert.' : null),
+    lists: db.prepare('SELECT slug, title, game FROM modlists ORDER BY game, title').all(), sessions: hub.sessionTotals(30),
+    msg: { testen: 'Alle Zugänge abgefragt, die Ergebnisse stehen unten.', karte: 'Kartenbild gespeichert.', hintergrund: 'Hintergrundbild gespeichert.' }[req.query.ok]
+      || (/^spiel\d+$/.test(req.query.ok || '') ? `Spieldaten gelesen: ${req.query.ok.slice(5)} Felder.` : null)
+      || (/^symbole\d+$/.test(req.query.ok || '') ? `${req.query.ok.slice(7)} Symbole gespeichert.` : req.query.ok ? 'Gespeichert.' : null),
     err: req.query.err || null,
   });
 });
@@ -424,13 +424,16 @@ router.post('/farming/karte/loeschen', (req, res) => {
   for (const old of fsx.readdirSync(feeds.FS_DIR).filter(x => /^map-custom\./.test(x))) fsx.rmSync(path.join(feeds.FS_DIR, old), { force: true });
   res.redirect('/admin/farming?ok=1#server');
 });
-// Feldumrisse aus der map.i3d der Karte (src/fsfields.js), falls der Hub sie nicht selbst aus dem mods-Ordner holen kann
-router.post('/farming/umrisse', fsI3dUpload.single('i3d'), multipartCsrf, (req, res) => {
-  if (!req.file) return res.redirect('/admin/farming?err=' + encodeURIComponent('Bitte die map.i3d der Karte wählen.') + '#umrisse');
-  let n;
-  try { n = require('../fsfeeds').outlinesFromUpload(req.file.buffer); } catch (e) { return res.redirect('/admin/farming?err=' + encodeURIComponent(e.message) + '#umrisse'); }
-  require('../fshub').invalidate();
-  res.redirect(`/admin/farming?ok=umrisse${n}#umrisse`);
+// Hintergrund der Hub-Übersicht, je Karte eins (Name aus dem Spielstand)
+router.post('/farming/hintergrund', fsMapUpload.single('bg'), multipartCsrf, (req, res) => {
+  const f = req.file, ext = f && { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[f.mimetype];
+  if (!ext) return res.redirect('/admin/farming?err=' + encodeURIComponent('Bitte ein PNG-, JPEG- oder WebP-Bild wählen.') + '#hintergrund');
+  require('../fshub').saveBackground(f.buffer, ext);
+  res.redirect('/admin/farming?ok=hintergrund#hintergrund');
+});
+router.post('/farming/hintergrund/:key/loeschen', (req, res) => {
+  require('../fshub').removeBackground(String(req.params.key));
+  res.redirect('/admin/farming?ok=1#hintergrund');
 });
 // Mod „Farming Hub Export“ (games/fs25-export) und ihre Datei, falls der Hub sie nicht per FTP bekommt (src/fsexport.js)
 router.get('/farming/export-mod.zip', (req, res) => {
@@ -441,7 +444,8 @@ router.post('/farming/spieldaten', fsI3dUpload.single('export'), multipartCsrf, 
   if (!req.file) return res.redirect('/admin/farming?err=' + encodeURIComponent('Bitte die farmingHubExport.xml wählen.') + '#spieldaten');
   let d;
   try { d = require('../fsexport').upload(req.file.buffer); } catch (e) { return res.redirect('/admin/farming?err=' + encodeURIComponent(e.message) + '#spieldaten'); }
-  require('../fsprod').forget();
+  require('../fscrops').forget();
+  require('../fsmap').forget();
   require('../fshub').invalidate();
   res.redirect(`/admin/farming?ok=spiel${d.fields.length}#spieldaten`);
 });
@@ -449,13 +453,6 @@ router.post('/farming/spieldaten/loeschen', (req, res) => {
   require('../fsexport').removeUpload();
   require('../fshub').invalidate();
   res.redirect('/admin/farming?ok=1#spieldaten');
-});
-router.post('/farming/umrisse/loeschen', (req, res) => {
-  const feeds = require('../fsfeeds');
-  feeds.removeOutlines();
-  if (feeds.configured('ftp')) feeds.soon('ftp');
-  require('../fshub').invalidate();
-  res.redirect('/admin/farming?ok=1#umrisse');
 });
 // Spielstände (src/fssaves.js): Daten beiseitelegen, zurückholen, löschen
 router.post('/farming/spielstand/:action', (req, res) => {
@@ -478,14 +475,6 @@ router.post('/farming/symbole/loeschen', (req, res) => {
   res.redirect('/admin/farming?ok=1#symbole');
 });
 // Datum korrigieren: Tag im Monat, Monat und Jahr wie im Spiel → absoluter Spieltag
-router.post('/farming/datum', (req, res) => {
-  const hub = require('../fshub'), b = req.body;
-  const dpp = hub.daysPerPeriod();
-  const month = Math.max(0, Math.min(11, Math.round(Number(b.month)) || 0)), year = Math.max(1, Math.round(Number(b.year)) || 1);
-  const dom = Math.max(1, Math.min(dpp, Math.round(Number(b.dom)) || 1));
-  hub.setDay(hub.dayOfMonth(month, year, dpp) + dom - 1, 'admin');
-  res.redirect('/admin/farming?ok=datum#server');
-});
 router.post('/farming/hoefe', (req, res) => {
   const hub = require('../fshub'), b = req.body;
   for (const f of hub.model().farms) if (`name_${f.id}` in b) hub.saveFarm(f.id, req.user, { name: b['name_' + f.id], color: b['color_' + f.id] });
@@ -500,18 +489,6 @@ router.post('/farming/orte', (req, res) => {
 router.post('/farming/orte/:id/loeschen', (req, res) => {
   require('../fshub').removePlace(req.params.id);
   res.redirect('/admin/farming?ok=1#orte');
-});
-router.post('/farming/fruechte', (req, res) => {
-  require('../fshub').saveCrop(Number(req.body.id) || null, req.body);
-  res.redirect('/admin/farming?ok=1#fruechte');
-});
-router.post('/farming/fruechte/:id/loeschen', (req, res) => {
-  require('../fshub').removeCrop(req.params.id);
-  res.redirect('/admin/farming?ok=1#fruechte');
-});
-router.post('/farming/fruechte/zuruecksetzen', (req, res) => {
-  require('../fshub').resetCrops();
-  res.redirect('/admin/farming?ok=1#fruechte');
 });
 
 // ---------- Modlisten ----------

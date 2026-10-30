@@ -2,10 +2,13 @@
 // Farming Simulator Hub (Startmenü → 🚜 Farming Simulator): ein Fenster für alles rund um den FS25-Server.
 // Die Feeds holt src/fsfeeds.js ab, hier wird daraus ein Bild des Servers (model): Uhrzeit, Datum, Wetter, Spieler, Höfe
 // mit Land, Fahrzeugen, Paletten, Lager und Bilanz, Karte und Preise. Dazu kommen die Daten der Mitglieder: Höfe und
-// Mitglieder, Notizen, Aufgaben, Anbauplan, Feldmeldungen, Orte, Changelog und Vorschläge (Tabellen fs_* in src/db.js).
+// Mitglieder, Notizen, Aufgaben, Anbauplan, Orte, Changelog und Vorschläge (Tabellen fs_* in src/db.js).
 //
-// Was kein Feed liefert, sagt der Hub ehrlich: Frucht und Zustand der Felder kommen aus den Meldungen der Mitglieder,
-// das Datum zählt er selbst mit (genauer mit environment.xml per FTP), Geld je Hof gibt es nur über FTP (farms.xml).
+// Was das Spiel weiß, kommt aus dem Spiel: Grundstücke, Felder, Stationen, Rezepte, Waren und Früchte aus der Mod
+// „Farming Hub Export“ (src/fsexport.js), was je Fleck wächst aus den Dichtekarten (src/fsmap.js), Datum aus environment.xml.
+// Von Hand gepflegt werden nur Dinge, die das Spiel nicht kennt: Höfe auf der Seite, Aufgaben, Pläne, Orte, Notizen.
+const fs = require('node:fs');
+const path = require('node:path');
 const { db, now, getSetting, setSetting, tx } = require('./db');
 const feeds = require('./fsfeeds');
 const fsmap = require('./fsmap');
@@ -13,6 +16,7 @@ const saves = require('./fssaves');
 const N = require('./fsnames');
 const prod = require('./fsprod');
 const fsst = require('./fsstations');
+const fscrops = require('./fscrops');
 const fsexport = require('./fsexport');
 const notify = require('./notify');
 
@@ -35,18 +39,6 @@ const CROPS = new Set(['WHEAT', 'BARLEY', 'OAT', 'CANOLA', 'SORGHUM', 'SUNFLOWER
   'COTTON', 'RICE', 'RICELONGGRAIN', 'GREENBEAN', 'PEA', 'SPINACH', 'SUGARCANE', 'GRASS_WINDROW', 'DRYGRASS_WINDROW', 'STRAW', 'GRAPE', 'OLIVE', 'SILAGE',
   'RYE', 'TRITICALE', 'SPELT', 'WINTERWHEAT', 'WINTERBARLEY', 'ONION', 'ALFALFA', 'CLOVER', 'WOODCHIPS', 'WOOD', 'CHAFF']);
 const ANIMAL_GOODS = new Set(['MILK', 'GOATMILK', 'BUFFALOMILK', 'WOOL', 'EGG', 'HONEY', 'MANURE', 'LIQUIDMANURE', 'TROUT', 'SALMON']);
-
-// Kalendervorlage (FS25-Kalender, in der Seitenverwaltung änderbar). Monate 0 = März … 11 = Februar.
-const CROP_PRESET = [
-  ['Weizen', 'WHEAT', '#e2c044', [6, 7], [4, 5]], ['Gerste', 'BARLEY', '#d9b25a', [6, 7], [3, 4]], ['Hafer', 'OAT', '#e8d48a', [0, 1], [4, 5]],
-  ['Raps', 'CANOLA', '#f1e04a', [5, 6], [4, 5]], ['Mais', 'MAIZE', '#f0a830', [1, 2], [7, 8]], ['Sonnenblumen', 'SUNFLOWER', '#f5c518', [0, 1], [7, 8]],
-  ['Sojabohnen', 'SOYBEAN', '#b5a642', [1, 2], [7, 8]], ['Kartoffeln', 'POTATO', '#c49a6c', [0, 1], [5, 6, 7]], ['Zuckerrüben', 'SUGARBEET', '#d8d0c0', [0, 1], [7, 8]],
-  ['Sorghum', 'SORGHUM', '#b8562b', [1, 2], [5, 6]], ['Reis', 'RICE', '#9fd3c7', [1, 2], [6, 7]], ['Erbsen', 'PEA', '#7cc05a', [0, 1], [4, 5]],
-  ['Grüne Bohnen', 'GREENBEAN', '#5aa83c', [1, 2], [5, 6]], ['Karotten', 'CARROT', '#ef8a2c', [0, 1, 2], [5, 6, 7]], ['Pastinaken', 'PARSNIP', '#efe2b8', [0, 1], [6, 7, 8]],
-  ['Rote Bete', 'BEETROOT', '#a0304a', [0, 1, 2], [5, 6, 7]], ['Spinat', 'SPINACH', '#3f8a3c', [0, 1, 2, 3, 4, 5, 6], [2, 3, 4, 5, 6, 7, 8]],
-  ['Gras', 'GRASS_WINDROW', '#6cc04a', [0, 1, 2, 3, 4, 5, 6, 7], [2, 3, 4, 5, 6, 7], 'grass'], ['Weinberg', 'GRAPE', '#7b3f8c', [], [6, 7], 'perm'],
-  ['Oliven', 'OLIVE', '#7f8f3a', [], [7, 8], 'perm'],
-];
 
 // ---------- Kleinigkeiten ----------
 const clean = (v, max) => String(v ?? '').replace(/\r\n?/g, '\n').trim().slice(0, max);
@@ -151,7 +143,9 @@ function model() {
   const st = feeds.get('stats'), sg = feed('savegame'), vf = feed('vehicles'), ec = feed('economy');
   // Kartendaten aus dem Spiel (Mod „Farming Hub Export“): Positionen der vorplatzierten Gebäude, Grundstücke ohne Stats-Feed
   const ex = fsexport.current();
-  const farmsX = ftpFile('farms.xml'), plc = fsexport.withPositions(ftpFile('placeables.xml'), ex), items = ftpFile('items.xml');
+  N.setGameTitles(ex && ex.fillTypes, ex && ex.language);
+  const plcRaw = ftpFile('placeables.xml');
+  const farmsX = ftpFile('farms.xml'), plc = fsexport.withPositions(plcRaw, ex), items = ftpFile('items.xml');
   const bank = ftpFile('bankCredit.xml');
   const size = (st && st.mapSize) || (ex && ex.mapSize) || 2048;
   const day = currentDay();
@@ -161,34 +155,49 @@ function model() {
   const price = fill => priceOf(ec, fill, month);
   const valueOf = (fill, amount) => { const p = price(fill); return p ? amount / 1000 * p : 0; };
 
-  // Grundstücke und Felder: Feldnummer = Grundstücksnummer
-  const lands = new Map(((st && st.farmlands && st.farmlands.length ? st.farmlands : ex && ex.farmlands) || []).map(f => [f.id, f]));
-  const fields = ((st && st.fields) || []).map(f => {
-    const land = lands.get(f.id);
-    return { id: f.id, x: f.x, z: f.z, owner: land ? land.owner : 0, area: land ? land.area : 0, price: land ? land.price : 0 };
-  });
-  // Felder, die der Stats-Feed nicht nennt (z. B. frischer Spielstand): aus fields.xml. Lage und Größe kommen dann vom Grundstück
-  // (Feldnummer = Grundstücksnummer). Alle übrigen Grundstücke kommen als „Grundstück ohne Feld“ dazu (parcel): Wiesen, Wald,
-  // Plantagen wie Kaffee auf DLC-Karten. Die Karte im Spiel nummeriert alle Grundstücke, der Hub zeigt sie deshalb auch.
-  // Kennt der Hub gar keine Feldliste, gelten alle Grundstücke als Felder.
-  const known = new Set(fields.map(f => f.id)), fxml = ftpFile('fields.xml');
-  const fromLand = (l, parcel) => { known.add(l.id); fields.push({ id: l.id, x: l.x, z: l.z, owner: l.owner, area: l.area, price: l.price, ...(parcel ? { parcel: true } : {}) }); };
-  for (const f of (fxml && fxml.list) || []) { const l = lands.get(f.id); if (l && !known.has(f.id) && Number.isFinite(l.x)) fromLand(l); }
-  const noList = !fields.length;
-  for (const l of lands.values()) if (!known.has(l.id) && l.id < 255 && l.area > 0 && Number.isFinite(l.x)) fromLand(l, !noList);
+  // Grundstücke: alle aus dem Spiel (Export), Besitzer live aus dem Stats-Feed. Felder liegen auf Grundstücken; welche zu
+  // welchem gehören, sagt der Export. Ein Grundstück ohne Feld (Wiese, Wald, Plantage) heißt „parcel“, zählt nicht als Feld,
+  // sieht auf der Karte aber genauso aus. Ohne Export gilt Feldnummer = Grundstücksnummer.
+  const live = new Map(((st && st.farmlands) || []).map(f => [f.id, f]));
+  const lands = new Map();
+  for (const f of (ex && ex.farmlands) || []) if (!f.hidden) lands.set(f.id, { ...f, owner: live.has(f.id) ? live.get(f.id).owner : f.owner });
+  for (const f of live.values()) if (!lands.has(f.id)) lands.set(f.id, f);
+  const onLand = new Map();
+  for (const f of (ex && ex.fields) || []) {
+    const k = f.farmland ?? f.id;
+    if (!onLand.has(k)) onLand.set(k, []);
+    onLand.get(k).push({ id: f.id, ha: f.ha });
+  }
+  const fields = [];
+  const fromLand = (l, parcel) => fields.push({ id: l.id, x: l.x, z: l.z, owner: l.owner, area: l.area, price: l.price, fieldIds: (onLand.get(l.id) || []).map(f => f.id), ...(parcel ? { parcel: true } : {}) });
+  if (onLand.size) {
+    for (const l of lands.values()) if (l.id < 255 && l.area > 0 && Number.isFinite(l.x)) fromLand(l, !onLand.has(l.id));
+  } else {
+    const known = new Set(), fxml = ftpFile('fields.xml');
+    for (const f of (st && st.fields) || []) { const land = lands.get(f.id); known.add(f.id); fields.push({ id: f.id, x: f.x, z: f.z, owner: land ? land.owner : 0, area: land ? land.area : 0, price: land ? land.price : 0, fieldIds: [f.id] }); }
+    for (const f of (fxml && fxml.list) || []) { const l = lands.get(f.id); if (l && !known.has(f.id) && Number.isFinite(l.x)) { known.add(l.id); fromLand(l); } }
+    const noList = !fields.length;
+    for (const l of lands.values()) if (!known.has(l.id) && l.id < 255 && l.area > 0 && Number.isFinite(l.x)) fromLand(l, !noList);
+  }
   fields.sort((a, b) => a.id - b.id);
-  // Plantagen (Kaffee, Bananen) aus placeables.xml: jede Reihe gehört zum Feld oder Grundstück, dessen Mitte am nächsten liegt
+  // Plantagen (Kaffee, Bananen) aus placeables.xml: jede Reihe gehört zu dem Grundstück, auf dem sie liegt (ohne Grundstückskarte:
+  // dessen Mitte am nächsten)
   const orchards = (plc || []).filter(p => p.kind === 'orchard').map(o => ({ type: o.type, farmId: o.farmId, rows: o.rows }));
   const votes = new Map();
   for (const o of orchards) {
     for (const r of o.rows) {
       const mx = (r[0] + r[2]) / 2, mz = (r[1] + r[3]) / 2;
       let best = null;
-      for (const f of fields) {
-        const d = Math.hypot(f.x - mx, f.z - mz), reach = Math.max(40, 1.4 * Math.sqrt((f.area || 0.5) * 10000 / Math.PI));
-        if (d < reach && (!best || d / reach < best.k)) best = { k: d / reach, f };
+      const pid = fsexport.parcelAt(ex, mx, mz);
+      if (pid) best = { f: fields.find(f => f.id === pid) };
+      if (!best || !best.f) {
+        best = null;
+        for (const f of fields) {
+          const d = Math.hypot(f.x - mx, f.z - mz), reach = Math.max(40, 1.4 * Math.sqrt((f.area || 0.5) * 10000 / Math.PI));
+          if (d < reach && (!best || d / reach < best.k)) best = { k: d / reach, f };
+        }
       }
-      if (!best) continue;
+      if (!best || !best.f) continue;
       const v = votes.get(best.f) || {};
       v[o.type] = (v[o.type] || 0) + 1;
       votes.set(best.f, v);
@@ -202,8 +211,10 @@ function model() {
     for (const pl of places) { const d = dist(pl, p); if (d <= pl.radius && (!best || d < best.d)) best = { d, pl }; }
     if (best) return { label: best.pl.name, place: best.pl.id };
     let bf = null;
-    for (const f of fields) { const d = dist(f, p) + (f.parcel ? 50 : 0); if (!bf || d < bf.d) bf = { d, f }; }   // echte Felder zuerst
-    if (bf && bf.d < 150) return bf.f.parcel ? { label: `bei Grundstück ${bf.f.id}` } : { label: `bei Feld ${bf.f.id}`, field: bf.f.id };
+    const pid = fsexport.parcelAt(ex, x, z);
+    if (pid && fields.some(f => f.id === pid)) return { label: `Grundstück ${pid}`, field: pid };
+    for (const f of fields) { const d = dist(f, p); if (!bf || d < bf.d) bf = { d, f }; }
+    if (bf && bf.d < 150) return { label: `bei Grundstück ${bf.f.id}`, field: bf.f.id };
     return { label: `${Math.round(x)} / ${Math.round(z)}` };
   }
 
@@ -242,6 +253,7 @@ function model() {
   // Höfe: alle Farm-Nummern, die irgendwo vorkommen. Mit farms.xml (FTP) zählen nur die Höfe, die es im Spielstand gibt,
   // sonst auch die, die Mitglieder hier angelegt haben
   const rows = farmRows(), members = membersByFarm();
+  const exNames = new Map(((ex && ex.placeables) || []).filter(p => p.uid && p.name).map(p => [p.uid, p.name]));
   const ids = new Set(farmsX ? [] : [...rows.keys()]);
   for (const v of vehicles) if (v.farmId > 0) ids.add(v.farmId);
   for (const f of lands.values()) if (f.owner > 0) ids.add(f.owner);
@@ -268,14 +280,14 @@ function model() {
       else for (const [t, l] of v.fill) if (!(v.drivable && TANK.has(t))) cargo.push({ vehicle: v.name, fill: t, name: N.fill(t), amount: l, value: valueOf(t, l), where: v.where.label });
     }
     const buildings = (plc || []).filter(p => p.farmId === id && p.kind !== 'orchard' && p.kind !== 'station').map((p, k) => {
-      const name = p.name || prod.buildingName(prod.typeOf(p));
+      const name = p.name || (exNames.get(p.uid) || '') || prod.buildingName(prod.typeOf(p));
       const loc = where(p.x, p.z);
       const label = loc.place ? loc.label : name;
       const fills = p.fills.map(([sec, t, l]) => ({ sec, fill: t, name: N.fill(t), amount: l, food: /food/i.test(sec), value: valueOf(t, l) }));
       for (const f of fills) if (!f.food && !/water|straw|milk|manure|liquidManure/i.test(f.sec)) put(f.fill, f.amount, label, p.kind === 'production' ? 'Produktion' : 'Silo');
       const animals = {};
       for (const [t, n] of p.animals) animals[t] = (animals[t] || 0) + n;
-      return { idx: k, name, kind: p.kind, where: loc.label, x: p.x, z: p.z, fills, animals: Object.entries(animals).map(([t, n]) => ({ type: t, name: N.pretty(t), n })),
+      return { idx: k, uid: p.uid || '', name, kind: p.kind, where: loc.label, x: p.x, z: p.z, fills, animals: Object.entries(animals).map(([t, n]) => ({ type: t, name: N.pretty(t), n })),
         productions: p.productions, food: fills.filter(f => f.food).reduce((a, f) => a + f.amount, 0), hasFood: fills.some(f => f.food) };
     });
     const bales = (items || []).filter(b => b.farmId === id);
@@ -297,7 +309,7 @@ function model() {
   });
 
   // Stationen der Karte (src/fsstations.js), mit Lage und großer Nachfrage (economy.xml nennt die uniqueId der Station)
-  const stations = fsst.list(plc).map(s => ({ ...s, where: s.placed ? where(s.x, s.z).label : null,
+  const stations = fsst.list(ex, plcRaw).map(s => ({ ...s, where: s.placed ? where(s.x, s.z).label : null,
     demands: (ec ? ec.demands : []).filter(d => d.place === s.uid) }));
 
   const dayTime = st ? st.dayTime : null;
@@ -311,7 +323,7 @@ function model() {
     money: sg && sg.money !== null ? sg.money : (farmsX ? farmsX.reduce((a, f) => a + (f.money || 0), 0) : null),
     perFarmMoney: !!farmsX, ftp: !!feeds.get('ftp'),
     farms, fields, orchards, stations, where, lands: [...lands.values()], vehicles, places, players: st ? st.players : [], mods: st ? st.mods : [],
-    demands: ec ? ec.demands : [], month,
+    demands: ec ? ec.demands : [], month, gameData: ex ? { version: ex.version || 1, mapTitle: ex.mapTitle, at: ex.at } : null,
   };
   return cached;
 }
@@ -328,8 +340,9 @@ feeds.on((key, prev) => {
   if (key === 'stats') onStats(prev, feeds.get('stats'));
   if (key === 'ftp') {
     setImmediate(() => { try { shapes(); } catch (e) { console.error('Farming Hub, Feldformen:', e); } });
-    const env = ftpFile('environment.xml');
-    const before = prev && prev.files && prev.files['environment.xml'];
+    // Spieltag aus environment.xml, sonst aus dem Export der Mod
+    const env = ftpFile('environment.xml') || fsexport.current();
+    const before = prev && prev.files && (prev.files['environment.xml'] || prev.files['farmingHubExport.xml']);
     if (env && env.day && (!before || before.day !== env.day || !dayState())) setDay(env.day, 'ftp');
   }
   record();
@@ -348,6 +361,7 @@ function checkSave() {
   const sw = saves.check();
   if (!sw) return;
   fsmap.forget();
+  fscrops.forget();
   invalidate();
   db.prepare("INSERT INTO fs_changelog(kind, title, body, created_at) VALUES ('server', ?, ?, ?)").run(`Neuer Spielstand: ${sw.to}`,
     `Vorher ${sw.from}. ${sw.restored ? 'Höfe, Aufgaben und Pläne von früher sind wieder da.' : 'Höfe, Aufgaben und Pläne des alten Spielstands sind beiseitegelegt, hier beginnt alles leer.'}`, now());
@@ -636,7 +650,7 @@ function suggestions(farmId) {
   if (dry.length) out.push({ key: `diesel:${f.id}`, sig: dry.map(v => v.uid || v.name).sort().join(','), icon: '⛽', title: `Tanken: ${dry.length} ${dry.length === 1 ? 'Fahrzeug' : 'Fahrzeuge'} unter ${diesel} l Diesel`, why: dry.slice(0, 4).map(v => `${v.name} ${Math.round(v.diesel)} l`).join(', ') });
   if (m.date) {
     for (const p of plans(f.id)) {
-      const where = p.field ? `Feld ${p.field}` : (p.label || 'Plan');
+      const where = p.field ? `Grundstück ${p.field}` : (p.label || 'Plan');
       if (p.sow_month === m.date.month && p.kind !== 'perm') out.push({ key: `sow:${p.id}:${m.date.year}`, sig: '1', icon: '🌱', title: `${where}: ${p.crop} säen`, why: 'Laut Hofkalender', field: p.field });
       if (p.harvest_month === m.date.month) out.push({ key: `harvest:${p.id}:${m.date.year}`, sig: '1', icon: '🌾', title: `${where}: ${p.crop} ernten`, why: 'Laut Hofkalender', field: p.field });
     }
@@ -651,11 +665,11 @@ function suggestions(farmId) {
   }
   // Felder laut letztem Autosave: ernten je Frucht, kalken, pflügen, düngen
   if (getSetting('fs_auto_fields', '1') === '1') {
-    const mine = fieldStates().filter(x => x.owner === f.id && x.source === 'auto');
+    const mine = fieldStates().filter(x => x.owner === f.id && (x.source === 'auto' || x.source === 'patch'));
     const list = xs => xs.map(x => x.id).sort((a, b) => a - b);
-    const names = ids => (ids.length === 1 ? 'Feld ' : 'Felder ') + ids.join(', ');
+    const names = ids => (ids.length === 1 ? 'Grundstück ' : 'Grundstücke ') + ids.join(', ');
     const ripe = new Map();
-    for (const x of mine) if (x.state === 'reif') { const k = x.auto.fruit || '?'; if (!ripe.has(k)) ripe.set(k, []); ripe.get(k).push(x); }
+    for (const x of mine) if (x.state === 'reif') { const k = (x.auto && x.auto.fruit) || x.cropFill || '?'; if (!ripe.has(k)) ripe.set(k, []); ripe.get(k).push(x); }
     for (const [fruit, xs] of ripe) {
       const ids = list(xs);
       out.push({ key: `ernte:${f.id}:${fruit}`, sig: ids.join(','), icon: '🌾', title: `${xs[0].crop || N.fill(fruit)} ernten: ${names(ids)}`, why: 'Laut letztem Autosave erntereif', field: ids.length === 1 ? ids[0] : null });
@@ -683,24 +697,9 @@ function takeSuggestion(user, farmId, key) {
 }
 
 // ---------- Kalender ----------
-function crops() {
-  if (!db.prepare('SELECT 1 FROM fs_crops LIMIT 1').get()) {
-    const ins = db.prepare('INSERT INTO fs_crops(name, fill, color, sow, harvest, kind, position) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    tx(() => CROP_PRESET.forEach(([n, f, c, s, h, k], i) => ins.run(n, f, c, s.join(','), h.join(','), k || 'field', i)));
-  }
-  return db.prepare('SELECT * FROM fs_crops ORDER BY position, name').all().map(c => ({ ...c, sowM: months(c.sow), harvestM: months(c.harvest) }));
-}
+// Früchte für Kalender und Karte: aus dem Spiel (src/fscrops.js), nicht mehr von Hand
+function crops() { return fscrops.sync(fsexport.current()); }
 function crop(id) { return crops().find(c => c.id === Number(id)) || null; }
-function saveCrop(id, b) {
-  const name = oneLine(b.name, MAX.name);
-  if (!name) return;
-  const vals = [name, oneLine(b.fill, 40).toUpperCase() || null, /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#8fd16a',
-    months([].concat(b.sow || []).join(',')).join(','), months([].concat(b.harvest || []).join(',')).join(','), ['field', 'grass', 'perm'].includes(b.kind) ? b.kind : 'field'];
-  if (id) db.prepare('UPDATE fs_crops SET name = ?, fill = ?, color = ?, sow = ?, harvest = ?, kind = ? WHERE id = ?').run(...vals, Number(id));
-  else db.prepare('INSERT INTO fs_crops(name, fill, color, sow, harvest, kind, position) VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM fs_crops))').run(...vals);
-}
-function removeCrop(id) { db.prepare('DELETE FROM fs_crops WHERE id = ?').run(Number(id)); }
-function resetCrops() { db.prepare('DELETE FROM fs_crops').run(); crops(); }
 function plans(farmId) {
   crops();
   return db.prepare(`SELECT p.*, c.name AS crop, c.color, c.kind, c.fill FROM fs_plans p LEFT JOIN fs_crops c ON c.id = p.crop_id
@@ -754,33 +753,14 @@ function calendar(farmId, year, withRepeat = false) {
 }
 
 // ---------- Felder und Orte ----------
-function fieldReports() {
-  return new Map(db.prepare('SELECT f.*, u.username, c.name AS crop, c.color AS crop_color, c.fill AS crop_fill FROM fs_fields f LEFT JOIN users u ON u.id = f.user_id LEFT JOIN fs_crops c ON c.id = f.crop_id').all().map(r => [r.field, r]));
-}
-function reportField(user, field, b) {
-  const id = intOr(field);
-  if (!id) return;
-  const cropId = intOr(b.crop_id), state = Object.hasOwn(N.STATES, b.state) ? b.state : null;
-  db.prepare(`INSERT INTO fs_fields(field, crop_id, state, user_id, game_day, updated_at) VALUES (?, ?, ?, ?, ?, ?)
-              ON CONFLICT(field) DO UPDATE SET crop_id = excluded.crop_id, state = excluded.state, user_id = excluded.user_id, game_day = excluded.game_day, updated_at = excluded.updated_at`)
-    .run(id, cropId && crop(cropId) ? cropId : null, state, user.id, currentDay(), now());
-}
-// Was auf den Feldern steht. Quellen: der letzte Autosave (fields.xml per FTP), Meldungen der Mitglieder und der Hofkalender.
-// Ist eine Meldung neuer als der Autosave, gilt sie; sonst gilt der Autosave; ohne beides zeigt der Plan, was gerade wachsen müsste.
-const GRASS_FRUITS = new Set(['GRASS', 'MEADOW']);
+// Was auf den Grundstücken steht. Je Fleck aus den Dichtekarten (src/fsmap.js, „patch“: Hektar je Frucht, Zustand und
+// Pflege), sonst je Feld aus dem letzten Autosave (fields.xml), sonst aus dem Hofkalender, was gerade wachsen müsste.
 function cropFor(fruit, cs) {
   if (!fruit) return null;
-  const c = cs.find(x => x.fill === fruit) || (GRASS_FRUITS.has(fruit) && cs.find(x => x.kind === 'grass'));
-  if (c) return { name: c.name, color: c.color, fill: fruit };
-  let h = 0;
-  for (const ch of fruit) h = (h * 31 + ch.charCodeAt(0)) % 360;
-  return { name: N.fill(fruit), color: `hsl(${h}, 55%, 55%)`, fill: fruit };
-}
-// Plantage als Frucht: Vorlage im Kalender, sonst Farbe wie im Spiel
-const ORCHARD = { COFFEE: '#9b3b2c', BANANA: '#e3cf3f' };
-function orchardCrop(type, cs) {
-  const c = cs.find(x => x.fill === type);
-  return c ? { name: c.name, color: c.color, fill: type } : { name: N.fill(type), color: ORCHARD[type] || '#8f6a3a', fill: type };
+  const c = cs.find(x => x.name === fruit || x.fill === fruit);
+  if (c) return { name: c.label || c.name, color: c.color, fill: c.fill, fruit };
+  if (/^\?\d+$/.test(fruit)) return { name: 'Unbekannte Frucht ' + fruit.slice(1), color: '#9aa394', fill: null, fruit };
+  return { name: N.fill(fruit), color: fscrops.hsl(fruit), fill: fruit, fruit };
 }
 function fieldCare(a, state) {
   const out = [];
@@ -792,10 +772,30 @@ function fieldCare(a, state) {
   if (a.stone > 0) out.push({ key: 'steine', label: 'Steine' });
   return out;
 }
+// Pflege je Fleck: was auf mehr als 3 % der Fläche (mindestens 0,05 ha) zu tun ist, mit Hektar
+function patchCare(pt) {
+  const out = [], min = Math.max(0.05, (pt.ha || 0) * 0.03), c = pt.care || {};
+  const add = (key, ha, label) => { if (ha >= min) out.push({ key, ha, label: `${label} (${(Math.round(ha * 10) / 10).toLocaleString('de-DE')} ha)` }); };
+  add('kalk', c.kalk || 0, 'Kalk nötig');
+  add('pflug', c.pflug || 0, 'Pflügen fällig');
+  const sown = ((pt.states || {}).gesaet || 0) + ((pt.states || {}).waechst || 0);
+  if (sown >= min) add('duenger', Math.min(sown, (c.duenger1 || 0) + Math.max(0, sown - (c.duenger1 || 0) - (c.duenger2 || 0))), 'Düngen');
+  return out;
+}
+const top = o => Object.entries(o || {}).sort((a, b) => b[1] - a[1])[0] || null;
 function fieldStates() {
-  const m = model(), reports = fieldReports(), cs = crops(), soil = soils();
+  const m = model(), cs = crops(), soil = soils(), ex = fsexport.current();
   const fx = ftpFile('fields.xml'), autoAt = fx ? fx.at : 0;
-  const auto = new Map(((fx && fx.list) || []).map(f => [f.id, f]));
+  // fields.xml nennt Felder; welches Feld auf welchem Grundstück liegt, sagt der Export (sonst gleiche Nummer). Liegen mehrere
+  // auf einem Grundstück, zählt das größte.
+  const exField = new Map(((ex && ex.fields) || []).map(f => [f.id, f]));
+  const auto = new Map();
+  for (const a of (fx && fx.list) || []) {
+    const ef = exField.get(a.id), land = ef ? ef.farmland ?? a.id : a.id, ha = ef ? ef.ha : 0;
+    const cur = auto.get(land);
+    if (!cur || ha > cur.ha) auto.set(land, { ...a, ha });
+  }
+  const patches = ((shapes(m) || {}).ras || {}).parcels || {};
   const planned = new Map();
   for (const f of m.farms) for (const p of plans(f.id)) {
     if (!p.field) continue;
@@ -804,48 +804,60 @@ function fieldStates() {
     else if (!planned.has(p.field)) planned.set(p.field, { ...p, future: true });
   }
   return m.fields.map(f => {
-    const r = reports.get(f.id) || null, p = planned.get(f.id) || null, a = auto.get(f.id) || null;
+    const p = planned.get(f.id) || null, a = auto.get(f.id) || null, pt = patches[f.id] || null;
     const farm = m.farms.find(x => x.id === f.owner) || null;
-    let crop = null, state = null, source = null;
-    if (r && (!a || r.updated_at > autoAt)) { crop = r.crop ? { name: r.crop, color: r.crop_color, fill: r.crop_fill } : null; state = r.state; source = 'report'; }
-    else if (a) {
+    let crop = null, state = null, source = null, mix = [], states = [], care = [];
+    if (pt && pt.ha > 0) {
+      // Je Fleck: alle Früchte und Zustände mit Fläche, die größte bestimmt die Farbe in Listen
+      mix = Object.entries(pt.fruits).sort((x, y) => y[1] - x[1]).map(([fruit, ha]) => ({ ...cropFor(fruit, cs), ha }));
+      states = Object.entries(pt.states).sort((x, y) => y[1] - x[1]).map(([k, ha]) => ({ key: k, label: (N.STATES[k] || [k])[0], ha }));
+      crop = mix[0] || null;
+      state = (top(pt.states) || [null])[0];
+      care = patchCare(pt);
+      source = 'patch';
+    } else if (a) {
       crop = cropFor(a.fruit, cs);
       state = N.GROUND[a.ground] || null;
       if (state === 'gesaet' && a.growth >= 2) state = 'waechst';
+      care = fieldCare(a, state);
       source = 'auto';
     }
-    if (!crop && f.orchard) { crop = orchardCrop(f.orchard, cs); source = source || 'orchard'; }
+    if (!crop && f.orchard) { crop = cropFor(f.orchard, cs); source = source || 'orchard'; }
     if (!crop && p && !p.future) { crop = { name: p.crop, color: p.color, fill: p.fill }; source = source || 'plan'; }
-    const care = source === 'auto' ? fieldCare(a, state) : [];
-    return { ...f, farm, report: r, plan: p, auto: a, autoAt, source, soil: soil.get(f.id) || null, crop: crop ? crop.name : null, cropColor: crop ? crop.color : null, cropFill: crop ? crop.fill || null : null, state, care,
-      ground: a && a.ground ? N.GROUND_LABEL[a.ground] || N.pretty(a.ground) : null };
+    return { ...f, farm, plan: p, auto: a, autoAt, patch: pt, mix, states, source, soil: soil.get(f.id) || null, crop: crop ? crop.name : null, cropColor: crop ? crop.color : null,
+      cropFill: crop ? crop.fill || null : null, state, care, ground: a && a.ground ? N.GROUND_LABEL[a.ground] || N.pretty(a.ground) : null };
   });
 }
-// Produktionsplaner: Gebäude aus placeables.xml plus nachgetragene Rezepte (src/fsprod.js)
+// Produktionsplaner (src/fsprod.js): Karte, eigene Gebäude, Katalog. Jedes Gebäude kennt seinen Hof.
 function planner() {
-  const m = model();
-  // Vorplatzierte Gebäude haben keine Position im Spielstand, dann gilt die von Hand gesetzte (Stationen auf der Karte)
-  const pos = fsst.positions(), ex = fsexport.current(), raw = fsexport.withPositions(ftpFile('placeables.xml'), ex);
-  prod.fromGame(ex);
-  const plc = raw && raw.map(p => (p.x === null || p.x === undefined) && pos.has(p.uid) ? { ...p, x: pos.get(p.uid).x, z: pos.get(p.uid).z } : p);
-  const list = prod.buildings(plc, (x, z) => (x === undefined || x === null ? null : m.where(x, z).label));
-  for (const b of list) for (const i of b.instances) i.farm = m.farms.find(f => f.id === i.farmId) || null;
-  return list;
+  const m = model(), ex = fsexport.current();
+  const lists = prod.all(ex, ftpFile('placeables.xml'), (x, z) => (Number.isFinite(x) && Number.isFinite(z) ? m.where(x, z).label : null));
+  for (const list of Object.values(lists)) for (const b of list) b.farm = b.farmId ? m.farms.find(f => f.id === b.farmId) || null : null;
+  return lists;
 }
-// Echte Feldformen aus der Dichtekarte (src/fsmap.js); null ohne FTP-Datei oder wenn abgeschaltet
+// Kartendaten: Umriss jedes Grundstücks aus dem Export (Kartenmaß 0–1000) und was je Fleck wächst (src/fsmap.js, ras).
+// Ohne Export sind die Grundstücke Kreise, ohne Dichtekarten gibt es keine Flecken (dann gilt fields.xml je Feld).
+let outlineMem = null;
 function shapes(m = model()) {
-  if (getSetting('fs_shapes', '1') !== '1') return null;
-  const f = feeds.get('ftp');
-  const ex = fsexport.current();
-  return fsmap.load(feeds.FS_DIR, (f && f.files) || {}, m.fields, m.size || 2048, feeds.currentOutlines(), ownOutlines(), ex ? { sig: fsexport.sig(ex), shapes: fsexport.shapes(ex) } : null);
-}
-// Eigene Feldumrisse (aus dem Kartenbild erkannt oder von Hand gezeichnet), in Weltkoordinaten
-function ownOutlines() {
-  const rows = db.prepare('SELECT field, pts, source, updated_at FROM fs_outlines').all();
-  if (!rows.length) return null;
-  const polys = {};
-  for (const r of rows) { try { polys[r.field] = { pts: JSON.parse(r.pts), source: r.source }; } catch { /* kaputt: ignorieren */ } }
-  return { sig: rows.length + ':' + Math.max(...rows.map(r => r.updated_at)) + ':' + rows.reduce((a, r) => a + r.pts.length, 0), polys };
+  const ex = fsexport.current(), size = m.size || 2048;
+  const osig = ex ? fsexport.sig(ex) + ':' + size : '-';
+  if (!outlineMem || outlineMem.sig !== osig) {
+    const out = {};
+    for (const [id, pts] of Object.entries((ex && ex.parcels) || {})) if (pts.length >= 3) out[id] = { d: fsmap.polyPath(pts, size) };
+    outlineMem = { sig: osig, shapes: out };
+  }
+  let ras = null;
+  if (getSetting('fs_shapes', '1') === '1') {
+    const f = feeds.get('ftp'), cs = fscrops.list(ex);
+    const grid = ex && ex.grid ? { size: ex.grid.size, lab: fsexport.gridLabels(ex) } : null;
+    ras = fsmap.load(feeds.FS_DIR, (f && f.files) || {}, {
+      mapSize: size, sig: osig + ':' + cs.map(c => c.name + c.density + c.color).join(','), fruits: cs, grid,
+      fields: ((ftpFile('fields.xml') || {}).list || []), polys: Object.fromEntries(((ex && ex.fields) || []).map(x => [x.id, x.pts])),
+      colorOf: name => (cs.find(c => c.name === name) || {}).color || (/^\?/.test(name) ? '#9aa394' : fscrops.hsl(name)),
+      stateColor: k => (N.STATES[k] || [0, '#5aa83c'])[1],
+    });
+  }
+  return { shapes: outlineMem.shapes, ras, game: Object.keys(outlineMem.shapes).length };
 }
 // Bodenverteilung je Grundstück (von Hand aus dem Spiel abgeschrieben): Prozent je Bodenart und Ertragspotenzial
 const SOILS = [['loamy_sand', 'Lehmiger Sand', '#e6be3c'], ['sandy_loam', 'Sandiger Lehm', '#86b56a'], ['loam', 'Lehm', '#a89a8c'], ['silty_clay', 'Schluffiger Ton', '#8f74b8']];
@@ -867,26 +879,6 @@ function saveSoil(field, b, userId) {
               yield = excluded.yield, updated_by = excluded.updated_by, updated_at = excluded.updated_at`).run(id, ...vals, userId || null, now());
   return true;
 }
-// fields: { id: [[x, z], …] } in Weltkoordinaten; source bild | hand
-function saveOutlines(fields, source, userId) {
-  const S = (model().size || 2048) / 2 + 50, t = now();
-  const put = db.prepare(`INSERT INTO fs_outlines(field, pts, source, updated_by, updated_at) VALUES (?, ?, ?, ?, ?)
-                          ON CONFLICT(field) DO UPDATE SET pts = excluded.pts, source = excluded.source, updated_by = excluded.updated_by, updated_at = excluded.updated_at`);
-  let n = 0;
-  tx(() => {
-    for (const [id, pts] of Object.entries(fields || {})) {
-      const fid = intOr(id);
-      if (!fid || fid < 1 || !Array.isArray(pts) || pts.length < 3 || pts.length > 2000) continue;
-      const clean = pts.map(p => (Array.isArray(p) ? [Number(p[0]), Number(p[1])] : null));
-      if (clean.some(p => !p || !p.every(v => Number.isFinite(v) && Math.abs(v) <= S))) continue;
-      put.run(fid, JSON.stringify(clean.map(([x, z]) => [Math.round(x * 10) / 10, Math.round(z * 10) / 10])), source === 'bild' ? 'bild' : 'hand', userId || null, t);
-      n++;
-    }
-  });
-  return n;
-}
-function removeOutline(id) { db.prepare('DELETE FROM fs_outlines WHERE field = ?').run(intOr(id)); }
-function removeOutlines(source) { db.prepare('DELETE FROM fs_outlines WHERE source = ?').run(source === 'hand' ? 'hand' : 'bild'); }
 function fieldOwner(fieldId) { const f = model().fields.find(x => x.id === Number(fieldId)); return f ? f.owner : 0; }
 function savePlace(id, b) {
   const name = oneLine(b.name, MAX.name), x = Number(b.x), z = Number(b.z);
@@ -1047,6 +1039,21 @@ function syncModlist(m = model()) {
   return changed;
 }
 
+// ---------- Hintergrund der Übersicht ----------
+// Je Karte ein Bild (Seitenverwaltung), liegt als bg-<karte>.<png|jpg|webp> im Datenordner. Läuft eine andere Karte, gilt deren Bild.
+const slug = t => String(t || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+function mapName() { const live = feeds.liveSave(), ex = fsexport.current(); return (live && live.mapTitle) || (ex && ex.mapTitle) || ''; }
+function backgrounds() {
+  return fs.readdirSync(feeds.FS_DIR).map(f => /^bg-([a-z0-9-]+)\.(png|jpe?g|webp)$/.exec(f)).filter(Boolean).map(x => ({ key: x[1], file: path.join(feeds.FS_DIR, x[0]), name: x[0] }));
+}
+function backgroundFile(name = mapName()) { const k = slug(name) || 'karte'; const b = backgrounds().find(x => x.key === k); return b ? b.file : null; }
+function saveBackground(buf, ext, name = mapName()) {
+  const k = slug(name) || 'karte';
+  for (const b of backgrounds()) if (b.key === k) fs.rmSync(b.file, { force: true });
+  fs.writeFileSync(path.join(feeds.FS_DIR, `bg-${k}.${ext}`), buf);
+}
+function removeBackground(key) { for (const b of backgrounds()) if (b.key === key) fs.rmSync(b.file, { force: true }); }
+
 // Konto gelöscht: Mitgliedschaft geht mit (Fremdschlüssel), Aufgaben bleiben ohne Zuständigen
 function start() {
   crops();
@@ -1057,12 +1064,13 @@ function start() {
 }
 
 module.exports = {
-  STATUS, stations: fsst, REPEAT, MAX, SUPPLIES, DEFAULT_COLORS, enabled, canView, canEditFarm, farmOf, model, invalidate, farm, feed, ftpFile,
+  mapName, backgrounds, backgroundFile, saveBackground, removeBackground, slug,
+  STATUS, stations: fsst, fscrops, exportData: () => fsexport.current(), parcelAt: (x, z) => fsexport.parcelAt(fsexport.current(), x, z), REPEAT, MAX, SUPPLIES, DEFAULT_COLORS, enabled, canView, canEditFarm, farmOf, model, invalidate, farm, feed, ftpFile,
   currentDay, setDay, estimateDay, calendarYear, dateOf, dayOfMonth, fmtDay, hhmm, daysPerPeriod, today, accountFor, history, record,
   join, leave, setMember, saveFarm, notes, addNote, note, canChangeNote, editNote, removeNote,
   tasks, openTasks, task, addTask, editTask, completeTask, reopenTask, removeTask, isDue, dueLabel, repeatLabel,
-  suggestions, hideSuggestion, takeSuggestion, crops, crop, saveCrop, removeCrop, resetCrops, plans, plan, addPlan, removePlan, planCells, calendar,
-  planner, prod, SOILS, soils, saveSoil, fieldReports, fieldStates, reportField, fieldOwner, savePlace, place, removePlace, palletSpots, sessionsToday, sessionTotals,
-  changelog, addChange, removeChange, importUpdates, shapes, saveOutlines, removeOutline, removeOutlines, ideas, idea, addIdea, editIdea, answerIdea, removeIdea, vote, goods, modCompare, syncModlist, start,
+  suggestions, hideSuggestion, takeSuggestion, crops, crop, plans, plan, addPlan, removePlan, planCells, calendar,
+  planner, prod, SOILS, soils, saveSoil, fieldStates, fieldOwner, savePlace, place, removePlace, palletSpots, sessionsToday, sessionTotals,
+  changelog, addChange, removeChange, importUpdates, shapes, ideas, idea, addIdea, editIdea, answerIdea, removeIdea, vote, goods, modCompare, syncModlist, start,
   _clock: clock, _onStats: onStats,
 };

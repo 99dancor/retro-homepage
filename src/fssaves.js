@@ -1,5 +1,5 @@
 'use strict';
-// Farming Simulator Hub: Spielstände. Höfe, Mitglieder, Aufgaben, Anbaupläne, Feldmeldungen, Orte, Verläufe und der
+// Farming Simulator Hub: Spielstände. Höfe, Mitglieder, Aufgaben, Anbaupläne, Orte, Verläufe und der
 // Spieltag gehören zu einem Spielstand. Läuft auf dem Server ein anderer (andere Karte oder anderes Anlegedatum laut
 // careerSavegame), legt der Hub diese Daten beiseite (fs_saves.data) und holt die des neuen zurück, wenn er ihn schon
 // kennt, sonst beginnt er leer. Notizen, Changelog, Vorschläge, Online-Zeiten und die Kalendervorlage bleiben.
@@ -14,7 +14,7 @@ const TABLES = ['fs_farms', 'fs_members', 'fs_tasks', 'fs_hidden', 'fs_places', 
 const SETTINGS = ['fs_day', 'fs_map_fit'];
 // Spalten mit Konten; gibt es das Konto beim Zurückholen nicht mehr, wird die Spalte leer (fs_members: Zeile fällt weg)
 const USER_COLS = ['updated_by', 'user_id', 'assignee_id', 'created_by', 'done_by'];
-const LABELS = { fs_farms: 'Höfe', fs_members: 'Mitglieder', fs_tasks: 'Aufgaben', fs_plans: 'Anbaupläne', fs_fields: 'Feldmeldungen', fs_places: 'Orte', fs_outlines: 'Feldumrisse', fs_soil: 'Bodenverteilung' };
+const LABELS = { fs_farms: 'Höfe', fs_members: 'Mitglieder', fs_tasks: 'Aufgaben', fs_plans: 'Anbaupläne', fs_places: 'Orte', fs_soil: 'Bodenverteilung' };
 
 // Der laufende Spielstand: aus careerSavegame (Webinterface, sonst FTP). Ohne beides weiß der Hub es nicht.
 function identity() {

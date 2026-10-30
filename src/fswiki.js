@@ -177,9 +177,10 @@ function adultAge(s) {
 function products(s, age, f) {
   const out = [];
   for (const [kind, c] of outputs(s)) {
-    // Vlies (Alpakas): die Kurve ist die Menge bei vollem Vlies, davon wächst pro Tag fleeceRegrowth nach
-    const v = at(c.pts, age) * (kind === 'fleece' ? s.fleeceRegrowth || 0 : 1);
-    if (v > 0) out.push({ kind, fill: c.fill, name: N.fill(c.fill), perMonth: v * f, ...(kind === 'fleece' ? { perShear: at(c.pts, age) } : {}) });
+    // Vlies (Alpakas): die Kurve ist die Menge bei vollem Vlies, davon wachsen pro Tag fleeceRegrowth Prozent nach
+    // (im Spiel 10: nach 10 Tagen wieder voll, also 500 l Vlies alle 10 Tage = 50 l pro Tag)
+    const v = at(c.pts, age) * (kind === 'fleece' ? (s.fleeceRegrowth || 0) / 100 : 1);
+    if (v > 0) out.push({ kind, fill: c.fill, name: N.fill(c.fill), perMonth: v * f, ...(kind === 'fleece' ? { perShear: at(c.pts, age), days: Math.ceil(100 / s.fleeceRegrowth) } : {}) });
   }
   return out;
 }

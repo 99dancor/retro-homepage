@@ -638,14 +638,15 @@ test('Wiki: Tierdaten aus dem Export, wiki.xml, Tiere für den Planer, Stall, An
   assert.deepEqual([W.at([[0, 0], [12, 0], [12, 150]], 11), W.at([[0, 0], [12, 0], [12, 150]], 12), W.at([[0, 0], [12, 0], [12, 150]], 30)], [0, 150, 150]);
   const zoo = E.read('<farmingHubExport version="2"><animals><animal type="COW"><subType name="C"><curve kind="milk" fillType="MILK" pts="0:0 12:0 12:150"/></subType></animal>'
     + '<animal type="ALPACA"><subType name="A"><curve kind="wool" fillType="ALPACA_WOOL" pts="0:0 8:20"/></subType>'
-    + '<subType name="B" fleeceRegrowth="0.05"><curve kind="fleece" pts="0:0 8:20"/></subType></animal></animals></farmingHubExport>').animals;
+    + '<subType name="B" fleeceRegrowth="10"><curve kind="fleece" pts="0:0 8:20"/></subType></animal></animals></farmingHubExport>').animals;
   const [cowSub, alpaca] = zoo.types.map(t => t.subs[0]);
   assert.deepEqual(W.products(cowSub, W.adultAge(cowSub), 1).map(p => [p.fill, p.perMonth]), [['MILK', 150]]);
   assert.deepEqual(W.products(alpaca, W.adultAge(alpaca), 1).map(p => [p.fill, p.perMonth]), [['ALPACA_WOOL', 20]]);
   // Alpakas (Mod 2.7): Vlies je Schur × Nachwachsen pro Tag × Tage
   const sheared = zoo.types[1].subs[1];
-  assert.deepEqual(W.products(sheared, W.adultAge(sheared), 30).map(p => [p.fill, +p.perMonth.toFixed(3), p.perShear]), [['ALPACAFLEECE', 30, 20]]);
-  assert.match(W.toXml(zoo), /<subType name="B" fillType="B" fleeceRegrowth="0.05">/);
+  // fleeceRegrowth ist Prozent pro Tag: 10 % → 20 l volles Vlies liefern 2 l am Tag, 60 l in 30 Tagen
+  assert.deepEqual(W.products(sheared, W.adultAge(sheared), 30).map(p => [p.fill, +p.perMonth.toFixed(3), p.perShear, p.days]), [['ALPACAFLEECE', 60, 20, 10]]);
+  assert.match(W.toXml(zoo), /<subType name="B" fillType="B" fleeceRegrowth="10">/);
   // Kalender ab Januar: Periode 11 (Januar im Norden) steht vorn, Dezember→Januar wird geteilt
   assert.deepEqual([W.months()[0], W.months(true)[2]], ['Januar', 'Mär']);
   assert.deepEqual(W.runs([0, 1, 4, 10, 11]), [[0, 4], [6, 1]]);

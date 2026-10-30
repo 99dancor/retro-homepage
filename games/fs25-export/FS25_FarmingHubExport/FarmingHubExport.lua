@@ -429,28 +429,36 @@ local function parseRange(s)
     return n, n
 end
 
-function FarmingHubExport:growthFile()
+-- Wo die Wachstumsdatei liegen kann. In DLC-Karten steckt sie im verschlüsselten Archiv, dort meldet fileExists
+-- nichts, XMLFile.load klappt aber; darum wird jeder Kandidat direkt geladen (growthData).
+function FarmingHubExport:growthFiles()
     local info = g_currentMission.missionInfo or {}
-    local candidates = {}
+    local candidates, seen = {}, {}
+    local function add(f)
+        if f ~= nil and f ~= "" and not seen[f] then
+            seen[f] = true
+            table.insert(candidates, f)
+        end
+    end
     local mapXml = info.mapXMLFilename
+    self.debugInfo = { map = tostring(mapXml), base = tostring(info.baseDirectory) }
     if mapXml ~= nil then
         local file = XMLFile.load("farmingHubMap", Utils.getFilename(mapXml, info.baseDirectory))
         if file ~= nil then
-            local g = file:getString("map.growth#filename")
-            if g ~= nil then
-                table.insert(candidates, Utils.getFilename(g, info.baseDirectory))
+            for _, key in ipairs({ "map.growth#filename", "map.fruitTypes#filename" }) do
+                local f = file:getString(key)
+                if f ~= nil and f ~= "" then
+                    add(Utils.getFilename(f, info.baseDirectory))
+                end
             end
             file:delete()
+        else
+            self.debugInfo.mapLoad = "nicht ladbar"
         end
     end
-    table.insert(candidates, "data/maps/maps_growth.xml")
-    table.insert(candidates, "dataS/maps/maps_growth.xml")
-    for _, f in ipairs(candidates) do
-        if f ~= nil and fileExists(f) then
-            return f
-        end
-    end
-    return nil
+    add("data/maps/maps_growth.xml")
+    add("dataS/maps/maps_growth.xml")
+    return candidates
 end
 
 function FarmingHubExport:growthData()
@@ -458,9 +466,20 @@ function FarmingHubExport:growthData()
         return self.growth
     end
     self.growth = {}
-    local name = self:growthFile()
-    self.growthSource = name
-    local file = name ~= nil and XMLFile.load("farmingHubGrowth", name) or nil
+    self.growthTried = {}
+    local file
+    for _, name in ipairs(self:growthFiles()) do
+        local f = XMLFile.load("farmingHubGrowth", name)
+        local ok = f ~= nil and f:hasProperty("growth.seasonal.fruit(0)")
+        table.insert(self.growthTried, name .. (f == nil and " (nicht ladbar)" or ok and " (ok)" or " (ohne growth.seasonal)"))
+        if ok then
+            file = f
+            self.growthSource = name
+            break
+        elseif f ~= nil then
+            f:delete()
+        end
+    end
     if file == nil then
         return self.growth
     end
@@ -597,6 +616,46 @@ local function color(c)
     return string.format("#%02x%02x%02x", s(r), s(g), s(b))
 end
 
+-- Diagnose für den Hub-Entwickler: welche Wachstumsdateien probiert wurden und welche Funktionen das Wachstumssystem
+-- und eine Frucht im Spiel haben (nur Namen), damit sich Saat- und Erntemonate auch ohne Datei finden lassen
+local function names(obj, pattern)
+    local out, seen = {}, {}
+    local depth = 0
+    while type(obj) == "table" and depth < 4 do
+        for k, v in pairs(obj) do
+            if type(k) == "string" and not seen[k] and (pattern == nil or string.find(string.lower(k), pattern)) then
+                seen[k] = true
+                table.insert(out, k .. (type(v) == "function" and "()" or ""))
+            end
+        end
+        local mt = getmetatable(obj)
+        obj = mt ~= nil and (type(mt.__index) == "table" and mt.__index or mt) or nil
+        depth = depth + 1
+    end
+    table.sort(out)
+    return table.concat(out, " ")
+end
+
+function FarmingHubExport:writeDebug(xml, list)
+    local k = "farmingHubExport.debug"
+    local info = self.debugInfo or {}
+    xml:setString(k .. "#map", info.map or "")
+    xml:setString(k .. "#base", info.base or "")
+    if info.mapLoad ~= nil then
+        xml:setString(k .. "#mapLoad", info.mapLoad)
+    end
+    for i, t in ipairs(self.growthTried or {}) do
+        xml:setString(string.format("%s.tried(%d)#file", k, i - 1), t)
+    end
+    xml:setString(k .. ".growthSystem#names", names(g_currentMission.growthSystem))
+    for _, ft in ipairs(list) do
+        if ft.name == "WHEAT" then
+            xml:setString(k .. ".fruitType#names", names(ft))
+        end
+    end
+    xml:setString(k .. ".fruitTypeManager#names", names(g_fruitTypeManager, "grow"))
+end
+
 function FarmingHubExport:writeFruitTypes(xml)
     local list = call(g_fruitTypeManager, { "getFruitTypes" }) or g_fruitTypeManager.fruitTypes or {}
     local n = 0
@@ -604,6 +663,7 @@ function FarmingHubExport:writeFruitTypes(xml)
     if self.growthSource ~= nil then
         xml:setString("farmingHubExport.fruitTypes#growth", self.growthSource)
     end
+    try("Diagnose", function() self:writeDebug(xml, list) end)
     for _, ft in ipairs(list) do
         if ft.name ~= nil then
             local k = string.format("farmingHubExport.fruitTypes.fruitType(%d)", n)
@@ -887,6 +947,7 @@ function FarmingHubExport:deleteMap()
     self.catalogCache = nil
     self.growth = nil
     self.growthSource = nil
+    self.growthTried = nil
 end
 
 if FSBaseMission.saveSavegame ~= nil then

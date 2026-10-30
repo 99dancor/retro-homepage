@@ -1,5 +1,9 @@
 # Changelog
 
+## 30.10.2026 – Farming Hub: Mod 2.2 sucht die Wachstumsdaten
+
+- **Saat- und Erntemonate:** Mod 2.1 hat die Wachstumsdatei der Karte Catuaí nicht gefunden, weil sie im DLC-Archiv steckt. Version 2.2 lädt sie direkt und schreibt mit, was sie probiert hat. Bis das klappt, nimmt der Hub den eingebauten Kalender.
+
 ## 30.10.2026 – Farming Hub: Feinschliff nach dem ersten echten Export
 
 - **Deutsch auch auf englischen Servern:** Läuft der Server auf Englisch, heißen Gebäude und Produktionen trotzdem deutsch (Bäckerei statt Bakery, Brot aus Mehl und Brot aus Reismehl statt zweimal Bread). Platzhalter wie „%s (%s)“ tauchen nicht mehr auf.

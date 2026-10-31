@@ -41,6 +41,7 @@ FarmingHubLive.FARM_KEYS = {
     { "pallets", true },
     { "stall", true }, { "stallPct", 15 }, { "stallFullPct", 85 },
     { "silo", true }, { "siloPct", 90 },
+    { "fields", true },
 }
 
 FarmingHubLive.settings = { rev = 0, export = true, advisor = true, farms = {} }
@@ -506,6 +507,7 @@ function FarmingHubLive:check()
         for _, p in ipairs(list) do
             self:checkPlaceable(found, p)
         end
+        try("Felder", self.checkFields, self, found)
     end
     self.problems = found
     -- Im Spiel abgehakt: vergessen, sobald das Problem weg ist
@@ -533,7 +535,7 @@ function FarmingHubLive:signature()
     local parts = { tostring(self.settings.rev), tostring(self.inboxSeq), tostring(#self.doneList) .. "/" .. tostring(last ~= nil and last.id or "") }
     for _, key in ipairs(sortedKeys(self.problems)) do
         local p = self.problems[key]
-        table.insert(parts, string.format("%s|%d|%d", key, math.floor(p.pct or -1), math.floor(p.hours or -1)))
+        table.insert(parts, string.format("%s|%d|%d|%s", key, math.floor(p.pct or -1), math.floor(p.hours or -1), p.uid == "fields" and tostring(p.name) or ""))
     end
     return table.concat(parts, ";")
 end
@@ -644,6 +646,129 @@ end
 
 FarmingHubLive.FIELDS_MS = 120000
 
+-- Besitzer eines Felds: über sein Grundstück
+local function fieldFarm(field)
+    local farm = 0
+    pcall(function()
+        local land = field.farmland
+        if land == nil and field.getFarmland ~= nil then
+            land = field:getFarmland()
+        end
+        local lid = land ~= nil and (land.id or land.farmlandId) or field.farmlandId
+        if lid ~= nil and g_farmlandManager ~= nil then
+            farm = g_farmlandManager:getFarmlandOwner(lid) or 0
+        end
+    end)
+    return farm
+end
+
+-- Erntereif: Bodenart „erntereif“ oder Wachstum im Erntefenster der Frucht
+local function isRipe(st, ground)
+    if ground == "HARVEST_READY" or ground == "HARVEST_READY_OTHER" then
+        return true
+    end
+    local ok, ft = pcall(g_fruitTypeManager.getFruitTypeByIndex, g_fruitTypeManager, st.fruitTypeIndex)
+    if ok and ft ~= nil and type(st.growthState) == "number" and ft.minHarvestingGrowthState ~= nil then
+        return st.growthState >= ft.minHarvestingGrowthState and st.growthState <= (ft.maxHarvestingGrowthState or ft.minHarvestingGrowthState)
+    end
+    return false
+end
+
+local function fruitTitle(index)
+    local title = nil
+    pcall(function()
+        local ft = g_fruitTypeManager:getFillTypeIndexByFruitTypeIndex(index)
+        title = fillTitle(ft)
+    end)
+    return title
+end
+
+-- Stand aller Felder, höchstens alle 2 Minuten neu gelesen (für die Live-Datei und die Feld-Prüfungen)
+function FarmingHubLive:readFields()
+    if self.fieldCache ~= nil and g_time - (self.fieldT or 0) < FarmingHubLive.FIELDS_MS then
+        return self.fieldCache
+    end
+    self.fieldT = g_time
+    local list = {}
+    local fields = {}
+    if g_fieldManager ~= nil then
+        fields = (g_fieldManager.getFields ~= nil and g_fieldManager:getFields()) or g_fieldManager.fields or {}
+    end
+    for _, field in ipairs(fields) do
+        local id = (field.getId ~= nil and field:getId()) or field.fieldId
+        local st = field.fieldState
+        if id ~= nil and st ~= nil then
+            if st.update ~= nil and field.posX ~= nil then
+                pcall(st.update, st, field.posX, field.posZ)
+            end
+            local ground = nameOf(FieldGroundType, st.groundType)
+            local fruit = fruitName(st.fruitTypeIndex)
+            table.insert(list, { id = id, farm = fieldFarm(field), fruit = fruit, fruitTitle = fruit ~= nil and fruitTitle(st.fruitTypeIndex) or nil,
+                ripe = fruit ~= nil and isRipe(st, ground), growth = st.growthState, ground = ground,
+                planned = fruitName(field.plannedFruitTypeIndex), spray = st.sprayLevel, lime = st.limeLevel, plow = st.plowLevel, roller = st.rollerLevel,
+                stubble = st.stubbleShredLevel, weed = st.weedState, stone = st.stoneLevel })
+        end
+    end
+    self.fieldCache = list
+    return list
+end
+
+-- Feld-Prüfungen (ab 3.4), wie die Vorschläge des Hubs: je Hof eine Meldung je Arbeit (ernten je Frucht), mit allen Feldern
+local SOWN = { SOWN = true, DIRECT_SOWN = true, PLANTED = true, RIDGE_SOWN = true }
+local GRASS = { GRASS = true, GRASS_CUT = true }
+function FarmingHubLive:checkFields(found)
+    local groups = {}
+    local function put(kind, farm, part, f, extra)
+        local k = kind .. ":" .. farm .. ":" .. part
+        local g = groups[k]
+        if g == nil then
+            g = { kind = kind, farm = farm, uid = "fields", part = part, ids = {}, sev = 2 }
+            for a, b in pairs(extra or {}) do
+                g[a] = b
+            end
+            groups[k] = g
+        end
+        table.insert(g.ids, f.id)
+    end
+    for _, f in ipairs(self:readFields()) do
+        local farm = f.farm or 0
+        if farm >= 1 and farm <= 8 and self:farm(farm).fields ~= false then
+            local sown = SOWN[f.ground or ""] == true
+            if f.ripe then
+                put("harvest", farm, f.fruit, f, { fill = f.fruit, fillTitle = f.fruitTitle })
+            end
+            if not GRASS[f.ground or ""] then
+                if f.lime == 0 then
+                    put("lime", farm, "lime", f)
+                end
+                if f.plow == 0 and not sown and not f.ripe then
+                    put("plow", farm, "plow", f)
+                end
+                if sown and not f.ripe and (f.spray or 0) < 2 then
+                    put("fertilize", farm, "fertilize", f)
+                end
+                if sown and not f.ripe and (f.weed or 0) > 0 then
+                    put("weed", farm, "weed", f)
+                end
+            end
+        end
+    end
+    for _, g in pairs(groups) do
+        table.sort(g.ids)
+        local names = {}
+        for i, id in ipairs(g.ids) do
+            if i <= 12 then
+                table.insert(names, tostring(id))
+            end
+        end
+        g.name = table.concat(names, ", ") .. (#g.ids > 12 and " …" or "")
+        g.count = #g.ids
+        g.ids = nil
+        g.file, g.custom = "", ""
+        self:add(found, g)
+    end
+end
+
 function FarmingHubLive:writeGameData(xml, r)
     -- Geld, Kredit und Einnahmen/Ausgaben der letzten Tage je Hof
     local n = 0
@@ -721,28 +846,7 @@ function FarmingHubLive:writeGameData(xml, r)
     end
 
     -- Felder: Stand jedes Felds (wie fields.xml), alle 2 Minuten neu gelesen
-    if self.fieldCache == nil or g_time - (self.fieldT or 0) >= FarmingHubLive.FIELDS_MS then
-        self.fieldT = g_time
-        local list = {}
-        local fields = {}
-        if g_fieldManager ~= nil then
-            fields = (g_fieldManager.getFields ~= nil and g_fieldManager:getFields()) or g_fieldManager.fields or {}
-        end
-        for _, field in ipairs(fields) do
-            local id = (field.getId ~= nil and field:getId()) or field.fieldId
-            local st = field.fieldState
-            if id ~= nil and st ~= nil then
-                if st.update ~= nil and field.posX ~= nil then
-                    pcall(st.update, st, field.posX, field.posZ)
-                end
-                table.insert(list, { id = id, fruit = fruitName(st.fruitTypeIndex), growth = st.growthState, ground = nameOf(FieldGroundType, st.groundType),
-                    planned = fruitName(field.plannedFruitTypeIndex), spray = st.sprayLevel, lime = st.limeLevel, plow = st.plowLevel, roller = st.rollerLevel,
-                    stubble = st.stubbleShredLevel, weed = st.weedState, stone = st.stoneLevel })
-            end
-        end
-        self.fieldCache = list
-    end
-    for i, f in ipairs(self.fieldCache) do
+    for i, f in ipairs(self:readFields()) do
         local k = string.format("%s.fields.field(%d)", r, i - 1)
         xml:setInt(k .. "#id", f.id)
         if f.fruit ~= nil then

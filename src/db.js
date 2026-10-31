@@ -884,6 +884,8 @@ addColumn('fs_tasks', 'game_key', 'TEXT');
 addColumn('fs_tasks', 'game_open', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('fs_tasks', 'game_kind', 'TEXT');
 addColumn('fs_tasks', 'done_game_by', 'TEXT');               // im Spiel abgehakt von (Spielername, Overlay der Mod)
+// Vorschläge des Hubs legen sich selbst als Aufgabe an (source 'auto', auto_key, auto_sig = Anlass, game_open = Anlass besteht noch)
+addColumn('fs_tasks', 'auto_sig', 'TEXT');
 addColumn('users', 'profile_visibility', "TEXT NOT NULL DEFAULT 'members'");
 addColumn('users', 'pm_from', "TEXT NOT NULL DEFAULT 'all'");
 addColumn('users', 'gb_from', "TEXT NOT NULL DEFAULT 'all'");

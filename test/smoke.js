@@ -2515,7 +2515,7 @@ async function main() {
         assert.match(page, /483\.362 €/);
         assert.match(page, /Große Nachfrage ab 1\. Juni J8, 7 Uhr: <a href="\/farming\/preise\?w=STONE"><b>Steine \+30 %/);
         assert.match(page, /Spieltag 174 · geschätzt/);
-        assert.match(page, /Werkstatt: 4 Fahrzeuge über 50 % Verschleiß <span class="chip"/);
+        assert.match(page, /Werkstatt: 4 Fahrzeuge über 50 % Verschleiß[\s\S]*?💡 vom Hub/, "Vorschlag als Aufgabe unter Heute erledigen");
         assert.equal((await anna.req('/farming/karte.bild')).headers.get('content-type'), 'image/jpeg');
         assert.match(adm, /Läuft gerade<\/legend>\s*<p><b>Bilk<\/b>/, 'Spielstand erkannt');
         // Spielstände: Ordner merken, Backup anlegen, herunterladen und einspielen
@@ -2570,15 +2570,17 @@ async function main() {
         assert.equal((await anna.form(`/farming/aufgaben/${taskId}/erledigt`, { _csrf: t })).status, 302);
         const next = sql.prepare("SELECT * FROM fs_tasks WHERE title = 'Ziegen füttern' AND done_at IS NULL").get();
         assert.ok(next && next.due_date > sql.prepare('SELECT due_date FROM fs_tasks WHERE id = ?').get(taskId).due_date, 'nächste Runde morgen');
-        // Vorschläge vom Server übernehmen und ausblenden
+        // Vorschläge vom Server legen sich selbst als Aufgabe an (💡); abgehakt bleibt abgehakt, solange der Anlass gleich ist
         page = (await anna.req('/farming/hof/1?tab=aufgaben')).text_;
-        assert.match(page, /Vorschläge vom Server/);
-        assert.equal((await anna.form('/farming/hof/1/vorschlag', { _csrf: t, key: 'wear:1' })).status, 302);
-        assert.ok(sql.prepare("SELECT 1 FROM fs_tasks WHERE auto_key = 'wear:1'").get());
-        const dieselSig = page.match(/name="key" value="diesel:1"><input type="hidden" name="sig" value="([^"]*)"/)[1];
-        assert.equal((await anna.form('/farming/hof/1/ausblenden', { _csrf: t, key: 'diesel:1', sig: dieselSig })).status, 302);
+        assert.doesNotMatch(page, /Vorschläge vom Server/);
+        const wear = sql.prepare("SELECT * FROM fs_tasks WHERE source = 'auto' AND auto_key = 'wear:1' AND done_at IS NULL").get();
+        assert.ok(wear, 'Werkstatt als Aufgabe');
+        assert.ok(sql.prepare("SELECT 1 FROM fs_tasks WHERE source = 'auto' AND auto_key = 'diesel:1' AND done_at IS NULL").get());
+        assert.match(page, /Werkstatt:[\s\S]*?💡 vom Hub/);
+        assert.equal((await anna.form(`/farming/aufgaben/${wear.id}/erledigt`, { _csrf: t })).status, 302);
+        await new Promise(r => setTimeout(r, 5100));
         page = (await anna.req('/farming/hof/1?tab=aufgaben')).text_;
-        assert.doesNotMatch(page, /value="wear:1"|value="diesel:1"/);
+        assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM fs_tasks WHERE source = 'auto' AND auto_key = 'wear:1' AND done_at IS NULL").get().n, 0, 'kommt nicht gleich wieder');
 
         // Hofkalender, Karte
         const weizen = sql.prepare("SELECT id FROM fs_crops WHERE name = 'Weizen'").get().id;

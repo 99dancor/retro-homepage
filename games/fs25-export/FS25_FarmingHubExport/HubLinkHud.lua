@@ -15,7 +15,8 @@
 
 HubLinkHud = {}
 HubLinkHud.FILE = "hubLinkHud.xml"
-HubLinkHud.prefs = { visible = true, x = 0.74, y = 0.79, w = 420, rows = 5, scale = 1, alpha = 0.72, details = true, notes = true }
+HubLinkHud.prefs = { visible = true, x = 0.74, y = 0.79, w = 420, rows = 5, scale = 1, alpha = 0.72, details = true, notes = true, accent = 1, round = true }
+HubLinkHud.optTab = nil
 HubLinkHud.hiddenNotes = {}
 HubLinkHud.pending = {}
 HubLinkHud.rows = {}
@@ -34,10 +35,20 @@ local C = {
     dim = { 0.72, 0.72, 0.72, 1 },
     off = { 0.45, 0.45, 0.45, 1 },
     accent = { 0.91, 0.64, 0.2, 1 },
+    onAccent = { 0.08, 0.08, 0.08, 1 },
     red = { 0.9, 0.32, 0.26, 1 },
     blue = { 0.55, 0.75, 0.95, 1 },
     grey = { 0.6, 0.6, 0.6, 1 },
 }
+
+-- Hervorhebungsfarben zur Wahl (ab 3.4): Orange wie das Spiel, dann Grün, Blau, Türkis, Rot, Lila
+local ACCENTS = {
+    { 0.91, 0.64, 0.2, 1 }, { 0.6, 0.8, 0.22, 1 }, { 0.36, 0.64, 0.96, 1 }, { 0.22, 0.78, 0.72, 1 }, { 0.92, 0.38, 0.32, 1 }, { 0.68, 0.5, 0.95, 1 },
+}
+HubLinkHud.ACCENTS = ACCENTS
+local function useAccent(i)
+    C.accent = ACCENTS[i] or ACCENTS[1]
+end
 
 -- Grenzen wie im Hub (src/fslive.js LIMITS) und Schrittweite der Knöpfe
 local STEPS = {
@@ -87,17 +98,41 @@ local function rect(x, y, w, h, c, a)
     end
 end
 
--- Kasten mit abgeschrägten Ecken (wirkt wie die abgerundeten Kästen des Spiels)
-local function box(x, y, w, h, c, a)
+-- Kasten mit abgerundeten Ecken (ab 3.4): oben und unten je eine Handvoll Streifen, die zur Ecke hin schmaler werden.
+-- Die Kanten liegen auf ganzen Bildschirmpixeln, damit sich die halbdurchsichtigen Streifen weder überlappen noch Lücken lassen.
+local function snapY(v)
+    local h = g_screenHeight or 1080
+    return math.floor(v * h + 0.5) / h
+end
+local function box(x, y, w, h, c, a, radius)
     if drawFilledRect == nil then
         return
     end
     a = a or c[4]
-    local r = math.min(px(3), w / 4)
-    local ry = math.min(py(3), h / 4)
-    drawFilledRect(x + r, y, w - 2 * r, h, c[1], c[2], c[3], a)
-    drawFilledRect(x, y + ry, r, h - 2 * ry, c[1], c[2], c[3], a)
-    drawFilledRect(x + w - r, y + ry, r, h - 2 * ry, c[1], c[2], c[3], a)
+    local r = radius or 7
+    if not HubLinkHud.prefs.round then
+        r = 2
+    end
+    local ry = math.min(py(r), h / 2)
+    local rx = math.min(px(r), w / 2)
+    local n = math.max(1, math.min(7, math.floor(ry * (g_screenHeight or 1080) + 0.5)))
+    local y0, y1 = snapY(y), snapY(y + h)
+    local b0, t0 = snapY(y + ry), snapY(y + h - ry)
+    if t0 > b0 then
+        drawFilledRect(x, b0, w, t0 - b0, c[1], c[2], c[3], a)
+    end
+    for i = 0, n - 1 do
+        local d = 1 - (i + 0.5) / n
+        local inset = rx * (1 - math.sqrt(math.max(0, 1 - d * d)))
+        local lo, hi = snapY(y0 + (b0 - y0) * i / n), snapY(y0 + (b0 - y0) * (i + 1) / n)
+        if hi > lo then
+            drawFilledRect(x + inset, lo, w - 2 * inset, hi - lo, c[1], c[2], c[3], a)
+        end
+        lo, hi = snapY(y1 - (y1 - t0) * (i + 1) / n), snapY(y1 - (y1 - t0) * i / n)
+        if hi > lo then
+            drawFilledRect(x + inset, lo, w - 2 * inset, hi - lo, c[1], c[2], c[3], a)
+        end
+    end
 end
 
 -- Großbuchstaben mit Umlauten (string.upper kennt nur ASCII)
@@ -150,9 +185,9 @@ end
 function HubLinkHud:button(x, y, w, h, label, fn, on, enabled)
     enabled = enabled ~= false
     local hover = enabled and self:over(x, y, w, h)
-    box(x, y, w, h, on and C.accent or (hover and C.bgHover or C.chip), on and 0.9 or nil)
+    box(x, y, w, h, on and C.accent or (hover and C.bgHover or C.chip), on and 0.92 or nil, 5)
     local size = math.min(py(13), h * 0.6)
-    text(x + w / 2, mid(y, h, size), size, label, on and { 0.08, 0.08, 0.08, 1 } or (enabled and C.text or C.off), true, RenderText.ALIGN_CENTER)
+    text(x + w / 2, mid(y, h, size), size, label, on and C.onAccent or (enabled and (hover and C.accent or C.text) or C.off), true, RenderText.ALIGN_CENTER)
     if enabled then
         self:hit(x, y, w, h, fn)
     end
@@ -380,6 +415,9 @@ end
 -- ---------- Optionen ändern ----------
 function HubLinkHud:setPref(key, value)
     self.prefs[key] = value
+    if key == "accent" then
+        useAccent(value)
+    end
     self:refresh()
     self:savePrefs()
 end
@@ -508,6 +546,12 @@ function HubLinkHud:loadPrefs()
     if n ~= nil then
         p.notes = n
     end
+    p.accent = math.floor(clamp(xml:getFloat(r .. "#accent"), 1, #ACCENTS, p.accent))
+    local rd = xml:getBool(r .. "#round")
+    if rd ~= nil then
+        p.round = rd
+    end
+    useAccent(p.accent)
     local i = 0
     while xml:hasProperty(string.format("%s.hidden(%d)", r, i)) do
         local key = xml:getString(string.format("%s.hidden(%d)#key", r, i))
@@ -538,6 +582,8 @@ function HubLinkHud:savePrefs()
     xml:setFloat(r .. "#alpha", p.alpha)
     xml:setBool(r .. "#details", p.details)
     xml:setBool(r .. "#notes", p.notes)
+    xml:setFloat(r .. "#accent", p.accent)
+    xml:setBool(r .. "#round", p.round)
     local live, list = {}, FarmingHubLive.viewList or {}
     for _, e in ipairs(list) do
         live[e.key] = true
@@ -596,8 +642,8 @@ function HubLinkHud:draw()
     y = y - headH
     box(x, y, w, headH, C.bg, alpha)
     local chipW = px(46)
-    box(x + w - chipW, y, chipW, headH, C.chip)
-    rect(x + pad, y + headH * 0.3, px(3), headH * 0.4, C.accent)
+    box(x + w - chipW - px(4), y + py(4), chipW, headH - py(8), C.chip, nil, 5)
+    box(x + pad, y + headH * 0.28, px(4), headH * 0.44, C.accent, nil, 2)
     local count, hot = 0, false
     for _, r in ipairs(rows) do
         if r.src ~= 3 then
@@ -607,8 +653,8 @@ function HubLinkHud:draw()
             hot = true
         end
     end
-    text(x + w - chipW / 2, mid(y, headH, size), size, tostring(count), hot and C.red or (count > 0 and C.accent or C.text), true, RenderText.ALIGN_CENTER)
-    local titleRight = x + w - chipW - px(6)
+    text(x + w - chipW / 2 - px(4), mid(y, headH, size), size, tostring(count), hot and C.red or (count > 0 and C.accent or C.text), true, RenderText.ALIGN_CENTER)
+    local titleRight = x + w - chipW - px(10)
     if mouse then
         -- Knöpfe im Kopf; der Rest des Kopfs verschiebt das Fenster
         local bh = headH * 0.7
@@ -637,7 +683,7 @@ function HubLinkHud:draw()
         local hover = mouse and self:over(x, y, w, rowH)
         box(x, y, w, rowH, hover and C.bgHover or C.bg, hover and nil or alpha)
         local stripe = e.src == 3 and C.grey or e.src == 2 and C.blue or (e.sev >= 3 and C.red or C.accent)
-        rect(x + px(6), y + rowH * 0.2, px(3), rowH * 0.6, stripe)
+        box(x + px(6), y + rowH * 0.2, px(4), rowH * 0.6, stripe, nil, 2)
         local tx = x + pad + px(4)
         local right = x + w - pad
         if mouse then
@@ -686,7 +732,7 @@ function HubLinkHud:draw()
     if mouse then
         local gs = py(12)
         local gx, gy = x + w - px(12), bottom - py(2) - gs
-        rect(gx, gy, px(12), gs, self:over(gx, gy, px(12), gs) and C.accent or C.dim, 0.9)
+        box(gx, gy, px(12), gs, self:over(gx, gy, px(12), gs) and C.accent or C.dim, 0.9, 3)
         self:hit(gx - px(4), gy - py(4), px(20), gs + py(8), nil, "size")
         self.rowStep = rowH + gap
     end
@@ -701,104 +747,180 @@ end
 
 -- ---------- Optionsmenü ----------
 function HubLinkHud:drawOptions(ox, oy, ow)
-    local w = px(400)
-    local x = ox - w - px(8)
+    local w = px(420)
+    local x = ox - w - px(10)
     if x < 0.005 then
-        x = ox + ow + px(8)
+        x = ox + ow + px(10)
     end
-    local lineH, gap, pad = py(28), py(3), px(12)
+    local lineH, gap, pad = py(30), py(4), px(14)
     local size, small = py(14), py(12)
+    local headH, tabH = py(38), py(30)
     local farm = myFarm()
     local user = localUser()
     local canFarm = farm > 0 and (user.master or user.farm == farm)
     local canGlobal = user.master
     local cfg = farm > 0 and FarmingHubLive:farm(farm) or {}
     local s = FarmingHubLive.settings or {}
-    local y = oy
+    local p = self.prefs
 
-    local lines = {}
-    local function head(label)
-        table.insert(lines, { head = label })
+    -- Reiter: Anzeige (nur für mich), Hof (Prüfungen), Server (Admin)
+    local tabs = { { "view", T("hubLink_tabView", "Anzeige") } }
+    if farm > 0 then
+        table.insert(tabs, { "farm", string.format(T("hubLink_tabFarm", "Hof %d"), farm) })
+    end
+    table.insert(tabs, { "server", T("hubLink_tabServer", "Server") })
+    local tab = self.optTab
+    local valid = false
+    for _, t in ipairs(tabs) do
+        valid = valid or t[1] == tab
+    end
+    if not valid then
+        tab = farm > 0 and "farm" or "view"
+        self.optTab = tab
+    end
+
+    -- Inhalt als Gruppen: jede Gruppe ein eigener Kasten, darin Schalter, Regler und Farbfelder
+    local groups = {}
+    local cur = nil
+    local function group(title)
+        cur = { title = title, lines = {} }
+        table.insert(groups, cur)
     end
     local function toggle(label, on, fn, enabled)
-        table.insert(lines, { label = label, toggle = on, fn = fn, enabled = enabled })
+        table.insert(cur.lines, { label = label, toggle = on, fn = fn, enabled = enabled })
     end
-    local function stepper(label, value, minus, plus, enabled, indent)
-        table.insert(lines, { label = label, value = value, minus = minus, plus = plus, enabled = enabled, indent = indent })
+    local function stepper(label, value, minus, plus, enabled)
+        table.insert(cur.lines, { label = label, value = value, minus = minus, plus = plus, enabled = enabled })
+    end
+    local function colors()
+        table.insert(cur.lines, { colors = true })
     end
 
-    local p = self.prefs
-    head(T("hubLink_optView", "Anzeige (nur für dich)"))
-    stepper(T("hubLink_optRows", "Zeilen"), tostring(p.rows), function() self:stepPref("rows", -1, 1, 15) end, function() self:stepPref("rows", 1, 1, 15) end, true)
-    stepper(T("hubLink_optScale", "Schriftgröße"), string.format("%d %%", math.floor(p.scale * 100 + 0.5)), function() self:stepPref("scale", -0.1, 0.7, 1.5) end, function() self:stepPref("scale", 0.1, 0.7, 1.5) end, true)
-    stepper(T("hubLink_optAlpha", "Deckkraft"), string.format("%d %%", math.floor(p.alpha * 100 + 0.5)), function() self:stepPref("alpha", -0.1, 0.3, 0.95) end, function() self:stepPref("alpha", 0.1, 0.3, 0.95) end, true)
-    toggle(T("hubLink_optDetails", "Werte anzeigen"), p.details, function() self:setPref("details", not p.details) end, true)
-    toggle(T("hubLink_optNotes", "Notizen anzeigen"), p.notes, function() self:setPref("notes", not p.notes) end, true)
-
-    if farm > 0 then
-        head(string.format(T("hubLink_optFarm", "Prüfungen Hof %d"), farm))
+    if tab == "view" then
+        group(T("hubLink_grpWindow", "Fenster"))
+        stepper(T("hubLink_optRows", "Zeilen"), tostring(p.rows), function() self:stepPref("rows", -1, 1, 15) end, function() self:stepPref("rows", 1, 1, 15) end, true)
+        stepper(T("hubLink_optScale", "Schriftgröße"), string.format("%d %%", math.floor(p.scale * 100 + 0.5)), function() self:stepPref("scale", -0.1, 0.7, 1.5) end, function() self:stepPref("scale", 0.1, 0.7, 1.5) end, true)
+        stepper(T("hubLink_optAlpha", "Deckkraft"), string.format("%d %%", math.floor(p.alpha * 100 + 0.5)), function() self:stepPref("alpha", -0.1, 0.3, 0.95) end, function() self:stepPref("alpha", 0.1, 0.3, 0.95) end, true)
+        toggle(T("hubLink_optRound", "Runde Ecken"), p.round, function() self:setPref("round", not p.round) end, true)
+        group(T("hubLink_grpColor", "Hervorhebung"))
+        colors()
+        group(T("hubLink_grpContent", "Inhalt"))
+        toggle(T("hubLink_optDetails", "Werte anzeigen"), p.details, function() self:setPref("details", not p.details) end, true)
+        toggle(T("hubLink_optNotes", "Notizen anzeigen"), p.notes, function() self:setPref("notes", not p.notes) end, true)
+    elseif tab == "farm" then
         local function ft(label, key)
             toggle(label, cfg[key], function() self:setFarm(farm, key, not cfg[key]) end, canFarm)
         end
         local function fs(label, key, unit)
-            stepper(label, string.format("%s %s", tostring(math.floor((cfg[key] or 0) + 0.5)), unit), function() self:stepFarm(farm, key, -1) end, function() self:stepFarm(farm, key, 1) end, canFarm and true, true)
+            stepper(label, string.format("%s %s", tostring(math.floor((cfg[key] or 0) + 0.5)), unit), function() self:stepFarm(farm, key, -1) end, function() self:stepFarm(farm, key, 1) end, canFarm and cfg[key] ~= nil)
         end
-        ft(T("hubLink_optInput", "Eingänge"), "input")
+        group(T("hubLink_optInput", "Eingänge"))
+        ft(T("hubLink_optWatch", "Prüfen"), "input")
         fs(T("hubLink_optInputHours", "reicht weniger als"), "inputHours", T("hubLink_unitHours", "Std."))
         fs(T("hubLink_optInputPct", "ohne Verbrauch unter"), "inputPct", "%")
-        ft(T("hubLink_optOutput", "Ausgänge"), "output")
+        group(T("hubLink_optOutput", "Ausgänge"))
+        ft(T("hubLink_optWatch", "Prüfen"), "output")
         fs(T("hubLink_optOutputPct", "voll ab"), "outputPct", "%")
         ft(T("hubLink_optPallets", "Paletten-Ausgänge"), "pallets")
-        ft(T("hubLink_optStall", "Ställe"), "stall")
+        group(T("hubLink_optStall", "Ställe"))
+        ft(T("hubLink_optWatch", "Prüfen"), "stall")
         fs(T("hubLink_optStallPct", "knapp unter"), "stallPct", "%")
         fs(T("hubLink_optStallFullPct", "voll ab"), "stallFullPct", "%")
+        group(T("hubLink_grpMore", "Silos und Felder"))
         ft(T("hubLink_optSilo", "Silos"), "silo")
         fs(T("hubLink_optSiloPct", "voll ab"), "siloPct", "%")
-        ft(T("hubLink_optFields", "Felder (ernten, kalken, pflügen, düngen, Unkraut)"), "fields")
+        ft(T("hubLink_optFieldsShort", "Felder (ernten, kalken, pflügen …)"), "fields")
+    else
+        group(T("hubLink_optServer", "Server (Admin)"))
+        toggle(T("hubLink_optAdvisor", "Produktionsberater"), s.advisor ~= false, function() self:setFarm(0, "advisor", not (s.advisor ~= false)) end, canGlobal)
+        toggle(T("hubLink_optExport", "Export beim Speichern"), s.export ~= false, function() self:setFarm(0, "export", not (s.export ~= false)) end, canGlobal)
     end
-    head(T("hubLink_optServer", "Server (Admin)"))
-    toggle(T("hubLink_optAdvisor", "Produktionsberater"), s.advisor ~= false, function() self:setFarm(0, "advisor", not (s.advisor ~= false)) end, canGlobal)
-    toggle(T("hubLink_optExport", "Export beim Speichern"), s.export ~= false, function() self:setFarm(0, "export", not (s.export ~= false)) end, canGlobal)
+    local hint
+    if tab == "view" then
+        hint = T("hubLink_hintView", "Gilt nur für dich, auf diesem Rechner.")
+    elseif tab == "farm" then
+        hint = canFarm and T("hubLink_optHint", "Prüfungen gelten für den ganzen Hof und gehen an die Website.") or T("hubLink_optNoFarm", "Nur Mitglieder des Hofs ändern die Prüfungen.")
+    else
+        hint = canGlobal and T("hubLink_hintServer", "Gilt für alle Höfe auf dem Server.") or T("hubLink_hintAdmin", "Nur Admins ändern das.")
+    end
 
-    -- Hintergrund in einem Stück, dann die Zeilen
-    local total = py(34) + gap
-    for _, l in ipairs(lines) do
-        total = total + (l.head and py(26) or lineH) + gap
+    -- Höhe ausrechnen, dann zeichnen
+    local grpHead, grpPad = py(24), py(6)
+    local total = headH + gap + tabH + gap
+    for _, g in ipairs(groups) do
+        total = total + grpHead + grpPad + #g.lines * (lineH + gap) + gap
     end
-    total = total + py(24)
-    box(x, oy - total, w, total, C.bg, math.max(self.prefs.alpha, 0.85))
-    y = oy - py(34)
-    rect(x + pad, y + py(34) * 0.3, px(3), py(34) * 0.4, C.accent)
-    text(x + pad + px(10), mid(y, py(34), size), size, upper(T("hubLink_options", "Optionen")), C.text, true)
+    total = total + py(30)
+    local top = oy
+    box(x, top - total, w, total, C.bg, math.max(p.alpha, 0.88))
+
+    -- Kopf mit Titel und X
+    local y = top - headH
+    box(x + pad, y + headH * 0.28, px(4), headH * 0.44, C.accent, nil, 2)
+    text(x + pad + px(12), mid(y, headH, size * 1.05), size * 1.05, upper(T("hubLink_options", "Optionen")), C.text, true)
+    local bh = headH * 0.62
+    self:button(x + w - pad - px(28), y + (headH - bh) / 2, px(28), bh, "X", function()
+        self.options = false
+    end)
+
+    -- Reiter
+    y = y - gap - tabH
+    local tw = (w - 2 * pad - (#tabs - 1) * px(6)) / #tabs
+    for i, t in ipairs(tabs) do
+        local tx = x + pad + (i - 1) * (tw + px(6))
+        self:button(tx, y, tw, tabH, upper(t[2]), function()
+            self.optTab = t[1]
+        end, t[1] == tab)
+    end
     y = y - gap
-    for _, l in ipairs(lines) do
-        if l.head then
-            y = y - py(26)
-            text(x + pad, mid(y, py(26), small), small, upper(l.head), C.accent, true)
-        else
-            y = y - lineH
+
+    -- Gruppen
+    for _, g in ipairs(groups) do
+        local gh = grpHead + grpPad + #g.lines * (lineH + gap)
+        box(x + pad * 0.6, y - gh, w - pad * 1.2, gh, C.chip, 0.45, 6)
+        local gy = y - grpHead
+        text(x + pad + px(4), mid(gy, grpHead, small), small, upper(g.title), C.accent, true)
+        gy = gy - grpPad * 0.5
+        for _, l in ipairs(g.lines) do
+            gy = gy - lineH
             local enabled = l.enabled ~= false
-            local lx = x + pad + (l.indent and px(16) or 0)
-            text(lx, mid(y, lineH, size), size, l.label, enabled and C.text or C.off, false)
-            local bh = lineH * 0.78
-            local by = y + (lineH - bh) / 2
-            local right = x + w - pad
-            if l.toggle ~= nil then
-                local bw = px(58)
-                self:button(right - bw, by, bw, bh, l.toggle and upper(T("hubLink_on", "An")) or upper(T("hubLink_off", "Aus")), l.fn, l.toggle, enabled)
+            local lx = x + pad + px(4)
+            local right = x + w - pad - px(4)
+            local lbh = lineH * 0.76
+            local by = gy + (lineH - lbh) / 2
+            if l.colors then
+                local sw, sgap = px(32), px(8)
+                for ci, col in ipairs(ACCENTS) do
+                    local cx = lx + (ci - 1) * (sw + sgap)
+                    local on = p.accent == ci
+                    if on then
+                        box(cx - px(3), by - py(3), sw + px(6), lbh + py(6), C.text, 0.9, 7)
+                    end
+                    box(cx, by, sw, lbh, col, 1, 6)
+                    self:hit(cx, by, sw, lbh, function()
+                        self:setPref("accent", ci)
+                    end)
+                end
             else
-                local bw, vw = px(26), px(74)
-                self:button(right - bw, by, bw, bh, "+", l.plus, false, enabled)
-                text(right - bw - vw / 2, mid(y, lineH, size), size, l.value, enabled and C.text or C.off, true, RenderText.ALIGN_CENTER)
-                self:button(right - bw - vw - bw, by, bw, bh, "-", l.minus, false, enabled)
+                text(lx, mid(gy, lineH, size), size, fit(l.label, size, right - lx - (l.toggle ~= nil and px(72) or px(150))), enabled and C.text or C.off, false)
+                if l.toggle ~= nil then
+                    local bw = px(62)
+                    self:button(right - bw, by, bw, lbh, l.toggle and upper(T("hubLink_on", "An")) or upper(T("hubLink_off", "Aus")), l.fn, l.toggle, enabled)
+                else
+                    local bw, vw = px(28), px(78)
+                    self:button(right - bw, by, bw, lbh, "+", l.plus, false, enabled)
+                    box(right - bw - vw - px(2), by, vw, lbh, C.chip, 0.6, 5)
+                    text(right - bw - vw / 2 - px(1), mid(gy, lineH, size), size, l.value, enabled and C.text or C.off, true, RenderText.ALIGN_CENTER)
+                    self:button(right - bw - vw - bw - px(4), by, bw, lbh, "-", l.minus, false, enabled)
+                end
             end
+            gy = gy - gap
         end
-        y = y - gap
+        y = y - gh - gap
     end
-    local hint = (farm > 0 and not canFarm) and T("hubLink_optNoFarm", "Nur Mitglieder des Hofs ändern die Prüfungen.") or T("hubLink_optHint", "Prüfungen gelten für den ganzen Hof und gehen an die Website.")
-    text(x + pad, y - py(18), small * 0.95, fit(hint, small * 0.95, w - 2 * pad), C.dim, false)
+    text(x + pad, y - py(20), small * 0.95, fit(hint, small * 0.95, w - 2 * pad), C.dim, false)
     -- Klicks auf das Menü sollen nichts darunter treffen
-    table.insert(self.hits, 1, { x = x, y = oy - total, w = w, h = total, fn = nil })
+    table.insert(self.hits, 1, { x = x, y = top - total, w = w, h = total, fn = nil })
 end
 
 -- ---------- Maus ----------

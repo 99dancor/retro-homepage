@@ -204,4 +204,4 @@ function calc(recipe, { amounts = [], cycles = null, shared = 1, dpp = 1 } = {})
   };
 }
 
-module.exports = { NAMES, MODES, SECTIONS, typeOf, buildingName, recipeName, isPreplaced, all, uses, calc };
+module.exports = { NAMES, MODES, germanBuilding, SECTIONS, typeOf, buildingName, recipeName, isPreplaced, all, uses, calc };

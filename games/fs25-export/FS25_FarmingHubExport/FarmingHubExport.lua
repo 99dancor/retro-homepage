@@ -17,7 +17,8 @@
 -- Spielstand. Im Mehrspieler schreibt nur der Server. Teile, die eine Spielversion anders benennt, fehlen dann einfach in
 -- der Datei, der Rest wird trotzdem geschrieben.
 --
--- Konsole (Taste ~ oder ^): hubExport schreibt die Datei sofort.
+-- Konsole (Taste ~ oder ^): hubExport schreibt die Datei sofort, auch wenn der Export beim Speichern abgeschaltet ist.
+-- Produktionsberater und Austausch mit dem Hub: FarmingHubLive.lua (ab 3.0).
 
 FarmingHubExport = {}
 FarmingHubExport.VERSION = 2
@@ -1329,6 +1330,10 @@ end
 -- Nach dem Speichern des Spielstands: Datei daneben schreiben (nur Server bzw. Einzelspieler)
 function FarmingHubExport.onSave()
     if g_currentMission == nil or not g_currentMission:getIsServer() then
+        return
+    end
+    -- Abschaltbar (hubSet export off oder im Hub): dann nur noch auf Befehl hubExport
+    if FarmingHubLive ~= nil and not FarmingHubLive:exportEnabled() then
         return
     end
     local file = FarmingHubExport.targetFile()

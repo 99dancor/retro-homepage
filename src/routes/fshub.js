@@ -27,7 +27,7 @@ const router = express.Router();
 const TABS = { uebersicht: 'Übersicht', inventar: 'Inventar', produktion: 'Produktion', fahrzeuge: 'Fahrzeuge', finanzen: 'Finanzen', kalender: 'Kalender', aufgaben: 'Aufgaben' };
 const OK = { notiz: 'Notiz gespeichert.', geloescht: 'Gelöscht.', aufgabe: 'Aufgabe angelegt.', erledigt: 'Erledigt.', gespeichert: 'Gespeichert.', beigetreten: 'Willkommen auf dem Hof!',
   ausgetreten: 'Du gehörst keinem Hof mehr an.', plan: 'In den Hofkalender eingetragen.', ort: 'Ort angelegt.', ausgeblendet: 'Ausgeblendet, bis sich etwas ändert.',
-  uebernommen: 'Als Aufgabe übernommen.', vorschlag: 'Danke für deinen Vorschlag!', abgeglichen: 'Server-Haken der Modliste abgeglichen.', eintrag: 'Eintrag gespeichert.' };
+  uebernommen: 'Als Aufgabe übernommen.', vorschlag: 'Danke für deinen Vorschlag!', abgeglichen: 'Server-Haken der Modliste abgeglichen.', berater: 'Gespeichert, die Mod übernimmt es beim nächsten Abgleich.', eintrag: 'Eintrag gespeichert.' };
 const limit = auth.rateLimit('farming', 300, 3600);
 
 // ---------- Zahlen ----------
@@ -444,6 +444,8 @@ router.get('/hof/:id', farmParam, (req, res) => {
   if (tab === 'aufgaben') {
     data.done = hub.tasks(f.id, { done: true });
     data.editTask = Number(req.query.aufgabe) ? hub.task(req.query.aufgabe) : null;
+    data.live = require('../fslive').status();
+    data.watch = require('../fslive').farmSettings(f.id);
   }
   page(req, res, 'farm', data);
 });
@@ -498,6 +500,13 @@ router.post('/aufgaben/:id/wieder', login, taskParam, (req, res) => { hub.reopen
 router.post('/aufgaben/:id/loeschen', login, taskParam, (req, res) => { hub.removeTask(req.task.id); back(req, res, '/farming', 'geloescht'); });
 router.post('/aufgaben/:id', login, taskParam, (req, res) => { hub.editTask(req.task.id, req.body); back(req, res, '/farming', 'gespeichert'); });
 
+// Produktionsberater der Mod: Prüfungen und Schwellen dieses Hofs (src/fslive.js, geht mit der nächsten Inbox ins Spiel)
+router.post('/hof/:id/berater', login, farmParam, farmEditor, (req, res) => {
+  const live = require('../fslive');
+  live.saveFarm(req.farm.id, req.body);
+  live.soon();
+  res.redirect(`/farming/hof/${req.farm.id}?tab=aufgaben&ok=berater#berater`);
+});
 router.post('/hof/:id/vorschlag', login, farmParam, farmEditor, (req, res) => {
   const id = hub.takeSuggestion(req.user, req.farm.id, String(req.body.key || ''));
   back(req, res, `/farming/hof/${req.farm.id}?tab=aufgaben`, id ? 'uebernommen' : null);

@@ -625,7 +625,12 @@ function completeTask(id, user) {
   });
 }
 function reopenTask(id) { db.prepare('UPDATE fs_tasks SET done_at = NULL, done_by = NULL WHERE id = ?').run(Number(id)); }
-function removeTask(id) { db.prepare('DELETE FROM fs_tasks WHERE id = ?').run(Number(id)); }
+function removeTask(id) {
+  const t = task(id);
+  // Aufgabe aus dem Spiel, Problem besteht noch: nur abhaken, sonst legt der nächste Abgleich sie gleich wieder an (src/fslive.js)
+  if (t && t.source === 'game' && t.game_open) { db.prepare('UPDATE fs_tasks SET done_at = COALESCE(done_at, ?) WHERE id = ?').run(now(), t.id); return; }
+  db.prepare('DELETE FROM fs_tasks WHERE id = ?').run(Number(id));
+}
 // Einmal am Tag: wer eine fällige Aufgabe hat, bekommt eine Erinnerung
 function dueReminders() {
   const d = today(), day = currentDay();
@@ -1074,6 +1079,7 @@ function start() {
   crops();
   importUpdates();
   feeds.start();
+  require('./fslive').start();
   checkSave();
   // Uhr: erst nach dem zweiten Abruf weiß der Hub, ob sie läuft
 }

@@ -230,6 +230,12 @@
       return;
     }
     w.url = cleanUrl(w.iframe.contentWindow.location);
+    // Zwischen zwei Seiten ist der Rahmen kurz leer und zeigt seinen eigenen Hintergrund: den der Seite übernehmen, sonst
+    // blitzt bei dunklen Programmen (Farming Hub) bei jedem Klick das graue Fenster auf
+    try {
+      var bg = w.iframe.contentWindow.getComputedStyle(doc.body).backgroundColor;
+      w.iframe.style.background = bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)' ? bg : '';
+    } catch (e) { /* egal */ }
     // Lädt ein Mini-Player neu, kommt das Fenster wieder in voller Größe
     if (w.before) window.RetroDesk.mini(w.iframe.contentWindow, false);
     var t = doc.title, suffix = ' – ' + siteTitle;

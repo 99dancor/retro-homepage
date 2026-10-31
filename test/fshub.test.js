@@ -547,12 +547,13 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   // Die Mod zum Herunterladen: modDesc, Skript und Symbol als DDS
   const AdmZip = require('adm-zip');
   const zip = new AdmZip(E.modZip());
-  assert.deepEqual(zip.getEntries().map(x => x.entryName).sort(), ['FarmingHubExport.lua', 'icon_farmingHubExport.dds', 'modDesc.xml']);
+  assert.deepEqual(zip.getEntries().map(x => x.entryName).sort(), ['FarmingHubExport.lua', 'FarmingHubLive.lua', 'icon_farmingHubExport.dds', 'modDesc.xml']);
   const dds = zip.getEntry('icon_farmingHubExport.dds').getData();
   assert.equal(dds.toString('latin1', 0, 4), 'DDS ');
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
-  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>2\.7\.0\.0<\/version>/);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubLive.lua"\/>/);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.0\.0\.0<\/version>/);
   assert.throws(() => E.read('<placeables/>'), /Farming Hub Export/);
 });
 
@@ -775,4 +776,82 @@ test('Spielstände: hochgeladener Export wandert mit seinem Spielstand', () => {
   assert.equal(fs.readFileSync(exp, 'utf8'), '{"mapTitle":"Bilk"}', 'und wieder da');
   fs.rmSync(exp, { force: true });
   setSetting('fs_url_savegame', '');
+});
+
+test('Mod 3.0: Aufgaben aus dem Spiel, Inbox ohne Rückspiegelung, Einstellungen mit rev', () => {
+  const { db, now, setSetting } = require('../src/db');
+  const hub = require('../src/fshub');
+  const L = require('../src/fslive');
+  setSetting('fs_ftp_path', '/profile/savegame2');
+  assert.equal(L.dir(), '/profile/modSettings/FS25_FarmingHubExport/savegame2');
+  const live = L.read(`<?xml version="1.0"?><farmingHubLive version="1" mod="3.0.0.0" seq="4" ack="0" saveDir="savegame2" mapTitle="Catuaí">
+    <settings rev="2" export="true" advisor="true"><farm id="1" outputPct="80.0" silo="false"/></settings>
+    <tasks count="3">
+      <task key="input:1:uid_dairy:MILK" kind="input" farm="1" uid="uid_dairy" name="Dairy" fill="MILK" fillTitle="Milk" sev="2" level="300" cap="10000" pct="3.0" hours="3.0"/>
+      <task key="supply:2:uid_barn:Liquid Manure" kind="product" farm="2" uid="uid_barn" name="Sheep Pasture" fillTitle="Liquid Manure" sev="2" pct="95.0"/>
+      <task key="blocked:1:uid_dairy:pallets" kind="blocked" farm="1" uid="uid_dairy" name="Dairy" fill="BUTTER" sev="3"/>
+    </tasks></farmingHubLive>`);
+  assert.equal(live.tasks.length, 3);
+  assert.equal(live.settings.farms['1'].outputPct, 80);
+  assert.equal(L.titleOf(live.tasks[0]), 'Molkerei: Milch reicht noch 3 Stunden');
+  assert.equal(L.titleOf(live.tasks[1]), 'Sheep Pasture: Gülle fast voll (95 %)');
+  assert.equal(L.titleOf(live.tasks[2]), 'Molkerei: Paletten-Ausgang blockiert (Butter)');
+
+  // Einstellungen: die höhere rev gewinnt
+  setSetting('fs_live_settings', JSON.stringify({ rev: 1, export: true, advisor: true, farms: {} }));
+  L.apply(live);
+  assert.equal(L.settings().rev, 2);
+  assert.equal(L.farmSettings(1).outputPct, 80);
+  assert.equal(L.farmSettings(1).silo, false);
+  assert.equal(L.farmSettings(1).inputHours, 6, 'Vorgabe bleibt');
+  const game = () => db.prepare("SELECT * FROM fs_tasks WHERE source = 'game' ORDER BY id").all();
+  assert.equal(game().length, 3);
+  assert.ok(game().every(t => t.game_open === 1 && !t.done_at));
+
+  // Gleiches Problem nochmal: keine zweite Aufgabe, Titel aktuell
+  live.tasks[0].hours = 1.6;
+  L.syncTasks(live.tasks);
+  assert.equal(game().length, 3);
+  assert.equal(game()[0].title, 'Molkerei: Milch reicht noch 2 Stunden');
+
+  // Im Hub abgehakt, im Spiel noch offen: kommt nicht wieder
+  const uid = Number(db.prepare("INSERT INTO users(username, password_hash, role, created_at) VALUES ('melker', 'x', 'user', ?)").run(now()).lastInsertRowid);
+  const first = game()[0];
+  db.prepare('UPDATE fs_tasks SET assignee_id = ? WHERE id = ?').run(uid, first.id);
+  hub.completeTask(first.id, { id: uid });
+  L.syncTasks(live.tasks);
+  assert.equal(game().length, 3, 'abgehakt bleibt abgehakt');
+  // Löschen eines offenen Problems = abhaken
+  hub.removeTask(game()[2].id);
+  assert.ok(game()[2].done_at);
+  L.syncTasks(live.tasks);
+  assert.equal(game().length, 3);
+
+  // Hub-Aufgabe und Notiz gehen in die Inbox, Spiel-Aufgaben nie
+  hub.addTask({ id: uid }, 1, { title: 'Kühe füttern & melken', note: 'Zeile 1\nZeile 2' });
+  hub.addNote({ id: uid }, 'Bitte <Mist> fahren');
+  const body = L.inboxBody();
+  assert.match(body, /<settings rev="2" export="true" advisor="true">/);
+  assert.match(body, /<farm id="1"[^>]*outputPct="80"[^>]*silo="false"/);
+  assert.match(body, /title="Kühe füttern &amp; melken" note="Zeile 1&#10;Zeile 2"/);
+  assert.match(body, /text="Bitte &lt;Mist&gt; fahren"/);
+  assert.doesNotMatch(body, /Paletten-Ausgang|reicht noch|Gülle/, 'Aufgaben aus dem Spiel gehen nicht zurück');
+  assert.match(body, /<game key="input:1:uid_dairy:MILK"\/>/, 'im Hub abgehakt, im Spiel offen');
+  assert.match(L.inboxXml(7, body), /^<\?xml[^>]*\?>\n<farmingHubInbox version="1" seq="7"/);
+
+  // Im Spiel behoben: offene werden abgehakt, beim nächsten Mal gibt es wieder eine Aufgabe mit dem alten Zuständigen
+  L.syncTasks([live.tasks[1]]);
+  assert.deepEqual(game().map(t => [!!t.done_at, t.game_open]), [[true, 0], [false, 1], [true, 0]], 'nur die Gülle bleibt offen');
+  const again = L.syncTasks(live.tasks);
+  assert.equal(again.length, 2);
+  assert.equal(again.find(t => t.kind === 'input').assignee_id, uid);
+  assert.doesNotMatch(L.inboxBody(), /<game key="input/);
+
+  // Seitenverwaltung und Hof-Formular zählen rev über das hinaus, was die Mod zuletzt hatte
+  L.saveGlobal({ export: '0', advisor: '1' });
+  assert.equal(L.settings().export, false);
+  assert.equal(L.settings().rev, 3);
+  L.saveFarm(2, { input: '1', inputHours: '500', outputPct: 'x', stall: '1' });
+  assert.deepEqual([L.farmSettings(2).inputHours, L.farmSettings(2).outputPct, L.farmSettings(2).output, L.settings().rev], [240, 85, false, 4]);
+  setSetting('fs_ftp_path', '');
 });

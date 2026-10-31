@@ -217,10 +217,18 @@ function icon() {
   }
   return Buffer.concat([head, px]);
 }
+// Byte für Byte gleich bei jedem Herunterladen derselben Version: Im Mehrspieler vergleicht das Spiel die Prüfsumme der ZIP
+// mit der auf dem Server. Mit der Uhrzeit des Herunterladens in den Einträgen hatte jede Kopie eine andere, und wer sich die
+// Mod selbst geholt hat, kam nicht auf den Server. Feste Zeit, feste Reihenfolge.
+const ZIP_TIME = new Date(2026, 0, 1, 0, 0, 0);
 function modZip() {
   const zip = new (require('adm-zip'))();
-  for (const f of fs.readdirSync(MOD_DIR)) zip.addFile(f, fs.readFileSync(path.join(MOD_DIR, f)));
-  zip.addFile('icon_farmingHubExport.dds', icon());
+  const files = fs.readdirSync(MOD_DIR).sort().map(f => [f, fs.readFileSync(path.join(MOD_DIR, f))]);
+  files.push(['icon_farmingHubExport.dds', icon()]);
+  for (const [name, data] of files) {
+    zip.addFile(name, data);
+    zip.getEntry(name).header.time = ZIP_TIME;
+  }
   return zip.toBuffer();
 }
 

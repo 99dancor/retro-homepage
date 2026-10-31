@@ -567,7 +567,11 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
 
   // Die Mod zum Herunterladen: modDesc, Skript und Symbol als DDS
   const AdmZip = require('adm-zip');
-  const zip = new AdmZip(E.modZip());
+  const first = E.modZip();
+  const zip = new AdmZip(first);
+  // Jede Kopie gleich (das Spiel vergleicht im Mehrspieler die Prüfsumme der ZIP mit der auf dem Server)
+  const t0 = Date.now(); while (Date.now() - t0 < 2100) { /* zweiter Bau zu einer anderen Uhrzeit */ }
+  assert.ok(first.equals(E.modZip()), 'gleiche Bytes bei jedem Herunterladen');
   assert.deepEqual(zip.getEntries().map(x => x.entryName).sort(), ['FarmingHubExport.lua', 'FarmingHubLive.lua', 'HubLinkEvents.lua', 'HubLinkHud.lua', 'icon_farmingHubExport.dds', 'modDesc.xml']);
   const dds = zip.getEntry('icon_farmingHubExport.dds').getData();
   assert.equal(dds.toString('latin1', 0, 4), 'DDS ');

@@ -1,5 +1,9 @@
 # Changelog
 
+## 31.10.2026 – FS25 Hub Link: gleiche ZIP für alle
+
+- **Mitspieler kommen wieder auf den Server:** Die ZIP der Mod hatte bei jedem Herunterladen eine andere Prüfsumme (die Uhrzeit stand in den Einträgen). Im Mehrspieler muss die eigene Datei aber genau der auf dem Server gleichen, sonst zeigt das Spiel ein rotes Warnzeichen. Jetzt ist jede heruntergeladene ZIP derselben Version Byte für Byte gleich. Einmal neu auf den Server laden, dann passt jede Kopie von der Website.
+
 ## 31.10.2026 – FS25 Hub Link 3.5: Overlay aufgeräumt, keine doppelten Fahrzeuge
 
 - **Keine doppelten Fahrzeuge mehr auf der Karte:** Fuhr jemand ein Gerät seit dem letzten Autosave weg, stand es zweimal da (alter Platz aus vehicles.xml, neuer aus dem Webinterface, mit leicht anderem Namen). Der Hub verbindet beide jetzt auch über den Namen („prolander7500.xml“ ↔ „ProLander 7500“).

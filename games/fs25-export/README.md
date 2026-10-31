@@ -58,3 +58,11 @@ Boden, Kalk, Dünger, Pflug, Walze, Mulch, Unkraut, Steine; alle 2 Minuten neu g
 Typ, Status, Hof, Feld, Frucht, Lohn und Fortschritt). Der Hub nimmt diese Werte, solange die Mod in den letzten
 10 Minuten geschrieben hat, sonst wieder den letzten Autosave. Die Live-Datei wird bei jeder Änderung, spätestens alle
 2 Minuten geschrieben.
+
+## Ab 3.4: Felder im Produktionsberater
+
+`checkFields` nimmt den Stand der Felder (wie `<fields>`, alle 2 Minuten gelesen) und meldet je Hof eine Aufgabe je Arbeit:
+`harvest` (je Frucht, erntereif laut Bodenart oder Wachstum im Erntefenster), `lime` (Kalk 0), `plow` (Pflug 0, nicht
+gesät), `fertilize` (gesät, unter 2 Düngestufen), `weed` (gesät, Unkraut). Grünland zählt nicht. `uid` ist `fields`,
+`name` die Feldnummern. Abschaltbar je Hof über `fields` (Einstellungen, Optionsmenü, Hof-Reiter „Aufgaben“). Ab dieser
+Version lässt der Hub seine eigenen Feld- und Futtervorschläge weg, solange die Mod verbunden ist.

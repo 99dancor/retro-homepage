@@ -1,5 +1,11 @@
 # Changelog
 
+## 31.10.2026 – FS25 Hub Link 3.4: Vorschläge als Aufgaben, Felder im Berater
+
+- **Ein Ort für alles Automatische:** Der Kasten „Vorschläge vom Server“ ist weg. Was der Hub selbst erkennt (Hofkalender, Paletten, Werkstatt, Tanken, große Nachfrage), legt er wie die Meldungen aus dem Spiel gleich als Aufgabe an (💡 vom Hub). Fällt der Anlass weg, hakt er sie selbst ab; abgehakt bleibt sie aus, bis sich der Anlass ändert. Diese Aufgaben stehen auch im Overlay im Spiel.
+- **Felder im Produktionsberater:** Die Mod meldet je Hof, welche Felder erntereif sind (je Frucht) und wo gekalkt, gepflügt, gedüngt oder Unkraut bekämpft werden muss, live aus dem Spiel. Abschaltbar je Hof (Website und Optionsmenü). Solange die Mod verbunden ist, lässt der Hub seine eigenen Feld- und Futtervorschläge weg, damit nichts doppelt steht.
+- **Gebäudenamen:** Meldungen aus dem Spiel heißen im Hub auch dann deutsch, wenn der Spielstand den englischen Namen führt (Schweinestall (groß) statt Pigsty (large)).
+
 ## 31.10.2026 – FS25 Hub Link 3.3: Live-Daten aus dem Spiel
 
 - **Geld live:** Kontostand, Kredit und Einnahmen/Ausgaben jedes Hofs kommen alle paar Minuten aus dem laufenden Spiel, nicht erst nach dem Speichern. Der Verlauf im Reiter Finanzen nutzt diese Werte.

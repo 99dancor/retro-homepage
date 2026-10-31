@@ -32,13 +32,16 @@ const INBOX = 'farmingHubInbox.xml';
 const EVERY = 45, MIN = 20;
 // Prüfungen je Hof mit Vorgabe (wie FarmingHubLive.FARM_KEYS in der Mod)
 const FARM_KEYS = {
-  input: true, inputHours: 6, inputPct: 10, output: true, outputPct: 85, pallets: true, stall: true, stallPct: 15, stallFullPct: 85, silo: true, siloPct: 90,
+  input: true, inputHours: 6, inputPct: 10, output: true, outputPct: 85, pallets: true, stall: true, stallPct: 15, stallFullPct: 85, silo: true, siloPct: 90, fields: true,
 };
 const LIMITS = { inputHours: [1, 240], inputPct: [1, 90], outputPct: [10, 100], stallPct: [1, 90], stallFullPct: [10, 100], siloPct: [10, 100] };
 const KINDS = {
   input: '⏳ Eingang läuft leer', stopped: '⛔ Produktion steht', output: '📦 Ausgang voll', blocked: '🚧 Paletten-Ausgang blockiert',
   food: '🌾 Futter knapp', supply: '💧 Stall: knapp', product: '🪣 Stall: voll', pallets: '🚧 Stall: kein Palettenplatz', silo: '🏚 Silo voll',
+  harvest: '🌾 Erntereif', lime: '🪨 Kalk nötig', plow: '🚜 Pflügen fällig', fertilize: '💧 Düngen', weed: '🌿 Unkraut',
 };
+// Feld-Meldungen (ab Mod 3.4): je Hof eine je Arbeit, name = Feldnummern
+const FIELD_WORK = { lime: 'Kalken', plow: 'Pflügen', fertilize: 'Düngen', weed: 'Unkraut bekämpfen' };
 // Push nur, wenn wirklich etwas steht, und nur an den, der für diese Stelle zuständig ist
 const PUSH = new Set(['stopped', 'blocked']);
 
@@ -157,7 +160,8 @@ function readGame(s) {
 // ---------- Titel auf Deutsch ----------
 // Name eines Gebäudes: wie im Hub (Hof-Gebäude, deutsche Namen), sonst der Name aus dem Spiel
 function placeName(t, names) {
-  return (names && names.get(t.uid)) || require('./fsprod').germanBuilding(t.name) || t.name || 'Gebäude';
+  const own = names && names.get(t.uid), de = require('./fsprod').germanBuilding;
+  return (own && (de(own) || own)) || de(t.name) || t.name || 'Gebäude';
 }
 // Ware: über den Namen (MILK → Milch), Stallanzeigen kommen nur mit Titel in der Sprache des Servers („Liquid Manure“)
 function goodName(t) {
@@ -174,6 +178,10 @@ function duration(h) {
   return `${Math.round(h / 24)} Tage`;
 }
 function titleOf(t, names) {
+  if (t.uid === 'fields') {
+    const where = (String(t.name).includes(',') ? 'Felder ' : 'Feld ') + t.name;
+    return t.kind === 'harvest' ? `${goodName(t) || 'Frucht'} ernten: ${where}` : `${FIELD_WORK[t.kind] || t.kind}: ${where}`;
+  }
   const place = placeName(t, names), good = goodName(t);
   switch (t.kind) {
     case 'input': return t.hours !== null ? `${place}: ${good} reicht noch ${duration(t.hours)}` : `${place}: ${good} fast leer (${pct(t.pct)})`;
@@ -193,6 +201,7 @@ function noteOf(t) {
   const bits = [KINDS[t.kind] ? KINDS[t.kind].replace(/^\S+\s/, '') : 'Meldung aus dem Spiel'];
   if (t.level !== null && t.cap) bits.push(`${l(t.level)} von ${l(t.cap)} l`);
   if (t.kind === 'input' && t.hours !== null) bits.push('Reichweite in Spielstunden bei laufender Produktion');
+  if (t.uid === 'fields') bits.push('laut Feldzustand im Spiel');
   return bits.join(' · ');
 }
 
@@ -307,6 +316,7 @@ function apply(live) {
   storeGame(live.game);
   setState({ seq: live.seq, ack: live.ack, mod: live.mod, saveDir: live.saveDir, mapTitle: live.mapTitle, time: live.time, at: now(), settingsRev: live.settings ? live.settings.rev : 0,
     problems: live.tasks.length });
+  try { require('./fshub').syncAuto(true); } catch (e) { console.error('Farming Hub, Vorschläge:', e); }
   return made;
 }
 

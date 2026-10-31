@@ -553,7 +553,7 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubLive.lua"\/>/);
-  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.3\.0\.0<\/version>/);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.4\.0\.0<\/version>/);
   assert.throws(() => E.read('<placeables/>'), /FS25 Hub Link/);
 });
 
@@ -940,6 +940,17 @@ test('Mod 3.3: Geld, Wetter, Felder und Aufträge live aus dem Spiel', () => {
   assert.ok(!(hub.ftpFile('farms.xml') || {}).live);
   assert.equal(hub.model().missions, null);
   setSetting('fs_ftp_path', '');
+});
+
+test('Mod 3.4: Feld-Meldungen und deutsche Gebäudenamen', () => {
+  const L = require('../src/fslive');
+  assert.equal(L.titleOf({ kind: 'harvest', farm: 1, uid: 'fields', name: '7, 12', fill: 'WHEAT' }), 'Weizen ernten: Felder 7, 12');
+  assert.equal(L.titleOf({ kind: 'lime', farm: 1, uid: 'fields', name: '9' }), 'Kalken: Feld 9');
+  assert.equal(L.titleOf({ kind: 'weed', farm: 1, uid: 'fields', name: '3, 4 …' }), 'Unkraut bekämpfen: Felder 3, 4 …');
+  // Name im Hub aus dem Spielstand (englisch): trotzdem deutsch
+  assert.equal(L.titleOf({ kind: 'food', farm: 1, uid: 'u1', name: 'x', pct: 0 }, new Map([['u1', 'Pigsty (large)']])), 'Schweinestall (groß): Futter leer');
+  assert.equal(L.titleOf({ kind: 'food', farm: 1, uid: 'u1', name: 'x', pct: 0 }, new Map([['u1', 'Opas Stall']])), 'Opas Stall: Futter leer');
+  assert.equal(L.farmSettings(5).fields, true);
 });
 
 test('Anbau planen: Wachstumsdauer, Erntemonat aus Saatmonat und umgekehrt', () => {

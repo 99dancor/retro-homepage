@@ -119,8 +119,9 @@ function page(req, res, view, data) {
 
 // ---------- Seiten ----------
 router.get('/', (req, res) => {
+  try { hub.syncAuto(); } catch (e) { console.error('Farming Hub, Vorschläge:', e); }
   const m = hub.model();
-  const columns = m.farms.map(f => ({ farm: f, tasks: hub.tasks(f.id).filter(t => t.isDue), auto: hub.suggestions(f.id) }));
+  const columns = m.farms.map(f => ({ farm: f, tasks: hub.tasks(f.id).filter(t => t.isDue) }));
   const players = m.players.map(p => {
     const account = hub.accountFor(p.name), fid = account && hub.farmOf(account.id);
     return { ...p, account, farm: fid ? m.farms.find(f => f.id === fid) || null : null, vehicle: m.vehicles.find(v => v.driver === p.name) || null };
@@ -399,9 +400,10 @@ router.get('/mods', (req, res) => {
 });
 
 router.get('/hof/:id', farmParam, (req, res) => {
+  try { hub.syncAuto(); } catch (e) { console.error('Farming Hub, Vorschläge:', e); }
   const f = req.farm, m = hub.model();
   const tab = Object.hasOwn(TABS, req.query.tab) ? req.query.tab : 'uebersicht';
-  const open = hub.tasks(f.id), auto = hub.suggestions(f.id);
+  const open = hub.tasks(f.id), auto = [];
   const hist = hub.history((f.money !== null ? 'money:' : 'bilanz:') + f.id, 60);
   const yesterday = hub.history('bilanz:' + f.id, 3).filter(h => h.day < hub.today()).pop() || null;
   const data = { title: f.name + ' – Farming Simulator', f, tab, open, auto, yesterday, overdue: open.filter(t => t.overdue).length, places: m.places };

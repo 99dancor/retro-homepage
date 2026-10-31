@@ -384,6 +384,7 @@ feeds.on((key, prev) => {
     if (env && env.day && (!before || before.day !== env.day || !dayState())) setDay(env.day, 'ftp');
   }
   record();
+  try { syncAuto(true); } catch (e) { console.error('Farming Hub, Vorschläge:', e); }
 });
 feeds.onError((key, st) => {
   if (key !== 'stats' || st.fails < 3) return;
@@ -533,7 +534,8 @@ function isDue(t, day = currentDay(), d = today()) {
   if (t.done_at) return false;
   if (t.due_date) return t.due_date <= d;
   if (t.due_day) return !!day && t.due_day <= day;
-  return false;
+  // Automatisch angelegt (Spiel, Hub): gilt, solange der Anlass besteht
+  return t.source === 'game' || t.source === 'auto';
 }
 function isOverdue(t, day = currentDay(), d = today()) {
   if (t.done_at) return false;
@@ -653,7 +655,7 @@ function reopenTask(id) { db.prepare('UPDATE fs_tasks SET done_at = NULL, done_b
 function removeTask(id) {
   const t = task(id);
   // Aufgabe aus dem Spiel, Problem besteht noch: nur abhaken, sonst legt der nächste Abgleich sie gleich wieder an (src/fslive.js)
-  if (t && t.source === 'game' && t.game_open) { db.prepare('UPDATE fs_tasks SET done_at = COALESCE(done_at, ?) WHERE id = ?').run(now(), t.id); return; }
+  if (t && (t.source === 'game' || t.source === 'auto') && t.game_open) { db.prepare('UPDATE fs_tasks SET done_at = COALESCE(done_at, ?) WHERE id = ?').run(now(), t.id); return; }
   db.prepare('DELETE FROM fs_tasks WHERE id = ?').run(Number(id));
 }
 // Einmal am Tag: wer eine fällige Aufgabe hat, bekommt eine Erinnerung
@@ -666,11 +668,15 @@ function dueReminders() {
 }
 
 // ---------- Vorschläge des Hubs (automatische Aufgaben) ----------
+// Alles, was der Hub selbst erkennt. syncAuto() legt daraus Aufgaben an (source 'auto'), wie die Mod aus ihren Meldungen. Was
+// die Mod schon prüft (Futter, Felder), lässt der Hub weg, solange sie verbunden ist.
 function suggestions(farmId) {
   const m = model();
   const f = m.farms.find(x => x.id === Number(farmId));
   if (!f) return [];
   const out = [];
+  const L = require('./fslive'), ls = L.status(), cfg = L.farmSettings(f.id);
+  const mod = ls.connected && ls.advisor && /^(3\.(4|[5-9])|[4-9])/.test(ls.mod || '');
   const wear = Number(getSetting('fs_auto_wear', '50')), diesel = Number(getSetting('fs_auto_diesel', '50')), pal = Number(getSetting('fs_auto_pallets', '6'));
   // Paletten im Ausgang: je Ort (oder Stelle bei einem Feld)
   const spots = new Map();
@@ -703,11 +709,11 @@ function suggestions(farmId) {
     if (!s) continue;
     out.push({ key: `demand:${d.fill}:${d.day}`, sig: '1', icon: '📈', title: `Große Nachfrage ${N.fill(d.fill)} +${Math.round((d.mult - 1) * 100)} %${d.running ? ' (läuft)' : d.day ? ' ab ' + (fmtDay(d.day) || 'Tag ' + d.day) : ''}`, why: `Ihr habt ${Math.round(s.amount).toLocaleString('de-DE')} l` });
   }
-  if (getSetting('fs_auto_food', '1') === '1') {
+  if (getSetting('fs_auto_food', '1') === '1' && !(mod && cfg.stall)) {
     for (const b of f.buildings) if (b.kind === 'husbandry' && b.hasFood && b.food < 1) out.push({ key: `food:${f.id}:${b.idx}`, sig: String((feeds.get('ftp') || {}).at || ''), icon: '🐄', title: `Futter auffüllen: ${b.name}`, why: 'Laut letztem Autosave leer' });
   }
   // Felder laut letztem Autosave: ernten je Frucht, kalken, pflügen, düngen
-  if (getSetting('fs_auto_fields', '1') === '1') {
+  if (getSetting('fs_auto_fields', '1') === '1' && !(mod && cfg.fields)) {
     const mine = fieldStates().filter(x => x.owner === f.id && (x.source === 'auto' || x.source === 'patch'));
     const list = xs => xs.map(x => x.id).sort((a, b) => a - b);
     const names = ids => (ids.length === 1 ? 'Grundstück ' : 'Grundstücke ') + ids.join(', ');
@@ -724,10 +730,42 @@ function suggestions(farmId) {
       out.push({ key: `${k}:${f.id}`, sig: ids.join(','), icon, title: `${verb}: ${names(ids)}`, why: 'Laut letztem Autosave', field: ids.length === 1 ? ids[0] : null });
     }
   }
-  // Ausgeblendete (gleicher Anlass) und schon übernommene weglassen
+  return out;
+}
+// Vorschläge → Aufgaben. Besteht der Anlass nicht mehr, hakt der Hub sie ab. Abgehakt, solange er noch besteht: kommt erst wieder,
+// wenn er einmal weg war oder sich geändert hat (sig, z. B. andere Felder). Nach jedem Abruf; beim Seitenaufruf höchstens alle 5 Sekunden.
+let lastAuto = 0;
+function syncAuto(force = false) {
+  if (!force && Date.now() - lastAuto < 5e3) return;
+  lastAuto = Date.now();
+  const m = model();
+  // Früher von Hand übernommene und ausgeblendete (gleicher Anlass) bleiben, wie sie sind
   const hidden = new Map(db.prepare('SELECT key, sig FROM fs_hidden').all().map(r => [r.key, r.sig]));
-  const taken = new Set(db.prepare('SELECT auto_key FROM fs_tasks WHERE auto_key IS NOT NULL AND (done_at IS NULL OR done_at > ?)').all(now() - 86400).map(r => r.auto_key));
-  return out.filter(s => hidden.get(s.key) !== s.sig && !taken.has(s.key));
+  const taken = new Set(db.prepare("SELECT auto_key FROM fs_tasks WHERE auto_key IS NOT NULL AND source <> 'auto' AND (done_at IS NULL OR done_at > ?)").all(now() - 86400).map(r => r.auto_key));
+  // Erst alles ausrechnen (das kann selbst schreiben, z. B. Früchte), dann in einem Rutsch eintragen
+  const lists = m.farms.map(f => [f, suggestions(f.id).filter(x => hidden.get(x.key) !== x.sig && !taken.has(x.key))]);
+  tx(() => {
+    for (const [f, list] of lists) {
+      const keys = new Set(list.map(x => x.key));
+      for (const x of list) {
+        const title = String(x.title).slice(0, 120), note = String(x.why || '').slice(0, 300);
+        const open = db.prepare("SELECT id FROM fs_tasks WHERE source = 'auto' AND auto_key = ? AND farm_id = ? AND done_at IS NULL ORDER BY id DESC").get(x.key, f.id);
+        if (open) {
+          db.prepare('UPDATE fs_tasks SET title = ?, note = ?, field = ?, auto_sig = ?, game_open = 1 WHERE id = ?').run(title, note, x.field || null, x.sig, open.id);
+          continue;
+        }
+        const seen = db.prepare("SELECT id, auto_sig FROM fs_tasks WHERE source = 'auto' AND auto_key = ? AND farm_id = ? AND game_open = 1 ORDER BY id DESC").get(x.key, f.id);
+        if (seen && seen.auto_sig === x.sig) continue;
+        if (seen) db.prepare('UPDATE fs_tasks SET game_open = 0 WHERE id = ?').run(seen.id);
+        const prev = db.prepare("SELECT assignee_id FROM fs_tasks WHERE source = 'auto' AND auto_key = ? AND assignee_id IS NOT NULL ORDER BY id DESC").get(x.key);
+        db.prepare(`INSERT INTO fs_tasks(farm_id, title, note, field, assignee_id, repeat, repeat_n, source, auto_key, auto_sig, game_open, created_at)
+          VALUES (?, ?, ?, ?, ?, '', 1, 'auto', ?, ?, 1, ?)`).run(f.id, title, note, x.field || null, prev ? prev.assignee_id : null, x.key, x.sig, now());
+      }
+      for (const r of db.prepare("SELECT id, auto_key FROM fs_tasks WHERE source = 'auto' AND game_open = 1 AND farm_id = ?").all(f.id)) {
+        if (!keys.has(r.auto_key)) db.prepare('UPDATE fs_tasks SET game_open = 0, done_at = COALESCE(done_at, ?) WHERE id = ?').run(now(), r.id);
+      }
+    }
+  });
 }
 function hideSuggestion(key, sig) {
   db.prepare('INSERT INTO fs_hidden(key, sig, hidden_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET sig = excluded.sig, hidden_at = excluded.hidden_at').run(String(key).slice(0, 200), String(sig).slice(0, 2000), now());
@@ -1120,7 +1158,7 @@ module.exports = {
   currentDay, setDay, estimateDay, calendarYear, dateOf, dayOfMonth, fmtDay, hhmm, daysPerPeriod, today, accountFor, history, record,
   join, leave, setMember, saveFarm, notes, addNote, note, canChangeNote, editNote, removeNote,
   tasks, openTasks, task, addTask, editTask, completeTask, reopenTask, removeTask, isDue, dueLabel, repeatLabel,
-  suggestions, hideSuggestion, takeSuggestion, crops, crop, plans, plan, addPlan, removePlan, planCells, calendar,
+  suggestions, syncAuto, hideSuggestion, takeSuggestion, crops, crop, plans, plan, addPlan, removePlan, planCells, calendar,
   planner, prod, SOILS, soils, saveSoil, fieldStates, fieldOwner, savePlace, place, removePlace, palletSpots, sessionsToday, sessionTotals,
   changelog, addChange, removeChange, importUpdates, shapes, ideas, idea, addIdea, editIdea, answerIdea, removeIdea, vote, goods, modCompare, syncModlist, start,
   _clock: clock, _onStats: onStats,

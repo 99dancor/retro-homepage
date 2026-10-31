@@ -79,10 +79,7 @@
       <div class="col">
         <h4><span class="dot" style="background:<%= c.farm.color %>"></span><a href="/farming/hof/<%= c.farm.id %>?tab=aufgaben"><%= c.farm.name %></a></h4>
         <% for (const t of c.tasks) { %><%- include('_tasks', { t, compact: true, farmId: c.farm.id }) %><% } %>
-        <% for (const s of c.auto.slice(0, 4)) { %>
-          <div class="todo auto-row"><span class="box" aria-hidden="true"><svg width="16" height="16"><use href="#i-bulb"/></svg></span><div class="t"><%= s.title %> <span class="chip" title="vom Hub vorgeschlagen">auto</span></div></div>
-        <% } %>
-        <% if (!c.tasks.length && !c.auto.length) { %><p class="hint">Nichts fällig.</p><% } %>
+        <% if (!c.tasks.length) { %><p class="hint">Nichts fällig.</p><% } %>
       </div>
     <% } %>
   </div>

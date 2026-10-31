@@ -1,5 +1,5 @@
 'use strict';
-// Farming Simulator Hub: Kartendaten aus dem Spiel selbst, geschrieben von der Mod „Farming Hub Export“
+// Farming Simulator Hub: Kartendaten aus dem Spiel selbst, geschrieben von der Mod „FS25 Hub Link“
 // (games/fs25-export/FS25_FarmingHubExport). Die Mod läuft auf dem Spieleserver und legt bei jedem Speichern
 // farmingHubExport.xml in den Spielstand-Ordner. Der Hub holt sie per FTP wie die anderen Dateien, oder ein Admin lädt sie
 // hoch (Einzelspieler: Konsole „hubExport“).
@@ -75,7 +75,7 @@ const periods = s => String(s || '').split(/\s+/).map(Number).filter(p => Number
 
 function read(xml, at = Math.floor(Date.now() / 1000)) {
   const s = X.parse(xml);
-  if (s.n !== 'farmingHubExport') throw new Error('Keine Datei der Mod „Farming Hub Export“.');
+  if (s.n !== 'farmingHubExport') throw new Error('Keine Datei der Mod „FS25 Hub Link“.');
   const mapSize = num(s.a.mapSize, 2048);
   const fields = X.all(s, 'field').map(f => ({ id: num(f.a.id), farmland: num(f.a.farmland), ha: num(f.a.areaHa, 0), x: num(f.a.x), z: num(f.a.z), pts: pts(f.a.pts) }))
     .filter(f => f.id !== null && f.pts.length >= 3);

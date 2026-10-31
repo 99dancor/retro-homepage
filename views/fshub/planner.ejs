@@ -22,10 +22,10 @@
     <button class="small">Suchen</button><% if (q) { %> <a class="btn small" href="<%= secUrl(section) %>">Alle zeigen</a><% } %>
   </form>
 </div>
-<% if (!gameData) { %><p class="hint">Rezepte, Lager und den Katalog kennt der Hub erst mit der Mod „Farming Hub Export“.<%= isAdmin ? ' Seitenverwaltung → Farming → Kartendaten aus dem Spiel.' : '' %></p>
-<% } else if (gameData.version < 2) { %><p class="hint">Die Mod „Farming Hub Export“ auf dem Server ist noch Version 1. Mit Version 2 kommen alle Produktionen aus dem Shop und die Lager dazu.</p><% } %>
+<% if (!gameData) { %><p class="hint">Rezepte, Lager und den Katalog kennt der Hub erst mit der Mod „FS25 Hub Link“.<%= isAdmin ? ' Seitenverwaltung → Farming → Kartendaten aus dem Spiel.' : '' %></p>
+<% } else if (gameData.version < 2) { %><p class="hint">Die Mod „FS25 Hub Link“ auf dem Server ist noch Version 1. Mit Version 2 kommen alle Produktionen aus dem Shop und die Lager dazu.</p><% } %>
 <% if (!list.length) { %>
-  <p class="hint"><%= q ? `Nichts gefunden für „${q}“.` : section === 'eigene' ? 'Noch kein Hof hat selbst ein Produktionsgebäude gebaut.' : section === 'karte' ? 'Auf dieser Karte stehen keine Produktionen, oder der Hub kennt sie noch nicht.' : 'Der Katalog kommt mit der Mod „Farming Hub Export“.' %></p>
+  <p class="hint"><%= q ? `Nichts gefunden für „${q}“.` : section === 'eigene' ? 'Noch kein Hof hat selbst ein Produktionsgebäude gebaut.' : section === 'karte' ? 'Auf dieser Karte stehen keine Produktionen, oder der Hub kennt sie noch nicht.' : 'Der Katalog kommt mit der Mod „FS25 Hub Link“.' %></p>
 <% } %>
 <%# Links die Gebäude, nach DLC bzw. Hof gruppiert und zuklappbar; die Liste scrollt für sich, die Ansicht rechts bleibt stehen %>
 <% const groups = []; for (const b of list) { const g = section === 'katalog' ? (b.dlc || 'Grundspiel') : section === 'eigene' ? (b.farm ? b.farm.name : '') : ''; let e = groups.find(x => x.name === g); if (!e) groups.push(e = { name: g, items: [] }); e.items.push(b); } %>
@@ -103,7 +103,7 @@
         <div class="pl-rechead"><h3>Rezept: <%= rec.name %></h3></div>
         <% if (rec.inputs.length || rec.outputs.length) { %>
           <div class="pl-flow"><div class="pl-side"><%- items(rec.inputs) || '<span class="hint">nichts</span>' %></div><span class="pl-arrow" aria-label="wird zu">▶</span><div class="pl-side"><%- items(rec.outputs) || '<span class="hint">nichts</span>' %></div></div>
-        <% } else { %><p class="hint">Das Rezept kennt der Hub erst mit der Mod „Farming Hub Export“.</p><% } %>
+        <% } else { %><p class="hint">Das Rezept kennt der Hub erst mit der Mod „FS25 Hub Link“.</p><% } %>
         <% if (info) { %>
           <div class="pl-cyc">
             <div><small>Zyklen pro Monat</small><b><%= amt(info.perMonth) %></b></div>

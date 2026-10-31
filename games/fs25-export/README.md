@@ -1,4 +1,4 @@
-# Farming Hub Export (FS25-Mod)
+# FS25 Hub Link (FS25-Mod, früher „Farming Hub Export“)
 
 Schreibt bei jedem Speichern `farmingHubExport.xml` in den Spielstand-Ordner: Feldumrisse, Grundstücke samt
 Grundstückskarte, Positionen der Stationen, Rezepte, laufende Produktionen und Lager der Gebäude, alle Waren mit ihrem
@@ -25,3 +25,16 @@ Einstellungen, offene Aufgaben und Notizen der Website. Die Einstellungen merkt 
 Konsole: `hubStatus` (Einstellungen, offene Meldungen, Aufgaben und Notizen aus dem Hub), `hubSet export on|off`,
 `hubSet advisor on|off`, `hubSet <Hof> <Schlüssel> <Wert>` (Schlüssel: input, inputHours, inputPct, output, outputPct,
 pallets, stall, stallPct, stallFullPct, silo, siloPct). Ist der Export aus, schreibt nur noch `hubExport` die Exportdatei.
+
+## Ab 3.1: Overlay im Spiel
+
+`HubLinkHud.lua` zeigt rechts eine dezente Liste im Stil der Spiel-Anzeigen: Meldungen des eigenen Hofs, Aufgaben und
+Notizen der Website. Alt+H schaltet klein (4 Einträge) → groß (12, mit Notizen) → aus, Alt+J wählt aus, Alt+K hakt ab.
+Tasten lassen sich in der Steuerung ändern; ohne Tasten: `hubHud 0|1|2`, `hubHud pos <x> <y>`, `hubDone <Nr>`.
+
+Die Liste baut der Server und schickt sie an alle Spieler (`HubLinkEvents.lua`). Abhaken geht an den Server, der prüft, ob
+der Spieler zum Hof gehört. In der Live-Datei steht es dann unter `<done>` (eigene Nummer je Eintrag), bis der Hub es in
+der Inbox unter `<doneAck>` bestätigt. Eine abgehakte Meldung bleibt aus, bis das Problem einmal weg war; eine Hub-Aufgabe
+ist im Hub erledigt (mit „im Spiel von …“). Notizen blendet jeder Spieler nur für sich aus (`hubLinkHud.xml`).
+
+Der Ordner- und Dateiname bleibt `FS25_FarmingHubExport`, damit Spielstände und der Austausch-Ordner gleich bleiben.

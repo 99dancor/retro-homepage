@@ -441,7 +441,7 @@ router.post('/farming/hintergrund/:key/loeschen', (req, res) => {
   require('../fshub').removeBackground(String(req.params.key));
   res.redirect('/admin/farming?ok=1#hintergrund');
 });
-// Mod „Farming Hub Export“ (games/fs25-export) und ihre Datei, falls der Hub sie nicht per FTP bekommt (src/fsexport.js)
+// Mod „FS25 Hub Link“ (games/fs25-export) und ihre Datei, falls der Hub sie nicht per FTP bekommt (src/fsexport.js)
 router.get('/farming/export-mod.zip', (req, res) => {
   const ex = require('../fsexport');
   res.set('content-type', 'application/zip').attachment(ex.MOD_NAME + '.zip').send(ex.modZip());

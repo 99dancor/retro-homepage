@@ -1,4 +1,4 @@
--- Farming Hub Live (ab Mod 3.0)
+-- FS25 Hub Link: Produktionsberater und Austausch mit dem Farming Hub (ab Mod 3.0, Overlay ab 3.1)
 --
 -- Zwei Aufgaben, beide nur auf dem Server bzw. im Einzelspieler:
 --
@@ -17,6 +17,10 @@
 -- Einstellungen (farmingHubSettings.xml im selben Ordner): Export an/aus, Produktionsberater an/aus und je Hof die Prüfungen
 -- und Schwellen. Der Hub ändert sie über die Inbox, im Spiel über die Konsole (hubStatus, hubSet). Jede Änderung zählt die
 -- Nummer rev hoch, die höhere Nummer gewinnt. Aufgaben aus dem Hub, die selbst vom Spiel kamen, schickt der Hub nicht zurück.
+--
+-- Overlay (ab 3.1, HubLinkHud.lua): Der Server baut aus Meldungen, Hub-Aufgaben und Notizen eine Liste (viewList) und schickt
+-- sie an alle Spieler (HubLinkEvents.lua). Hakt jemand im Spiel etwas ab, landet es in der Live-Datei unter <done>, bis der Hub
+-- es in der Inbox unter <doneAck> bestätigt. Abgehakte Meldungen bleiben ausgeblendet, bis das Problem einmal weg war.
 
 FarmingHubLive = {}
 FarmingHubLive.VERSION = 1
@@ -49,6 +53,12 @@ FarmingHubLive.inboxSeq = 0
 FarmingHubLive.seq = 0
 FarmingHubLive.lastSig = nil
 FarmingHubLive.timers = { check = 0, write = 0, beat = 0, read = 0 }
+FarmingHubLive.seen = {}
+FarmingHubLive.hidden = {}
+FarmingHubLive.doneList = {}
+FarmingHubLive.doneCount = 0
+FarmingHubLive.viewList = {}
+FarmingHubLive.viewSig = nil
 
 local function log(fmt, ...)
     print(string.format("FarmingHubLive: " .. fmt, ...))
@@ -494,6 +504,13 @@ function FarmingHubLive:check()
         end
     end
     self.problems = found
+    -- Im Spiel abgehakt: vergessen, sobald das Problem weg ist
+    for key in pairs(self.seen) do
+        if found[key] == nil then
+            self.seen[key] = nil
+        end
+    end
+    self:publish()
 end
 
 -- ---------- Dateien ----------
@@ -508,7 +525,8 @@ end
 
 -- Fingerabdruck: ändert sich, wenn eine Aufgabe dazukommt, wegfällt oder sich um mindestens 1 % bzw. 1 Stunde bewegt
 function FarmingHubLive:signature()
-    local parts = { tostring(self.settings.rev), tostring(self.inboxSeq) }
+    local last = self.doneList[#self.doneList]
+    local parts = { tostring(self.settings.rev), tostring(self.inboxSeq), tostring(#self.doneList) .. "/" .. tostring(last ~= nil and last.id or "") }
     for _, key in ipairs(sortedKeys(self.problems)) do
         local p = self.problems[key]
         table.insert(parts, string.format("%s|%d|%d", key, math.floor(p.pct or -1), math.floor(p.hours or -1)))
@@ -575,6 +593,18 @@ function FarmingHubLive:writeLive()
         end
     end
     xml:setInt(r .. ".tasks#count", n)
+    -- Im Spiel abgehakt, vom Hub noch nicht bestätigt
+    for i, d in ipairs(self.doneList) do
+        local k = string.format("%s.done.item(%d)", r, i - 1)
+        xml:setString(k .. "#id", d.id)
+        if d.game ~= nil then
+            xml:setString(k .. "#game", d.game)
+        else
+            xml:setInt(k .. "#task", d.task)
+        end
+        xml:setString(k .. "#by", tostring(d.by or ""))
+        xml:setInt(k .. "#farm", d.farm or 0)
+    end
     xml:save()
     xml:delete()
     return true
@@ -626,18 +656,139 @@ function FarmingHubLive:readInbox()
             end
             i = i + 1
         end
+        -- Vom Hub übernommen: aus <done> streichen; Hub-Aufgaben stehen in derselben Inbox schon richtig
+        local acked = {}
+        i = 0
+        while xml:hasProperty(string.format("%s.doneAck.d(%d)", r, i)) do
+            local id = xml:getString(string.format("%s.doneAck.d(%d)#id", r, i))
+            if id ~= nil then
+                acked[id] = true
+            end
+            i = i + 1
+        end
+        local keep = {}
+        for _, d in ipairs(self.doneList) do
+            if acked[d.id] then
+                if d.task ~= nil then
+                    self.hidden[d.task] = nil
+                end
+            else
+                table.insert(keep, d)
+            end
+        end
+        self.doneList = keep
         self.hubTasks, self.hubNotes, self.dismissed = tasks, notes, dismissed
         self.inboxSeq = seq
     end
     xml:delete()
+    self:publish()
+end
+
+-- ---------- Overlay ----------
+-- Liste für alle Spieler: Meldungen (src 1), Hub-Aufgaben (src 2, Hof 0 = alle Höfe), Notizen (src 3)
+function FarmingHubLive:buildView()
+    local list = {}
+    for _, key in ipairs(sortedKeys(self.problems)) do
+        local p = self.problems[key]
+        if not self.seen[key] and not self.dismissed[key] then
+            table.insert(list, { key = key, src = 1, farm = p.farm, sev = p.sev or 2, kind = p.kind, uid = tostring(p.uid or ""), name = tostring(p.name or ""), fill = p.fill or "",
+                fillTitle = tostring(p.fillTitle or ""), title = "", sub = "", pct = type(p.pct) == "number" and p.pct or -1, hours = type(p.hours) == "number" and p.hours or -1 })
+        end
+    end
+    for _, h in ipairs(self.hubTasks) do
+        if h.id ~= nil and not self.hidden[h.id] then
+            local sub = {}
+            if h.due ~= nil and h.due ~= "" then
+                table.insert(sub, h.due)
+            end
+            if h.assignee ~= nil and h.assignee ~= "" then
+                table.insert(sub, h.assignee)
+            end
+            table.insert(list, { key = "t" .. tostring(h.id), src = 2, farm = h.farm or 0, sev = 1, kind = "task", uid = "", name = "", fill = "", fillTitle = "",
+                title = h.title or "", sub = table.concat(sub, " · "), pct = -1, hours = -1 })
+        end
+    end
+    for _, n in ipairs(self.hubNotes) do
+        if n.id ~= nil then
+            table.insert(list, { key = "n" .. tostring(n.id), src = 3, farm = 0, sev = 0, kind = "note", uid = "", name = "", fill = "", fillTitle = "",
+                title = n.text or "", sub = n.by or "", pct = -1, hours = -1 })
+        end
+    end
+    while #list > 60 do
+        table.remove(list)
+    end
+    return list
+end
+
+function FarmingHubLive.viewSignature(list)
+    local parts = {}
+    for _, e in ipairs(list) do
+        table.insert(parts, string.format("%s|%d|%s|%s|%d|%d", e.key, e.sev, e.title, e.sub, math.floor(e.pct), math.floor(e.hours)))
+    end
+    return table.concat(parts, ";")
+end
+
+-- Neue Liste an alle Spieler, nur wenn sich etwas geändert hat
+function FarmingHubLive:publish()
+    local list = self:buildView()
+    local sig = FarmingHubLive.viewSignature(list)
+    if sig == self.viewSig then
+        return
+    end
+    self.viewSig = sig
+    self.viewList = list
+    if g_server ~= nil and HubLinkSyncEvent ~= nil then
+        try("Liste senden", function()
+            g_server:broadcastEvent(HubLinkSyncEvent.new(list), false)
+        end)
+    end
+    if HubLinkHud ~= nil then
+        HubLinkHud:onView()
+    end
+end
+
+-- Im Spiel abgehakt (Server). Nur eigene Höfe, Aufgaben für alle Höfe darf jeder, der Admin alles
+function FarmingHubLive:markDone(key, by, userFarm, master)
+    local entry = nil
+    for _, e in ipairs(self.viewList) do
+        if e.key == key then
+            entry = e
+        end
+    end
+    if entry == nil or entry.src == 3 then
+        return false
+    end
+    if not master and entry.farm ~= 0 and entry.farm ~= userFarm then
+        return false
+    end
+    self.doneCount = self.doneCount + 1
+    local id = string.format("%s-%d", getDate("%y%m%d%H%M%S"), self.doneCount)
+    if entry.src == 1 then
+        self.seen[key] = true
+        table.insert(self.doneList, { id = id, game = key, by = by or "", farm = entry.farm })
+    else
+        local tid = tonumber(string.sub(key, 2))
+        if tid == nil then
+            return false
+        end
+        self.hidden[tid] = true
+        table.insert(self.doneList, { id = id, task = tid, by = by or "", farm = entry.farm })
+    end
+    while #self.doneList > 50 do
+        table.remove(self.doneList, 1)
+    end
+    log("abgehakt: %s (%s)", key, tostring(by or ""))
+    self:publish()
+    self.timers.write = FarmingHubLive.WRITE_MS
+    return true
 end
 
 -- ---------- Takt ----------
 function FarmingHubLive:loadMap(filename)
     local mod = g_modManager ~= nil and g_modManager:getModByName(FarmingHubLive.modName) or nil
     FarmingHubLive.modVersion = mod ~= nil and mod.version or nil
-    addConsoleCommand("hubStatus", "Farming Hub: Einstellungen, offene Aufgaben, Aufgaben und Notizen aus dem Hub", "consoleStatus", FarmingHubLive)
-    addConsoleCommand("hubSet", "Farming Hub: hubSet export|advisor on|off, hubSet <Hof> <Schlüssel> <Wert>", "consoleSet", FarmingHubLive)
+    addConsoleCommand("hubStatus", "Hub Link: Einstellungen, offene Aufgaben, Aufgaben und Notizen aus dem Hub", "consoleStatus", FarmingHubLive)
+    addConsoleCommand("hubSet", "Hub Link: hubSet export|advisor on|off, hubSet <Hof> <Schlüssel> <Wert>", "consoleSet", FarmingHubLive)
     if g_currentMission ~= nil and g_currentMission:getIsServer() then
         try("Einstellungen laden", self.loadSettings, self)
         try("Inbox", self.readInbox, self)
@@ -652,6 +803,11 @@ function FarmingHubLive:deleteMap()
     self.problems = {}
     self.blocked = {}
     self.lastSig = nil
+    self.seen = {}
+    self.hidden = {}
+    self.doneList = {}
+    self.viewList = {}
+    self.viewSig = nil
 end
 
 function FarmingHubLive:update(dt)
@@ -693,7 +849,7 @@ function FarmingHubLive:consoleStatus()
         table.insert(lines, string.format("  [%s] %s %s %s%s", p.kind, p.name, tostring(p.fillTitle or p.fill or ""), p.pct ~= nil and num(p.pct, 0) .. " %" or "",
             p.hours ~= nil and " / " .. num(p.hours, 1) .. " h" or ""))
     end
-    table.insert(lines, string.format("Vom Hub (Inbox %d): %d Aufgaben, %d Notizen", self.inboxSeq, #self.hubTasks, #self.hubNotes))
+    table.insert(lines, string.format("Vom Hub (Inbox %d): %d Aufgaben, %d Notizen; im Spiel abgehakt, noch nicht im Hub: %d", self.inboxSeq, #self.hubTasks, #self.hubNotes, #self.doneList))
     for _, h in ipairs(self.hubTasks) do
         table.insert(lines, string.format("  Aufgabe %s (Hof %d): %s", tostring(h.id), h.farm or 0, h.title))
     end

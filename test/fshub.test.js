@@ -547,14 +547,14 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   // Die Mod zum Herunterladen: modDesc, Skript und Symbol als DDS
   const AdmZip = require('adm-zip');
   const zip = new AdmZip(E.modZip());
-  assert.deepEqual(zip.getEntries().map(x => x.entryName).sort(), ['FarmingHubExport.lua', 'FarmingHubLive.lua', 'icon_farmingHubExport.dds', 'modDesc.xml']);
+  assert.deepEqual(zip.getEntries().map(x => x.entryName).sort(), ['FarmingHubExport.lua', 'FarmingHubLive.lua', 'HubLinkEvents.lua', 'HubLinkHud.lua', 'icon_farmingHubExport.dds', 'modDesc.xml']);
   const dds = zip.getEntry('icon_farmingHubExport.dds').getData();
   assert.equal(dds.toString('latin1', 0, 4), 'DDS ');
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubLive.lua"\/>/);
-  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.0\.1\.0<\/version>/);
-  assert.throws(() => E.read('<placeables/>'), /Farming Hub Export/);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.1\.0\.0<\/version>/);
+  assert.throws(() => E.read('<placeables/>'), /FS25 Hub Link/);
 });
 
 test('Export auf Englisch: deutsche Gebäude- und Rezeptnamen, Platzhalter weg, Katalog ohne Doppel', () => {
@@ -855,4 +855,39 @@ test('Mod 3.0: Aufgaben aus dem Spiel, Inbox ohne Rückspiegelung, Einstellungen
   L.saveFarm(2, { input: '1', inputHours: '500', outputPct: 'x', stall: '1' });
   assert.deepEqual([L.farmSettings(2).inputHours, L.farmSettings(2).outputPct, L.farmSettings(2).output, L.settings().rev], [240, 85, false, 4]);
   setSetting('fs_ftp_path', '');
+});
+
+test('Mod 3.1: im Spiel abgehakt, jede Nummer einmal, Bestätigung in der Inbox', () => {
+  const { db, now } = require('../src/db');
+  const hub = require('../src/fshub');
+  const L = require('../src/fslive');
+  const uid = Number(db.prepare("INSERT INTO users(username, password_hash, role, created_at) VALUES ('spieler31', 'x', 'user', ?)").run(now()).lastInsertRowid);
+  L.syncTasks([{ key: 'stopped:3:uid_spin:ALPACA', kind: 'stopped', farm: 3, uid: 'uid_spin', name: 'Spinnery', fill: 'ALPACAFLEECE', sev: 3 }]);
+  const game = db.prepare("SELECT * FROM fs_tasks WHERE game_key = 'stopped:3:uid_spin:ALPACA'").get();
+  hub.addTask({ id: uid }, 3, { title: 'Wolle holen', repeat: 'days', repeat_n: '1' });
+  hub.addTask({ id: uid }, 4, { title: 'Anderer Hof' });
+  const mine = db.prepare("SELECT * FROM fs_tasks WHERE title = 'Wolle holen'").get();
+  const other = db.prepare("SELECT * FROM fs_tasks WHERE title = 'Anderer Hof'").get();
+  const live = L.read(`<farmingHubLive version="1" mod="3.1.0.0" seq="9" ack="0"><tasks count="0"/><done>
+    <item id="261031150000-1" game="stopped:3:uid_spin:ALPACA" by="Dancor" farm="3"/>
+    <item id="261031150000-2" task="${mine.id}" by="Dancor" farm="3"/>
+    <item id="261031150000-3" task="${other.id}" by="Dancor" farm="3"/>
+    <item id="" task="1"/></done></farmingHubLive>`);
+  assert.equal(live.done.length, 3, 'ohne Nummer zählt nicht');
+  assert.equal(L.applyDone(live.done), 2, 'Aufgabe eines fremden Hofs bleibt offen');
+  const t = id => db.prepare('SELECT * FROM fs_tasks WHERE id = ?').get(id);
+  assert.ok(t(game.id).done_at);
+  assert.equal(t(game.id).done_game_by, 'Dancor');
+  assert.equal(t(game.id).game_open, 1, 'besteht im Spiel noch: gilt als gesehen');
+  assert.ok(t(mine.id).done_at);
+  assert.equal(t(mine.id).done_game_by, 'Dancor');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM fs_tasks WHERE title = 'Wolle holen' AND done_at IS NULL").get().n, 1, 'regelmäßige Aufgabe: nächste Runde');
+  assert.ok(!t(other.id).done_at);
+  // Dieselbe Datei nochmal: nichts doppelt
+  assert.equal(L.applyDone(live.done), 0);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM fs_tasks WHERE title = 'Wolle holen'").get().n, 2);
+  const body = L.inboxBody();
+  assert.match(body, /<doneAck>[\s\S]*<d id="261031150000-1"\/>[\s\S]*<d id="261031150000-3"\/>[\s\S]*<\/doneAck>/);
+  assert.match(body, /<game key="stopped:3:uid_spin:ALPACA"\/>/);
+  assert.doesNotMatch(body, new RegExp(`<task id="${mine.id}"`));
 });

@@ -7,7 +7,7 @@
 //   FTP (z. B. GPORTAL): farms.xml (Geld je Hof), placeables.xml (Silos, Produktionen, Ställe), items.xml (Ballen),
 //                        environment.xml (Datum, Wetter), fields.xml (Frucht, Wachstum und Boden je Feld),
 //                        bankCredit.xml (Kredite aus dem Mod „Bank Credit“, wenn vorhanden), farmingHubExport.xml (Kartendaten
-//                        aus der Mod „Farming Hub Export“, src/fsexport.js), die Dichtekarten der Früchte und des Bodens und
+//                        aus der Mod „FS25 Hub Link“, src/fsexport.js), die Dichtekarten der Früchte und des Bodens und
 //                        die Kalk-, Dünger- und Pflug-Ebenen (was je Fleck wächst, src/fsmap.js). Ist eine Webinterface-Adresse
 //                        leer, liest er careerSavegame.xml, vehicles.xml und economy.xml auch von dort (careerSavegame.xml
 //                        immer, damit die Seitenverwaltung weiß, welcher Spielstand im Ordner liegt). Die Dateien sind so

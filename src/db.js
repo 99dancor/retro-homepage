@@ -883,6 +883,7 @@ addColumn('fs_tasks', 'source', "TEXT NOT NULL DEFAULT ''");
 addColumn('fs_tasks', 'game_key', 'TEXT');
 addColumn('fs_tasks', 'game_open', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('fs_tasks', 'game_kind', 'TEXT');
+addColumn('fs_tasks', 'done_game_by', 'TEXT');               // im Spiel abgehakt von (Spielername, Overlay der Mod)
 addColumn('users', 'profile_visibility', "TEXT NOT NULL DEFAULT 'members'");
 addColumn('users', 'pm_from', "TEXT NOT NULL DEFAULT 'all'");
 addColumn('users', 'gb_from', "TEXT NOT NULL DEFAULT 'all'");

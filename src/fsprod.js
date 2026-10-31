@@ -6,7 +6,7 @@
 //             Produktionen laufen.
 //   Katalog   alle Produktionen, die man im Shop kaufen kann, mit Preis und Rezepten.
 //
-// Alles kommt aus dem Spiel (Mod „Farming Hub Export“, src/fsexport.js): Rezepte, Zyklen und Kosten pro Monat, ob sich die
+// Alles kommt aus dem Spiel (Mod „FS25 Hub Link“, src/fsexport.js): Rezepte, Zyklen und Kosten pro Monat, ob sich die
 // Produktionen eines Gebäudes die Zyklen teilen (seriell) oder jede für sich läuft (parallel). Ohne die Mod kennt der Hub aus
 // placeables.xml nur Gebäude und Namen der Produktionen. Von Hand eingetragen wird nichts.
 const N = require('./fsnames');

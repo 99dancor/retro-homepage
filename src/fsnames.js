@@ -121,7 +121,7 @@ const GROUND_LABEL = {
 };
 
 const pretty = code => String(code || '').toLowerCase().split('_').filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
-// Namen aus dem Spiel (Mod „Farming Hub Export“, Waren in der Sprache des Servers): nur deutsche, und nur für Waren, die hier
+// Namen aus dem Spiel (Mod „FS25 Hub Link“, Waren in der Sprache des Servers): nur deutsche, und nur für Waren, die hier
 // fehlen (Mods, neue DLCs). Die Liste oben geht vor, damit alles gleich heißt.
 let gameTitles = new Map();
 function setGameTitles(list, language) {

@@ -5,7 +5,7 @@
 // Mitglieder, Notizen, Aufgaben, Anbauplan, Orte, Changelog und Vorschläge (Tabellen fs_* in src/db.js).
 //
 // Was das Spiel weiß, kommt aus dem Spiel: Grundstücke, Felder, Stationen, Rezepte, Waren und Früchte aus der Mod
-// „Farming Hub Export“ (src/fsexport.js), was je Fleck wächst aus den Dichtekarten (src/fsmap.js), Datum aus environment.xml.
+// „FS25 Hub Link“ (src/fsexport.js), was je Fleck wächst aus den Dichtekarten (src/fsmap.js), Datum aus environment.xml.
 // Von Hand gepflegt werden nur Dinge, die das Spiel nicht kennt: Höfe auf der Seite, Aufgaben, Pläne, Orte, Notizen.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -142,7 +142,7 @@ function priceOf(ec, fill, month) {
 function model() {
   if (cached) return cached;
   const st = feeds.get('stats'), sg = feed('savegame'), vf = feed('vehicles'), ec = feed('economy');
-  // Kartendaten aus dem Spiel (Mod „Farming Hub Export“): Positionen der vorplatzierten Gebäude, Grundstücke ohne Stats-Feed
+  // Kartendaten aus dem Spiel (Mod „FS25 Hub Link“): Positionen der vorplatzierten Gebäude, Grundstücke ohne Stats-Feed
   const ex = fsexport.current();
   N.setGameTitles(ex && ex.fillTypes, ex && ex.language);
   // Monatsnamen und Kalender je Halbkugel (Einstellung, sonst Export)

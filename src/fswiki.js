@@ -7,7 +7,7 @@
 //                  (Milch, Wolle, Eier, Mist, Gülle), was es kostet, wann es Nachwuchs bekommt, die Futtergruppen mit ihrem
 //                  Anteil an der Leistung, Mischungen und die Ställe aus dem Shop.
 //
-// Die Tierdaten liefert die Mod „Farming Hub Export“ ab 2.4. Sie ändern sich nur mit Spielupdates und DLCs, deshalb legt der Hub
+// Die Tierdaten liefert die Mod „FS25 Hub Link“ ab 2.4. Sie ändern sich nur mit Spielupdates und DLCs, deshalb legt der Hub
 // sie als eigene, schlichte Datei ab: DATA_DIR/fshub/wiki.xml. Kommt ein Export mit anderen Tierdaten, wird sie neu geschrieben.
 // Admins können sie in der Seitenverwaltung herunterladen und eine eigene hochladen (die bleibt dann, bis sie gelöscht wird).
 //
@@ -144,7 +144,7 @@ function upload(buf) {
   const s = X.parse(buf.toString('utf8'));
   if (s.n !== 'farmingWiki' && s.n !== 'farmingHubExport') throw new Error('Keine wiki.xml und keine farmingHubExport.xml.');
   const d = parse(X.kid(s, 'animals'));
-  if (!d || !d.types.length) throw new Error('In der Datei stehen keine Tiere (die Mod „Farming Hub Export“ liefert sie ab Version 2.4).');
+  if (!d || !d.types.length) throw new Error('In der Datei stehen keine Tiere (die Mod „FS25 Hub Link“ liefert sie ab Version 2.4).');
   write(d, { source: 'upload', mapTitle: s.a.mapTitle || '', saved: s.a.saved || s.a.saveDate || '' });
   return d;
 }

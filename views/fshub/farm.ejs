@@ -372,7 +372,7 @@
     </details>
   <% } %>
   <details class="fs-done" id="berater"<%= query.ok === 'berater' ? ' open' : '' %>><summary>🎮 Produktionsberater im Spiel</summary>
-    <p class="hint"><% if (!live.on) { %>Aus: Dafür braucht der Hub den FTP-Zugang und die Mod „Farming Hub Export“ ab Version 3.0 auf dem Server.<% } else if (live.connected) { %>✔ Mod verbunden (<%= live.mod || 'Version ?' %>), letzte Meldung <%= when(live.at) %>.<% } else if (live.at) { %>⚠ Letzte Meldung der Mod <%= when(live.at) %>. Läuft der Server?<% } else { %>Noch keine Meldung der Mod.<% } %>
+    <p class="hint"><% if (!live.on) { %>Aus: Dafür braucht der Hub den FTP-Zugang und die Mod „FS25 Hub Link“ ab Version 3.0 auf dem Server.<% } else if (live.connected) { %>✔ Mod verbunden (<%= live.mod || 'Version ?' %>), letzte Meldung <%= when(live.at) %>.<% } else if (live.at) { %>⚠ Letzte Meldung der Mod <%= when(live.at) %>. Läuft der Server?<% } else { %>Noch keine Meldung der Mod.<% } %>
       <% if (!live.advisor) { %><br>Der Produktionsberater ist in der Seitenverwaltung ausgeschaltet.<% } %></p>
     <p class="hint">Die Mod prüft alle 10 Sekunden Produktionen, Ställe und Silos dieses Hofs und legt hier Aufgaben an (🎮). Ist das Problem im Spiel behoben, hakt der Hub sie selbst ab. Hakst du sie vorher ab, kommt sie erst wieder, wenn das Problem einmal weg war.</p>
     <% if (editable) { %>

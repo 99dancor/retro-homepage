@@ -45,7 +45,7 @@
         <% for (const [k, [l, c]] of Object.entries(STATION_CATS)) { const n = placed.filter(s => s.cat === k).length; if (!n) continue; %>
           <label class="inline"><input type="checkbox" data-show="st-<%= k %>" checked><span class="stsw" style="background:<%= c %>"><svg aria-hidden="true"><use href="#st-<%= k %>"/></svg></span><span class="lb"><%= l %></span><span class="n"><%= n %></span></label>
         <% } %>
-        <% if (!placed.length) { %><p class="note">Wo die Stationen stehen, weiß der Hub erst mit der Mod „Farming Hub Export“.</p><% } %>
+        <% if (!placed.length) { %><p class="note">Wo die Stationen stehen, weiß der Hub erst mit der Mod „FS25 Hub Link“.</p><% } %>
       </div>
     <% } %>
     <% if (fit) { %>

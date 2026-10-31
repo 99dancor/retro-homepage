@@ -2517,7 +2517,18 @@ async function main() {
         assert.match(page, /Spieltag 174 · geschätzt/);
         assert.match(page, /Werkstatt: 4 Fahrzeuge über 50 % Verschleiß <span class="chip"/);
         assert.equal((await anna.req('/farming/karte.bild')).headers.get('content-type'), 'image/jpeg');
-        assert.match(adm, /Läuft gerade: <b>Bilk<\/b>/, 'Spielstand erkannt');
+        assert.match(adm, /Läuft gerade<\/legend>\s*<p><b>Bilk<\/b>/, 'Spielstand erkannt');
+        // Spielstände: Ordner merken, Backup anlegen, herunterladen und einspielen
+        assert.equal((await admin.form('/admin/farming/ordner/hinzufuegen', { _csrf: t, dir: 'profile/savegame2', name: 'Zweiter' })).headers.get('location'), '/admin/farming?ok=1#spielstaende');
+        assert.equal((await admin.form('/admin/farming/backup/neu', { _csrf: t, label: 'Smoke' })).headers.get('location'), '/admin/farming?ok=backup#backups');
+        const admB = (await admin.req('/admin/farming')).text_;
+        assert.match(admB, /<code>\/profile\/savegame2<\/code>/);
+        const bkName = /\/admin\/farming\/backup\/([^"]+\.zip)"/.exec(admB)[1];
+        const bkFile = await admin.req('/admin/farming/backup/' + bkName);
+        assert.equal(bkFile.status, 200);
+        assert.match(bkFile.headers.get('content-disposition') || '', /attachment/);
+        assert.equal((await admin.form('/admin/farming/backup/wiederherstellen', { _csrf: t, name: decodeURIComponent(bkName) })).headers.get('location'), '/admin/farming?ok=wiederhergestellt#backups');
+        assert.equal((await guest.req('/admin/farming/backup/' + bkName)).status === 200, false, 'Backups nur für Admins');
         // Kartenbild mit Version: ein neues Bild kommt sofort, ohne Version fragt der Browser jedes Mal nach
         const mv = /karte\.bild\?v=([a-z0-9]+)/.exec((await anna.req('/farming/karte')).text_);
         assert.ok(mv, 'Kartenbild mit Version');

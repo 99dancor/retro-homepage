@@ -1,5 +1,14 @@
 # Changelog
 
+## 31.10.2026 – Farming Hub: Spielstände wechseln und Backups
+
+- **Eigener Reiter „Spielstände“** in der Seitenverwaltung unter Farming Simulator: was gerade läuft, alle Spielstand-Ordner auf dem FTP, beiseitegelegte Hub-Daten und Backups an einer Stelle.
+- **Ordner merken und wechseln:** Jeder Spielstand-Ordner (/profile/savegame1, savegame2 …) bekommt einen Namen und zeigt, welche Karte darin liegt und wie viele Höfe, Aufgaben und Pläne der Hub dafür hat. „Wechseln“ stellt den FTP um, Höfe, Aufgaben und Pläne tauscht der Hub, sobald er den Spielstand dort gelesen hat. „Spielstände auf dem FTP suchen“ sieht auf Knopfdruck in die Nachbarordner und trägt jeden Spielstand ein, umgestellt wird dabei nichts.
+- **Passt nicht zusammen:** Läuft auf dem Server ein anderer Spielstand als im FTP-Ordner, sagt die Seitenverwaltung das und bietet den passenden Ordner an. Wer mag, lässt den FTP-Ordner dem Server von selbst folgen.
+- **Backups:** Ein Klick legt ein ZIP mit allen Hub-Daten an: Höfe, Mitglieder, Aufgaben, Pläne, Orte, Verläufe, Bodenverteilung, alle beiseitegelegten Spielstände, Notizen, Changelog, Vorschläge, Planer, die zuletzt gelesenen Serverdaten samt Export der Mod, Einstellungen, eigene Kartenbilder, Hintergründe und Tierdaten, auf Wunsch auch Dichtekarten und Symbole. Herunterladen, hochladen, wiederherstellen. Adressen, Codes und der FTP-Zugang kommen nie hinein.
+- **Automatisch gesichert:** Vor jedem Spielstandwechsel, „neu beginnen“, „hierher holen“ und Wiederherstellen legt der Hub selbst ein Backup an, die letzten zehn bleiben.
+- **Mehr wandert mit:** Ein hochgeladener Export der Mod und die Halbkugel gehören jetzt auch zum Spielstand und wechseln mit.
+
 ## 30.10.2026 – Farming Hub: Alpakavlies richtig gerechnet
 
 - **Alpakavlies:** Das Nachwachsen steht im Spiel in Prozent pro Tag (10 %, also alle 10 Tage ein volles Vlies mit 500 l). Der Hub hat die 10 als Faktor genommen und zehn Mal ein volles Vlies pro Tag gerechnet. Jetzt liefert ein ausgewachsenes Alpaka 50 l am Tag; der Planer rechnet damit die Zahl der Tiere.

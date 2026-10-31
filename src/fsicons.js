@@ -128,4 +128,6 @@ function file(k) {
   return clean && list().has(clean) ? path.join(DIR, clean + '.png') : null;
 }
 
-module.exports = { GLYPH, glyph, html, key, list, save, clear, file, DIR };
+function forget() { uploaded = null; }
+
+module.exports = { GLYPH, glyph, html, key, list, save, clear, file, forget, DIR };

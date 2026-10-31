@@ -343,6 +343,12 @@ function accountFor(name) {
 
 // ---------- Was beim Abruf passiert ----------
 feeds.on((key, prev) => {
+  // Ordnerliste der Seitenverwaltung: was im FTP-Ordner liegt; auf Wunsch dem Server in einen bekannten Ordner folgen
+  if (key === 'ftp') saves.syncSlot();
+  if (key === 'savegame' || key === 'ftp') {
+    const to = saves.follow();
+    if (to) db.prepare("INSERT INTO fs_changelog(kind, title, body, created_at) VALUES ('server', ?, ?, ?)").run('FTP-Ordner umgestellt', `Der Server läuft mit einem anderen Spielstand, der Hub liest jetzt ${to}.`, now());
+  }
   if (key === 'savegame' || key === 'ftp') checkSave();
   if (key === 'stats') onStats(prev, feeds.get('stats'));
   if (key === 'ftp') {

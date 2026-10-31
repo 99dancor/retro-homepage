@@ -3148,6 +3148,7 @@ body.embed:has(.konto) > .body { height: 100vh; box-sizing: border-box; display:
 .fs-admin-ftp { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
 .fs-admin-ftp label { display: flex; gap: 6px; align-items: center; }
 .fs-admin-row { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.fs-slot-on td { background: rgba(0, 128, 0, .08); font-weight: bold; }
 .fs-months { display: inline-flex; flex-wrap: wrap; gap: 0 4px; font-size: 11px; align-items: center; }
 .fs-months label { display: inline-flex; align-items: center; gap: 1px; }
 .fs-form.row > button, .fs-form .row > button { flex: none; }

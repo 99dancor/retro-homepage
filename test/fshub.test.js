@@ -658,3 +658,121 @@ test('Wiki: Tierdaten aus dem Export, wiki.xml, Tiere für den Planer, Stall, An
   assert.equal(W.title('Total Mixed Ration (100 %)'), 'Totalmischration (100%)');
   assert.equal(W.title('Spezialfutter'), 'Spezialfutter');
 });
+
+test('Ordner: eingestellter Ordner kommt in die Liste, Wechseln stellt den FTP um', () => {
+  const { db, now, getSetting, setSetting } = require('../src/db');
+  const saves = require('../src/fssaves');
+  setSetting('fs_slots', '');
+  setSetting('fs_ftp_host', 'ftp.example.invalid');
+  setSetting('fs_ftp_path', '/profile/savegame1');
+  const put = db.prepare("INSERT INTO fs_cache(feed, data, ok_at, tried_at) VALUES ('ftp', ?, ?, ?) ON CONFLICT(feed) DO UPDATE SET data = excluded.data");
+  put.run(JSON.stringify({ dir: '/profile/savegame1', at: now(), files: { 'careerSavegame.xml': { title: 'Catuaí mit Jan', mapTitle: 'Catuaí', created: '2026-10-29', saveDate: '2026-10-31' } } }), now(), now());
+  F.load();
+  saves.syncSlot();
+  let l = saves.slots();
+  assert.equal(l.length, 1);
+  assert.equal(l[0].map, 'Catuaí');
+  assert.equal(l[0].active, true);
+  assert.equal(saves.cleanDir('profile\\savegame2/'), '/profile/savegame2');
+  saves.addSlot('profile/savegame2', 'Zweiter');
+  assert.equal(saves.removeSlot('/profile/savegame1'), false, 'eingestellter Ordner bleibt');
+  assert.equal(saves.useSlot('/profile/savegame9'), false, 'unbekannter Ordner');
+  assert.equal(saves.useSlot('/profile/savegame2'), true);
+  assert.equal(getSetting('fs_ftp_path'), '/profile/savegame2');
+  assert.equal(F.get('ftp'), null, 'alte FTP-Daten sind weg');
+  l = saves.slots();
+  assert.equal(l.find(s => s.dir === '/profile/savegame2').active, true);
+  assert.equal(l.find(s => s.dir === '/profile/savegame2').name, 'Zweiter');
+  // Webinterface zeigt anderen Spielstand als der Ordner: Hinweis mit passendem Ordner, folgen nur auf Wunsch
+  setSetting('fs_url_savegame', 'http://example.invalid/sg');
+  db.prepare("INSERT INTO fs_cache(feed, data, ok_at, tried_at) VALUES ('savegame', ?, ?, ?) ON CONFLICT(feed) DO UPDATE SET data = excluded.data")
+    .run(JSON.stringify({ title: 'Catuaí mit Jan', mapTitle: 'Catuaí', created: '2026-10-29' }), now(), now());
+  put.run(JSON.stringify({ dir: '/profile/savegame2', at: now(), files: { 'careerSavegame.xml': { title: 'Alt', mapTitle: 'Riverbend', created: '2025-01-01' } } }), now(), now());
+  F.load();
+  const mm = saves.mismatch();
+  assert.equal(mm.server.map, 'Catuaí');
+  assert.equal(mm.folder.map, 'Riverbend');
+  assert.equal(mm.fit, '/profile/savegame1');
+  assert.equal(saves.follow(), null, 'ohne Haken bleibt der Ordner');
+  setSetting('fs_slots_follow', '1');
+  assert.equal(saves.follow(), '/profile/savegame1');
+  assert.equal(getSetting('fs_ftp_path'), '/profile/savegame1');
+  setSetting('fs_slots_follow', '0');
+  setSetting('fs_url_savegame', '');
+  setSetting('fs_ftp_host', '');
+  db.prepare("DELETE FROM fs_cache WHERE feed IN ('ftp', 'savegame')").run();
+  F.load();
+});
+
+test('Backup: anlegen, ohne Zugangsdaten, wiederherstellen ersetzt die Hub-Daten', () => {
+  const { db, now, getSetting, setSetting } = require('../src/db');
+  const bk = require('../src/fsbackup');
+  const AdmZip = require('adm-zip');
+  for (const t of [...bk.TABLES].reverse()) if (t !== 'fs_cache') db.prepare(`DELETE FROM ${t}`).run();
+  db.prepare("INSERT INTO fs_farms(id, name, updated_at) VALUES (1, 'Sonnenhof', ?)").run(now());
+  db.prepare("INSERT INTO fs_tasks(farm_id, title, created_at) VALUES (1, 'Kalken', ?)").run(now());
+  db.prepare("INSERT INTO fs_notes(body, created_at) VALUES ('Notiz', ?)").run(now());
+  db.prepare("INSERT INTO fs_saves(key, map, first_at, last_at, data) VALUES ('Bilk|x', 'Bilk', 1, 1, ?)").run(JSON.stringify({ tables: { fs_farms: [{ id: 3 }] }, settings: {} }));
+  setSetting('fs_ftp_pass', 'geheim123');
+  setSetting('fs_url_stats', 'http://x.invalid/?code=geheimcode');
+  setSetting('fs_map_fit', '{"s":1.1}');
+  fs.writeFileSync(path.join(F.FS_DIR, 'map-custom.png'), Buffer.from('BILD-A'));
+  fs.writeFileSync(path.join(F.FS_DIR, 'layer-x.png'), Buffer.from('abgeleitet'));
+  const name = bk.create({ label: 'vor der Ernte' });
+  const raw = fs.readFileSync(bk.file(name));
+  assert.ok(!raw.includes('geheim123') && !new AdmZip(raw).getEntry('db.json').getData().toString().includes('geheim'), 'keine Zugangsdaten im Backup');
+  const meta = bk.list().find(b => b.name === name);
+  assert.equal(meta.label, 'vor der Ernte');
+  assert.equal(meta.counts.Höfe, 1);
+  assert.equal(meta.counts['weitere Spielstände'], 1);
+  assert.deepEqual(meta.files, ['map-custom.png']);
+
+  // Alles ändern, dann zurück
+  db.prepare("UPDATE fs_farms SET name = 'Anders'").run();
+  db.prepare('DELETE FROM fs_tasks').run();
+  db.prepare("INSERT INTO fs_farms(id, name, updated_at) VALUES (2, 'Neu', ?)").run(now());
+  setSetting('fs_map_fit', '');
+  setSetting('fs_ftp_pass', 'neues-pass');
+  fs.writeFileSync(path.join(F.FS_DIR, 'map-custom.png'), Buffer.from('BILD-B'));
+  const r = bk.restore(name);
+  assert.ok(bk.file(r.before), 'Stand vorher liegt als Backup da');
+  assert.equal(bk.list().find(b => b.name === r.before).auto, true);
+  assert.deepEqual(db.prepare('SELECT id, name FROM fs_farms ORDER BY id').all().map(x => ({ ...x })), [{ id: 1, name: 'Sonnenhof' }]);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM fs_tasks').get().n, 1);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM fs_saves WHERE key = 'Bilk|x'").get().n, 1);
+  assert.equal(getSetting('fs_map_fit'), '{"s":1.1}');
+  assert.equal(getSetting('fs_ftp_pass'), 'neues-pass', 'Zugangsdaten bleiben unberührt');
+  assert.equal(fs.readFileSync(path.join(F.FS_DIR, 'map-custom.png'), 'utf8'), 'BILD-A');
+
+  // Hochladen: nur echte Backups, Namen ohne Pfad
+  assert.throws(() => bk.upload(Buffer.from('kein zip')), /./);
+  const up = bk.upload(raw, '../../boese.zip');
+  assert.equal(up, 'boese.zip');
+  assert.equal(bk.file('../boese.zip'), null);
+  assert.equal(bk.remove(up), true);
+  setSetting('fs_url_stats', '');
+  setSetting('fs_ftp_pass', '');
+  fs.rmSync(path.join(F.FS_DIR, 'map-custom.png'), { force: true });
+});
+
+test('Spielstände: hochgeladener Export wandert mit seinem Spielstand', () => {
+  const { db, now, setSetting } = require('../src/db');
+  const saves = require('../src/fssaves');
+  const put = db.prepare('INSERT INTO fs_cache(feed, data, ok_at, tried_at, error, info) VALUES (?, ?, ?, ?, NULL, NULL) ON CONFLICT(feed) DO UPDATE SET data = excluded.data');
+  const sg = (map, created) => { put.run('savegame', JSON.stringify({ title: 't', mapTitle: map, mapId: map, created, money: 0 }), now(), now()); F.load(); };
+  setSetting('fs_url_savegame', 'http://example.invalid/sg');
+  setSetting('fs_save', '');
+  sg('Bilk', '2026-01-01');
+  saves.check();
+  saves.keep();
+  const exp = path.join(F.FS_DIR, 'hub-export.json');
+  fs.writeFileSync(exp, '{"mapTitle":"Bilk"}');
+  sg('Bilk', '2026-11-11');
+  assert.ok(saves.check(), 'gleiche Karte, neuer Spielstand');
+  assert.ok(!fs.existsSync(exp), 'Export des alten Spielstands ist beiseitegelegt');
+  sg('Bilk', '2026-01-01');
+  saves.check();
+  assert.equal(fs.readFileSync(exp, 'utf8'), '{"mapTitle":"Bilk"}', 'und wieder da');
+  fs.rmSync(exp, { force: true });
+  setSetting('fs_url_savegame', '');
+});

@@ -9,7 +9,8 @@
 //                        bankCredit.xml (Kredite aus dem Mod „Bank Credit“, wenn vorhanden), farmingHubExport.xml (Kartendaten
 //                        aus der Mod „Farming Hub Export“, src/fsexport.js), die Dichtekarten der Früchte und des Bodens und
 //                        die Kalk-, Dünger- und Pflug-Ebenen (was je Fleck wächst, src/fsmap.js). Ist eine Webinterface-Adresse
-//                        leer, liest er careerSavegame.xml, vehicles.xml und economy.xml auch von dort. Die Dateien sind so
+//                        leer, liest er careerSavegame.xml, vehicles.xml und economy.xml auch von dort (careerSavegame.xml
+//                        immer, damit die Seitenverwaltung weiß, welcher Spielstand im Ordner liegt). Die Dateien sind so
 //                        aktuell wie der letzte Autosave. Wird ein anderer Ordner eingetragen, holt er alles neu.
 //
 // Jeder Zugang hat seinen eigenen Abstand. Klappt ein Abruf nicht, wartet er länger (bis 10 Minuten) und behält den
@@ -254,6 +255,7 @@ const READ = { stats: readStats, savegame: readSavegame, vehicles: readVehicles,
 const cache = new Map();   // key → { data, ok_at, tried_at, error, fails }
 const listeners = [], errorListeners = [];
 function load() {
+  cache.clear();
   for (const r of db.prepare('SELECT * FROM fs_cache').all()) {
     let data = null;
     try { data = JSON.parse(r.data); } catch { data = null; }
@@ -359,7 +361,7 @@ async function runFtp(force = false) {
   let files = { ...((prev.data && prev.data.files) || {}) };
   let seen = { ...((prev.info && prev.info.seen) || {}) };
   const shapes = getSetting('fs_shapes', '1') === '1';
-  const wanted = [...FTP_FILES, ...(shapes ? FTP_BINARY : []), ...Object.entries(FTP_FALLBACK).filter(([k]) => !url(k)).map(([, f]) => f)];
+  const wanted = [...FTP_FILES, ...(shapes ? FTP_BINARY : []), ...Object.entries(FTP_FALLBACK).filter(([k]) => !url(k) || k === 'savegame').map(([, f]) => f)];
   if (!shapes) for (const n of FTP_BINARY) { delete files[n]; fs.rmSync(path.join(FS_DIR, 'sg-' + n), { force: true }); }
   const notes = [];
   const dir = cfg.dir;
@@ -440,7 +442,7 @@ function summarizeFtp(files, notes) {
   const ex = files['farmingHubExport.xml'];
   if (ex) parts.push(`farmingHubExport.xml: ${ex.farmlands.length} Grundstücke, ${ex.placeables.filter(p => p.x !== null).length} Gebäude${ex.version >= 2 ? `, ${ex.fruitTypes.length} Früchte, ${ex.catalog.length} Produktionen im Shop` : ' (Version 1)'}`);
   if (files['densityMap_fruits.gdm']) parts.push(`Dichtekarten: Früchte${FTP_BINARY.slice(1).some(n => files[n]) ? ', Boden und Pflege' : ''} je Fleck`);
-  for (const [k, n] of Object.entries(FTP_FALLBACK)) if (files[n]) parts.push(`${n} statt ${FEEDS[k].name}-Adresse`);
+  for (const [k, n] of Object.entries(FTP_FALLBACK)) if (files[n] && !url(k)) parts.push(`${n} statt ${FEEDS[k].name}-Adresse`);
   return parts.concat(notes).join(' · ');
 }
 
@@ -495,6 +497,6 @@ function soon(key) { nextAt.set(key, 0); }
 
 module.exports = {
   FEEDS, FTP_FILES, FTP_BINARY, FTP_FALLBACK, MAP_FILE, FS_DIR, url, interval, ftpConfig, configured, get, status, on, onError, run, runAll, start, reschedule, soon, forget,
-  liveSave, mapMod,
+  liveSave, mapMod, ftpConnect, fetchFile,
   readStats, readSavegame, readVehicles, readEconomy, readFarms, readPlaceables, readItems, readEnvironment, readFields, readBankCredit, imageSize, load,
 };

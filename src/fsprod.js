@@ -30,6 +30,8 @@ const NAMES_EN = {
   'Quarry': 'Steinbruch', 'Stone Mason': 'Steinmetz', 'Vegetable Processing Plant': 'Gemüseverarbeitung', 'Windmill': 'Windmühle', 'Young Fish Breeding': 'Jungfischzucht',
   'Liquid Manure Dryer': 'Gülletrockner', 'Apple Orchard': 'Apfelplantage', 'Apricot Orchard': 'Aprikosenplantage', 'Pear Orchard': 'Birnenplantage', 'Plum Orchard': 'Pflaumenplantage',
   'Fruit and Vegetable Processing Plant': 'Obst- und Gemüseverarbeitung', 'Pellet Heat Plant': 'Pelletheizwerk', 'Greenhouse For Rice Saplings': 'Gewächshaus für Reissetzlinge',
+  'Pigsty': 'Schweinestall', 'Cowshed': 'Kuhstall', 'Cow Barn': 'Kuhstall', 'Chicken Coop': 'Hühnerstall', 'Sheep Pasture': 'Schafweide', 'Goat Pasture': 'Ziegenweide',
+  'Horse Stable': 'Pferdestall', 'Alpaca Pasture': 'Alpakaweide', 'Buffalo Barn': 'Büffelstall', 'Beehive': 'Bienenstock',
   'Glass Greenhouse': 'Glasgewächshaus', 'Mushroom Greenhouse': 'Pilzgewächshaus', 'Tarp Greenhouse': 'Foliengewächshaus', 'Greenhouse - Advanced': 'Gewächshaus (modern)',
 };
 const SIZE_EN = { Small: 'klein', Medium: 'mittel', Large: 'groß' };
@@ -39,7 +41,7 @@ function germanBuilding(name) {
   const m = /^(Small|Medium|Large) (.+?)( \((.+)\))?$/.exec(name);
   if (m && NAMES_EN[m[2]]) return `${NAMES_EN[m[2]]} (${SIZE_EN[m[1]]}${m[4] ? ', ' + (N.FILL[m[4].toUpperCase()] || m[4]) : ''})`;
   const p = /^(.+?) \(([^)]+)\)$/.exec(name);
-  if (p && NAMES_EN[p[1]]) return `${NAMES_EN[p[1]]} (${p[2]})`;
+  if (p && NAMES_EN[p[1]]) return `${NAMES_EN[p[1]]} (${SIZE_EN[p[2][0].toUpperCase() + p[2].slice(1).toLowerCase()] || p[2]})`;
   const k = /^(.+?) (\d+\s*k?MW|\d+\s*kW)$/i.exec(name);
   if (k && NAMES_EN[k[1]]) return `${NAMES_EN[k[1]]} ${k[2]}`;
   return null;

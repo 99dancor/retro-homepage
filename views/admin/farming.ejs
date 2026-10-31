@@ -7,7 +7,7 @@
 <% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
 <p>🚜 <a href="/farming" target="_blank">Farming Simulator Hub öffnen</a> · Die Website holt alles selbst vom Spieleserver ab. Adressen, Codes und das FTP-Passwort bleiben auf dem Server, kein Browser sieht sie.</p>
 <div class="tabs" role="tablist" data-reiter>
-  <% [['server', '🖥️ Server'], ['hoefe', '🏡 Höfe'], ['orte', '📍 Orte'], ['zugriff', '🔑 Zugriff und Vorschläge']].forEach(([k, l], i) => { %><button type="button" role="tab" id="t-<%= k %>" aria-controls="<%= k %>" aria-selected="<%= i === 0 %>"<%- i ? ' tabindex="-1"' : '' %>><%= l %></button><% }) %>
+  <% [['server', '🖥️ Server'], ['spielstaende', '💾 Spielstände'], ['hoefe', '🏡 Höfe'], ['orte', '📍 Orte'], ['zugriff', '🔑 Zugriff und Vorschläge']].forEach(([k, l], i) => { %><button type="button" role="tab" id="t-<%= k %>" aria-controls="<%= k %>" aria-selected="<%= i === 0 %>"<%- i ? ' tabindex="-1"' : '' %>><%= l %></button><% }) %>
 </div>
 
 <section class="tab-page" id="server" role="tabpanel" aria-labelledby="t-server">
@@ -35,7 +35,7 @@
         <label>Benutzer <input name="ftp_user" value="<%= ftp.user %>" autocomplete="off"></label>
         <label>Passwort <input type="password" name="ftp_pass" placeholder="<%= ftp.pass_set ? '•••••• (gespeichert)' : '' %>" autocomplete="new-password"></label>
         <% if (ftp.pass_set) { %><label class="inline"><input type="checkbox" name="ftp_pass_clear" value="1"> Passwort löschen</label><% } %>
-        <label>Ordner des Spielstands <input name="ftp_path" value="<%= ftp.dir %>" placeholder="z. B. /profile/savegame1" class="w100"></label>
+        <label>Ordner des Spielstands <input name="ftp_path" value="<%= ftp.dir %>" placeholder="z. B. /profile/savegame1" class="w100"> <small class="muted">bequemer unter <a href="#spielstaende" data-reiter-link>💾 Spielstände</a></small></label>
         <label>Verschlüsselung <select name="ftp_secure"><option value="0"<%= ftp.secure === '0' ? ' selected' : '' %>>keine (FTP)</option><option value="1"<%= ftp.secure === '1' ? ' selected' : '' %>>FTPS</option><option value="2"<%= ftp.secure === '2' ? ' selected' : '' %>>FTPS, Zertifikat nicht prüfen</option></select></label>
         <label>Abstand <input type="number" name="int_ftp" min="<%= ft.min %>" value="<%= ft.every %>" style="width:80px"> Sekunden</label>
       </div>
@@ -45,31 +45,6 @@
     <div class="actions"><button>Speichern</button></div>
   </form>
   <form method="post" action="/admin/farming/testen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>🔌 Alle testen</button> <small class="muted">fragt alle eingetragenen Zugänge sofort ab</small></form>
-
-  <fieldset class="groupbox" id="spielstand"><legend>Spielstand</legend>
-    <% const sid = saves.id, cnt = Object.entries(saves.counts).filter(([, n]) => n).map(([k, n]) => n + ' ' + k).join(', '); %>
-    <p>Läuft gerade: <b><%= sid ? sid.map : 'unbekannt' %></b><%= sid && sid.title ? ' · „' + sid.title + '“' : '' %><%= sid && sid.created ? ' · angelegt ' + sid.created : '' %>
-      <% if (!sid) { %><br><small class="muted">Dafür braucht der Hub die Savegame-Adresse oder careerSavegame.xml per FTP.</small><% } %></p>
-    <p class="muted">Höfe, Mitglieder, Aufgaben, Anbaupläne, Orte, Verläufe und der Spieltag gehören zum Spielstand. Läuft auf dem Server ein anderer, legt der Hub sie beiseite und beginnt leer (oder holt die Daten zurück, wenn er den Spielstand schon kennt). Notizen, Changelog und Vorschläge bleiben.</p>
-    <% if (saves.unsure) { %>
-      <div class="msg err">⚠ Der Hub merkt sich Spielstände erst ab jetzt. Hier stehen schon Daten (<%= cnt %>). Gehören sie zu einem früheren Spielstand, leg sie beiseite.</div>
-      <div class="actions">
-        <form method="post" action="/admin/farming/spielstand/neu" class="inline" data-confirm="Höfe, Aufgaben und Pläne beiseitelegen und für diesen Spielstand leer beginnen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="def">Beiseitelegen und leer beginnen</button></form>
-        <form method="post" action="/admin/farming/spielstand/behalten" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Gehören zu diesem Spielstand</button></form>
-      </div>
-    <% } else if (sid) { %>
-      <form method="post" action="/admin/farming/spielstand/neu" class="actions" data-confirm="Höfe, Aufgaben und Pläne beiseitelegen und für diesen Spielstand leer beginnen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Für diesen Spielstand neu beginnen</button> <small class="muted"><%= cnt ? 'jetzt: ' + cnt : 'noch keine Daten' %></small></form>
-    <% } %>
-    <% const others = saves.list.filter(r => !r.active && r.stored); %>
-    <% if (others.length) { %>
-      <table class="list"><tr><th>Beiseitegelegt</th><th>Inhalt</th><th>Zuletzt</th><th></th></tr>
-        <% for (const r of others) { %><tr><td><b><%= r.map %></b><%= r.title ? ' · ' + r.title : '' %><%= r.created ? ' · angelegt ' + r.created : '' %></td>
-          <td><small><%= Object.entries(r.counts).filter(([, n]) => n).map(([k, n]) => n + ' ' + k).join(', ') || 'leer' %></small></td><td><small><%= ago(r.last_at) %></small></td>
-          <td><form method="post" action="/admin/farming/spielstand/uebernehmen" class="inline" data-confirm="Diese Daten in den laufenden Spielstand holen? Was jetzt da ist, wird beiseitegelegt."><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= r.key %>"><button class="small">Hierher holen</button></form>
-            <form method="post" action="/admin/farming/spielstand/loeschen" class="inline" data-confirm="Diese Daten endgültig löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= r.key %>"><button class="small danger">Löschen</button></form></td></tr><% } %>
-      </table>
-    <% } %>
-  </fieldset>
 
   <fieldset class="groupbox"><legend>Kartenbild</legend>
     <p>Das Bild vom Server ist klein (meist 512 × 512, die Karte liegt in der Mitte). Schöner wird es mit einem eigenen Bild, zum Beispiel der overview.png aus der Karten-Mod: Das zeigt die ganze Karte ohne Rand.</p>
@@ -126,6 +101,91 @@
     <% if (iconCount) { %><form method="post" action="/admin/farming/symbole/loeschen" class="actions" data-confirm="Alle hochgeladenen Symbole löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">Alle hochgeladenen Symbole löschen</button></form><% } %>
   </fieldset>
 
+</section>
+
+<section class="tab-page" id="spielstaende" role="tabpanel" aria-labelledby="t-spielstaende" hidden>
+  <% const sid = saves.id, cnt = Object.entries(saves.counts).filter(([, n]) => n).map(([k, n]) => n + ' ' + k).join(', '); %>
+  <% const cntText = c => c ? Object.entries(c).filter(([, n]) => n).map(([k, n]) => n + ' ' + k).join(', ') || 'leer' : '–'; %>
+  <% const kb = n => n > 1048576 ? (n / 1048576).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; %>
+  <% const when = t => t ? new Date(t * 1000).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'short' }) : ''; %>
+  <fieldset class="groupbox" id="spielstand"><legend>Läuft gerade</legend>
+    <p><b><%= sid ? sid.map : 'unbekannt' %></b><%= sid && sid.title ? ' · „' + sid.title + '“' : '' %><%= sid && sid.created ? ' · angelegt ' + sid.created : '' %>
+      · FTP-Ordner <code><%= saves.ftpSet ? saves.ftpDir : 'kein FTP' %></code>
+      <% if (!sid) { %><br><small class="muted">Dafür braucht der Hub die Savegame-Adresse oder careerSavegame.xml per FTP.</small><% } %></p>
+    <% if (saves.mismatch) { const mm = saves.mismatch; %>
+      <div class="msg err">⚠ Der Server läuft mit <b><%= mm.server.map %></b><%= mm.server.title ? ' („' + mm.server.title + '“)' : '' %>, im FTP-Ordner liegt aber <b><%= mm.folder.map %></b><%= mm.folder.title ? ' („' + mm.folder.title + '“)' : '' %>. Karte, Höfe und Felder passen dann nicht zusammen.
+        <% if (mm.fit) { %><form method="post" action="/admin/farming/ordner/wechseln" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="dir" value="<%= mm.fit %>"><button class="small def">Auf <%= mm.fit %> umstellen</button></form>
+        <% } else { %>Trag unten den passenden Ordner ein oder lass den Hub suchen.<% } %></div>
+    <% } %>
+    <p class="muted">Höfe, Mitglieder, Aufgaben, Anbaupläne, Orte, Verläufe, Bodenverteilung, Kartenausrichtung, Halbkugel, eigenes Kartenbild, hochgeladener Export und der Spieltag gehören zum Spielstand. Wechselt der Spielstand, legt der Hub sie beiseite und holt die des anderen zurück (oder beginnt leer, wenn er ihn noch nicht kennt). Vorher legt er jedes Mal ein Backup an. Notizen, Changelog, Vorschläge und der Planer bleiben.</p>
+    <% if (saves.unsure) { %>
+      <div class="msg err">⚠ Der Hub merkt sich Spielstände erst ab jetzt. Hier stehen schon Daten (<%= cnt %>). Gehören sie zu einem früheren Spielstand, leg sie beiseite.</div>
+      <div class="actions">
+        <form method="post" action="/admin/farming/spielstand/neu" class="inline" data-confirm="Höfe, Aufgaben und Pläne beiseitelegen und für diesen Spielstand leer beginnen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="def">Beiseitelegen und leer beginnen</button></form>
+        <form method="post" action="/admin/farming/spielstand/behalten" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Gehören zu diesem Spielstand</button></form>
+      </div>
+    <% } else if (sid) { %>
+      <form method="post" action="/admin/farming/spielstand/neu" class="actions" data-confirm="Höfe, Aufgaben und Pläne beiseitelegen und für diesen Spielstand leer beginnen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Für diesen Spielstand neu beginnen</button> <small class="muted"><%= cnt ? 'jetzt: ' + cnt : 'noch keine Daten' %></small></form>
+    <% } %>
+  </fieldset>
+
+  <fieldset class="groupbox" id="ordner"><legend>Spielstände auf dem FTP</legend>
+    <p class="muted">Jeder Spielstand liegt beim Hoster in einem eigenen Ordner (bei GPORTAL <code>/profile/savegame1</code> bis <code>savegame20</code>). „Wechseln“ stellt den FTP-Ordner um; Höfe, Aufgaben und Pläne tauscht der Hub aus, sobald er den Spielstand aus dem neuen Ordner gelesen hat.<%= saves.viaWeb ? ' Den laufenden Spielstand erkennt der Hub am Webinterface. Wechsel also zuerst beim Hoster den Spielstand, dann hier den Ordner.' : '' %></p>
+    <% if (saves.slots.length) { %>
+      <table class="list"><tr><th>Name</th><th>Ordner</th><th>Spielstand im Ordner</th><th>Hub-Daten</th><th></th></tr>
+        <% for (const sl of saves.slots) { %><tr<%- sl.active ? ' class="fs-slot-on"' : '' %>>
+          <td style="white-space:nowrap"><form method="post" action="/admin/farming/ordner/umbenennen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="dir" value="<%= sl.dir %>"><input name="name" value="<%= sl.name || '' %>" placeholder="<%= sl.title || 'Name' %>" style="width:120px" aria-label="Name für <%= sl.dir %>" maxlength="80"><button class="small" title="Name speichern">✔</button></form></td>
+          <td><code><%= sl.dir %></code><%= sl.active ? ' ◀ eingestellt' : '' %></td>
+          <td><small><% if (sl.missing) { %>keine careerSavegame.xml<% } else if (sl.map) { %><b><%= sl.map %></b><%= sl.title ? ' · „' + sl.title + '“' : '' %><%= sl.saveDate ? ' · gespeichert ' + sl.saveDate : '' %><%= sl.running ? ' · läuft im Hub' : '' %><% } else { %>noch nicht gelesen<% } %></small></td>
+          <td><small><%= sl.running ? cntText(sl.counts) : sl.counts ? cntText(sl.counts) + ' (beiseitegelegt)' : sl.map ? 'noch keine' : '–' %></small></td>
+          <td style="white-space:nowrap"><% if (!sl.active) { %><form method="post" action="/admin/farming/ordner/wechseln" class="inline" data-confirm="FTP auf <%= sl.dir %> umstellen? Höfe, Aufgaben und Pläne tauscht der Hub, sobald er den Spielstand dort gelesen hat. Vorher legt er ein Backup an."><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="dir" value="<%= sl.dir %>"><button class="small def">Wechseln</button></form>
+            <form method="post" action="/admin/farming/ordner/entfernen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="dir" value="<%= sl.dir %>"><button class="small" title="Aus der Liste nehmen (die Hub-Daten bleiben)">✕</button></form><% } %></td></tr><% } %>
+      </table>
+    <% } else { %><p>Noch keine Ordner. Der eingestellte kommt nach dem nächsten FTP-Abruf von selbst in die Liste.</p><% } %>
+    <form method="post" action="/admin/farming/ordner/hinzufuegen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label>Ordner <input name="dir" placeholder="/profile/savegame2" required style="width:200px"></label> <label>Name <input name="name" placeholder="z. B. Catuaí mit Jan" maxlength="80" style="width:160px"></label>
+      <label class="inline"><input type="checkbox" name="use" value="1"> gleich wechseln</label> <button>Hinzufügen</button></form>
+    <% if (saves.ftpSet) { %>
+      <form method="post" action="/admin/farming/ordner/suchen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>🔍 Spielstände auf dem FTP suchen</button> <small class="muted">sieht einmal in die Nachbarordner von <code><%= saves.ftpDir %></code> (savegame1, savegame2 …) und trägt jeden mit careerSavegame.xml ein. Umgestellt wird dabei nichts.</small></form>
+      <% if (saves.viaWeb) { %>
+        <form method="post" action="/admin/farming/ordner/folgen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="follow" value="<%= saves.follow ? '0' : '1' %>"><button><%= saves.follow ? '☑' : '☐' %> FTP-Ordner folgt dem Server</button> <small class="muted">Wechselt beim Hoster der Spielstand und liegt er in einem Ordner aus der Liste, stellt der Hub den FTP von selbst um.</small></form>
+      <% } %>
+    <% } %>
+  </fieldset>
+
+  <% const others = saves.list.filter(r => !r.active && r.stored); %>
+  <% if (others.length) { %>
+  <fieldset class="groupbox"><legend>Beiseitegelegte Hub-Daten</legend>
+      <table class="list"><tr><th>Spielstand</th><th>Inhalt</th><th>Zuletzt</th><th></th></tr>
+        <% for (const r of others) { %><tr><td><b><%= r.map %></b><%= r.title ? ' · ' + r.title : '' %><%= r.created ? ' · angelegt ' + r.created : '' %></td>
+          <td><small><%= Object.entries(r.counts).filter(([, n]) => n).map(([k, n]) => n + ' ' + k).join(', ') || 'leer' %></small></td><td><small><%= ago(r.last_at) %></small></td>
+          <td><form method="post" action="/admin/farming/spielstand/uebernehmen" class="inline" data-confirm="Diese Daten in den laufenden Spielstand holen? Was jetzt da ist, wird beiseitegelegt."><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= r.key %>"><button class="small">Hierher holen</button></form>
+            <form method="post" action="/admin/farming/spielstand/loeschen" class="inline" data-confirm="Diese Daten endgültig löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= r.key %>"><button class="small danger">Löschen</button></form></td></tr><% } %>
+      </table>
+  </fieldset>
+  <% } %>
+
+  <fieldset class="groupbox" id="backups"><legend>Backups</legend>
+    <p class="muted">Ein Backup ist eine ZIP-Datei mit allem, was der Hub selbst weiß: Höfe, Mitglieder, Aufgaben, Pläne, Orte, Verläufe, Bodenverteilung, alle beiseitegelegten Spielstände, Notizen, Changelog, Vorschläge, Online-Zeiten, Kalendervorlage, Planer, die zuletzt gelesenen Serverdaten samt Export der Mod, die Einstellungen des Hubs, eigene Kartenbilder, Hintergründe und die Tierdaten. Adressen, Codes und der FTP-Zugang kommen nie hinein. Vor jedem Spielstandwechsel und vor jedem Wiederherstellen legt der Hub selbst eins an (die letzten zehn bleiben).</p>
+    <form method="post" action="/admin/farming/backup/neu" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label>Bezeichnung <input name="label" placeholder="z. B. vor der Ernte" maxlength="120" style="width:200px"></label>
+      <label class="inline"><input type="checkbox" name="dense" value="1"> mit Dichtekarten <small class="muted">(groß, holt der Hub sonst neu vom FTP)</small></label>
+      <label class="inline"><input type="checkbox" name="icons" value="1"> mit Symbolen</label>
+      <button class="def">💾 Backup anlegen</button></form>
+    <% if (backups.length) { %>
+      <table class="list"><tr><th>Angelegt</th><th>Spielstand</th><th>Inhalt</th><th>Größe</th><th></th></tr>
+        <% for (const bk of backups) { %><tr>
+          <td><%= when(bk.at) %><br><small class="muted"><%= bk.auto ? '⚙ automatisch' : '' %><%= bk.label ? (bk.auto ? ' · ' : '') + bk.label : '' %></small></td>
+          <td><% if (bk.broken) { %><span style="color:#a00">⚠ <%= bk.broken %></span><% } else { %><b><%= (bk.save && bk.save.map) || '–' %></b><%= bk.save && bk.save.title ? ' · „' + bk.save.title + '“' : '' %><br><small class="muted"><%= bk.save && bk.save.dir ? bk.save.dir : '' %></small><% } %></td>
+          <td><small><%= bk.counts ? cntText(bk.counts) : '' %><%= bk.export ? ' · Export ' + bk.export.fields + ' Felder' : '' %><%= bk.dense ? ' · Dichtekarten' : '' %><%= bk.icons ? ' · Symbole' : '' %></small></td>
+          <td><small><%= kb(bk.bytes) %></small></td>
+          <td style="white-space:nowrap"><a class="btn small" href="/admin/farming/backup/<%= encodeURIComponent(bk.name) %>" download title="Herunterladen">⬇</a>
+            <% if (!bk.broken) { %><form method="post" action="/admin/farming/backup/wiederherstellen" class="inline" data-confirm="Dieses Backup einspielen? Alle Hub-Daten werden durch die aus dem Backup ersetzt. Der jetzige Stand wird vorher als Backup abgelegt."><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="name" value="<%= bk.name %>"><button class="small">Wiederherstellen</button></form><% } %>
+            <form method="post" action="/admin/farming/backup/loeschen" class="inline" data-confirm="Backup endgültig löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="name" value="<%= bk.name %>"><button class="small danger">Löschen</button></form></td></tr><% } %>
+      </table>
+    <% } else { %><p>Noch keine Backups.</p><% } %>
+    <form method="post" action="/admin/farming/backup/hochladen" enctype="multipart/form-data" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="file" name="backup" accept=".zip,application/zip" required><button>Backup hochladen</button> <small class="muted">kommt erst in die Liste, eingespielt wird mit „Wiederherstellen“</small></form>
+  </fieldset>
 </section>
 
 <section class="tab-page" id="hoefe" role="tabpanel" aria-labelledby="t-hoefe" hidden>

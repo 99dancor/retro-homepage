@@ -344,14 +344,19 @@ router.get('/farming', (req, res) => {
     title: 'Farming Simulator', N: require('../fsnames'), feedRows, ftp: { ...ftp, password: undefined, pass_set: !!ftp.password }, m, hub,
     s: Object.fromEntries(['fs_enabled', 'fs_view', 'fs_edit', 'fs_map_border', 'fs_auto_wear', 'fs_auto_diesel', 'fs_auto_pallets', 'fs_auto_food', 'fs_auto_fields', 'fs_shapes', 'fs_modlist'].map(k => [k, getSetting(k, '')])),
     customMap: fsfiles.find(f => /^map-custom\./.test(f)) || null, hasServerMap: fsfiles.includes('map-server'), iconCount: require('../fsicons').list().size,
-    saves: { list: saves.list(), id: saves.identity(), unsure: saves.unsure(), counts: saves.liveCounts() },
+    saves: { list: saves.list(), id: saves.identity(), unsure: saves.unsure(), counts: saves.liveCounts(), slots: saves.slots(), mismatch: saves.mismatch(),
+      follow: getSetting('fs_slots_follow', '0') === '1', ftpSet: feeds.configured('ftp'), ftpDir: feeds.ftpConfig().dir, viaWeb: !!feeds.url('savegame') },
+    backups: require('../fsbackup').list(),
     gameExport: require('../fsexport').summary(require('../fsexport').current()), gameUploaded: require('../fsexport').uploaded(),
     wiki: require('../fswiki').stored(), hemisphere: getSetting('fs_hemisphere', ''),
     gameShapes: (() => { const shp = hub.shapes(m); return (shp && shp.game) || 0; })(),
     bgs: hub.backgrounds(), bgName: hub.mapName(), bgKey: hub.slug(hub.mapName()) || 'karte',
     users: db.prepare('SELECT u.id, u.username, u.display_name, m.farm_id FROM users u LEFT JOIN fs_members m ON m.user_id = u.id WHERE u.disabled = 0 ORDER BY u.username COLLATE NOCASE').all(),
     lists: db.prepare('SELECT slug, title, game FROM modlists ORDER BY game, title').all(), sessions: hub.sessionTotals(30),
-    msg: { testen: 'Alle Zugänge abgefragt, die Ergebnisse stehen unten.', karte: 'Kartenbild gespeichert.', hintergrund: 'Hintergrundbild gespeichert.' }[req.query.ok]
+    msg: { testen: 'Alle Zugänge abgefragt, die Ergebnisse stehen unten.', karte: 'Kartenbild gespeichert.', hintergrund: 'Hintergrundbild gespeichert.',
+      gewechselt: 'Ordner umgestellt. Der Hub holt den Spielstand gerade ab, in ein paar Sekunden neu laden.', backup: 'Backup angelegt.',
+      hochgeladen: 'Backup hochgeladen. Mit „Wiederherstellen“ spielst du es ein.', wiederhergestellt: 'Backup eingespielt. Der Stand vorher liegt als automatisches Backup in der Liste.' }[req.query.ok]
+      || (/^gefunden\d+$/.test(req.query.ok || '') ? `${req.query.ok.slice(8)} Spielstände auf dem FTP gefunden.` : null)
       || (/^spiel\d+$/.test(req.query.ok || '') ? `Spieldaten gelesen: ${req.query.ok.slice(5)} Felder.` : null)
       || (/^symbole\d+$/.test(req.query.ok || '') ? `${req.query.ok.slice(7)} Symbole gespeichert.` : req.query.ok ? 'Gespeichert.' : null),
     err: req.query.err || null,
@@ -481,9 +486,60 @@ router.post('/farming/spielstand/:action', (req, res) => {
   const saves = require('../fssaves'), key = String(req.body.key || '');
   const ok = { neu: () => saves.restart(), behalten: () => { saves.keep(); return true; }, uebernehmen: () => saves.adopt(key), loeschen: () => saves.remove(key) }[req.params.action];
   if (!ok) return res.status(404).end();
-  if (!ok()) return res.redirect('/admin/farming?err=' + encodeURIComponent('Das ging nicht (Spielstand unbekannt oder läuft gerade).') + '#spielstand');
+  if (!ok()) return res.redirect('/admin/farming?err=' + encodeURIComponent('Das ging nicht (Spielstand unbekannt oder läuft gerade).') + '#spielstaende');
   require('../fshub').invalidate();
-  res.redirect('/admin/farming?ok=1#spielstand');
+  res.redirect('/admin/farming?ok=1#spielstaende');
+});
+// Ordner der Spielstände auf dem FTP: merken, benennen, wechseln, auf Knopfdruck suchen (src/fssaves.js)
+router.post('/farming/ordner/:action', async (req, res) => {
+  const saves = require('../fssaves'), b = req.body, back = '#spielstaende';
+  const fail = m => res.redirect('/admin/farming?err=' + encodeURIComponent(m) + back);
+  switch (req.params.action) {
+    case 'wechseln':
+      if (!saves.useSlot(b.dir)) return fail('Diesen Ordner kennt der Hub nicht.');
+      require('../fshub').invalidate();
+      return res.redirect('/admin/farming?ok=gewechselt' + back);
+    case 'hinzufuegen':
+      if (!String(b.dir || '').trim()) return fail('Bitte einen Ordner eintragen, z. B. /profile/savegame2.');
+      saves.addSlot(b.dir, b.name);
+      if (b.use === '1') saves.useSlot(b.dir);
+      return res.redirect('/admin/farming?ok=' + (b.use === '1' ? 'gewechselt' : '1') + back);
+    case 'umbenennen': saves.addSlot(b.dir, b.name); return res.redirect('/admin/farming?ok=1' + back);
+    case 'entfernen':
+      if (!saves.removeSlot(b.dir)) return fail('Den eingestellten Ordner kann man nicht entfernen.');
+      return res.redirect('/admin/farming?ok=1' + back);
+    case 'folgen': setSetting('fs_slots_follow', b.follow === '1' ? '1' : '0'); return res.redirect('/admin/farming?ok=1' + back);
+    case 'suchen':
+      try { const r = await saves.scan(); return res.redirect(`/admin/farming?ok=gefunden${r.found}` + back); } catch (e) { return fail('Suche auf dem FTP ging nicht: ' + (e.message || e)); }
+    default: return res.status(404).end();
+  }
+});
+// Backups des Hubs (src/fsbackup.js): anlegen, herunterladen, hochladen, einspielen, löschen
+router.get('/farming/backup/:name', (req, res) => {
+  const f = require('../fsbackup').file(req.params.name);
+  if (!f) return res.status(404).send('Backup nicht gefunden.');
+  res.download(f, path.basename(f));
+});
+router.post('/farming/backup/neu', (req, res) => {
+  const b = req.body;
+  try { require('../fsbackup').create({ label: b.label, dense: b.dense === '1', icons: b.icons === '1' }); }
+  catch (e) { return res.redirect('/admin/farming?err=' + encodeURIComponent('Backup ging nicht: ' + e.message) + '#backups'); }
+  res.redirect('/admin/farming?ok=backup#backups');
+});
+router.post('/farming/backup/hochladen', fsI3dUpload.single('backup'), multipartCsrf, (req, res) => {
+  if (!req.file) return res.redirect('/admin/farming?err=' + encodeURIComponent('Bitte eine Backup-Datei (.zip) wählen.') + '#backups');
+  try { require('../fsbackup').upload(req.file.buffer, req.file.originalname); }
+  catch (e) { return res.redirect('/admin/farming?err=' + encodeURIComponent(e.message || 'Die Datei ließ sich nicht lesen.') + '#backups'); }
+  res.redirect('/admin/farming?ok=hochgeladen#backups');
+});
+router.post('/farming/backup/wiederherstellen', (req, res) => {
+  try { require('../fsbackup').restore(String(req.body.name || '')); }
+  catch (e) { return res.redirect('/admin/farming?err=' + encodeURIComponent('Wiederherstellen ging nicht: ' + e.message) + '#backups'); }
+  res.redirect('/admin/farming?ok=wiederhergestellt#backups');
+});
+router.post('/farming/backup/loeschen', (req, res) => {
+  require('../fsbackup').remove(String(req.body.name || ''));
+  res.redirect('/admin/farming?ok=1#backups');
 });
 // Originalsymbole der Erzeugnisse (PNG oder ZIP mit PNGs) – nur im Datenordner, siehe src/fsicons.js
 router.post('/farming/symbole', fsIconUpload.array('icons'), multipartCsrf, (req, res) => {

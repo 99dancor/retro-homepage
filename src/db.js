@@ -809,7 +809,8 @@ CREATE TABLE IF NOT EXISTS fs_saves (
   map TEXT, title TEXT, created TEXT,
   first_at INTEGER NOT NULL, last_at INTEGER NOT NULL,
   data TEXT,                            -- abgelegte Daten, leer = läuft gerade oder nichts abgelegt
-  image TEXT                            -- abgelegtes eigenes Kartenbild (Dateiname im Datenordner)
+  image TEXT,                           -- abgelegtes eigenes Kartenbild (Dateiname im Datenordner)
+  export TEXT                           -- abgelegter hochgeladener Export der Mod (Dateiname im Datenordner)
 );
 CREATE TABLE IF NOT EXISTS fs_changelog (
   id INTEGER PRIMARY KEY,
@@ -876,6 +877,7 @@ addColumn('ks_wallets', 'drink', 'TEXT');
 addColumn('ks_wallets', 'charm', 'TEXT');
 addColumn('ks_wallets', 'coaster', 'TEXT');
 addColumn('users', 'about', 'TEXT');
+addColumn('fs_saves', 'export', 'TEXT');
 addColumn('users', 'profile_visibility', "TEXT NOT NULL DEFAULT 'members'");
 addColumn('users', 'pm_from', "TEXT NOT NULL DEFAULT 'all'");
 addColumn('users', 'gb_from', "TEXT NOT NULL DEFAULT 'all'");

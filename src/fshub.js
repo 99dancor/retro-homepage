@@ -267,7 +267,8 @@ function model() {
     };
   };
   if (vf) {
-    for (const v of vf) {
+    // 1. gleiche Stelle (vehicles.xml vom letzten Autosave, Stats live)
+    const pairs = vf.map(v => {
       let best = null;
       for (const s of sv) {
         if (s.used || v.x === null) continue;
@@ -275,8 +276,26 @@ function model() {
         if (d < 1.5 && (!best || d < best.d)) best = { d, s };
       }
       if (best) best.s.used = true;
-      vehicles.push(make(best ? best.s : null, v));
+      return [v, best ? best.s : null];
+    });
+    // 2. Seit dem Autosave bewegt (jemand ist damit gefahren): über den Namen, „prolander7500.xml“ ↔ „ProLander 7500“, das
+    // nächste gleichnamige. Sonst stünde es doppelt auf der Karte, einmal am alten, einmal am neuen Platz.
+    const key = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    for (const pr of pairs) {
+      const v = pr[0];
+      if (pr[1] || v.pallet) continue;
+      const fk = key(String(v.file).split('/').pop().replace(/\.xml$/i, ''));
+      if (fk.length < 3) continue;
+      let best = null;
+      for (const s of sv) {
+        const sk = key(s.name);
+        if (s.used || sk.length < 3 || !(fk.includes(sk) || sk.includes(fk))) continue;
+        const d = v.x === null ? 0 : Math.hypot(s.x - v.x, s.z - v.z);
+        if (!best || d < best.d) best = { d, s };
+      }
+      if (best) { best.s.used = true; pr[1] = best.s; }
     }
+    for (const [v, s] of pairs) vehicles.push(make(s, v));
   }
   for (const s of sv) if (!s.used) vehicles.push(make(s, null));
 

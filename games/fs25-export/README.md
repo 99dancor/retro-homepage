@@ -66,3 +66,9 @@ Typ, Status, Hof, Feld, Frucht, Lohn und Fortschritt). Der Hub nimmt diese Werte
 gesät), `fertilize` (gesät, unter 2 Düngestufen), `weed` (gesät, Unkraut). Grünland zählt nicht. `uid` ist `fields`,
 `name` die Feldnummern. Abschaltbar je Hof über `fields` (Einstellungen, Optionsmenü, Hof-Reiter „Aufgaben“). Ab dieser
 Version lässt der Hub seine eigenen Feld- und Futtervorschläge weg, solange die Mod verbunden ist.
+
+## Ab 3.5: Aussehen
+
+Kästen haben runde Ecken (`box` zeichnet oben und unten schmaler werdende Streifen auf ganzen Pixeln). Das Optionsmenü
+hat Reiter (Anzeige, Hof, Server) mit Gruppen. Die Hervorhebungsfarbe (`accent`, 1–6) und die runden Ecken (`round`)
+liegen wie die übrigen Anzeige-Einstellungen in `hubLinkHud.xml`.

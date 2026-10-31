@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="104">
     <author>99dancor</author>
-    <version>3.4.0.0</version>
+    <version>3.5.0.0</version>
     <title>
         <en>FS25 Hub Link</en>
         <de>FS25 Hub Link</de>
@@ -96,6 +96,19 @@ Konsole: hubExport, hubStatus, hubSet, hubHud, hubDone]]></de>
         <text name="hubLink_food"><en>%s: food low (%d %%)</en><de>%s: Futter knapp (%d %%)</de></text>
         <text name="hubLink_empty"><en>%s: %s empty</en><de>%s: %s leer</de></text>
         <text name="hubLink_low"><en>%s: %s low (%d %%)</en><de>%s: %s knapp (%d %%)</de></text>
+        <text name="hubLink_tabView"><en>Display</en><de>Anzeige</de></text>
+        <text name="hubLink_tabFarm"><en>Farm %d</en><de>Hof %d</de></text>
+        <text name="hubLink_tabServer"><en>Server</en><de>Server</de></text>
+        <text name="hubLink_grpWindow"><en>Window</en><de>Fenster</de></text>
+        <text name="hubLink_grpColor"><en>Highlight colour</en><de>Hervorhebung</de></text>
+        <text name="hubLink_grpContent"><en>Content</en><de>Inhalt</de></text>
+        <text name="hubLink_grpMore"><en>Silos and fields</en><de>Silos und Felder</de></text>
+        <text name="hubLink_optRound"><en>Rounded corners</en><de>Runde Ecken</de></text>
+        <text name="hubLink_optWatch"><en>Check</en><de>Prüfen</de></text>
+        <text name="hubLink_optFieldsShort"><en>Fields (harvest, lime, plow …)</en><de>Felder (ernten, kalken, pflügen …)</de></text>
+        <text name="hubLink_hintView"><en>Only for you, on this computer.</en><de>Gilt nur für dich, auf diesem Rechner.</de></text>
+        <text name="hubLink_hintServer"><en>Applies to all farms on the server.</en><de>Gilt für alle Höfe auf dem Server.</de></text>
+        <text name="hubLink_hintAdmin"><en>Only admins can change this.</en><de>Nur Admins ändern das.</de></text>
         <text name="hubLink_fieldsOne"><en>field %s</en><de>Feld %s</de></text>
         <text name="hubLink_fieldsMany"><en>fields %s</en><de>Felder %s</de></text>
         <text name="hubLink_harvest"><en>Harvest %s: %s</en><de>%s ernten: %s</de></text>

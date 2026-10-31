@@ -424,6 +424,27 @@ test('Felder ohne Eintrag im Stats-Feed kommen aus den Grundstücken', () => {
   F.load(); hub.invalidate();
 });
 
+test('Fahrzeug seit dem Autosave bewegt: nicht doppelt, über den Namen verbunden', () => {
+  const { db, now } = require('../src/db');
+  const hub = require('../src/fshub');
+  const prev = db.prepare("SELECT data FROM fs_cache WHERE feed = 'stats'").get().data;
+  const prevV = db.prepare("SELECT data FROM fs_cache WHERE feed = 'vehicles'").get();
+  const st = JSON.parse(prev);
+  st.vehicles = [{ name: 'ProLander 7500', category: 'CULTIVATORS', type: 'cultivator', x: 500, y: 80, z: 500, fill: [], ai: false, controller: null },
+    { name: 'Anderes Gerät', category: 'PLOWS', type: 'plow', x: 10, y: 80, z: 10, fill: [], ai: false, controller: null }];
+  const vf = [{ file: 'data/vehicles/kuhn/prolander7500/prolander7500.xml', uid: 'v1', farmId: 1, price: 1, age: 1, hours: 0.1, damage: 0, dirt: 0, state: '', x: 100, y: 80, z: 100, pallet: false, fill: [] }];
+  db.prepare("UPDATE fs_cache SET data = ?, ok_at = ? WHERE feed = 'stats'").run(JSON.stringify(st), now());
+  db.prepare("INSERT INTO fs_cache(feed, data, ok_at, tried_at) VALUES ('vehicles', ?, ?, ?) ON CONFLICT(feed) DO UPDATE SET data = excluded.data").run(JSON.stringify(vf), now(), now());
+  F.load(); hub.invalidate();
+  const vs = hub.model().vehicles;
+  assert.equal(vs.length, 2);
+  const kuhn = vs.find(v => v.uid === 'v1');
+  assert.deepEqual([kuhn.name, kuhn.x, kuhn.catName !== '', kuhn.farmId], ['ProLander 7500', 500, true, 1], 'Name und Stelle live, Hof aus dem Autosave');
+  db.prepare("UPDATE fs_cache SET data = ? WHERE feed = 'stats'").run(prev);
+  if (prevV) db.prepare("UPDATE fs_cache SET data = ? WHERE feed = 'vehicles'").run(prevV.data); else db.prepare("DELETE FROM fs_cache WHERE feed = 'vehicles'").run();
+  F.load(); hub.invalidate();
+});
+
 test('Grundstücke ohne Feld: auf der Karte als Grundstück, zählen nicht als Feld', () => {
   const hub = require('../src/fshub');
   hub.invalidate();
@@ -553,7 +574,7 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubLive.lua"\/>/);
-  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.4\.0\.0<\/version>/);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.5\.0\.0<\/version>/);
   assert.throws(() => E.read('<placeables/>'), /FS25 Hub Link/);
 });
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 31.10.2026 – FS25 Hub Link 3.5: Overlay aufgeräumt, keine doppelten Fahrzeuge
+
+- **Keine doppelten Fahrzeuge mehr auf der Karte:** Fuhr jemand ein Gerät seit dem letzten Autosave weg, stand es zweimal da (alter Platz aus vehicles.xml, neuer aus dem Webinterface, mit leicht anderem Namen). Der Hub verbindet beide jetzt auch über den Namen („prolander7500.xml“ ↔ „ProLander 7500“).
+- **Overlay mit runden Ecken**, abschaltbar.
+- **Optionsmenü in Reitern:** Anzeige (nur für dich), Hof (Prüfungen) und Server (Admin), darin geordnete Gruppen wie Eingänge, Ausgänge, Ställe, Silos und Felder.
+- **Hervorhebungsfarbe wählbar:** Orange wie das Spiel, Grün, Blau, Türkis, Rot oder Lila, für Streifen, Knöpfe und Überschriften.
+
 ## 31.10.2026 – FS25 Hub Link 3.4: Vorschläge als Aufgaben, Felder im Berater
 
 - **Ein Ort für alles Automatische:** Der Kasten „Vorschläge vom Server“ ist weg. Was der Hub selbst erkennt (Hofkalender, Paletten, Werkstatt, Tanken, große Nachfrage), legt er wie die Meldungen aus dem Spiel gleich als Aufgabe an (💡 vom Hub). Fällt der Anlass weg, hakt er sie selbst ab; abgehakt bleibt sie aus, bis sich der Anlass ändert. Diese Aufgaben stehen auch im Overlay im Spiel.

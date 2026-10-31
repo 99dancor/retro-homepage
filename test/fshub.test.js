@@ -794,8 +794,9 @@ test('Mod 3.0: Aufgaben aus dem Spiel, Inbox ohne Rückspiegelung, Einstellungen
   assert.equal(live.tasks.length, 3);
   assert.equal(live.settings.farms['1'].outputPct, 80);
   assert.equal(L.titleOf(live.tasks[0]), 'Molkerei: Milch reicht noch 3 Stunden');
-  assert.equal(L.titleOf(live.tasks[1]), 'Sheep Pasture: Gülle fast voll (95 %)');
+  assert.equal(L.titleOf(live.tasks[1]), 'Schafweide: Gülle fast voll (95 %)');
   assert.equal(L.titleOf(live.tasks[2]), 'Molkerei: Paletten-Ausgang blockiert (Butter)');
+  assert.equal(L.titleOf({ kind: 'food', farm: 1, name: 'Pigsty (large)', level: 0, cap: 85000, pct: 0 }), 'Schweinestall (groß): Futter leer');
 
   // Einstellungen: die höhere rev gewinnt
   setSetting('fs_live_settings', JSON.stringify({ rev: 1, export: true, advisor: true, farms: {} }));

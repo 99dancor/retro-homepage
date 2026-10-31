@@ -258,6 +258,7 @@
       <label>Paletten abholen ab <input type="number" name="fs_auto_pallets" min="1" value="<%= s.fs_auto_pallets %>" style="width:60px"> Paletten an einem Ort</label>
       <label class="inline"><input type="checkbox" name="fs_auto_food" value="1"<%= s.fs_auto_food === '1' ? ' checked' : '' %>> Futter auffüllen, wenn ein Stall leer ist (nur mit FTP)</label>
       <label class="inline"><input type="checkbox" name="fs_auto_fields" value="1"<%= s.fs_auto_fields === '1' ? ' checked' : '' %>> Felder ernten, kalken, pflügen und düngen (nur mit FTP, aus fields.xml)</label>
+      <p class="muted">Der Hub legt daraus selbst Aufgaben an (💡) und hakt sie ab, sobald der Anlass weg ist. Ist die Mod „FS25 Hub Link“ ab 3.4 verbunden, kommen Futter und Felder von ihr (🎮), der Hub lässt seine weg.</p>
     </fieldset>
     <fieldset class="groupbox"><legend>Modliste und Karte</legend>
       <label>Verknüpfte Modliste <select name="fs_modlist"><option value="">keine</option><% for (const l of lists) { %><option value="<%= l.slug %>"<%= s.fs_modlist === l.slug ? ' selected' : '' %>><%= l.game ? l.game + ' – ' : '' %><%= l.title %></option><% } %></select></label>

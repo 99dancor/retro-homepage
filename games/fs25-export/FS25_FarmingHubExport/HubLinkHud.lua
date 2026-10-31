@@ -198,6 +198,12 @@ local function hours(h)
     return string.format(T("hubLink_days", "%d Tage"), math.floor(h / 24 + 0.5))
 end
 
+-- Feld-Meldungen (ab 3.4): Arbeit und die Felder, die sie brauchen
+local FIELD_KINDS = {
+    harvest = { "hubLink_harvestWork", "Ernten" }, lime = { "hubLink_lime", "Kalken" }, plow = { "hubLink_plow", "Pflügen" },
+    fertilize = { "hubLink_fertilize", "Düngen" }, weed = { "hubLink_weed", "Unkraut bekämpfen" },
+}
+
 function HubLinkHud:textOf(e)
     if e.src == 2 or e.src == 3 then
         return e.title
@@ -234,6 +240,12 @@ function HubLinkHud:textOf(e)
         return string.format(T("hubLink_pallets", "%s: kein Platz für Paletten"), place)
     elseif k == "silo" then
         return string.format(T("hubLink_almostFull", "%s: %s fast voll (%d %%)"), place, goodName(e), pct)
+    elseif FIELD_KINDS[k] ~= nil then
+        local where = string.format(string.find(e.name or "", ",") and T("hubLink_fieldsMany", "Felder %s") or T("hubLink_fieldsOne", "Feld %s"), e.name or "")
+        if k == "harvest" then
+            return string.format(T("hubLink_harvest", "%s ernten: %s"), goodName(e), where)
+        end
+        return string.format("%s: %s", T(FIELD_KINDS[k][1], FIELD_KINDS[k][2]), where)
     end
     return place
 end
@@ -272,6 +284,8 @@ function HubLinkHud:detailOf(e)
         table.insert(bits, T("hubLink_blockedHint", "Palette passt nicht aus dem Ausgang"))
     elseif k == "pallets" then
         table.insert(bits, T("hubLink_palletsHint", "Palettenplatz am Stall voll"))
+    elseif FIELD_KINDS[k] ~= nil then
+        table.insert(bits, T("hubLink_fieldHint", "laut Feldzustand im Spiel"))
     end
     return table.concat(bits, "  ·  ")
 end
@@ -740,6 +754,7 @@ function HubLinkHud:drawOptions(ox, oy, ow)
         fs(T("hubLink_optStallFullPct", "voll ab"), "stallFullPct", "%")
         ft(T("hubLink_optSilo", "Silos"), "silo")
         fs(T("hubLink_optSiloPct", "voll ab"), "siloPct", "%")
+        ft(T("hubLink_optFields", "Felder (ernten, kalken, pflügen, düngen, Unkraut)"), "fields")
     end
     head(T("hubLink_optServer", "Server (Admin)"))
     toggle(T("hubLink_optAdvisor", "Produktionsberater"), s.advisor ~= false, function() self:setFarm(0, "advisor", not (s.advisor ~= false)) end, canGlobal)

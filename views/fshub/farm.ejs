@@ -355,15 +355,6 @@
 <% } %>
 
 <% if (tab === 'aufgaben') { %>
-  <% if (auto.length) { %>
-    <div class="auto"><b>Vorschläge vom Server</b>
-      <% for (const a of auto) { %>
-        <div class="r"><span><%= a.title %> <small class="hint"><%= a.why %></small></span>
-          <span><% if (editable) { %><form method="post" action="/farming/hof/<%= f.id %>/vorschlag" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= a.key %>"><button class="small">Übernehmen</button></form>
-            <form method="post" action="/farming/hof/<%= f.id %>/ausblenden" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="key" value="<%= a.key %>"><input type="hidden" name="sig" value="<%= a.sig %>"><button class="small">Ausblenden</button></form><% } %></span></div>
-      <% } %>
-    </div>
-  <% } %>
   <div class="todo head"><span></span><span>Aufgabe</span><span></span></div>
   <% for (const t of open) { %><%- include('_tasks', { t, compact: false, farmId: f.id }) %><% } %>
   <% if (!open.length) { %><p class="hint">Keine offenen Aufgaben.</p><% } %>
@@ -379,14 +370,15 @@
   <details class="fs-done" id="berater"<%= query.ok === 'berater' ? ' open' : '' %>><summary>🎮 Produktionsberater im Spiel</summary>
     <p class="hint"><% if (!live.on) { %>Aus: Dafür braucht der Hub den FTP-Zugang und die Mod „FS25 Hub Link“ ab Version 3.0 auf dem Server.<% } else if (live.connected) { %>✔ Mod verbunden (<%= live.mod || 'Version ?' %>), letzte Meldung <%= when(live.at) %>.<% } else if (live.at) { %>⚠ Letzte Meldung der Mod <%= when(live.at) %>. Läuft der Server?<% } else { %>Noch keine Meldung der Mod.<% } %>
       <% if (!live.advisor) { %><br>Der Produktionsberater ist in der Seitenverwaltung ausgeschaltet.<% } %></p>
-    <p class="hint">Die Mod prüft alle 10 Sekunden Produktionen, Ställe und Silos dieses Hofs und legt hier Aufgaben an (🎮). Ist das Problem im Spiel behoben, hakt der Hub sie selbst ab. Hakst du sie vorher ab, kommt sie erst wieder, wenn das Problem einmal weg war.</p>
+    <p class="hint">Die Mod prüft alle 10 Sekunden Produktionen, Ställe, Silos und Felder dieses Hofs und legt hier Aufgaben an (🎮). Was der Hub selbst erkennt (Hofkalender, Paletten, Werkstatt, Tanken, große Nachfrage), legt er genauso als Aufgabe an (💡). Ist das Problem im Spiel behoben, hakt der Hub sie selbst ab. Hakst du sie vorher ab, kommt sie erst wieder, wenn das Problem einmal weg war.</p>
     <% if (editable) { %>
       <form method="post" action="/farming/hof/<%= f.id %>/berater" class="fs-watch"><input type="hidden" name="_csrf" value="<%= csrf %>">
         <label class="inline"><input type="checkbox" name="input" value="1"<%= watch.input ? ' checked' : '' %>> Eingänge: melden, wenn eine Zutat nur noch <input type="number" name="inputHours" min="1" max="240" step="0.5" value="<%= watch.inputHours %>" style="width:64px"> Spielstunden reicht (ohne Rezeptdaten: unter <input type="number" name="inputPct" min="1" max="90" value="<%= watch.inputPct %>" style="width:56px"> %), und wenn eine Produktion steht</label><br>
         <label class="inline"><input type="checkbox" name="output" value="1"<%= watch.output ? ' checked' : '' %>> Ausgänge: melden ab <input type="number" name="outputPct" min="10" max="100" value="<%= watch.outputPct %>" style="width:56px"> % voll (nicht bei „direkt verkaufen“)</label><br>
         <label class="inline"><input type="checkbox" name="pallets" value="1"<%= watch.pallets ? ' checked' : '' %>> Paletten-Ausgang blockiert, kein Platz für neue Paletten</label><br>
         <label class="inline"><input type="checkbox" name="stall" value="1"<%= watch.stall ? ' checked' : '' %>> Ställe: Futter, Wasser, Stroh unter <input type="number" name="stallPct" min="1" max="90" value="<%= watch.stallPct %>" style="width:56px"> %, Milch, Gülle, Mist, Wolle ab <input type="number" name="stallFullPct" min="10" max="100" value="<%= watch.stallFullPct %>" style="width:56px"> %</label><br>
-        <label class="inline"><input type="checkbox" name="silo" value="1"<%= watch.silo ? ' checked' : '' %>> Silos und Lager ab <input type="number" name="siloPct" min="10" max="100" value="<%= watch.siloPct %>" style="width:56px"> % voll</label>
+        <label class="inline"><input type="checkbox" name="silo" value="1"<%= watch.silo ? ' checked' : '' %>> Silos und Lager ab <input type="number" name="siloPct" min="10" max="100" value="<%= watch.siloPct %>" style="width:56px"> % voll</label><br>
+        <label class="inline"><input type="checkbox" name="fields" value="1"<%= watch.fields ? ' checked' : '' %>> Felder: ernten, kalken, pflügen, düngen, Unkraut (ab Mod 3.4; solange sie verbunden ist, lässt der Hub seine eigenen Feld- und Futtervorschläge weg)</label>
         <p class="hint">Gemeldet wird beim Erreichen der Schwelle, wieder frei ist es erst mit etwas Abstand (z. B. voll ab 85 %, frei unter 75 %), damit nichts flackert. Die Mod übernimmt Änderungen beim nächsten Abgleich, meist innerhalb einer Minute.</p>
         <div class="actions"><button>Speichern</button></div>
       </form>

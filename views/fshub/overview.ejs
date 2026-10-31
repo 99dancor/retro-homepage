@@ -15,8 +15,8 @@
     <b><%= m.date ? (m.date.dpp > 1 ? m.date.dom + '. ' : '') + m.date.monthName : '–' %></b>
     <small><%= m.date ? 'Jahr ' + m.date.year + ' · Spieltag ' + m.date.day + (m.dateSource === 'estimate' ? ' · geschätzt' : m.dateSource === 'admin' ? ' · korrigiert' : '') : 'unbekannt' %></small></div>
   <div class="kpi"><span class="ic" aria-hidden="true"><svg><use href="#i-sun"/></svg></span><small>Wetter</small>
-    <b><%= m.weather ? m.weather.label : '–' %></b>
-    <small><%= m.weather ? (m.weather.forecast.length > 1 ? 'danach ' + m.weather.forecast.slice(1, 3).map(w => w.label).join(', ') : 'laut letztem Autosave') : m.ftp ? 'nicht im Spielstand' : 'nur mit FTP-Zugang' %></small></div>
+    <b><%= m.weather ? m.weather.label + (m.weather.temp !== null ? ' · ' + de(m.weather.temp, 0) + ' °C' : '') : '–' %></b>
+    <small><%= m.weather ? (m.weather.forecast.length > 1 ? 'danach ' + m.weather.forecast.slice(1, 3).map(w => w.label).join(', ') : m.weather.live ? 'live aus dem Spiel' : 'laut letztem Autosave') : m.ftp ? 'nicht im Spielstand' : 'nur mit FTP-Zugang' %></small></div>
   <div class="kpi"><span class="ic" aria-hidden="true"><svg><use href="#i-people"/></svg></span><small>Spieler</small>
     <b><%= st ? m.players.length + ' / ' + st.capacity : '–' %></b>
     <small><% const last = seen.find(s => !s.online); %><%= m.players.length ? m.players.map(p => p.name).join(', ') : last ? 'zuletzt da: ' + last.name + ', ' + ago(last.last) : 'heute noch niemand' %></small></div>
@@ -44,7 +44,10 @@
       <div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-puzzle"/></svg><span class="t"><a href="/farming/mods"><%= m.mods.length %> Mods und DLCs</a><% if (lastCount) { %> <span class="warn">· seit gestern geändert</span><% } %></span></div>
       <div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-tractor"/></svg><span class="t"><%= m.vehicles.filter(v => !v.pallet).length %> Fahrzeuge, <%= m.vehicles.filter(v => v.pallet).length %> Paletten<% if (m.farms.length) { %> <span class="hint">(<%= m.farms.map(f => f.name + ' ' + f.vehicles.length).join(', ') %>)</span><% } %></span></div>
       <div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-field"/></svg><span class="t"><%= owned.length %> von <%= m.lands.length %> Grundstücken gekauft (<%= ha(owned.reduce((a, l) => a + l.area, 0)) %>)</span></div>
-      <% if (m.money !== null) { %><div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-bank"/></svg><span class="t">Kontostand <%= m.perFarmMoney ? 'aller Höfe' : '(alle Höfe zusammen)' %>: <b><%= eur(m.money) %></b></span></div><% } %>
+      <% if (m.money !== null) { %><div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-bank"/></svg><span class="t">Kontostand <%= m.perFarmMoney ? 'aller Höfe' : '(alle Höfe zusammen)' %>: <b><%= eur(m.money) %></b><%= m.moneyLive ? ' · live' : '' %></span></div><% } %>
+      <% if (m.missions) { const mine = m.missions.filter(x => x.running), offered = m.missions.filter(x => x.offered); %>
+        <div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-field"/></svg><span class="t"><a href="#auftraege">Aufträge</a>: <%= mine.length %> laufen, <%= offered.length %> angeboten</span></div>
+      <% } %>
       <% if (sg) { %><div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-gear"/></svg><span class="t"><%= [sg.difficulty && 'Wirtschaft ' + ({ EASY: 'leicht', NORMAL: 'normal', HARD: 'schwer' }[sg.difficulty] || sg.difficulty), sg.daysPerPeriod + (sg.daysPerPeriod === 1 ? ' Tag' : ' Tage') + ' pro Monat', sg.autoSave ? 'Autosave alle ' + de(sg.autoSave) + ' min' : ''].filter(Boolean).join(' · ') %></span></div><% } %>
       <% for (const d of m.demands) { %>
         <div class="fs-row"><%- icon(d.fill, N.fill(d.fill), 's') %><span class="t">Große Nachfrage<%= d.running ? ' (läuft)' : d.day ? ' ab ' + (fmtDay(d.day) || 'Tag ' + d.day) + ', ' + d.hour + ' Uhr' : '' %>: <a href="/farming/preise?w=<%= d.fill %>"><b><%= N.fill(d.fill) %> +<%= Math.round((d.mult - 1) * 100) %> %</b></a></span></div>
@@ -53,6 +56,21 @@
     <% } else { %><p class="hint">Sobald der Stats-Feed eingetragen ist, steht hier, was auf dem Server los ist.</p><% } %>
   </fieldset>
 </div>
+
+<% if (m.missions && m.missions.length) { const farmName = id => { const f = m.farms.find(x => x.id === id); return f ? f.name : ''; };
+  const list = [...m.missions].filter(x => x.running || x.offered).sort((a, b) => (b.running - a.running) || (b.reward - a.reward)); %>
+<fieldset class="groupbox" id="auftraege"><legend>Aufträge (live aus dem Spiel)</legend>
+  <div class="fs-scroll"><table class="list tight">
+    <tr><th>Auftrag</th><th>Feld</th><th>Stand</th><th class="num">Lohn</th></tr>
+    <% for (const x of list.slice(0, 30)) { %>
+      <tr><td><b><%= x.label %></b><%= x.fruit ? ' · ' + N.fill(x.fruit) : '' %></td><td><%= x.field ? 'Feld ' + x.field : '–' %></td>
+        <td><%= x.statusLabel %><%= x.running ? ' · ' + Math.round(x.completion) + ' %' : '' %><%= x.running && x.farm ? ' · ' + farmName(x.farm) : '' %><% if (x.running) { %><div class="bar" title="<%= Math.round(x.completion) %> % erledigt"><i style="width:<%= Math.max(0, Math.min(100, Math.round(x.completion))) %>%"></i></div><% } %></td>
+        <td class="num"><%= eur(x.reward) %></td></tr>
+    <% } %>
+  </table></div>
+  <% if (list.length > 30) { %><p class="hint">und <%= list.length - 30 %> weitere.</p><% } %>
+</fieldset>
+<% } %>
 
 <fieldset class="groupbox"><legend>Heute erledigen</legend>
   <% if (!columns.length) { %><p class="hint">Sobald der Server Höfe kennt, steht hier je Hof, was heute ansteht.</p><% } %>

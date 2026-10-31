@@ -597,6 +597,8 @@ function FarmingHubLive:writeLive()
         end
     end
     xml:setInt(r .. ".tasks#count", n)
+    -- Live-Daten (ab 3.3): Geld und Finanzen je Hof, Datum, Uhrzeit, Wetter mit Vorhersage, Felder, Aufträge
+    try("Live-Daten", self.writeGameData, self, xml, r)
     -- Im Spiel abgehakt, vom Hub noch nicht bestätigt
     for i, d in ipairs(self.doneList) do
         local k = string.format("%s.done.item(%d)", r, i - 1)
@@ -612,6 +614,191 @@ function FarmingHubLive:writeLive()
     xml:save()
     xml:delete()
     return true
+end
+
+-- ---------- Live-Daten (ab 3.3) ----------
+-- Was der Hub sonst erst nach dem Speichern aus farms.xml, environment.xml und fields.xml erfährt, schreibt die Mod gleich
+-- mit, in denselben Namen wie dort. Dazu die Aufträge (Lohnarbeit), die in keiner Datei des Hubs stehen.
+local function nameOf(tbl, value)
+    if type(tbl) ~= "table" then
+        return nil
+    end
+    for k, v in pairs(tbl) do
+        if v == value and type(k) == "string" then
+            return k
+        end
+    end
+    return nil
+end
+
+local function fruitName(index)
+    if index == nil or g_fruitTypeManager == nil then
+        return nil
+    end
+    local ok, ft = pcall(g_fruitTypeManager.getFruitTypeByIndex, g_fruitTypeManager, index)
+    if ok and ft ~= nil and ft.name ~= nil and ft.name ~= "UNKNOWN" then
+        return ft.name
+    end
+    return nil
+end
+
+FarmingHubLive.FIELDS_MS = 120000
+
+function FarmingHubLive:writeGameData(xml, r)
+    -- Geld, Kredit und Einnahmen/Ausgaben der letzten Tage je Hof
+    local n = 0
+    for _, farm in ipairs((g_farmManager ~= nil and g_farmManager:getFarms()) or {}) do
+        local id = farm.farmId
+        if type(id) == "number" and id >= 1 and id <= 8 then
+            local k = string.format("%s.farms.farm(%d)", r, n)
+            n = n + 1
+            xml:setInt(k .. "#id", id)
+            xml:setString(k .. "#money", num(farm.money or 0, 0))
+            xml:setString(k .. "#loan", num(farm.loan or 0, 0))
+            local stats = farm.stats
+            local names = FinanceStats ~= nil and FinanceStats.statNames or nil
+            if stats ~= nil and names ~= nil then
+                local days = {}
+                if stats.finances ~= nil then
+                    table.insert(days, { 0, stats.finances })
+                end
+                for i, h in ipairs(stats.financesHistory or {}) do
+                    if i <= 4 then
+                        table.insert(days, { i, h })
+                    end
+                end
+                for j, d in ipairs(days) do
+                    local dk = string.format("%s.stats(%d)", k, j - 1)
+                    xml:setInt(dk .. "#day", d[1])
+                    for _, name in ipairs(names) do
+                        local v = d[2][name]
+                        if type(v) == "number" and v ~= 0 then
+                            xml:setString(dk .. "#" .. name, num(v, 2))
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Datum, Uhrzeit, Temperatur, Wetter mit Vorhersage
+    local env = g_currentMission.environment
+    if env ~= nil then
+        local e = r .. ".environment"
+        xml:setInt(e .. "#day", env.currentMonotonicDay or env.currentDay or 0)
+        if type(env.dayTime) == "number" then
+            xml:setInt(e .. "#dayTime", math.floor(env.dayTime))
+        end
+        if type(env.daysPerPeriod) == "number" then
+            xml:setInt(e .. "#daysPerPeriod", env.daysPerPeriod)
+        end
+        local weather = env.weather
+        if weather ~= nil then
+            local ok, temp = pcall(weather.getCurrentTemperature, weather)
+            if ok and type(temp) == "number" then
+                xml:setString(e .. "#temp", num(temp, 1))
+            end
+            local w = 0
+            for _, item in ipairs(weather.forecastItems or {}) do
+                if w >= 12 then
+                    break
+                end
+                local typeName = item.typeName
+                if typeName == nil and g_weatherTypeManager ~= nil and item.objectIndex ~= nil then
+                    local okT, wt = pcall(g_weatherTypeManager.getWeatherTypeByIndex, g_weatherTypeManager, item.objectIndex)
+                    typeName = okT and wt ~= nil and wt.name or nil
+                end
+                if typeName ~= nil then
+                    local wk = string.format("%s.weather.instance(%d)", e, w)
+                    w = w + 1
+                    xml:setString(wk .. "#typeName", tostring(typeName))
+                    xml:setInt(wk .. "#startDay", item.startDay or 0)
+                    xml:setInt(wk .. "#startDayTime", math.floor(item.startDayTime or 0))
+                    xml:setInt(wk .. "#duration", math.floor(item.duration or 0))
+                end
+            end
+        end
+    end
+
+    -- Felder: Stand jedes Felds (wie fields.xml), alle 2 Minuten neu gelesen
+    if self.fieldCache == nil or g_time - (self.fieldT or 0) >= FarmingHubLive.FIELDS_MS then
+        self.fieldT = g_time
+        local list = {}
+        local fields = {}
+        if g_fieldManager ~= nil then
+            fields = (g_fieldManager.getFields ~= nil and g_fieldManager:getFields()) or g_fieldManager.fields or {}
+        end
+        for _, field in ipairs(fields) do
+            local id = (field.getId ~= nil and field:getId()) or field.fieldId
+            local st = field.fieldState
+            if id ~= nil and st ~= nil then
+                if st.update ~= nil and field.posX ~= nil then
+                    pcall(st.update, st, field.posX, field.posZ)
+                end
+                table.insert(list, { id = id, fruit = fruitName(st.fruitTypeIndex), growth = st.growthState, ground = nameOf(FieldGroundType, st.groundType),
+                    planned = fruitName(field.plannedFruitTypeIndex), spray = st.sprayLevel, lime = st.limeLevel, plow = st.plowLevel, roller = st.rollerLevel,
+                    stubble = st.stubbleShredLevel, weed = st.weedState, stone = st.stoneLevel })
+            end
+        end
+        self.fieldCache = list
+    end
+    for i, f in ipairs(self.fieldCache) do
+        local k = string.format("%s.fields.field(%d)", r, i - 1)
+        xml:setInt(k .. "#id", f.id)
+        if f.fruit ~= nil then
+            xml:setString(k .. "#fruitType", f.fruit)
+        end
+        if f.ground ~= nil then
+            xml:setString(k .. "#groundType", f.ground)
+        end
+        if f.planned ~= nil then
+            xml:setString(k .. "#plannedFruit", f.planned)
+        end
+        for _, a in ipairs({ { "growthState", f.growth }, { "sprayLevel", f.spray }, { "limeLevel", f.lime }, { "plowLevel", f.plow }, { "rollerLevel", f.roller },
+            { "stubbleShredLevel", f.stubble }, { "weedState", f.weed }, { "stoneLevel", f.stone } }) do
+            if type(a[2]) == "number" then
+                xml:setInt(k .. "#" .. a[1], math.floor(a[2]))
+            end
+        end
+    end
+
+    -- Aufträge: angebotene und laufende, mit Feld, Lohn und Fortschritt
+    if g_missionManager ~= nil then
+        local m = 0
+        for _, mission in ipairs((g_missionManager.getMissions ~= nil and g_missionManager:getMissions()) or g_missionManager.missions or {}) do
+            if m >= 80 then
+                break
+            end
+            local k = string.format("%s.missions.mission(%d)", r, m)
+            m = m + 1
+            xml:setString(k .. "#type", tostring(mission.type ~= nil and mission.type.name or ""))
+            xml:setString(k .. "#status", tostring(nameOf(MissionStatus, mission.status) or mission.status or ""))
+            if mission.farmId ~= nil then
+                xml:setInt(k .. "#farm", mission.farmId)
+            end
+            xml:setString(k .. "#reward", num(mission.reward or 0, 0))
+            xml:setString(k .. "#completion", num((mission.completion or 0) * 100, 0))
+            local field = mission.field
+            if field ~= nil then
+                local fid = (field.getId ~= nil and field:getId()) or field.fieldId
+                if fid ~= nil then
+                    xml:setInt(k .. "#field", fid)
+                end
+                local fruit = fruitName(mission.fruitTypeIndex or mission.fruitType)
+                if fruit ~= nil then
+                    xml:setString(k .. "#fruit", fruit)
+                end
+            end
+            local title = mission.title
+            if title == nil and mission.getTitle ~= nil then
+                local ok, t = pcall(mission.getTitle, mission)
+                title = ok and t or nil
+            end
+            if title ~= nil then
+                xml:setString(k .. "#title", tostring(title))
+            end
+        end
+    end
 end
 
 function FarmingHubLive:readInbox()

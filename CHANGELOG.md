@@ -1,5 +1,13 @@
 # Changelog
 
+## 31.10.2026 – FS25 Hub Link 3.3: Live-Daten aus dem Spiel
+
+- **Geld live:** Kontostand, Kredit und Einnahmen/Ausgaben jedes Hofs kommen alle paar Minuten aus dem laufenden Spiel, nicht erst nach dem Speichern. Der Verlauf im Reiter Finanzen nutzt diese Werte.
+- **Datum, Wetter und Temperatur live:** Spieltag und Wettervorhersage direkt aus dem Spiel, die Übersicht zeigt dazu die Temperatur.
+- **Felder live:** Frucht, Wachstum und was zu tun ist (Kalk, Dünger, Pflug, Unkraut, Steine) je Feld aus dem laufenden Spiel.
+- **Aufträge:** Laufende und angebotene Aufträge mit Feld, Frucht, Lohn und Fortschritt stehen auf der Übersicht.
+- Ist die Mod länger als 10 Minuten still, nimmt der Hub wieder den letzten Autosave.
+
 ## 31.10.2026 – FS25 Hub Link 3.2 und Anbau planen
 
 - **Overlay mit der Maus:** Sobald der Mauszeiger zu sehen ist (z. B. Doppel-Rechtsklick mit Quick Selector oder Alt+J), lässt sich das Fenster am Kopf verschieben und an der Ecke unten rechts breiter und länger ziehen. „OK“ hakt einen Eintrag ab, „X“ blendet das Overlay aus (Alt+H holt es zurück).

@@ -212,7 +212,7 @@
   <div class="two">
     <fieldset class="groupbox"><legend>Bilanz</legend>
       <table class="list tight">
-        <tr><td>Kontostand<%= f.money === null ? '' : ' (farms.xml)' %></td><td class="num"><%= f.money !== null ? eur(f.money) : '–' %></td></tr>
+        <tr><td>Kontostand<%= f.money === null ? '' : f.moneyLive ? ' (live aus dem Spiel)' : ' (farms.xml)' %></td><td class="num"><%= f.money !== null ? eur(f.money) : '–' %></td></tr>
         <% if (f.loan) { %><tr><td>Kredit</td><td class="num bad">− <%= eur(f.loan) %></td></tr><% } %>
         <% if (f.creditRest) { %><tr><td>Bankkredite (<%= f.credits.length %>, Restschuld)</td><td class="num bad">− <%= eur(f.creditRest) %></td></tr><% } %>
         <tr><td>Land (<%= f.land.lands %> Grundstücke, Kaufpreis)</td><td class="num"><%= eur(f.land.value) %></td></tr>
@@ -248,7 +248,7 @@
     </fieldset>
   <% } %>
   <% if (f.finances.length) { const days = f.finances.slice(0, 5), keys = [...new Set(days.flatMap(d => Object.keys(d.v)))]; %>
-    <fieldset class="groupbox"><legend>Einnahmen und Ausgaben (wie im Spiel)</legend>
+    <fieldset class="groupbox"><legend>Einnahmen und Ausgaben (<%= f.moneyLive ? 'live aus dem Spiel' : 'wie im Spiel, letzter Autosave' %>)</legend>
       <div class="fs-scroll"><table class="list tight"><tr><th></th><% for (const d of days) { %><th class="num"><%= d.day === 0 ? 'Heute' : d.day === 1 ? 'Gestern' : 'vor ' + d.day + ' Tagen' %></th><% } %></tr>
         <% for (const k of keys) { %><tr><td><%= ({ newVehiclesCost: 'Neue Fahrzeuge', soldVehicles: 'Verkaufte Fahrzeuge', newAnimalsCost: 'Tiere gekauft', soldAnimals: 'Tiere verkauft', constructionCost: 'Bau', soldBuildings: 'Gebäude verkauft', fieldPurchase: 'Landkauf', fieldSelling: 'Landverkauf', vehicleRunningCost: 'Betriebskosten', vehicleLeasingCost: 'Leasing', propertyMaintenance: 'Unterhalt', propertyIncome: 'Gebäude-Einnahmen', productionCosts: 'Produktionskosten', soldProducts: 'Produkte verkauft', harvestIncome: 'Ernte verkauft', soldMilk: 'Milch verkauft', soldWool: 'Wolle verkauft', soldBales: 'Ballen verkauft', purchaseFuel: 'Kraftstoff', purchaseSeeds: 'Saatgut', purchaseFertilizer: 'Dünger', purchaseSaplings: 'Setzlinge', purchaseWater: 'Wasser', missionIncome: 'Aufträge', wagePayment: 'Helferlöhne', other: 'Sonstiges', loanInterest: 'Kreditzinsen', incomeBga: 'Biogas', animalUpkeep: 'Tierhaltung', soldWood: 'Holz verkauft', expenses: 'Ausgaben', income: 'Einnahmen' })[k] || N.pretty(k.replace(/([a-z])([A-Z])/g, '$1_$2')) %></td>
           <% for (const d of days) { const v = d.v[k]; %><td class="num <%= v < 0 ? 'bad' : v > 0 ? 'ok' : '' %>"><%= v ? eur(v) : '' %></td><% } %></tr><% } %>
@@ -319,7 +319,7 @@
   <% } %>
 
   <details class="fs-fold" id="felder" data-remember="fs-fold-felder">
-    <summary>Auf den Grundstücken <small><%= fieldList.length %> Grundstücke<%= fieldList.some(x => x.autoAt) ? ' · laut Autosave ' + ago(fieldList.find(x => x.autoAt).autoAt) : '' %></small></summary>
+    <summary>Auf den Grundstücken <small><%= fieldList.length %> Grundstücke<%= fieldList.some(x => x.live) ? ' · live aus dem Spiel' : fieldList.some(x => x.autoAt) ? ' · laut Autosave ' + ago(fieldList.find(x => x.autoAt).autoAt) : '' %></small></summary>
     <div class="in">
       <% if (!fieldList.length) { %><p class="fs-empty">Dieser Hof hat noch keine Felder.</p><% } else { %>
       <div class="fs-scroll"><table class="list tight">

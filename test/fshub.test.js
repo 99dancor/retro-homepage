@@ -553,7 +553,7 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubLive.lua"\/>/);
-  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.2\.0\.0<\/version>/);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.3\.0\.0<\/version>/);
   assert.throws(() => E.read('<placeables/>'), /FS25 Hub Link/);
 });
 
@@ -890,6 +890,56 @@ test('Mod 3.1: im Spiel abgehakt, jede Nummer einmal, Bestätigung in der Inbox'
   assert.match(body, /<doneAck>[\s\S]*<d id="261031150000-1"\/>[\s\S]*<d id="261031150000-3"\/>[\s\S]*<\/doneAck>/);
   assert.match(body, /<game key="stopped:3:uid_spin:ALPACA"\/>/);
   assert.doesNotMatch(body, new RegExp(`<task id="${mine.id}"`));
+});
+
+test('Mod 3.3: Geld, Wetter, Felder und Aufträge live aus dem Spiel', () => {
+  const { setSetting, now } = require('../src/db');
+  const hub = require('../src/fshub');
+  const L = require('../src/fslive');
+  setSetting('fs_ftp_path', '/profile/savegame2');
+  const live = L.read(`<farmingHubLive version="1" mod="3.3.0.0" seq="20" ack="0"><tasks count="0"/>
+    <farms><farm id="1" money="123456" loan="50000"><stats day="0" harvestIncome="1200.5" purchaseFuel="-80"/><stats day="1" soldMilk="300"/></farm>
+      <farm id="2" money="999" loan="0"/></farms>
+    <environment day="40" dayTime="36000000" daysPerPeriod="3" temp="17.5"><weather>
+      <instance typeName="SUN" startDay="40" startDayTime="0" duration="86400000"/><instance typeName="RAIN" startDay="41" startDayTime="0" duration="43200000"/></weather></environment>
+    <fields><field id="7" fruitType="WHEAT" groundType="SOWN" growthState="3" limeLevel="1" weedState="2"/><field id="8" fruitType="UNKNOWN" groundType="PLOWED"/></fields>
+    <missions><mission type="harvest" status="RUNNING" farm="1" reward="4500" completion="40" field="7" fruit="WHEAT"/>
+      <mission type="baleWrap" status="CREATED" reward="1200"/><mission type="" status="CREATED"/></missions></farmingHubLive>`);
+  const g = live.game;
+  assert.deepEqual(g.farms[0], { id: 1, money: 123456, loan: 50000, finances: [{ day: 0, v: { harvestIncome: 1200.5, purchaseFuel: -80 } }, { day: 1, v: { soldMilk: 300 } }] });
+  assert.equal(g.environment.temp, 17.5);
+  assert.deepEqual(g.environment.weather.map(w => w.type), ['SUN', 'RAIN']);
+  assert.equal(g.fields[1].fruit, null);
+  assert.equal(g.fields[0].weed, 2);
+  assert.equal(g.missions.length, 2, 'ohne Typ zählt nicht');
+  // Ältere Mod: nichts davon
+  const old = L.read('<farmingHubLive version="1" mod="3.2.0.0" seq="1"><tasks count="0"/></farmingHubLive>').game;
+  assert.deepEqual(old, { farms: null, environment: null, fields: null, missions: null });
+
+  L.apply(live);
+  assert.ok(L.gameData());
+  const farms = hub.ftpFile('farms.xml');
+  assert.ok(farms.live);
+  assert.equal(farms.find(f => f.id === 1).money, 123456);
+  assert.equal(farms.find(f => f.id === 1).finances[0].v.harvestIncome, 1200.5);
+  const env = hub.ftpFile('environment.xml');
+  assert.deepEqual([env.day, env.daysPerPeriod, env.temp, env.live], [40, 3, 17.5, true]);
+  assert.equal(hub.currentDay(), 40, 'Spieltag aus dem Spiel');
+  assert.deepEqual(hub.ftpFile('fields.xml').list.map(f => f.id), [7, 8]);
+  const m = hub.model();
+  assert.equal(m.moneyLive, true);
+  assert.equal(m.money, 123456 + 999);
+  assert.deepEqual(m.missions.map(x => [x.label, x.statusLabel, x.running]), [['Ernten', 'läuft', true], ['Ballen wickeln', 'angeboten', false]]);
+  const w = m.weather;
+  assert.ok(w && w.temp === 17.5 && w.live);
+  // Nach 10 Minuten ohne Mod wieder der Autosave
+  setSetting('fs_live_game', JSON.stringify({ ...L.gameData(), at: now() - 700 }));
+  L.forgetGame();
+  assert.equal(L.gameData(), null);
+  hub.invalidate();
+  assert.ok(!(hub.ftpFile('farms.xml') || {}).live);
+  assert.equal(hub.model().missions, null);
+  setSetting('fs_ftp_path', '');
 });
 
 test('Anbau planen: Wachstumsdauer, Erntemonat aus Saatmonat und umgekehrt', () => {

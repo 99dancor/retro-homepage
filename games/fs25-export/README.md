@@ -48,3 +48,13 @@ auf dem Hof, gehen an die Website) und Export/Berater (nur Admin). Änderungen g
 der sie prüft, `rev` hochzählt und die Einstellungen (`HubLinkConfigEvent`) an alle schickt. Jede Zeile zeigt darunter
 Füllstand, Prozent und die Grenze, die ausgelöst hat. Gebäudenamen kommen aus der Shop-Liste des Spielers
 (`configFileName`), eigene Namen bleiben.
+
+## Ab 3.3: Live-Daten
+
+Die Live-Datei enthält zusätzlich, was der Hub sonst erst nach dem Speichern aus farms.xml, environment.xml und fields.xml
+erfährt, in denselben Namen: `<farms>` (Geld, Kredit, Einnahmen und Ausgaben heute und der letzten 4 Tage je Hof),
+`<environment>` (Spieltag, Uhrzeit, Tage pro Monat, Temperatur, Wetter mit Vorhersage), `<fields>` (Frucht, Wachstum,
+Boden, Kalk, Dünger, Pflug, Walze, Mulch, Unkraut, Steine; alle 2 Minuten neu gelesen) und `<missions>` (Aufträge mit
+Typ, Status, Hof, Feld, Frucht, Lohn und Fortschritt). Der Hub nimmt diese Werte, solange die Mod in den letzten
+10 Minuten geschrieben hat, sonst wieder den letzten Autosave. Die Live-Datei wird bei jeder Änderung, spätestens alle
+2 Minuten geschrieben.

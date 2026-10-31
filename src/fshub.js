@@ -67,7 +67,32 @@ function feed(key) {
   const name = feeds.FTP_FALLBACK[key];
   return (name && ftpFile(name)) || null;
 }
-function ftpFile(name) { const f = feeds.get('ftp'); return (f && f.files && f.files[name]) || null; }
+function ftpFile(name) {
+  const f = feeds.get('ftp'), base = (f && f.files && f.files[name]) || null;
+  const g = require('./fslive').gameData();
+  return g ? withLive(name, base, g) : base;
+}
+// Mod „FS25 Hub Link“ ab 3.3 verbunden: Geld, Datum, Wetter und Felder live aus dem Spiel statt vom letzten Autosave.
+// Namen, Farben und Spieler der Höfe kennt nur farms.xml; die bleiben.
+function withLive(name, base, g) {
+  if (name === 'farms.xml' && g.farms && g.farms.length) {
+    const out = (base || []).map(x => ({ ...x }));
+    for (const lf of g.farms) {
+      let x = out.find(o => o.id === lf.id);
+      if (!x) { x = { id: lf.id, name: '', color: null, players: [], finances: [] }; out.push(x); }
+      Object.assign(x, { money: lf.money, loan: lf.loan, live: true }, lf.finances.length ? { finances: lf.finances } : {});
+    }
+    out.live = true;
+    return out;
+  }
+  if (name === 'environment.xml' && g.environment && g.environment.day) {
+    const e = g.environment;
+    return { ...(base || {}), day: e.day, dayTime: e.dayTime ?? (base && base.dayTime), daysPerPeriod: e.daysPerPeriod || (base && base.daysPerPeriod) || null,
+      weather: e.weather.length ? e.weather : (base ? base.weather : []), temp: e.temp, live: true };
+  }
+  if (name === 'fields.xml' && g.fields && g.fields.length) return { at: g.at, list: g.fields, live: true };
+  return base;
+}
 
 // ---------- Uhr und Datum ----------
 // Der Stats-Feed nennt nur die Uhrzeit (Millisekunden seit Mitternacht). Ob sie läuft, sieht der Hub am Vergleich zweier
@@ -111,11 +136,11 @@ const hhmm = ms => { if (ms === null || ms === undefined) return '–'; const m 
 
 function weatherNow(day, dayTime) {
   const env = ftpFile('environment.xml');
-  if (!env || !env.weather.length || !day) return null;
+  if (!env || !(env.weather || []).length || !day) return null;
   const t = (day * 86400000) + (dayTime || 0);
   const w = env.weather.find(x => { const s = x.day * 86400000 + x.time; return t >= s && t < s + x.duration; }) || env.weather[0];
   const [icon, label] = N.WEATHER[w.type] || ['🌡️', N.pretty(w.type)];
-  return { icon, label, forecast: env.weather.filter(x => x.day >= day).slice(0, 4).map(x => ({ day: x.day, ...{ icon: (N.WEATHER[x.type] || ['🌡️'])[0], label: (N.WEATHER[x.type] || [0, N.pretty(x.type)])[1] } })) };
+  return { icon, label, temp: env.temp ?? null, live: !!env.live, forecast: env.weather.filter(x => x.day >= day).slice(0, 4).map(x => ({ day: x.day, ...{ icon: (N.WEATHER[x.type] || ['🌡️'])[0], label: (N.WEATHER[x.type] || [0, N.pretty(x.type)])[1] } })) };
 }
 
 // ---------- Bild des Servers ----------
@@ -308,7 +333,7 @@ function model() {
     const creditRest = credits.reduce((a, l) => a + l.rest, 0);
     return {
       id, name: r.name || (fx && fx.name) || `Farm ${id}`, gameName: fx ? fx.name : '', color: r.color || DEFAULT_COLORS[(id - 1) % DEFAULT_COLORS.length] || DEFAULT_COLORS[i % 8],
-      members: members.get(id) || [], players: fx ? fx.players : [], money, loan: fx ? fx.loan : 0, finances: fx ? fx.finances : [],
+      members: members.get(id) || [], players: fx ? fx.players : [], money, moneyLive: !!(fx && fx.live), loan: fx ? fx.loan : 0, finances: fx ? fx.finances : [],
       land, vehicles: fv, fleet, fleetValue, stock: stockList, stockValue, cargo, buildings, bales: bales.length,
       pallets: fv.filter(v => v.pallet), credits, creditRest, creditYears: bank ? bank.years.filter(y => y.farmId === id).sort((a, b) => b.year - a.year) : [],
       bilanz: (money || 0) - ((fx && fx.loan) || 0) - creditRest + land.value + fleetValue + stockValue,
@@ -327,8 +352,8 @@ function model() {
     online: !!st && !stale, paused: !!st && !stale && !clock.running && clock.at > 0, statsAt: ok.ok_at, statsError: ok.error,
     dayTime, clock: { ...clock }, time: hhmm(dayTime), timeScale: sg ? sg.timeScale : null,
     day, date, dateSource: (dayState() || {}).source || (day ? 'estimate' : null), weather: weatherNow(day, dayTime),
-    money: sg && sg.money !== null ? sg.money : (farmsX ? farmsX.reduce((a, f) => a + (f.money || 0), 0) : null),
-    perFarmMoney: !!farmsX, ftp: !!feeds.get('ftp'),
+    money: farmsX && farmsX.live ? farmsX.reduce((a, f) => a + (f.money || 0), 0) : sg && sg.money !== null ? sg.money : (farmsX ? farmsX.reduce((a, f) => a + (f.money || 0), 0) : null),
+    perFarmMoney: !!farmsX, moneyLive: !!(farmsX && farmsX.live), ftp: !!feeds.get('ftp'), missions: require('./fslive').missions(),
     farms, fields, orchards, stations, where, lands: [...lands.values()], vehicles, places, players: st ? st.players : [], mods: st ? st.mods : [],
     demands: ec ? ec.demands : [], month, gameData: ex ? { version: ex.version || 1, mapTitle: ex.mapTitle, at: ex.at } : null,
   };
@@ -806,7 +831,7 @@ function patchCare(pt) {
 const top = o => Object.entries(o || {}).sort((a, b) => b[1] - a[1])[0] || null;
 function fieldStates() {
   const m = model(), cs = crops(), soil = soils(), ex = fsexport.current();
-  const fx = ftpFile('fields.xml'), autoAt = fx ? fx.at : 0;
+  const fx = ftpFile('fields.xml'), autoAt = fx ? fx.at : 0, liveFields = !!(fx && fx.live);
   // fields.xml nennt Felder; welches Feld auf welchem Grundstück liegt, sagt der Export (sonst gleiche Nummer). Liegen mehrere
   // auf einem Grundstück, zählt das größte.
   const exField = new Map(((ex && ex.fields) || []).map(f => [f.id, f]));
@@ -828,7 +853,8 @@ function fieldStates() {
     const p = planned.get(f.id) || null, a = auto.get(f.id) || null, pt = patches[f.id] || null;
     const farm = m.farms.find(x => x.id === f.owner) || null;
     let crop = null, state = null, source = null, mix = [], states = [], care = [];
-    if (pt && pt.ha > 0) {
+    // Live aus dem Spiel (Mod 3.3) schlägt die Dichtekarten vom letzten Autosave
+    if (pt && pt.ha > 0 && !(a && liveFields)) {
       // Je Fleck: alle Früchte und Zustände mit Fläche, die größte bestimmt die Farbe in Listen
       mix = Object.entries(pt.fruits).sort((x, y) => y[1] - x[1]).map(([fruit, ha]) => ({ ...cropFor(fruit, cs), ha }));
       states = Object.entries(pt.states).sort((x, y) => y[1] - x[1]).map(([k, ha]) => ({ key: k, label: (N.STATES[k] || [k])[0], ha }));
@@ -845,7 +871,7 @@ function fieldStates() {
     }
     if (!crop && f.orchard) { crop = cropFor(f.orchard, cs); source = source || 'orchard'; }
     if (!crop && p && !p.future) { crop = { name: p.crop, color: p.color, fill: p.fill }; source = source || 'plan'; }
-    return { ...f, farm, plan: p, auto: a, autoAt, patch: pt, mix, states, source, soil: soil.get(f.id) || null, crop: crop ? crop.name : null, cropColor: crop ? crop.color : null,
+    return { ...f, farm, plan: p, auto: a, autoAt, live: liveFields && source === 'auto', patch: pt, mix, states, source, soil: soil.get(f.id) || null, crop: crop ? crop.name : null, cropColor: crop ? crop.color : null,
       cropFill: crop ? crop.fill || null : null, state, care, ground: a && a.ground ? N.GROUND_LABEL[a.ground] || N.pretty(a.ground) : null };
   });
 }

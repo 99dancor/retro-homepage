@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="104">
     <author>99dancor</author>
-    <version>3.2.0.0</version>
+    <version>3.3.0.0</version>
     <title>
         <en>FS25 Hub Link</en>
         <de>FS25 Hub Link</de>
@@ -11,11 +11,13 @@
 Writes field outlines, farmlands, station positions, production recipes and storage, all fill types and fruit types (growth, sowing and harvest months), every production from the shop, all animals (food, products, prices, offspring, food groups) and the fill levels of every barn to farmingHubExport.xml in the savegame folder on every save, for the Farming Hub website.
 Production advisor (from 3.0): watches every farm's productions, barns and silos (inputs running low, outputs full, blocked pallet exits, food, water, straw, milk, slurry) and exchanges the resulting tasks, the website's tasks and notes and all settings with the Farming Hub through modSettings/FS25_FarmingHubExport.
 Overlay (from 3.1): a discreet list shows your farm's warnings with their values, the website's tasks and notes. With the mouse cursor (e.g. Quick Selector, or Alt+J) drag it, resize it, tick entries off and open the options: display, your farm's checks and thresholds, export and advisor (admin). Alt+H shows/hides it.
+Live data (from 3.3): money, loans, income and expenses of every farm, date, time, temperature, weather forecast, the state of every field and all contracts go to the Farming Hub every few minutes, not only on save.
 Console: hubExport, hubStatus, hubSet, hubHud, hubDone]]></en>
         <de><![CDATA[Verbindet dein Spiel mit dem Farming Hub der Website.
 Schreibt bei jedem Speichern Feldumrisse, Grundstücke, Positionen der Stationen, Rezepte und Lager der Produktionen, alle Waren und Früchte (Wachstum, Saat- und Erntemonate), alle Produktionen aus dem Shop, alle Tiere (Futter, Erzeugnisse, Preise, Nachwuchs, Futtergruppen) und die Füllstände jedes Stalls in farmingHubExport.xml im Spielstand-Ordner, für den Farming Hub der Website.
 Produktionsberater (ab 3.0): überwacht Produktionen, Ställe und Silos jedes Hofs (Eingänge laufen leer, Ausgänge voll, Paletten-Ausgang blockiert, Futter, Wasser, Stroh, Milch, Gülle) und tauscht die Aufgaben daraus, die Aufgaben und Notizen der Website und alle Einstellungen über modSettings/FS25_FarmingHubExport mit dem Farming Hub aus.
 Overlay (ab 3.1): eine dezente Liste zeigt Meldungen deines Hofs mit ihren Werten, Aufgaben und Notizen der Website. Mit Mauszeiger (z. B. Quick Selector oder Alt+J) verschieben, Größe ziehen, abhaken und Optionen öffnen: Anzeige, Prüfungen und Schwellen des Hofs, Export und Berater (Admin). Alt+H blendet es ein und aus.
+Live-Daten (ab 3.3): Geld, Kredit, Einnahmen und Ausgaben jedes Hofs, Datum, Uhrzeit, Temperatur, Wettervorhersage, der Stand jedes Felds und alle Aufträge gehen alle paar Minuten an den Farming Hub, nicht erst beim Speichern.
 Konsole: hubExport, hubStatus, hubSet, hubHud, hubDone]]></de>
     </description>
     <iconFilename>icon_farmingHubExport.dds</iconFilename>

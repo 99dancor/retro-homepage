@@ -118,7 +118,40 @@ function read(xml) {
     id: d.a.id || '', game: d.a.game || '', task: num(d.a.task), by: (d.a.by || '').slice(0, 60), farm: num(d.a.farm, 0),
   })).filter(d => d.id && (d.game || d.task));
   return { version: num(s.a.version, 1), mod: s.a.mod || '', seq: num(s.a.seq, 0), ack: num(s.a.ack, 0), saveDir: s.a.saveDir || '', mapTitle: s.a.mapTitle || '',
-    time: s.a.time || '', day: num(s.a.day), minute: num(s.a.minute), settings: settingsOf(st), tasks, done };
+    time: s.a.time || '', day: num(s.a.day), minute: num(s.a.minute), settings: settingsOf(st), tasks, done, game: readGame(s) };
+}
+// Live-Daten (ab Mod 3.3): dieselben Formen wie farms.xml, environment.xml und fields.xml in src/fsfeeds.js, dazu die Aufträge.
+// Fehlt ein Teil (ältere Mod), ist er null.
+function readGame(s) {
+  const num = (v, d = null) => X.num(v, d);
+  const code = v => (v && v !== 'UNKNOWN' && v !== 'NONE' ? v : null);
+  const fn = X.kid(s, 'farms');
+  const farms = fn ? X.kids(fn, 'farm').filter(f => num(f.a.id)).map(f => ({
+    id: num(f.a.id), money: num(f.a.money), loan: num(f.a.loan, 0),
+    finances: X.kids(f, 'stats').map(st => {
+      const v = {};
+      for (const [k, x] of Object.entries(st.a)) { if (k === 'day') continue; const n = num(x); if (n !== null && n !== 0) v[k] = Math.round(n * 100) / 100; }
+      return { day: num(st.a.day, 0), v };
+    }).sort((a, b) => a.day - b.day),
+  })) : null;
+  const en = X.kid(s, 'environment');
+  const environment = en ? {
+    day: num(en.a.day), dayTime: num(en.a.dayTime), daysPerPeriod: num(en.a.daysPerPeriod), temp: num(en.a.temp),
+    weather: X.kids(X.kid(en, 'weather'), 'instance').map(w => ({ type: w.a.typeName || '', day: num(w.a.startDay), time: num(w.a.startDayTime, 0), duration: num(w.a.duration, 0) }))
+      .filter(w => w.type),
+  } : null;
+  const fl = X.kid(s, 'fields');
+  const fields = fl ? X.kids(fl, 'field').filter(f => num(f.a.id) !== null).map(f => ({
+    id: num(f.a.id), fruit: code(f.a.fruitType), growth: num(f.a.growthState, 0), ground: code(f.a.groundType), planned: code(f.a.plannedFruit),
+    spray: num(f.a.sprayLevel, 0), lime: num(f.a.limeLevel, 0), plow: num(f.a.plowLevel, 0), roller: num(f.a.rollerLevel, 0),
+    stubble: num(f.a.stubbleShredLevel, 0), weed: num(f.a.weedState, 0), stone: num(f.a.stoneLevel, 0),
+  })) : null;
+  const mn = X.kid(s, 'missions');
+  const missions = mn ? X.kids(mn, 'mission').map(m => ({
+    type: m.a.type || '', status: m.a.status || '', farm: num(m.a.farm, 0), reward: num(m.a.reward, 0), completion: num(m.a.completion, 0),
+    field: num(m.a.field), fruit: code(m.a.fruit), title: (m.a.title || '').slice(0, 120),
+  })).filter(m => m.type) : null;
+  return { farms, environment, fields, missions };
 }
 
 // ---------- Titel auf Deutsch ----------
@@ -271,9 +304,51 @@ function apply(live) {
   applyDone(live.done);
   // Produktionsberater aus: die Mod meldet nichts, alles Offene wird abgehakt
   const made = syncTasks(live.tasks, names());
+  storeGame(live.game);
   setState({ seq: live.seq, ack: live.ack, mod: live.mod, saveDir: live.saveDir, mapTitle: live.mapTitle, time: live.time, at: now(), settingsRev: live.settings ? live.settings.rev : 0,
     problems: live.tasks.length });
   return made;
+}
+
+// ---------- Live-Daten ----------
+// Gilt, solange die Mod in den letzten 10 Minuten geschrieben hat; danach wieder farms.xml usw. vom letzten Autosave.
+const FRESH = 600;
+let game = null;
+function storeGame(g) {
+  if (!g || !(g.farms || g.environment || g.fields || g.missions)) return;
+  game = { ...g, at: now() };
+  setSetting('fs_live_game', JSON.stringify(game));
+  const hub = require('./fshub');
+  // Spieltag: aus dem Spiel, wenn er sich geändert hat
+  const day = g.environment && g.environment.day;
+  if (day && day !== hub.currentDay()) hub.setDay(day, 'live');
+  hub.invalidate();
+  try { hub.record(); } catch (e) { console.error('Farming Hub, Verlauf:', e); }
+}
+function gameData() {
+  if (!game) game = json('fs_live_game', null) || { at: 0 };
+  if (!game.at || now() - game.at > FRESH) return null;
+  // Anderer Spielstand: die Live-Daten gehören zum Ordner, den die Mod beschreibt
+  const st = state();
+  if (st.dir && st.dir !== dir()) return null;
+  return game;
+}
+// Aufträge aus dem Spiel auf Deutsch
+const MISSIONS = {
+  plow: 'Pflügen', cultivate: 'Grubbern', sow: 'Säen', harvest: 'Ernten', fertilize: 'Düngen', spray: 'Spritzen', weed: 'Unkraut striegeln', herbicide: 'Unkraut spritzen',
+  mow: 'Mähen', tedder: 'Wenden', baleMow: 'Mähen und pressen', baleWrap: 'Ballen wickeln', hoe: 'Hacken', roll: 'Walzen', stonePick: 'Steine sammeln', mulch: 'Mulchen',
+  lime: 'Kalken', transport: 'Transport', deadwood: 'Totholz räumen', treeTransport: 'Bäume liefern', destructibleRocks: 'Felsen sprengen', supplyTransport: 'Lieferung',
+};
+const MISSION_STATUS = { CREATED: 'angeboten', PREPARING: 'wird vorbereitet', RUNNING: 'läuft', FINISHED: 'fertig', CANCELLED: 'abgebrochen' };
+function missionLabel(type) {
+  const k = String(type || '');
+  return MISSIONS[k] || MISSIONS[k.replace(/Mission$/, '')] || MISSIONS[k.charAt(0).toLowerCase() + k.slice(1)] || N.pretty(k.replace(/([a-z])([A-Z])/g, '$1_$2'));
+}
+function missions() {
+  const g = gameData();
+  if (!g || !g.missions) return null;
+  return g.missions.map(m => ({ ...m, label: missionLabel(m.type), statusLabel: MISSION_STATUS[m.status] || m.status.toLowerCase(),
+    running: m.status === 'RUNNING' || m.status === 'PREPARING', offered: m.status === 'CREATED' }));
 }
 
 // ---------- FTP ----------
@@ -335,4 +410,4 @@ function status() {
 }
 
 module.exports = { FARM_KEYS, LIMITS, KINDS, MOD_DIR, LIVE, INBOX, settings, farmSettings, saveGlobal, saveFarm, read, titleOf, syncTasks, openGameTasks, applyDone,
-  inboxBody, inboxXml, apply, dir, run, soon, start, status, enabled, interval };
+  inboxBody, inboxXml, apply, dir, run, soon, start, status, enabled, interval, readGame, storeGame, gameData, forgetGame: () => { game = null; }, missions, missionLabel };

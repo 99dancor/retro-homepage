@@ -38,3 +38,13 @@ der Inbox unter `<doneAck>` bestätigt. Eine abgehakte Meldung bleibt aus, bis d
 ist im Hub erledigt (mit „im Spiel von …“). Notizen blendet jeder Spieler nur für sich aus (`hubLinkHud.xml`).
 
 Der Ordner- und Dateiname bleibt `FS25_FarmingHubExport`, damit Spielstände und der Austausch-Ordner gleich bleiben.
+
+## Ab 3.2: Maus, Optionen im Spiel, Werte
+
+Sobald der Mauszeiger zu sehen ist (Doppel-Rechtsklick mit „Quick Selector“ oder Alt+J), lässt sich das Overlay am Kopf
+verschieben und an der Ecke unten rechts in Breite und Zeilen ziehen. „OK“ hakt ab, „OPTIONEN“ öffnet das Menü: Anzeige
+(Zeilen, Schriftgröße, Deckkraft, Werte, Notizen; nur für den Spieler), Prüfungen und Schwellen des eigenen Hofs (für alle
+auf dem Hof, gehen an die Website) und Export/Berater (nur Admin). Änderungen gehen als `HubLinkSetEvent` an den Server,
+der sie prüft, `rev` hochzählt und die Einstellungen (`HubLinkConfigEvent`) an alle schickt. Jede Zeile zeigt darunter
+Füllstand, Prozent und die Grenze, die ausgelöst hat. Gebäudenamen kommen aus der Shop-Liste des Spielers
+(`configFileName`), eigene Namen bleiben.

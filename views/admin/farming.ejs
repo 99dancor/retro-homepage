@@ -80,7 +80,7 @@
       <% } else { %>Noch keine Daten aus dem Spiel.<% } %></p>
     <p class="muted">Von Hand eingetragen wird nichts davon. Ohne die Mod zeigt der Hub Grundstücke als Kreise, Stationen ohne Position und Produktionen ohne Rezepte.</p>
     <div class="actions"><a class="btn" href="/admin/farming/export-mod.zip" download>Mod herunterladen (FS25_FarmingHubExport.zip)</a></div>
-    <p class="hint">Der Dateiname bleibt <code>FS25_FarmingHubExport.zip</code>: Daran erkennt das Spiel die Mod, und der Austausch-Ordner in modSettings hängt daran. Ab 3.1 zeigt die Mod im Spiel ein Overlay (Alt+H Größe/aus, Alt+J auswählen, Alt+K abhaken). Die Mod muss dafür auch bei jedem Spieler installiert sein; das Spiel lädt sie beim Beitreten vom Server.</p>
+    <p class="hint">Der Dateiname bleibt <code>FS25_FarmingHubExport.zip</code>: Daran erkennt das Spiel die Mod, und der Austausch-Ordner in modSettings hängt daran. Ab 3.1 zeigt die Mod im Spiel ein Overlay mit Optionsmenü. Bedient wird es mit der Maus, sobald der Zeiger zu sehen ist (z. B. Quick Selector oder Alt+J); Alt+H blendet es ein und aus. Die Mod muss dafür auch bei jedem Spieler installiert sein; das Spiel lädt sie beim Beitreten vom Server.</p>
     <form method="post" action="/admin/farming/spieldaten" enctype="multipart/form-data" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="file" name="export" accept=".xml,application/xml,text/xml" required><button>farmingHubExport.xml hochladen</button></form>
     <% if (gameUploaded) { %><form method="post" action="/admin/farming/spieldaten/loeschen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Hochgeladene Datei vergessen</button></form><% } %>
   </fieldset>

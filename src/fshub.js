@@ -728,7 +728,11 @@ function addPlan(user, farmId, b) {
   const c = crop(b.crop_id);
   if (!c) return null;
   const field = intOr(b.field), label = oneLine(b.label, MAX.name) || null;
-  const sow = intOr(b.sow_month) ?? c.sowM[0] ?? 0, harvest = intOr(b.harvest_month) ?? c.harvestM[0] ?? 0;
+  // Nur eins gewählt: das andere aus der Wachstumsdauer der Frucht
+  let sow = intOr(b.sow_month), harvest = intOr(b.harvest_month);
+  if (sow === null && harvest !== null && c.kind !== 'perm') sow = fscrops.sowFor(c, harvest);
+  if (harvest === null && sow !== null && c.kind !== 'perm') harvest = fscrops.harvestFor(c, sow);
+  sow = sow ?? c.sowM[0] ?? 0; harvest = harvest ?? c.harvestM[0] ?? 0;
   return Number(db.prepare('INSERT INTO fs_plans(farm_id, field, label, crop_id, sow_month, harvest_month, note, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
     .run(Number(farmId), field, field ? null : (label || c.name), c.id, Math.max(0, Math.min(11, sow)), Math.max(0, Math.min(11, harvest)), clean(b.note, 300) || null, user.id, now()).lastInsertRowid);
 }

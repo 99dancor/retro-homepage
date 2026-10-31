@@ -1,4 +1,4 @@
--- FS25 Hub Link: Produktionsberater und Austausch mit dem Farming Hub (ab Mod 3.0, Overlay ab 3.1)
+-- FS25 Hub Link: Produktionsberater und Austausch mit dem Farming Hub (ab Mod 3.0, Overlay ab 3.1, Optionen im Spiel ab 3.2)
 --
 -- Zwei Aufgaben, beide nur auf dem Server bzw. im Einzelspieler:
 --
@@ -280,6 +280,8 @@ end
 
 -- Ein Problem eintragen; „open“ sagt, ob es beim letzten Durchgang schon offen war (für den Abstand zur Schwelle)
 function FarmingHubLive:add(found, p)
+    p.file = p.file or self.curFile
+    p.custom = p.custom or self.curCustom
     p.key = string.format("%s:%d:%s:%s", p.kind, p.farm, p.uid, p.part or p.fill or "")
     found[p.key] = p
 end
@@ -482,7 +484,9 @@ function FarmingHubLive:checkPlaceable(found, p)
         return
     end
     local cfg = self:farm(farm)
-    local base = { farm = farm, uid = uidOf(p), name = (p.getName ~= nil and tostring(p:getName() or "")) or "", placeable = p }
+    local base = { farm = farm, uid = uidOf(p), name = (p.getName ~= nil and tostring(p:getName() or "")) or "", placeable = p,
+        custom = p.nameCustom, file = p.configFileName }
+    self.curFile, self.curCustom = base.file, base.custom
     local point = p.spec_productionPoint ~= nil and p.spec_productionPoint.productionPoint or nil
     if point ~= nil then
         try("Produktion", self.checkProduction, self, found, cfg, base, point)
@@ -630,6 +634,7 @@ function FarmingHubLive:readInbox()
         if rev ~= nil and rev > (self.settings.rev or 0) then
             self.settings = FarmingHubLive.readSettings(xml, r .. ".settings")
             self:saveSettings()
+            self:publishSettings()
             log("Einstellungen vom Hub übernommen (rev %d, Export %s, Produktionsberater %s)", rev, self.settings.export and "an" or "aus", self.settings.advisor and "an" or "aus")
         end
         local tasks = {}
@@ -691,8 +696,13 @@ function FarmingHubLive:buildView()
     for _, key in ipairs(sortedKeys(self.problems)) do
         local p = self.problems[key]
         if not self.seen[key] and not self.dismissed[key] then
+            local file = p.file ~= nil and tostring(p.file) or ""
+            if file ~= "" and NetworkUtil ~= nil and NetworkUtil.convertToNetworkFilename ~= nil then
+                file = NetworkUtil.convertToNetworkFilename(file)
+            end
             table.insert(list, { key = key, src = 1, farm = p.farm, sev = p.sev or 2, kind = p.kind, uid = tostring(p.uid or ""), name = tostring(p.name or ""), fill = p.fill or "",
-                fillTitle = tostring(p.fillTitle or ""), title = "", sub = "", pct = type(p.pct) == "number" and p.pct or -1, hours = type(p.hours) == "number" and p.hours or -1 })
+                fillTitle = tostring(p.fillTitle or ""), title = "", sub = "", pct = type(p.pct) == "number" and p.pct or -1, hours = type(p.hours) == "number" and p.hours or -1,
+                level = type(p.level) == "number" and p.level or -1, cap = type(p.cap) == "number" and p.cap or -1, file = file, custom = tostring(p.custom or "") })
         end
     end
     for _, h in ipairs(self.hubTasks) do
@@ -705,13 +715,13 @@ function FarmingHubLive:buildView()
                 table.insert(sub, h.assignee)
             end
             table.insert(list, { key = "t" .. tostring(h.id), src = 2, farm = h.farm or 0, sev = 1, kind = "task", uid = "", name = "", fill = "", fillTitle = "",
-                title = h.title or "", sub = table.concat(sub, " · "), pct = -1, hours = -1 })
+                title = h.title or "", sub = table.concat(sub, " · "), pct = -1, hours = -1, level = -1, cap = -1, file = "", custom = "" })
         end
     end
     for _, n in ipairs(self.hubNotes) do
         if n.id ~= nil then
             table.insert(list, { key = "n" .. tostring(n.id), src = 3, farm = 0, sev = 0, kind = "note", uid = "", name = "", fill = "", fillTitle = "",
-                title = n.text or "", sub = n.by or "", pct = -1, hours = -1 })
+                title = n.text or "", sub = n.by or "", pct = -1, hours = -1, level = -1, cap = -1, file = "", custom = "" })
         end
     end
     while #list > 60 do
@@ -723,7 +733,7 @@ end
 function FarmingHubLive.viewSignature(list)
     local parts = {}
     for _, e in ipairs(list) do
-        table.insert(parts, string.format("%s|%d|%s|%s|%d|%d", e.key, e.sev, e.title, e.sub, math.floor(e.pct), math.floor(e.hours)))
+        table.insert(parts, string.format("%s|%d|%s|%s|%d|%d|%d", e.key, e.sev, e.title, e.sub, math.floor(e.pct), math.floor(e.hours), math.floor(e.level / 100)))
     end
     return table.concat(parts, ";")
 end
@@ -745,6 +755,55 @@ function FarmingHubLive:publish()
     if HubLinkHud ~= nil then
         HubLinkHud:onView()
     end
+end
+
+-- Einstellungen an alle Spieler (Optionsmenü im Spiel)
+function FarmingHubLive:publishSettings()
+    if g_server ~= nil and HubLinkConfigEvent ~= nil then
+        try("Einstellungen senden", function()
+            g_server:broadcastEvent(HubLinkConfigEvent.new(self.settings), false)
+        end)
+    end
+end
+
+FarmingHubLive.LIMITS = { inputHours = { 1, 240 }, inputPct = { 1, 90 }, outputPct = { 10, 100 }, stallPct = { 1, 90 }, stallFullPct = { 10, 100 }, siloPct = { 10, 100 } }
+
+-- Einstellung aus dem Optionsmenü (Server): Hof 0 = Export/Berater (nur Admin), sonst Prüfungen des Hofs (Mitglieder, Admin)
+function FarmingHubLive:applySet(farm, key, value, userFarm, master)
+    local s = self.settings
+    if farm == 0 then
+        if not master or (key ~= "export" and key ~= "advisor") then
+            return false
+        end
+        s[key] = value ~= 0
+    else
+        if farm < 1 or farm > 8 or (not master and farm ~= userFarm) then
+            return false
+        end
+        local kind = nil
+        for _, kv in ipairs(FarmingHubLive.FARM_KEYS) do
+            if kv[1] == key then
+                kind = type(kv[2])
+            end
+        end
+        if kind == nil then
+            return false
+        end
+        s.farms[farm] = s.farms[farm] or {}
+        if kind == "boolean" then
+            s.farms[farm][key] = value ~= 0
+        else
+            local lim = FarmingHubLive.LIMITS[key] or { 0, 1000 }
+            s.farms[farm][key] = math.max(lim[1], math.min(lim[2], value))
+        end
+    end
+    s.rev = (s.rev or 0) + 1
+    self:saveSettings()
+    self.timers.check = FarmingHubLive.CHECK_MS
+    self.timers.write = FarmingHubLive.WRITE_MS
+    self:publishSettings()
+    log("Einstellung %s (Hof %d) = %s, rev %d", key, farm, tostring(value), s.rev)
+    return true
 end
 
 -- Im Spiel abgehakt (Server). Nur eigene Höfe, Aufgaben für alle Höfe darf jeder, der Admin alles
@@ -884,6 +943,7 @@ function FarmingHubLive:consoleSet(a, b, c)
     self:saveSettings()
     self.timers.check = FarmingHubLive.CHECK_MS
     self.timers.write = FarmingHubLive.WRITE_MS
+    self:publishSettings()
     return string.format("hubSet: gespeichert (rev %d)", s.rev)
 end
 

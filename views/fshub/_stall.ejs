@@ -10,5 +10,5 @@
   <% if (s.productivity !== null && s.productivity !== undefined) { %><%- row('Produktivität', Math.round(s.productivity * 100) + ' %', s.productivity, s.productivity < 0.5) %><% } %>
   <% if (cond.length) { %><h4>Zustand</h4><% for (const r of cond) { %><%- fill(r) %><% } %><% } %>
   <% if (s.food.length) { %><h4>Futter</h4><% for (const r of s.food) { %><%- fill(r) %><% } %><% } %>
-  <% if (!s.fromGame && !locals.short) { %><p class="hint">Füllstände vom letzten Autosave. Platz und Balken wie im Spiel kommen mit der Mod „Farming Hub Export“ 2.4.</p><% } %>
+  <% if (!s.fromGame && !locals.short) { %><p class="hint">Füllstände vom letzten Autosave. Platz und Balken wie im Spiel kommen mit der Mod „FS25 Hub Link“ 2.4.</p><% } %>
 </div>

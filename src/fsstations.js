@@ -1,7 +1,7 @@
 'use strict';
 // Farming Simulator Hub: Stationen auf der Karte (Fabriken, Verkaufsstellen, Tankstellen, Händler …) wie die Hotspots im Spiel.
 //
-//   Welche es gibt und wo sie stehen, schreibt die Mod „Farming Hub Export“ (src/fsexport.js): Position, Kartensymbol, was
+//   Welche es gibt und wo sie stehen, schreibt die Mod „FS25 Hub Link“ (src/fsexport.js): Position, Kartensymbol, was
 //   eine Verkaufsstelle annimmt und eine Ladestation verkauft. placeables.xml ergänzt das Kartensymbol (mapIcon_<art>).
 //   Ohne die Mod kennt der Hub die Stationen, aber nicht ihre Lage (vorplatzierte stehen nur in der Karte selbst).
 const prod = require('./fsprod');

@@ -1,5 +1,5 @@
 'use strict';
-// Farming Hub ↔ Spiel (Mod „Farming Hub Export“ ab 3.0, games/fs25-export/FS25_FarmingHubExport/FarmingHubLive.lua).
+// Farming Hub ↔ Spiel (Mod „FS25 Hub Link“ ab 3.0, games/fs25-export/FS25_FarmingHubExport/FarmingHubLive.lua).
 //
 // Das Spiel kann keine Website aufrufen. Die Mod schreibt deshalb farmingHubLive.xml (Aufgaben ihres Produktionsberaters,
 // ihre Einstellungen, welche Inbox sie zuletzt gelesen hat), und der Hub legt farmingHubInbox.xml daneben (Einstellungen,
@@ -11,6 +11,10 @@
 // Problem im Spiel, hakt der Hub sie selbst ab. Hakt jemand sie im Hub ab, solange das Problem noch besteht, gilt das als
 // „gesehen“: Sie kommt erst wieder, wenn das Problem einmal weg war. Aufgaben mit source 'game' gehen nie zurück in die
 // Inbox, damit nichts im Kreis läuft.
+//
+// Abhaken im Spiel (Overlay ab Mod 3.1): Die Live-Datei listet unter <done> jede Meldung und jede Hub-Aufgabe, die jemand im
+// Spiel abgehakt hat, mit eigener Nummer. Der Hub hakt sie ab (Meldung: wie „gesehen“, Hub-Aufgabe: wie auf der Website,
+// regelmäßige bekommen die nächste Runde) und bestätigt die Nummern in der Inbox unter <doneAck>. Jede Nummer zählt nur einmal.
 //
 // Einstellungen (fs_live_settings): Export an/aus, Produktionsberater an/aus und je Hof Prüfungen und Schwellen. Jede
 // Änderung zählt rev hoch, die höhere Nummer gewinnt (Hub oder Konsole im Spiel).
@@ -110,8 +114,11 @@ function read(xml) {
     key: t.a.key || '', kind: t.a.kind || '', farm: num(t.a.farm, 0), uid: t.a.uid || '', name: t.a.name || '', fill: t.a.fill || '', fillTitle: t.a.fillTitle || '',
     sev: num(t.a.sev, 2), level: num(t.a.level), cap: num(t.a.cap), pct: num(t.a.pct), hours: num(t.a.hours),
   })).filter(t => t.key && t.farm > 0);
+  const done = X.kids(X.kid(s, 'done'), 'item').map(d => ({
+    id: d.a.id || '', game: d.a.game || '', task: num(d.a.task), by: (d.a.by || '').slice(0, 60), farm: num(d.a.farm, 0),
+  })).filter(d => d.id && (d.game || d.task));
   return { version: num(s.a.version, 1), mod: s.a.mod || '', seq: num(s.a.seq, 0), ack: num(s.a.ack, 0), saveDir: s.a.saveDir || '', mapTitle: s.a.mapTitle || '',
-    time: s.a.time || '', day: num(s.a.day), minute: num(s.a.minute), settings: settingsOf(st), tasks };
+    time: s.a.time || '', day: num(s.a.day), minute: num(s.a.minute), settings: settingsOf(st), tasks, done };
 }
 
 // ---------- Titel auf Deutsch ----------
@@ -212,11 +219,13 @@ function inboxBody() {
   const notes = db.prepare(`SELECT n.id, n.body, u.username, u.display_name FROM fs_notes n LEFT JOIN users u ON u.id = n.user_id
     ORDER BY n.created_at DESC, n.id DESC LIMIT 20`).all();
   const seen = db.prepare("SELECT DISTINCT game_key FROM fs_tasks WHERE source = 'game' AND game_open = 1 AND done_at IS NOT NULL ORDER BY game_key").all();
+  const acked = (state().doneSeen || []).slice(-50);
   return [
     settingsXml(settings()),
     `  <tasks>\n${tasks.map(t => `    <task id="${t.id}" farm="${t.farm_id || 0}"${attr('title', t.title)}${attr('note', t.note && t.note.slice(0, 300))}${attr('due', hub.dueLabel(t))}${attr('assignee', t.assignee_display || t.assignee)}${attr('field', t.field)}/>`).join('\n')}\n  </tasks>`,
     `  <notes>\n${notes.map(n => `    <note id="${n.id}"${attr('by', n.display_name || n.username || '')}${attr('text', String(n.body).slice(0, 500))}/>`).join('\n')}\n  </notes>`,
     `  <dismissed>\n${seen.map(r => `    <game${attr('key', r.game_key)}/>`).join('\n')}\n  </dismissed>`,
+    `  <doneAck>\n${acked.map(id => `    <d${attr('id', id)}/>`).join('\n')}\n  </doneAck>`,
   ].join('\n');
 }
 function inboxXml(seq, body = inboxBody()) {
@@ -230,9 +239,36 @@ function names() {
     return new Map(m.farms.flatMap(f => f.buildings.filter(b => b.uid).map(b => [b.uid, b.name])));
   } catch { return new Map(); }
 }
+// Im Spiel abgehakt: jede Nummer einmal. Gibt die Anzahl neu übernommener Einträge zurück.
+function applyDone(list) {
+  const seen = state().doneSeen || [];
+  const known = new Set(seen);
+  let n = 0;
+  // ohne tx: completeTask hat ihre eigene
+  {
+    for (const d of list || []) {
+      if (known.has(d.id)) continue;
+      known.add(d.id); seen.push(d.id);
+      if (d.game) {
+        const t = db.prepare("SELECT id FROM fs_tasks WHERE source = 'game' AND game_key = ? AND done_at IS NULL ORDER BY id DESC").get(d.game);
+        if (t) { db.prepare('UPDATE fs_tasks SET done_at = ?, done_game_by = ? WHERE id = ?').run(now(), d.by || '', t.id); n++; }
+      } else if (d.task) {
+        const t = db.prepare("SELECT id, farm_id, done_at FROM fs_tasks WHERE id = ? AND COALESCE(source, '') <> 'game'").get(d.task);
+        // Nur Aufgaben des Hofs, zu dem der Spieler gehört (oder für alle Höfe)
+        if (!t || t.done_at || (t.farm_id && d.farm && t.farm_id !== d.farm)) continue;
+        require('./fshub').completeTask(t.id, { id: null });
+        db.prepare('UPDATE fs_tasks SET done_game_by = ? WHERE id = ?').run(d.by || '', t.id);
+        n++;
+      }
+    }
+  }
+  setState({ doneSeen: seen.slice(-200) });
+  return n;
+}
 function apply(live) {
   // Einstellungen: die höhere Nummer gewinnt (hubSet in der Konsole)
   if (live.settings && live.settings.rev > settings().rev) storeSettings(live.settings);
+  applyDone(live.done);
   // Produktionsberater aus: die Mod meldet nichts, alles Offene wird abgehakt
   const made = syncTasks(live.tasks, names());
   setState({ seq: live.seq, ack: live.ack, mod: live.mod, saveDir: live.saveDir, mapTitle: live.mapTitle, time: live.time, at: now(), settingsRev: live.settings ? live.settings.rev : 0,
@@ -298,5 +334,5 @@ function status() {
     inboxSeq: st.inboxSeq || 0, ack: st.ack || 0, export: s.export, advisor: s.advisor, interval: interval() };
 }
 
-module.exports = { FARM_KEYS, LIMITS, KINDS, MOD_DIR, LIVE, INBOX, settings, farmSettings, saveGlobal, saveFarm, read, titleOf, syncTasks, openGameTasks,
+module.exports = { FARM_KEYS, LIMITS, KINDS, MOD_DIR, LIVE, INBOX, settings, farmSettings, saveGlobal, saveFarm, read, titleOf, syncTasks, openGameTasks, applyDone,
   inboxBody, inboxXml, apply, dir, run, soon, start, status, enabled, interval };

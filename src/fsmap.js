@@ -8,7 +8,7 @@
 //
 // Daraus werden durchsichtige Bilder über der Karte, eins je Eintrag der Legende (eine Frucht, ein Zustand, eine Pflege),
 // damit sich jeder Eintrag einzeln ein- und ausblenden lässt. Dazu je Grundstück, was wie viel Fläche hat (Grundstückskarte
-// aus der Mod „Farming Hub Export“). Welche Zahl in der Dichtekarte welche Frucht ist, sagt die Mod (ab Version 2); sonst
+// aus der Mod „FS25 Hub Link“). Welche Zahl in der Dichtekarte welche Frucht ist, sagt die Mod (ab Version 2); sonst
 // lernt der Hub es aus fields.xml: Die Zahl, die auf einem Feld mit Weizen am häufigsten vorkommt, ist Weizen.
 // Ergebnis und Bilder liegen im Datenordner und werden nur neu gerechnet, wenn sich eine Datei ändert.
 const fs = require('node:fs');

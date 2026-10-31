@@ -1,5 +1,13 @@
 # Changelog
 
+## 31.10.2026 – FS25 Hub Link: Overlay im Spiel (Mod 3.1)
+
+- **Neuer Name:** Die Mod heißt jetzt „FS25 Hub Link“, Autor 99dancor. Die Datei bleibt `FS25_FarmingHubExport.zip`, damit Spielstand und Austausch-Ordner gleich bleiben.
+- **Overlay im Spiel:** Rechts am Rand zeigt eine dezente Liste im Stil der Spiel-Anzeigen, was auf dem eigenen Hof ansteht: Meldungen des Produktionsberaters (rot, wenn etwas steht), Aufgaben der Website (blau) und im großen Modus die Notizen. Alt+H klein/groß/aus, Alt+J auswählen, Alt+K abhaken.
+- **Abhaken im Spiel:** Eine abgehakte Hub-Aufgabe ist auf der Website erledigt („im Spiel von …“), regelmäßige bekommen gleich die nächste Runde. Eine abgehakte Meldung bleibt aus, bis das Problem einmal behoben war. Jeder darf nur Einträge seines Hofs abhaken.
+- **Mehrspieler:** Der Server schickt die Liste an alle Spieler, auch an jeden, der neu beitritt.
+- **Gebäudenamen:** Ställe und Weiden heißen im Hub jetzt deutsch (Schweinestall (groß) statt Pigsty (large)).
+
 ## 31.10.2026 – Farming Hub: Produktionsberater und Austausch mit dem Spiel (Mod 3.0)
 
 - **Produktionsberater in der Mod:** Die Mod „Farming Hub Export“ prüft auf dem Server alle 10 Sekunden die Produktionen, Ställe und Silos jedes Hofs. Sie meldet Zutaten, die nur noch wenige Spielstunden reichen (aus Rezept und Zyklen gerechnet), Produktionen, die stehen, volle Ausgänge, blockierte Paletten-Ausgänge, knappes Futter, Wasser und Stroh, volle Milch-, Gülle- und Misttanks und volle Silos.

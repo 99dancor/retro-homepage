@@ -1,23 +1,71 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="104">
-    <author>Chaosfarm</author>
-    <version>3.0.1.0</version>
+    <author>99dancor</author>
+    <version>3.1.0.0</version>
     <title>
-        <en>Farming Hub Export</en>
-        <de>Farming Hub Export</de>
+        <en>FS25 Hub Link</en>
+        <de>FS25 Hub Link</de>
     </title>
     <description>
-        <en><![CDATA[Writes field outlines, farmlands, station positions, production recipes and storage, all fill types and fruit types (growth, sowing and harvest months), every production from the shop, all animals (food, products, prices, offspring, food groups) and the fill levels of every barn to farmingHubExport.xml in the savegame folder on every save, for the Farming Hub website.
+        <en><![CDATA[Links your game with the Farming Hub website.
+Writes field outlines, farmlands, station positions, production recipes and storage, all fill types and fruit types (growth, sowing and harvest months), every production from the shop, all animals (food, products, prices, offspring, food groups) and the fill levels of every barn to farmingHubExport.xml in the savegame folder on every save, for the Farming Hub website.
 Production advisor (from 3.0): watches every farm's productions, barns and silos (inputs running low, outputs full, blocked pallet exits, food, water, straw, milk, slurry) and exchanges the resulting tasks, the website's tasks and notes and all settings with the Farming Hub through modSettings/FS25_FarmingHubExport.
-Console: hubExport, hubStatus, hubSet]]></en>
-        <de><![CDATA[Schreibt bei jedem Speichern Feldumrisse, Grundstücke, Positionen der Stationen, Rezepte und Lager der Produktionen, alle Waren und Früchte (Wachstum, Saat- und Erntemonate), alle Produktionen aus dem Shop, alle Tiere (Futter, Erzeugnisse, Preise, Nachwuchs, Futtergruppen) und die Füllstände jedes Stalls in farmingHubExport.xml im Spielstand-Ordner, für den Farming Hub der Website.
+Overlay (from 3.1): a discreet list on the right shows your farm's warnings, the website's tasks and notes. Alt+H size/off, Alt+J select, Alt+K tick off (goes back to the website).
+Console: hubExport, hubStatus, hubSet, hubHud, hubDone]]></en>
+        <de><![CDATA[Verbindet dein Spiel mit dem Farming Hub der Website.
+Schreibt bei jedem Speichern Feldumrisse, Grundstücke, Positionen der Stationen, Rezepte und Lager der Produktionen, alle Waren und Früchte (Wachstum, Saat- und Erntemonate), alle Produktionen aus dem Shop, alle Tiere (Futter, Erzeugnisse, Preise, Nachwuchs, Futtergruppen) und die Füllstände jedes Stalls in farmingHubExport.xml im Spielstand-Ordner, für den Farming Hub der Website.
 Produktionsberater (ab 3.0): überwacht Produktionen, Ställe und Silos jedes Hofs (Eingänge laufen leer, Ausgänge voll, Paletten-Ausgang blockiert, Futter, Wasser, Stroh, Milch, Gülle) und tauscht die Aufgaben daraus, die Aufgaben und Notizen der Website und alle Einstellungen über modSettings/FS25_FarmingHubExport mit dem Farming Hub aus.
-Konsole: hubExport, hubStatus, hubSet]]></de>
+Overlay (ab 3.1): eine dezente Liste rechts zeigt Meldungen deines Hofs, Aufgaben und Notizen der Website. Alt+H Größe/aus, Alt+J auswählen, Alt+K abhaken (geht zurück an die Website).
+Konsole: hubExport, hubStatus, hubSet, hubHud, hubDone]]></de>
     </description>
     <iconFilename>icon_farmingHubExport.dds</iconFilename>
     <multiplayer supported="true"/>
     <extraSourceFiles>
         <sourceFile filename="FarmingHubExport.lua"/>
         <sourceFile filename="FarmingHubLive.lua"/>
+        <sourceFile filename="HubLinkEvents.lua"/>
+        <sourceFile filename="HubLinkHud.lua"/>
     </extraSourceFiles>
+    <actions>
+        <action name="HUBLINK_TOGGLE"/>
+        <action name="HUBLINK_NEXT"/>
+        <action name="HUBLINK_DONE"/>
+    </actions>
+    <inputBinding>
+        <actionBinding action="HUBLINK_TOGGLE">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_h"/>
+        </actionBinding>
+        <actionBinding action="HUBLINK_NEXT">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_j"/>
+        </actionBinding>
+        <actionBinding action="HUBLINK_DONE">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_lalt KEY_k"/>
+        </actionBinding>
+    </inputBinding>
+    <l10n>
+        <text name="input_HUBLINK_TOGGLE"><en>Hub Link: overlay size / off</en><de>Hub Link: Overlay Größe / aus</de></text>
+        <text name="input_HUBLINK_NEXT"><en>Hub Link: next entry</en><de>Hub Link: nächster Eintrag</de></text>
+        <text name="input_HUBLINK_DONE"><en>Hub Link: tick off</en><de>Hub Link: abhaken</de></text>
+        <text name="hubLink_head"><en>Hub Link · Farm %d</en><de>Hub Link · Hof %d</de></text>
+        <text name="hubLink_allOk"><en>All good</en><de>Alles in Ordnung</de></text>
+        <text name="hubLink_more"><en>+%d more</en><de>+%d weitere</de></text>
+        <text name="hubLink_hint"><en>Alt+J next · Alt+K tick off</en><de>Alt+J weiter · Alt+K abhaken</de></text>
+        <text name="hubLink_ticked"><en>Ticked off: %s</en><de>Abgehakt: %s</de></text>
+        <text name="hubLink_note"><en>Note</en><de>Notiz</de></text>
+        <text name="hubLink_building"><en>Building</en><de>Gebäude</de></text>
+        <text name="hubLink_lessHour"><en>under 1 h</en><de>unter 1 Std.</de></text>
+        <text name="hubLink_hours"><en>%d h</en><de>%d Std.</de></text>
+        <text name="hubLink_days"><en>%d days</en><de>%d Tage</de></text>
+        <text name="hubLink_input"><en>%s: %s lasts %s</en><de>%s: %s reicht noch %s</de></text>
+        <text name="hubLink_inputPct"><en>%s: %s almost empty (%d %%)</en><de>%s: %s fast leer (%d %%)</de></text>
+        <text name="hubLink_stopped"><en>%s stopped: %s missing</en><de>%s steht: %s fehlt</de></text>
+        <text name="hubLink_full"><en>%s: %s full</en><de>%s: %s voll</de></text>
+        <text name="hubLink_almostFull"><en>%s: %s almost full (%d %%)</en><de>%s: %s fast voll (%d %%)</de></text>
+        <text name="hubLink_blocked"><en>%s: pallet exit blocked</en><de>%s: Paletten-Ausgang blockiert</de></text>
+        <text name="hubLink_foodEmpty"><en>%s: food empty</en><de>%s: Futter leer</de></text>
+        <text name="hubLink_food"><en>%s: food low (%d %%)</en><de>%s: Futter knapp (%d %%)</de></text>
+        <text name="hubLink_empty"><en>%s: %s empty</en><de>%s: %s leer</de></text>
+        <text name="hubLink_low"><en>%s: %s low (%d %%)</en><de>%s: %s knapp (%d %%)</de></text>
+        <text name="hubLink_pallets"><en>%s: no room for pallets</en><de>%s: kein Platz für Paletten</de></text>
+    </l10n>
 </modDesc>

@@ -1,7 +1,7 @@
 'use strict';
 // Farming Simulator Hub: Früchte. Was sich anbauen lässt, wann gesät und geerntet wird, Wachstumsstufen, Ertrag und Farbe.
 //
-// Alles kommt aus dem Spiel (Mod „Farming Hub Export“ ab Version 2, src/fsexport.js): Saat- und Erntemonate der Karte,
+// Alles kommt aus dem Spiel (Mod „FS25 Hub Link“ ab Version 2, src/fsexport.js): Saat- und Erntemonate der Karte,
 // Stufen, Ertrag und Saatgut je Quadratmeter, die Farbe der Frucht auf der Karte im Spiel. Ohne die Mod gilt der
 // FS25-Kalender unten. Von Hand eingetragen wird nichts mehr. Die Tabelle fs_crops hält die Früchte nur, damit Anbaupläne
 // (fs_plans.crop_id) ihre Frucht behalten; sie wird hier aus den Daten gefüllt.

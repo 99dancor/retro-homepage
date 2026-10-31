@@ -1,5 +1,13 @@
 # Changelog
 
+## 31.10.2026 – FS25 Hub Link 3.2 und Anbau planen
+
+- **Overlay mit der Maus:** Sobald der Mauszeiger zu sehen ist (z. B. Doppel-Rechtsklick mit Quick Selector oder Alt+J), lässt sich das Fenster am Kopf verschieben und an der Ecke unten rechts breiter und länger ziehen. „OK“ hakt einen Eintrag ab, „X“ blendet das Overlay aus (Alt+H holt es zurück).
+- **Optionsmenü im Spiel:** Zeilen, Schriftgröße, Deckkraft, Werte und Notizen für die eigene Anzeige; Prüfungen und Schwellen des Hofs mit − und + (gehen auch an die Website); Produktionsberater und Export für Admins.
+- **Werte je Meldung:** Unter jeder Meldung stehen Füllstand, Prozent und die Grenze, die ausgelöst hat, z. B. „0 / 85.000 l · 0 % · Grenze unter 15 %“.
+- **Gebäudenamen im Overlay** in der Sprache des Spielers (Schweinestall (groß) statt Pigsty (large)).
+- **Anbau planen:** Nach der Wahl der Frucht stehen bei „säen“ und „ernten“ nur die Monate, in denen das geht. Wer den Saatmonat wählt, bekommt den Erntemonat aus der Wachstumsdauer dazu, und umgekehrt. Die Fruchtauswahl zeigt die Symbole der Früchte.
+
 ## 31.10.2026 – FS25 Hub Link: Overlay im Spiel (Mod 3.1)
 
 - **Neuer Name:** Die Mod heißt jetzt „FS25 Hub Link“, Autor 99dancor. Die Datei bleibt `FS25_FarmingHubExport.zip`, damit Spielstand und Austausch-Ordner gleich bleiben.

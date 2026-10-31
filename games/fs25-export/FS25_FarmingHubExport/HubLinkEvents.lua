@@ -1,4 +1,4 @@
--- FS25 Hub Link: Netzwerk (ab Mod 3.1)
+-- FS25 Hub Link: Netzwerk (ab Mod 3.1, Einstellungen ab 3.2)
 --
 -- Der Produktionsberater läuft nur auf dem Server. Damit jeder Spieler das Overlay sieht, schickt der Server die Liste
 -- (FarmingHubLive.viewList) an alle, sobald sie sich ändert, und einem neuen Spieler beim Beitreten. Hakt ein Spieler etwas
@@ -57,6 +57,10 @@ function HubLinkSyncEvent:writeStream(streamId, connection)
         streamWriteString(streamId, cut(e.sub, 80))
         streamWriteFloat32(streamId, e.pct or -1)
         streamWriteFloat32(streamId, e.hours or -1)
+        streamWriteFloat32(streamId, e.level or -1)
+        streamWriteFloat32(streamId, e.cap or -1)
+        streamWriteString(streamId, cut(e.file, 250))
+        streamWriteString(streamId, cut(e.custom, 80))
     end
 end
 
@@ -78,6 +82,10 @@ function HubLinkSyncEvent:readStream(streamId, connection)
         e.sub = streamReadString(streamId)
         e.pct = streamReadFloat32(streamId)
         e.hours = streamReadFloat32(streamId)
+        e.level = streamReadFloat32(streamId)
+        e.cap = streamReadFloat32(streamId)
+        e.file = streamReadString(streamId)
+        e.custom = streamReadString(streamId)
         table.insert(self.list, e)
     end
     self:run(connection)
@@ -145,10 +153,138 @@ function HubLinkDoneEvent.send(key, user)
     return false
 end
 
--- Neuer Spieler: aktuelle Liste gleich mitschicken
+-- ---------- Server → Spieler: Einstellungen (für das Optionsmenü und die Grenzen in den Zeilen) ----------
+HubLinkConfigEvent = {}
+local HubLinkConfigEvent_mt = Class(HubLinkConfigEvent, Event)
+InitEventClass(HubLinkConfigEvent, "HubLinkConfigEvent")
+
+function HubLinkConfigEvent.emptyNew()
+    return Event.new(HubLinkConfigEvent_mt)
+end
+
+function HubLinkConfigEvent.new(settings)
+    local self = HubLinkConfigEvent.emptyNew()
+    self.settings = settings
+    return self
+end
+
+function HubLinkConfigEvent:writeStream(streamId, connection)
+    local s = self.settings or {}
+    streamWriteInt32(streamId, s.rev or 0)
+    streamWriteBool(streamId, s.export ~= false)
+    streamWriteBool(streamId, s.advisor ~= false)
+    local ids = {}
+    for id in pairs(s.farms or {}) do
+        if type(id) == "number" and id >= 1 and id <= 255 then
+            table.insert(ids, id)
+        end
+    end
+    table.sort(ids)
+    streamWriteUInt8(streamId, #ids)
+    for _, id in ipairs(ids) do
+        streamWriteUInt8(streamId, id)
+        local f = s.farms[id]
+        for _, kv in ipairs(FarmingHubLive.FARM_KEYS) do
+            local v = f[kv[1]]
+            if v == nil then
+                v = kv[2]
+            end
+            if type(kv[2]) == "boolean" then
+                streamWriteBool(streamId, v == true)
+            else
+                streamWriteFloat32(streamId, v)
+            end
+        end
+    end
+end
+
+function HubLinkConfigEvent:readStream(streamId, connection)
+    local s = { rev = streamReadInt32(streamId), export = streamReadBool(streamId), advisor = streamReadBool(streamId), farms = {} }
+    local n = streamReadUInt8(streamId)
+    for _ = 1, n do
+        local id = streamReadUInt8(streamId)
+        local f = {}
+        for _, kv in ipairs(FarmingHubLive.FARM_KEYS) do
+            if type(kv[2]) == "boolean" then
+                f[kv[1]] = streamReadBool(streamId)
+            else
+                f[kv[1]] = streamReadFloat32(streamId)
+            end
+        end
+        s.farms[id] = f
+    end
+    self.settings = s
+    self:run(connection)
+end
+
+function HubLinkConfigEvent:run(connection)
+    if connection ~= nil and connection:getIsServer() then
+        FarmingHubLive.settings = self.settings
+    end
+end
+
+-- ---------- Spieler → Server: eine Einstellung ändern ----------
+HubLinkSetEvent = {}
+local HubLinkSetEvent_mt = Class(HubLinkSetEvent, Event)
+InitEventClass(HubLinkSetEvent, "HubLinkSetEvent")
+
+function HubLinkSetEvent.emptyNew()
+    return Event.new(HubLinkSetEvent_mt)
+end
+
+function HubLinkSetEvent.new(farm, key, value)
+    local self = HubLinkSetEvent.emptyNew()
+    self.farm, self.key, self.value = farm, key, value
+    return self
+end
+
+function HubLinkSetEvent:writeStream(streamId, connection)
+    streamWriteUInt8(streamId, self.farm)
+    streamWriteString(streamId, cut(self.key, 30))
+    streamWriteFloat32(streamId, self.value)
+end
+
+function HubLinkSetEvent:readStream(streamId, connection)
+    self.farm = streamReadUInt8(streamId)
+    self.key = streamReadString(streamId)
+    self.value = streamReadFloat32(streamId)
+    self:run(connection)
+end
+
+function HubLinkSetEvent:run(connection)
+    if connection == nil or connection:getIsServer() then
+        return
+    end
+    local farm, master = 0, false
+    pcall(function()
+        local user = g_currentMission.userManager:getUserByConnection(connection)
+        master = user:getIsMasterUser() == true
+        local f = g_farmManager:getFarmByUserId(user:getId())
+        farm = f ~= nil and f.farmId or 0
+    end)
+    FarmingHubLive:applySet(self.farm, self.key, self.value, farm, master)
+end
+
+-- value: Zahl oder true/false
+function HubLinkSetEvent.send(farm, key, value, user)
+    if type(value) == "boolean" then
+        value = value and 1 or 0
+    end
+    if g_currentMission ~= nil and g_currentMission:getIsServer() then
+        return FarmingHubLive:applySet(farm, key, value, user.farm, user.master)
+    end
+    if g_client ~= nil then
+        g_client:getServerConnection():sendEvent(HubLinkSetEvent.new(farm, key, value))
+        return true
+    end
+    return false
+end
+
+-- Neuer Spieler: aktuelle Liste und Einstellungen gleich mitschicken
 if FSBaseMission ~= nil and FSBaseMission.sendInitialClientState ~= nil then
     FSBaseMission.sendInitialClientState = Utils.appendedFunction(FSBaseMission.sendInitialClientState, function(mission, connection, ...)
         pcall(function()
+            connection:sendEvent(HubLinkConfigEvent.new(FarmingHubLive.settings))
             connection:sendEvent(HubLinkSyncEvent.new(FarmingHubLive.viewList or {}))
         end)
     end)

@@ -388,6 +388,91 @@
     rep.addEventListener('change', sync);
     sync();
   });
+  // ---------- Anbau planen: Frucht mit Symbol, nur mögliche Saat- und Erntemonate, das andere Datum aus der Wachstumsdauer ----------
+  [].forEach.call(document.querySelectorAll('select[data-croppick]'), function (sel) {
+    var form = sel.form, wrap = sel.parentNode;
+    var sowSel = form.querySelector('select[name=sow_month]'), harvSel = form.querySelector('select[name=harvest_month]');
+    var info = form.querySelector('.fs-grow');
+    var tpl = wrap.querySelector('template');
+    var icons = {};
+    if (tpl) [].forEach.call(tpl.content.querySelectorAll('[data-id]'), function (el) { icons[el.dataset.id] = el.innerHTML; });
+    // alle Monate in der Reihenfolge des Spieljahrs, wie sie der Server geschrieben hat
+    var months = [].slice.call(sowSel.options).filter(function (o) { return o.value !== ''; }).map(function (o) { return { v: Number(o.value), t: o.textContent }; });
+    var list = function (s) { return String(s || '').split(',').filter(function (x) { return x !== ''; }).map(Number); };
+    var cur = function () { return sel.options[sel.selectedIndex]; };
+    var fill = function (box, allowed, value) {
+      box.innerHTML = '';
+      months.forEach(function (m) {
+        if (allowed.length && allowed.indexOf(m.v) < 0) return;
+        var o = document.createElement('option');
+        o.value = m.v; o.textContent = m.t;
+        box.appendChild(o);
+      });
+      if (value !== null && value !== undefined && box.querySelector('option[value="' + value + '"]')) box.value = String(value);
+    };
+    var step = function (from, d, allowed, dir) {
+      for (var k = 0; k < 12; k++) { var m = ((from + dir * (d + k)) % 12 + 12) % 12; if (allowed.indexOf(m) >= 0) return m; }
+      return null;
+    };
+    var apply = function (changed) {
+      var o = cur(), sow = list(o.dataset.sow), harv = list(o.dataset.harvest), d = o.dataset.grow === '' ? null : Number(o.dataset.grow);
+      var perm = o.dataset.kind === 'perm';
+      if (changed === 'crop') {
+        fill(sowSel, sow, sow[0]);
+        fill(harvSel, harv, null);
+        changed = 'sow';
+      }
+      if (!perm && d !== null && changed === 'sow' && sow.length && harv.length) {
+        var h = step(Number(sowSel.value), d, harv, 1);
+        if (h !== null) harvSel.value = String(h);
+      } else if (!perm && d !== null && changed === 'harvest' && sow.length && harv.length) {
+        var s0 = step(Number(harvSel.value), d, sow, -1);
+        if (s0 !== null) sowSel.value = String(s0);
+      }
+      if (info) {
+        info.hidden = d === null || perm;
+        info.textContent = d === null ? '' : 'wächst etwa ' + d + (d === 1 ? ' Monat' : ' Monate');
+      }
+      if (btn) btn.innerHTML = (icons[o.value] || '') + '<span>' + o.textContent.replace(/[<&]/g, '') + '</span><b aria-hidden="true">▾</b>';
+    };
+    // Auswahl mit Symbolen statt des einfachen Auswahlfelds
+    var btn = null;
+    if (Object.keys(icons).length) {
+      btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'fs-cp-btn'; btn.setAttribute('aria-haspopup', 'listbox'); btn.setAttribute('aria-label', 'Frucht');
+      var pop = document.createElement('div');
+      pop.className = 'fs-cp-list'; pop.setAttribute('role', 'listbox'); pop.hidden = true;
+      [].forEach.call(sel.options, function (o) {
+        var it = document.createElement('button');
+        it.type = 'button'; it.setAttribute('role', 'option'); it.dataset.value = o.value;
+        it.innerHTML = (icons[o.value] || '') + '<span></span>';
+        it.lastChild.textContent = o.textContent;
+        it.addEventListener('click', function () { sel.value = o.value; pop.hidden = true; apply('crop'); btn.focus(); });
+        pop.appendChild(it);
+      });
+      var open = function (yes) {
+        pop.hidden = !yes;
+        btn.setAttribute('aria-expanded', yes ? 'true' : 'false');
+        if (yes) { var on = pop.querySelector('[data-value="' + sel.value + '"]'); [].forEach.call(pop.children, function (c) { c.classList.toggle('on', c === on); }); if (on) { on.scrollIntoView({ block: 'nearest' }); on.focus(); } }
+      };
+      btn.addEventListener('click', function () { open(pop.hidden); });
+      pop.addEventListener('keydown', function (e) {
+        var items = [].slice.call(pop.children), i = items.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown') { e.preventDefault(); (items[i + 1] || items[0]).focus(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); (items[i - 1] || items[items.length - 1]).focus(); }
+        else if (e.key === 'Escape') { open(false); btn.focus(); }
+      });
+      document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) open(false); });
+      sel.hidden = true;
+      wrap.appendChild(btn);
+      wrap.appendChild(pop);
+      wrap.classList.add('js');
+    }
+    sel.addEventListener('change', function () { apply('crop'); });
+    sowSel.addEventListener('change', function () { apply('sow'); });
+    harvSel.addEventListener('change', function () { apply('harvest'); });
+    apply('crop');
+  });
   // ---------- Suche in Planer und Preisliste: filtert schon beim Tippen, Enter fragt den Server ----------
   [].forEach.call(document.querySelectorAll('input[data-filter]'), function (input) {
     var box = document.querySelector(input.dataset.filter);

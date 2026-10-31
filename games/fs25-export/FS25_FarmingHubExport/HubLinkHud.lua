@@ -1,42 +1,49 @@
--- FS25 Hub Link: Overlay im Spiel (ab Mod 3.1)
+-- FS25 Hub Link: Overlay im Spiel (ab Mod 3.1, Maus und Optionen ab 3.2)
 --
--- Dezente Liste am rechten Rand, im Stil der Spiel-Anzeigen (dunkle, halbdurchsichtige Kästen, weiße Schrift, orange
--- Akzente): Meldungen des Produktionsberaters, Aufgaben und Notizen aus dem Hub, nur für den eigenen Hof.
+-- Dezente Liste im Stil der Spiel-Anzeigen (dunkle, halbdurchsichtige Kästen, weiße Schrift, orange Akzente): Meldungen
+-- des Produktionsberaters mit ihren Werten, Aufgaben und Notizen aus dem Hub, nur für den eigenen Hof.
 --
---   Alt+H   Overlay: klein (bis 4 Einträge) → groß (bis 12, mit Notizen) → aus
---   Alt+J   nächsten Eintrag auswählen
---   Alt+K   ausgewählten Eintrag abhaken (Meldung: bis das Problem weg ist; Hub-Aufgabe: im Hub erledigt; Notiz: ausblenden)
+-- Bedienung mit der Maus, sobald der Mauszeiger zu sehen ist (z. B. Doppel-Rechtsklick mit „Quick Selector“, oder Alt+J):
+--   Kopf ziehen        Fenster verschieben
+--   Ecke unten rechts  Breite und Anzahl der Zeilen ziehen
+--   OK                 Eintrag abhaken (Meldung: bis das Problem weg ist; Hub-Aufgabe: im Hub erledigt; Notiz: ausblenden)
+--   OPTIONEN           Optionsmenü: Anzeige (nur für mich), Prüfungen und Schwellen des Hofs, Export und Berater (Admin)
+--   X                  Overlay ausblenden (Alt+H holt es zurück)
 --
--- Tasten lassen sich in den Steuerungs-Einstellungen ändern. Ohne Tasten geht es über die Konsole: hubHud, hubDone.
--- Was jeder Spieler eingestellt hat (Größe, Position, ausgeblendete Notizen), liegt nur bei ihm in
--- modSettings/FS25_FarmingHubExport/hubLinkHud.xml.
+-- Tasten (in der Steuerung änderbar): Alt+H Overlay ein/aus, Alt+J Mauszeiger ein/aus. Konsole: hubHud, hubDone.
+-- Was jeder Spieler für die Anzeige eingestellt hat, liegt nur bei ihm in modSettings/FS25_FarmingHubExport/hubLinkHud.xml.
 
 HubLinkHud = {}
 HubLinkHud.FILE = "hubLinkHud.xml"
-HubLinkHud.SELECT_MS = 10000
-HubLinkHud.mode = 1
-HubLinkHud.x = 0.988
-HubLinkHud.y = 0.79
-HubLinkHud.sel = 0
-HubLinkHud.selTime = -1
-HubLinkHud.pending = {}
+HubLinkHud.prefs = { visible = true, x = 0.74, y = 0.79, w = 420, rows = 5, scale = 1, alpha = 0.72, details = true, notes = true }
 HubLinkHud.hiddenNotes = {}
-HubLinkHud.names = {}
+HubLinkHud.pending = {}
 HubLinkHud.rows = {}
+HubLinkHud.hits = {}
+HubLinkHud.options = false
+HubLinkHud.ownCursor = false
+HubLinkHud.drag = nil
+HubLinkHud.mx, HubLinkHud.my = -1, -1
 HubLinkHud.flash = nil
 
--- Farben wie die Spiel-Anzeigen
 local C = {
     bg = { 0.12, 0.12, 0.12, 0.72 },
-    bgSel = { 0.26, 0.26, 0.26, 0.86 },
+    bgHover = { 0.24, 0.24, 0.24, 0.86 },
     chip = { 0.05, 0.05, 0.05, 0.82 },
     text = { 1, 1, 1, 1 },
     dim = { 0.72, 0.72, 0.72, 1 },
+    off = { 0.45, 0.45, 0.45, 1 },
     accent = { 0.91, 0.64, 0.2, 1 },
     red = { 0.9, 0.32, 0.26, 1 },
     blue = { 0.55, 0.75, 0.95, 1 },
     grey = { 0.6, 0.6, 0.6, 1 },
 }
+
+-- Grenzen wie im Hub (src/fslive.js LIMITS) und Schrittweite der Knöpfe
+local STEPS = {
+    inputHours = { 1, 240, 1 }, inputPct = { 1, 90, 5 }, outputPct = { 10, 100, 5 }, stallPct = { 1, 90, 5 }, stallFullPct = { 10, 100, 5 }, siloPct = { 10, 100, 5 },
+}
+HubLinkHud.STEPS = STEPS
 
 local function T(key, fallback)
     if g_i18n ~= nil and g_i18n.hasText ~= nil and g_i18n:hasText(key) then
@@ -45,45 +52,70 @@ local function T(key, fallback)
     return fallback
 end
 
--- ---------- Maße (Bezug 1080 Pixel Höhe, mit UI-Größe des Spiels) ----------
-local function scale()
+local function fmt(n)
+    n = math.floor((n or 0) + 0.5)
+    local ok, s = pcall(function()
+        return g_i18n:formatNumber(n, 0)
+    end)
+    if ok and type(s) == "string" then
+        return s
+    end
+    local t = tostring(n)
+    local out = t:reverse():gsub("(%d%d%d)", "%1."):reverse()
+    return (out:gsub("^%.", ""))
+end
+
+-- ---------- Maße (Bezug 1080 Pixel Höhe, mit UI-Größe des Spiels und eigener Schriftgröße) ----------
+local function uiScale()
     local s = 1
     pcall(function()
         s = g_gameSettings:getValue(GameSettings.SETTING.UI_SCALE) or 1
     end)
-    return s
+    return s * (HubLinkHud.prefs.scale or 1)
 end
 local function py(v)
-    return v / 1080 * scale()
+    return v / 1080 * uiScale()
 end
 local function px(v)
     local w, h = g_screenWidth or 1920, g_screenHeight or 1080
-    return v / 1080 * scale() * h / w
+    return v / 1080 * uiScale() * h / w
 end
 
-local function rect(x, y, w, h, c)
+local function rect(x, y, w, h, c, a)
     if drawFilledRect ~= nil then
-        drawFilledRect(x, y, w, h, c[1], c[2], c[3], c[4])
+        drawFilledRect(x, y, w, h, c[1], c[2], c[3], a or c[4])
     end
 end
 
 -- Kasten mit abgeschrägten Ecken (wirkt wie die abgerundeten Kästen des Spiels)
-local function box(x, y, w, h, c)
+local function box(x, y, w, h, c, a)
     if drawFilledRect == nil then
         return
     end
+    a = a or c[4]
     local r = math.min(px(3), w / 4)
     local ry = math.min(py(3), h / 4)
-    drawFilledRect(x + r, y, w - 2 * r, h, c[1], c[2], c[3], c[4])
-    drawFilledRect(x, y + ry, r, h - 2 * ry, c[1], c[2], c[3], c[4])
-    drawFilledRect(x + w - r, y + ry, r, h - 2 * ry, c[1], c[2], c[3], c[4])
+    drawFilledRect(x + r, y, w - 2 * r, h, c[1], c[2], c[3], a)
+    drawFilledRect(x, y + ry, r, h - 2 * ry, c[1], c[2], c[3], a)
+    drawFilledRect(x + w - r, y + ry, r, h - 2 * ry, c[1], c[2], c[3], a)
 end
 
--- letztes UTF-8-Zeichen weg
+-- Großbuchstaben mit Umlauten (string.upper kennt nur ASCII)
+local function upper(s)
+    if utf8ToUpper ~= nil then
+        return utf8ToUpper(s)
+    end
+    s = string.upper(s)
+    return (s:gsub("ä", "Ä"):gsub("ö", "Ö"):gsub("ü", "Ü"))
+end
+
 local function chop(s)
     return (string.gsub(s, "[%z\1-\127\194-\244][\128-\191]*$", ""))
 end
 local function fit(text, size, width)
+    if width <= 0 then
+        return ""
+    end
     if getTextWidth(size, text) <= width then
         return text
     end
@@ -100,23 +132,61 @@ local function text(x, y, size, s, c, bold, align)
     renderText(x, y, size, s)
 end
 
--- ---------- Texte ----------
--- Gebäudename: beim Spieler nachschlagen (dann in seiner Sprache), sonst wie der Server ihn schickt
-function HubLinkHud:placeName(e)
-    if e.uid ~= nil and e.uid ~= "" and self.names[e.uid] ~= nil then
-        return self.names[e.uid]
-    end
-    return e.name ~= "" and e.name or T("hubLink_building", "Gebäude")
+-- Text senkrecht mittig in einer Zeile der Höhe h
+local function mid(y, h, size)
+    return y + (h - size) / 2 + size * 0.18
 end
 
+-- ---------- Klickflächen ----------
+function HubLinkHud:hit(x, y, w, h, fn, drag)
+    table.insert(self.hits, { x = x, y = y, w = w, h = h, fn = fn, drag = drag })
+end
+
+function HubLinkHud:over(x, y, w, h)
+    return self.mx >= x and self.mx <= x + w and self.my >= y and self.my <= y + h
+end
+
+-- kleiner Knopf mit Text, hebt sich unter der Maus hervor
+function HubLinkHud:button(x, y, w, h, label, fn, on, enabled)
+    enabled = enabled ~= false
+    local hover = enabled and self:over(x, y, w, h)
+    box(x, y, w, h, on and C.accent or (hover and C.bgHover or C.chip), on and 0.9 or nil)
+    local size = math.min(py(13), h * 0.6)
+    text(x + w / 2, mid(y, h, size), size, label, on and { 0.08, 0.08, 0.08, 1 } or (enabled and C.text or C.off), true, RenderText.ALIGN_CENTER)
+    if enabled then
+        self:hit(x, y, w, h, fn)
+    end
+end
+
+-- ---------- Texte ----------
 local function goodName(e)
-    if e.fill ~= nil and e.fill ~= "" and g_fillTypeManager ~= nil then
+    if e.fill ~= nil and e.fill ~= "" and g_fillTypeManager ~= nil and g_fillTypeManager.getFillTypeByName ~= nil then
         local ft = g_fillTypeManager:getFillTypeByName(e.fill)
         if ft ~= nil and ft.title ~= nil then
             return ft.title
         end
     end
     return e.fillTitle ~= "" and e.fillTitle or "?"
+end
+
+-- Gebäude in der Sprache des Spielers: eigener Name, sonst Shop-Name aus der Gebäude-Datei, sonst wie vom Server
+function HubLinkHud:placeName(e)
+    if e.custom ~= nil and e.custom ~= "" then
+        return e.custom
+    end
+    if e.file ~= nil and e.file ~= "" and g_storeManager ~= nil then
+        local ok, item = pcall(function()
+            local file = e.file
+            if NetworkUtil ~= nil and NetworkUtil.convertFromNetworkFilename ~= nil then
+                file = NetworkUtil.convertFromNetworkFilename(file)
+            end
+            return g_storeManager:getItemByXMLFilename(file)
+        end)
+        if ok and item ~= nil and item.name ~= nil and item.name ~= "" then
+            return item.name
+        end
+    end
+    return e.name ~= "" and e.name or T("hubLink_building", "Gebäude")
 end
 
 local function hours(h)
@@ -168,29 +238,45 @@ function HubLinkHud:textOf(e)
     return place
 end
 
--- ---------- Liste ----------
--- Neue Liste vom Server: Namen der Gebäude neu nachschlagen, Auswahl behalten, wenn der Eintrag noch da ist
-function HubLinkHud:onView()
-    local keep = self.rows[self.sel] ~= nil and self.rows[self.sel].key or nil
-    self.pending = {}
-    self.names = {}
-    pcall(function()
-        for _, p in ipairs(g_currentMission.placeableSystem.placeables) do
-            local uid = p.getUniqueId ~= nil and p:getUniqueId() or p.uniqueId
-            if uid ~= nil and p.getName ~= nil then
-                self.names[tostring(uid)] = p:getName()
-            end
-        end
-    end)
-    self:refresh()
-    self.sel = 0
-    for i, r in ipairs(self.rows) do
-        if r.key == keep then
-            self.sel = i
-        end
+-- Zweite Zeile: die Werte und die Grenze, die die Meldung ausgelöst hat
+function HubLinkHud:detailOf(e)
+    if e.src == 2 or e.src == 3 then
+        return e.sub or ""
     end
+    local cfg = FarmingHubLive:farm(e.farm)
+    local bits = {}
+    if (e.level or -1) >= 0 and (e.cap or 0) > 0 then
+        table.insert(bits, string.format(T("hubLink_level", "%s / %s l"), fmt(e.level), fmt(e.cap)))
+    end
+    if (e.pct or -1) >= 0 and e.kind ~= "stopped" then
+        table.insert(bits, string.format("%d %%", math.floor(e.pct + 0.5)))
+    end
+    local k = e.kind
+    if k == "input" then
+        if e.hours >= 0 then
+            table.insert(bits, string.format(T("hubLink_limitBelow", "Grenze unter %s"), string.format(T("hubLink_hours", "%d Std."), cfg.inputHours)))
+        else
+            table.insert(bits, string.format(T("hubLink_limitBelow", "Grenze unter %s"), cfg.inputPct .. " %"))
+        end
+    elseif k == "stopped" then
+        table.insert(bits, T("hubLink_stoppedHint", "Produktion wartet auf Nachschub"))
+    elseif k == "output" then
+        table.insert(bits, string.format(T("hubLink_limitFrom", "Grenze ab %s"), cfg.outputPct .. " %"))
+    elseif k == "product" then
+        table.insert(bits, string.format(T("hubLink_limitFrom", "Grenze ab %s"), cfg.stallFullPct .. " %"))
+    elseif k == "food" or k == "supply" then
+        table.insert(bits, string.format(T("hubLink_limitBelow", "Grenze unter %s"), cfg.stallPct .. " %"))
+    elseif k == "silo" then
+        table.insert(bits, string.format(T("hubLink_limitFrom", "Grenze ab %s"), cfg.siloPct .. " %"))
+    elseif k == "blocked" then
+        table.insert(bits, T("hubLink_blockedHint", "Palette passt nicht aus dem Ausgang"))
+    elseif k == "pallets" then
+        table.insert(bits, T("hubLink_palletsHint", "Palettenplatz am Stall voll"))
+    end
+    return table.concat(bits, "  ·  ")
 end
 
+-- ---------- Liste ----------
 local function myFarm()
     local id = 0
     pcall(function()
@@ -201,13 +287,18 @@ local function myFarm()
     end
     return id
 end
+HubLinkHud.myFarm = myFarm
+
+function HubLinkHud:onView()
+    self.pending = {}
+    self:refresh()
+end
 
 function HubLinkHud:refresh()
     local farm, rows, notes = myFarm(), {}, {}
     if farm > 0 then
-        local list = FarmingHubLive ~= nil and FarmingHubLive.viewList or {}
         local order = {}
-        for i, e in ipairs(list) do
+        for i, e in ipairs(FarmingHubLive ~= nil and FarmingHubLive.viewList or {}) do
             local wait = self.pending[e.key]
             if (wait == nil or g_time - wait > 15000) and (e.farm == farm or e.farm == 0) then
                 if e.src == 3 then
@@ -219,7 +310,7 @@ function HubLinkHud:refresh()
                 end
             end
         end
-        -- Wichtiges zuerst: steht / blockiert, dann knapp, dann Aufgaben aus dem Hub
+        -- Wichtiges zuerst: steht / blockiert, dann knapp, dann Aufgaben aus dem Hub, dann Notizen
         table.sort(order, function(a, b)
             if a.e.src ~= b.e.src then
                 return a.e.src < b.e.src
@@ -232,7 +323,7 @@ function HubLinkHud:refresh()
         for _, o in ipairs(order) do
             table.insert(rows, o.e)
         end
-        if self.mode == 2 then
+        if self.prefs.notes then
             for i = 1, math.min(3, #notes) do
                 table.insert(rows, notes[i])
             end
@@ -241,36 +332,7 @@ function HubLinkHud:refresh()
     self.rows = rows
 end
 
-function HubLinkHud:selecting()
-    return self.sel > 0 and self.selTime >= 0 and g_time - self.selTime < HubLinkHud.SELECT_MS
-end
-
--- ---------- Tasten ----------
-function HubLinkHud:onToggle()
-    self.mode = (self.mode + 1) % 3
-    self:refresh()
-    self:savePrefs()
-end
-
-function HubLinkHud:onNext()
-    if self.mode == 0 then
-        self.mode = 1
-        self:savePrefs()
-    end
-    self:refresh()
-    local max = math.min(#self.rows, self.mode == 2 and 12 or 4)
-    if max == 0 then
-        self.sel = 0
-        return
-    end
-    if not self:selecting() then
-        self.sel = 1
-    else
-        self.sel = self.sel % max + 1
-    end
-    self.selTime = g_time
-end
-
+-- ---------- Abhaken ----------
 local function localUser()
     local u = { name = "", farm = myFarm(), master = false }
     pcall(function()
@@ -283,15 +345,7 @@ local function localUser()
     end
     return u
 end
-
-function HubLinkHud:onDone()
-    if not self:selecting() then
-        -- erst auswählen, dann abhaken: ein Druck ohne Auswahl wählt den obersten Eintrag
-        self:onNext()
-        return
-    end
-    self:tick(self.rows[self.sel])
-end
+HubLinkHud.localUser = localUser
 
 function HubLinkHud:tick(e)
     if e == nil then
@@ -306,13 +360,64 @@ function HubLinkHud:tick(e)
     self.pending[e.key] = g_time
     self.flash = { text = string.format(T("hubLink_ticked", "Abgehakt: %s"), self:textOf(e)), t = g_time }
     self:refresh()
-    self.sel = math.min(self.sel, #self.rows)
-    self.selTime = self.sel > 0 and g_time or -1
     return true
 end
 
+-- ---------- Optionen ändern ----------
+function HubLinkHud:setPref(key, value)
+    self.prefs[key] = value
+    self:refresh()
+    self:savePrefs()
+end
+
+function HubLinkHud:stepPref(key, delta, lo, hi)
+    local v = math.max(lo, math.min(hi, (self.prefs[key] or 0) + delta))
+    self:setPref(key, math.floor(v * 100 + 0.5) / 100)
+end
+
+-- Einstellung des Hofs (oder global mit farm 0) an den Server; die Antwort kommt mit der nächsten Liste
+function HubLinkHud:setFarm(farm, key, value)
+    HubLinkSetEvent.send(farm, key, value, localUser())
+end
+
+function HubLinkHud:stepFarm(farm, key, dir)
+    local s = STEPS[key]
+    local cur = FarmingHubLive:farm(farm)[key] or s[1]
+    local step = s[3]
+    if key == "inputHours" and cur + dir > 24 then
+        step = 6
+    end
+    local v = math.max(s[1], math.min(s[2], cur + dir * step))
+    if v ~= cur then
+        self:setFarm(farm, key, v)
+    end
+end
+
+-- ---------- Tasten ----------
+function HubLinkHud:onToggle()
+    self:setPref("visible", not self.prefs.visible)
+end
+
+function HubLinkHud:cursorShown()
+    local shown = false
+    pcall(function()
+        shown = g_inputBinding:getShowMouseCursor() == true
+    end)
+    return shown or self.ownCursor
+end
+
+function HubLinkHud:onMouse()
+    self.ownCursor = not self.ownCursor
+    pcall(function()
+        g_inputBinding:setShowMouseCursor(self.ownCursor)
+    end)
+    if self.ownCursor and not self.prefs.visible then
+        self:setPref("visible", true)
+    end
+end
+
 local function action(fn)
-    return function(target, actionName, inputValue)
+    return function()
         fn(HubLinkHud)
     end
 end
@@ -321,10 +426,12 @@ function HubLinkHud.registerActions()
     if g_inputBinding == nil or InputAction == nil or InputAction.HUBLINK_TOGGLE == nil then
         return
     end
-    for _, a in ipairs({ { InputAction.HUBLINK_TOGGLE, HubLinkHud.onToggle }, { InputAction.HUBLINK_NEXT, HubLinkHud.onNext }, { InputAction.HUBLINK_DONE, HubLinkHud.onDone } }) do
-        local ok, id = g_inputBinding:registerActionEvent(a[1], HubLinkHud, action(a[2]), false, true, false, true)
-        if ok and id ~= nil then
-            g_inputBinding:setActionEventTextVisibility(id, false)
+    for _, a in ipairs({ { InputAction.HUBLINK_TOGGLE, HubLinkHud.onToggle }, { InputAction.HUBLINK_MOUSE, HubLinkHud.onMouse } }) do
+        if a[1] ~= nil then
+            local ok, id = g_inputBinding:registerActionEvent(a[1], HubLinkHud, action(a[2]), false, true, false, true)
+            if ok and id ~= nil then
+                g_inputBinding:setActionEventTextVisibility(id, false)
+            end
         end
     end
 end
@@ -352,6 +459,13 @@ function HubLinkHud:prefsFile()
     return base .. "/" .. HubLinkHud.FILE
 end
 
+local function clamp(v, lo, hi, d)
+    if type(v) ~= "number" then
+        return d
+    end
+    return math.max(lo, math.min(hi, v))
+end
+
 function HubLinkHud:loadPrefs()
     local file = self:prefsFile()
     if file == nil or not fileExists(file) then
@@ -361,12 +475,28 @@ function HubLinkHud:loadPrefs()
     if xml == nil then
         return
     end
-    self.mode = math.max(0, math.min(2, xml:getInt("hubLinkHud#mode") or 1))
-    self.x = math.max(0.2, math.min(1, xml:getFloat("hubLinkHud#x") or HubLinkHud.x))
-    self.y = math.max(0.2, math.min(1, xml:getFloat("hubLinkHud#y") or HubLinkHud.y))
+    local p, r = self.prefs, "hubLinkHud"
+    local vis = xml:getBool(r .. "#visible")
+    if vis ~= nil then
+        p.visible = vis
+    end
+    p.x = clamp(xml:getFloat(r .. "#x"), 0, 0.95, p.x)
+    p.y = clamp(xml:getFloat(r .. "#y"), 0.1, 1, p.y)
+    p.w = clamp(xml:getFloat(r .. "#w"), 260, 900, p.w)
+    p.rows = math.floor(clamp(xml:getFloat(r .. "#rows"), 1, 15, p.rows))
+    p.scale = clamp(xml:getFloat(r .. "#scale"), 0.7, 1.5, p.scale)
+    p.alpha = clamp(xml:getFloat(r .. "#alpha"), 0.3, 0.95, p.alpha)
+    local d = xml:getBool(r .. "#details")
+    if d ~= nil then
+        p.details = d
+    end
+    local n = xml:getBool(r .. "#notes")
+    if n ~= nil then
+        p.notes = n
+    end
     local i = 0
-    while xml:hasProperty(string.format("hubLinkHud.hidden(%d)", i)) do
-        local key = xml:getString(string.format("hubLinkHud.hidden(%d)#key", i))
+    while xml:hasProperty(string.format("%s.hidden(%d)", r, i)) do
+        local key = xml:getString(string.format("%s.hidden(%d)#key", r, i))
         if key ~= nil then
             self.hiddenNotes[key] = true
         end
@@ -384,18 +514,24 @@ function HubLinkHud:savePrefs()
     if xml == nil then
         return
     end
-    xml:setInt("hubLinkHud#mode", self.mode)
-    xml:setFloat("hubLinkHud#x", self.x)
-    xml:setFloat("hubLinkHud#y", self.y)
-    -- nur Notizen, die es noch gibt
-    local live = {}
-    for _, e in ipairs(FarmingHubLive.viewList or {}) do
+    local p, r = self.prefs, "hubLinkHud"
+    xml:setBool(r .. "#visible", p.visible)
+    xml:setFloat(r .. "#x", p.x)
+    xml:setFloat(r .. "#y", p.y)
+    xml:setFloat(r .. "#w", p.w)
+    xml:setFloat(r .. "#rows", p.rows)
+    xml:setFloat(r .. "#scale", p.scale)
+    xml:setFloat(r .. "#alpha", p.alpha)
+    xml:setBool(r .. "#details", p.details)
+    xml:setBool(r .. "#notes", p.notes)
+    local live, list = {}, FarmingHubLive.viewList or {}
+    for _, e in ipairs(list) do
         live[e.key] = true
     end
     local n = 0
     for key in pairs(self.hiddenNotes) do
-        if live[key] or #(FarmingHubLive.viewList or {}) == 0 then
-            xml:setString(string.format("hubLinkHud.hidden(%d)#key", n), key)
+        if live[key] or #list == 0 then
+            xml:setString(string.format("%s.hidden(%d)#key", r, n), key)
             n = n + 1
         end
     end
@@ -405,7 +541,7 @@ end
 
 -- ---------- Zeichnen ----------
 function HubLinkHud:visible()
-    if self.mode == 0 or g_currentMission == nil or g_dedicatedServer ~= nil then
+    if not self.prefs.visible or g_currentMission == nil or g_dedicatedServer ~= nil then
         return false
     end
     if g_gui ~= nil and g_gui.getIsGuiVisible ~= nil and g_gui:getIsGuiVisible() then
@@ -422,140 +558,367 @@ function HubLinkHud:visible()
 end
 
 function HubLinkHud:draw()
+    self.hits = {}
     if not self:visible() then
         return
     end
-    local rows = self.rows
-    local max = self.mode == 2 and 12 or 4
+    local p = self.prefs
+    local mouse = self:cursorShown()
     local flash = self.flash ~= nil and g_time - self.flash.t < 3000
-    if #rows == 0 and self.mode == 1 and not flash then
+    local rows = self.rows
+    if #rows == 0 and not mouse and not flash and not self.options then
         return
     end
-    local w = px(390)
-    local x = self.x - w
-    local y = self.y
-    local headH, rowH, gap, pad = py(34), py(30), py(4), px(12)
-    local size, small = py(15), py(13)
+    local alpha = p.alpha
+    local w = px(p.w)
+    local x = p.x
+    local y = p.y
+    local headH, gap, pad = py(34), py(4), px(12)
+    local size, small = py(15), py(12.5)
+    local rowH = p.details and py(46) or py(30)
 
     -- Kopf: HUB LINK · HOF n, rechts die Zahl im dunklen Feld (wie das Geld in der Zeitleiste)
     local farm = myFarm()
     y = y - headH
-    box(x, y, w, headH, C.bg)
+    box(x, y, w, headH, C.bg, alpha)
     local chipW = px(46)
     box(x + w - chipW, y, chipW, headH, C.chip)
-    local ty = y + (headH - size) / 2 + size * 0.18
     rect(x + pad, y + headH * 0.3, px(3), headH * 0.4, C.accent)
-    text(x + pad + px(10), ty, size, string.upper(string.format(T("hubLink_head", "Hub Link · Hof %d"), farm)), C.text, true)
-    local hot = false
-    for _, r in ipairs(rows) do
-        if r.src == 1 and r.sev >= 3 then
-            hot = true
-        end
-    end
-    local count = 0
+    local count, hot = 0, false
     for _, r in ipairs(rows) do
         if r.src ~= 3 then
             count = count + 1
         end
+        if r.src == 1 and r.sev >= 3 then
+            hot = true
+        end
     end
-    text(x + w - chipW / 2, ty, size, tostring(count), hot and C.red or (count > 0 and C.accent or C.text), true, RenderText.ALIGN_CENTER)
+    text(x + w - chipW / 2, mid(y, headH, size), size, tostring(count), hot and C.red or (count > 0 and C.accent or C.text), true, RenderText.ALIGN_CENTER)
+    local titleRight = x + w - chipW - px(6)
+    if mouse then
+        -- Knöpfe im Kopf; der Rest des Kopfs verschiebt das Fenster
+        local bh = headH * 0.7
+        local bx = titleRight - px(26)
+        self:button(bx, y + (headH - bh) / 2, px(26), bh, "X", function()
+            self.options = false
+            self:setPref("visible", false)
+        end)
+        local ow = px(92)
+        bx = bx - px(4) - ow
+        self:button(bx, y + (headH - bh) / 2, ow, bh, upper(T("hubLink_options", "Optionen")), function()
+            self.options = not self.options
+        end, self.options)
+        titleRight = bx - px(6)
+        self:hit(x, y, titleRight - x, headH, nil, "move")
+    end
+    local title = upper(string.format(T("hubLink_head", "Hub Link · Hof %d"), farm))
+    text(x + pad + px(10), mid(y, headH, size), size, fit(title, size, titleRight - x - pad - px(10)), C.text, true)
+    local bottom = y
 
     -- Zeilen
-    local selecting = self:selecting()
-    local shown = math.min(#rows, max)
+    local shown = math.min(#rows, p.rows)
     for i = 1, shown do
         local e = rows[i]
         y = y - gap - rowH
-        local sel = selecting and i == self.sel
-        box(x, y, w, rowH, sel and C.bgSel or C.bg)
+        local hover = mouse and self:over(x, y, w, rowH)
+        box(x, y, w, rowH, hover and C.bgHover or C.bg, hover and nil or alpha)
         local stripe = e.src == 3 and C.grey or e.src == 2 and C.blue or (e.sev >= 3 and C.red or C.accent)
-        rect(x + px(6), y + rowH * 0.22, px(3), rowH * 0.56, stripe)
+        rect(x + px(6), y + rowH * 0.2, px(3), rowH * 0.6, stripe)
         local tx = x + pad + px(4)
-        local label = self:textOf(e)
-        local sub = (self.mode == 2 and e.sub ~= nil and e.sub ~= "") and e.sub or nil
-        local subW = 0
-        if sub ~= nil then
-            sub = fit(sub, small, px(120))
-            subW = getTextWidth(small, sub) + px(8)
-            text(x + w - pad, y + (rowH - small) / 2 + small * 0.18, small, sub, C.dim, false, RenderText.ALIGN_RIGHT)
+        local right = x + w - pad
+        if mouse then
+            local bw, bh = px(40), py(22)
+            self:button(right - bw, y + (rowH - bh) / 2, bw, bh, e.src == 3 and upper(T("hubLink_hide", "Aus")) or "OK", function()
+                self:tick(e)
+            end)
+            right = right - bw - px(8)
         end
+        local label = self:textOf(e)
         if e.src == 3 then
             label = T("hubLink_note", "Notiz") .. ": " .. label
         end
-        text(tx, y + (rowH - size) / 2 + size * 0.18, size, fit(label, size, w - (tx - x) - pad - subW), sel and C.accent or C.text, sel)
+        if p.details then
+            local detail = self:detailOf(e)
+            text(tx, y + rowH * 0.52 + size * 0.05, size, fit(label, size, right - tx), C.text, false)
+            if detail ~= "" then
+                text(tx, y + rowH * 0.14, small, fit(detail, small, right - tx), C.dim, false)
+            end
+        else
+            local sub = e.src ~= 1 and e.sub ~= nil and e.sub ~= "" and e.sub or nil
+            local subW = 0
+            if sub ~= nil then
+                sub = fit(sub, small, px(130))
+                subW = getTextWidth(small, sub) + px(10)
+                text(right, mid(y, rowH, small), small, sub, C.dim, false, RenderText.ALIGN_RIGHT)
+            end
+            text(tx, mid(y, rowH, size), size, fit(label, size, right - tx - subW), C.text, false)
+        end
+        bottom = y
     end
+    if #rows == 0 then
+        y = y - gap - py(30)
+        box(x, y, w, py(30), C.bg, alpha)
+        text(x + pad + px(4), mid(y, py(30), size), size, T("hubLink_allOk", "Alles in Ordnung"), C.dim, false)
+        bottom = y
+    end
+    local footY = bottom - gap - py(20)
     if #rows > shown then
-        y = y - gap - py(22)
-        text(x + w - pad, y + py(5), small, string.format(T("hubLink_more", "+%d weitere"), #rows - shown), C.dim, false, RenderText.ALIGN_RIGHT)
+        text(x + w - pad, footY + py(4), small, string.format(T("hubLink_more", "+%d weitere"), #rows - shown), C.dim, false, RenderText.ALIGN_RIGHT)
     end
-    if #rows == 0 and not flash then
-        y = y - gap - rowH
-        box(x, y, w, rowH, C.bg)
-        text(x + pad + px(4), y + (rowH - size) / 2 + size * 0.18, size, T("hubLink_allOk", "Alles in Ordnung"), C.dim, false)
-    end
-    -- Rückmeldung nach dem Abhaken, sonst Tastenhinweis beim Auswählen
     if flash then
-        y = y - gap - py(22)
-        text(x + w - pad, y + py(5), small, fit(self.flash.text, small, w - 2 * pad), C.accent, false, RenderText.ALIGN_RIGHT)
-    elseif selecting then
-        y = y - gap - py(22)
-        text(x + w - pad, y + py(5), small, T("hubLink_hint", "Alt+J weiter · Alt+K abhaken"), C.dim, false, RenderText.ALIGN_RIGHT)
+        text(x + pad, footY + py(4), small, fit(self.flash.text, small, w * 0.7), C.accent, false)
+    end
+    -- Griff unten rechts: Breite und Zeilen ziehen
+    if mouse then
+        local gs = py(12)
+        local gx, gy = x + w - px(12), bottom - py(2) - gs
+        rect(gx, gy, px(12), gs, self:over(gx, gy, px(12), gs) and C.accent or C.dim, 0.9)
+        self:hit(gx - px(4), gy - py(4), px(20), gs + py(8), nil, "size")
+        self.rowStep = rowH + gap
+    end
+
+    if self.options and mouse then
+        self:drawOptions(x, p.y, w)
     end
     setTextBold(false)
     setTextColor(1, 1, 1, 1)
     setTextAlignment(RenderText.ALIGN_LEFT)
 end
 
+-- ---------- Optionsmenü ----------
+function HubLinkHud:drawOptions(ox, oy, ow)
+    local w = px(400)
+    local x = ox - w - px(8)
+    if x < 0.005 then
+        x = ox + ow + px(8)
+    end
+    local lineH, gap, pad = py(28), py(3), px(12)
+    local size, small = py(14), py(12)
+    local farm = myFarm()
+    local user = localUser()
+    local canFarm = farm > 0 and (user.master or user.farm == farm)
+    local canGlobal = user.master
+    local cfg = farm > 0 and FarmingHubLive:farm(farm) or {}
+    local s = FarmingHubLive.settings or {}
+    local y = oy
+
+    local lines = {}
+    local function head(label)
+        table.insert(lines, { head = label })
+    end
+    local function toggle(label, on, fn, enabled)
+        table.insert(lines, { label = label, toggle = on, fn = fn, enabled = enabled })
+    end
+    local function stepper(label, value, minus, plus, enabled, indent)
+        table.insert(lines, { label = label, value = value, minus = minus, plus = plus, enabled = enabled, indent = indent })
+    end
+
+    local p = self.prefs
+    head(T("hubLink_optView", "Anzeige (nur für dich)"))
+    stepper(T("hubLink_optRows", "Zeilen"), tostring(p.rows), function() self:stepPref("rows", -1, 1, 15) end, function() self:stepPref("rows", 1, 1, 15) end, true)
+    stepper(T("hubLink_optScale", "Schriftgröße"), string.format("%d %%", math.floor(p.scale * 100 + 0.5)), function() self:stepPref("scale", -0.1, 0.7, 1.5) end, function() self:stepPref("scale", 0.1, 0.7, 1.5) end, true)
+    stepper(T("hubLink_optAlpha", "Deckkraft"), string.format("%d %%", math.floor(p.alpha * 100 + 0.5)), function() self:stepPref("alpha", -0.1, 0.3, 0.95) end, function() self:stepPref("alpha", 0.1, 0.3, 0.95) end, true)
+    toggle(T("hubLink_optDetails", "Werte anzeigen"), p.details, function() self:setPref("details", not p.details) end, true)
+    toggle(T("hubLink_optNotes", "Notizen anzeigen"), p.notes, function() self:setPref("notes", not p.notes) end, true)
+
+    if farm > 0 then
+        head(string.format(T("hubLink_optFarm", "Prüfungen Hof %d"), farm))
+        local function ft(label, key)
+            toggle(label, cfg[key], function() self:setFarm(farm, key, not cfg[key]) end, canFarm)
+        end
+        local function fs(label, key, unit)
+            stepper(label, string.format("%s %s", tostring(math.floor((cfg[key] or 0) + 0.5)), unit), function() self:stepFarm(farm, key, -1) end, function() self:stepFarm(farm, key, 1) end, canFarm and true, true)
+        end
+        ft(T("hubLink_optInput", "Eingänge"), "input")
+        fs(T("hubLink_optInputHours", "reicht weniger als"), "inputHours", T("hubLink_unitHours", "Std."))
+        fs(T("hubLink_optInputPct", "ohne Verbrauch unter"), "inputPct", "%")
+        ft(T("hubLink_optOutput", "Ausgänge"), "output")
+        fs(T("hubLink_optOutputPct", "voll ab"), "outputPct", "%")
+        ft(T("hubLink_optPallets", "Paletten-Ausgänge"), "pallets")
+        ft(T("hubLink_optStall", "Ställe"), "stall")
+        fs(T("hubLink_optStallPct", "knapp unter"), "stallPct", "%")
+        fs(T("hubLink_optStallFullPct", "voll ab"), "stallFullPct", "%")
+        ft(T("hubLink_optSilo", "Silos"), "silo")
+        fs(T("hubLink_optSiloPct", "voll ab"), "siloPct", "%")
+    end
+    head(T("hubLink_optServer", "Server (Admin)"))
+    toggle(T("hubLink_optAdvisor", "Produktionsberater"), s.advisor ~= false, function() self:setFarm(0, "advisor", not (s.advisor ~= false)) end, canGlobal)
+    toggle(T("hubLink_optExport", "Export beim Speichern"), s.export ~= false, function() self:setFarm(0, "export", not (s.export ~= false)) end, canGlobal)
+
+    -- Hintergrund in einem Stück, dann die Zeilen
+    local total = py(34) + gap
+    for _, l in ipairs(lines) do
+        total = total + (l.head and py(26) or lineH) + gap
+    end
+    total = total + py(24)
+    box(x, oy - total, w, total, C.bg, math.max(self.prefs.alpha, 0.85))
+    y = oy - py(34)
+    rect(x + pad, y + py(34) * 0.3, px(3), py(34) * 0.4, C.accent)
+    text(x + pad + px(10), mid(y, py(34), size), size, upper(T("hubLink_options", "Optionen")), C.text, true)
+    y = y - gap
+    for _, l in ipairs(lines) do
+        if l.head then
+            y = y - py(26)
+            text(x + pad, mid(y, py(26), small), small, upper(l.head), C.accent, true)
+        else
+            y = y - lineH
+            local enabled = l.enabled ~= false
+            local lx = x + pad + (l.indent and px(16) or 0)
+            text(lx, mid(y, lineH, size), size, l.label, enabled and C.text or C.off, false)
+            local bh = lineH * 0.78
+            local by = y + (lineH - bh) / 2
+            local right = x + w - pad
+            if l.toggle ~= nil then
+                local bw = px(58)
+                self:button(right - bw, by, bw, bh, l.toggle and upper(T("hubLink_on", "An")) or upper(T("hubLink_off", "Aus")), l.fn, l.toggle, enabled)
+            else
+                local bw, vw = px(26), px(74)
+                self:button(right - bw, by, bw, bh, "+", l.plus, false, enabled)
+                text(right - bw - vw / 2, mid(y, lineH, size), size, l.value, enabled and C.text or C.off, true, RenderText.ALIGN_CENTER)
+                self:button(right - bw - vw - bw, by, bw, bh, "-", l.minus, false, enabled)
+            end
+        end
+        y = y - gap
+    end
+    local hint = (farm > 0 and not canFarm) and T("hubLink_optNoFarm", "Nur Mitglieder des Hofs ändern die Prüfungen.") or T("hubLink_optHint", "Prüfungen gelten für den ganzen Hof und gehen an die Website.")
+    text(x + pad, y - py(18), small * 0.95, fit(hint, small * 0.95, w - 2 * pad), C.dim, false)
+    -- Klicks auf das Menü sollen nichts darunter treffen
+    table.insert(self.hits, 1, { x = x, y = oy - total, w = w, h = total, fn = nil })
+end
+
+-- ---------- Maus ----------
+function HubLinkHud:mouseEvent(posX, posY, isDown, isUp, button)
+    self.gotMouse = true
+    self:handleMouse(posX, posY, isDown, isUp, button)
+end
+
+function HubLinkHud:handleMouse(posX, posY, isDown, isUp, button)
+    self.mx, self.my = posX, posY
+    if not self:visible() or not self:cursorShown() then
+        self.drag = nil
+        return
+    end
+    local p = self.prefs
+    local d = self.drag
+    if d ~= nil then
+        if d.kind == "move" then
+            p.x = math.max(0, math.min(0.98 - px(p.w), d.ox + posX - d.sx))
+            p.y = math.max(0.15, math.min(1, d.oy + posY - d.sy))
+        elseif d.kind == "size" then
+            p.w = math.max(260, math.min(900, d.ow + (posX - d.sx) / px(1)))
+            if self.rowStep ~= nil and self.rowStep > 0 then
+                p.rows = math.max(1, math.min(15, d.orows + math.floor((d.sy - posY) / self.rowStep + 0.5)))
+            end
+        end
+        if isUp then
+            self.drag = nil
+            self:savePrefs()
+        end
+        return
+    end
+    if not isDown or (Input ~= nil and Input.MOUSE_BUTTON_LEFT ~= nil and button ~= Input.MOUSE_BUTTON_LEFT) then
+        return
+    end
+    -- von oben nach unten: zuletzt gezeichnet liegt oben; das Optionsmenü steht vorn in der Liste und fängt Klicks ab
+    local menu = self.hits[1]
+    local order = {}
+    for i = #self.hits, 1, -1 do
+        table.insert(order, self.hits[i])
+    end
+    for _, h in ipairs(order) do
+        if posX >= h.x and posX <= h.x + h.w and posY >= h.y and posY <= h.y + h.h then
+            if h.drag ~= nil then
+                self.drag = { kind = h.drag, sx = posX, sy = posY, ox = p.x, oy = p.y, ow = p.w, orows = p.rows }
+                return
+            end
+            if h.fn ~= nil then
+                h.fn()
+                return
+            end
+            if h == menu then
+                return
+            end
+        end
+    end
+end
+
+-- Falls das Spiel Mausereignisse nicht an Mods weitergibt: Position und linke Taste selbst abfragen
+function HubLinkHud:pollMouse()
+    if self.gotMouse or g_inputBinding == nil or not self:cursorShown() then
+        return
+    end
+    local x, y = g_inputBinding.mousePosXLast, g_inputBinding.mousePosYLast
+    if type(x) ~= "number" or type(y) ~= "number" then
+        return
+    end
+    local down = false
+    pcall(function()
+        down = Input.isMouseButtonPressed(Input.MOUSE_BUTTON_LEFT) == true
+    end)
+    local was = self.pollDown == true
+    self.pollDown = down
+    self:handleMouse(x, y, down and not was, was and not down, Input ~= nil and Input.MOUSE_BUTTON_LEFT or 1)
+end
+
 -- ---------- Ablauf ----------
 function HubLinkHud:loadMap()
     pcall(self.loadPrefs, self)
-    addConsoleCommand("hubHud", "Hub Link: Overlay 0 (aus) | 1 (klein) | 2 (groß) | pos <x> <y>", "consoleHud", HubLinkHud)
+    addConsoleCommand("hubHud", "Hub Link: Overlay on|off | pos <x> <y> | rows <n> | reset", "consoleHud", HubLinkHud)
     addConsoleCommand("hubDone", "Hub Link: Eintrag Nr. <n> im Overlay abhaken", "consoleDone", HubLinkHud)
 end
 
 function HubLinkHud:deleteMap()
     removeConsoleCommand("hubHud")
     removeConsoleCommand("hubDone")
+    if self.ownCursor then
+        pcall(function()
+            g_inputBinding:setShowMouseCursor(false)
+        end)
+    end
+    self.ownCursor = false
     self.rows = {}
     self.pending = {}
-    self.sel = 0
+    self.hits = {}
+    self.drag = nil
+    self.options = false
 end
 
 function HubLinkHud:update(dt)
-    -- Hof gewechselt o. Ä.: Liste ab und zu neu filtern
     self.refreshT = (self.refreshT or 0) + dt
     if self.refreshT > 2000 then
         self.refreshT = 0
-        local keep = self.rows[self.sel] ~= nil and self.rows[self.sel].key or nil
         self:refresh()
-        if keep ~= nil and (self.rows[self.sel] == nil or self.rows[self.sel].key ~= keep) then
-            self.sel = 0
-            for i, r in ipairs(self.rows) do
-                if r.key == keep then
-                    self.sel = i
-                end
-            end
-        end
     end
+    -- Zeiger weg (z. B. Quick Selector zu): Menü zu
+    if not self:cursorShown() then
+        self.options = false
+        self.drag = nil
+    end
+    pcall(self.pollMouse, self)
 end
 
 function HubLinkHud:consoleHud(a, b, c)
+    local p = self.prefs
     if a == "pos" and tonumber(b) ~= nil and tonumber(c) ~= nil then
-        self.x = math.max(0.2, math.min(1, tonumber(b)))
-        self.y = math.max(0.2, math.min(1, tonumber(c)))
-    elseif tonumber(a) ~= nil then
-        self.mode = math.max(0, math.min(2, math.floor(tonumber(a))))
+        p.x = math.max(0, math.min(0.95, tonumber(b)))
+        p.y = math.max(0.15, math.min(1, tonumber(c)))
+    elseif a == "rows" and tonumber(b) ~= nil then
+        p.rows = math.max(1, math.min(15, math.floor(tonumber(b))))
+    elseif a == "reset" then
+        p.visible, p.x, p.y, p.w, p.rows, p.scale, p.alpha = true, 0.74, 0.79, 420, 5, 1, 0.72
+    elseif a == "on" or a == "off" then
+        p.visible = a == "on"
     else
-        self.mode = (self.mode + 1) % 3
+        p.visible = not p.visible
     end
     self:refresh()
     self:savePrefs()
-    return string.format("hubHud: Größe %d, Position %.3f %.3f", self.mode, self.x, self.y)
+    return string.format("hubHud: %s, Position %.3f %.3f, Breite %d, Zeilen %d", p.visible and "an" or "aus", p.x, p.y, p.w, p.rows)
 end
 
 function HubLinkHud:consoleDone(n)
     self:refresh()
-    local i = tonumber(n) or (self:selecting() and self.sel) or nil
+    local i = tonumber(n)
     local e = i ~= nil and self.rows[i] or nil
     if e == nil then
         local lines = { "hubDone <Nr>:" }

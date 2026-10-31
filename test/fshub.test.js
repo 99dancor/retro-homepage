@@ -553,7 +553,7 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubLive.lua"\/>/);
-  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.1\.0\.0<\/version>/);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.2\.0\.0<\/version>/);
   assert.throws(() => E.read('<placeables/>'), /FS25 Hub Link/);
 });
 
@@ -890,4 +890,29 @@ test('Mod 3.1: im Spiel abgehakt, jede Nummer einmal, Bestätigung in der Inbox'
   assert.match(body, /<doneAck>[\s\S]*<d id="261031150000-1"\/>[\s\S]*<d id="261031150000-3"\/>[\s\S]*<\/doneAck>/);
   assert.match(body, /<game key="stopped:3:uid_spin:ALPACA"\/>/);
   assert.doesNotMatch(body, new RegExp(`<task id="${mine.id}"`));
+});
+
+test('Anbau planen: Wachstumsdauer, Erntemonat aus Saatmonat und umgekehrt', () => {
+  const C = require('../src/fscrops');
+  // Monate ab März = 0: Mais säen April/Mai, ernten Oktober/November
+  const mais = { sow: [1, 2], harvest: [7, 8] };
+  assert.equal(C.growMonths(mais.sow, mais.harvest), 6);
+  assert.equal(C.harvestFor(mais, 2), 8);
+  assert.equal(C.sowFor(mais, 7), 1);
+  // Weizen über den Jahreswechsel: säen September/Oktober, ernten Juli/August
+  const weizen = { sow: [6, 7], harvest: [4, 5] };
+  assert.equal(C.growMonths(weizen.sow, weizen.harvest), 10);
+  assert.equal(C.harvestFor(weizen, 7), 5);
+  assert.equal(C.sowFor(weizen, 4), 6);
+  assert.equal(C.growMonths([], [1]), null);
+  // Formular: nur Saatmonat gewählt, Ernte kommt aus der Dauer
+  const hub = require('../src/fshub');
+  const { db, now } = require('../src/db');
+  const c = hub.crops().find(x => x.sowM.length && x.harvestM.length && x.kind !== 'perm');
+  const uid = Number(db.prepare("INSERT INTO users(username, password_hash, role, created_at) VALUES ('planer', 'x', 'user', ?)").run(now()).lastInsertRowid);
+  const s = c.sowM[c.sowM.length - 1];
+  const id = hub.addPlan({ id: uid }, 1, { crop_id: String(c.id), sow_month: String(s), harvest_month: '' });
+  const p = db.prepare('SELECT * FROM fs_plans WHERE id = ?').get(id);
+  assert.equal(p.sow_month, s);
+  assert.equal(p.harvest_month, C.harvestFor(c, s));
 });

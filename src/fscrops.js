@@ -78,8 +78,33 @@ function sync(ex) {
   }
   const info = new Map(all.map(c => [c.fill, c]));
   return db.prepare('SELECT * FROM fs_crops ORDER BY position, name').all().filter(r => info.has(r.fill))
-    .map(r => ({ ...info.get(r.fill), id: r.id, name: r.name, sowM: info.get(r.fill).sow, harvestM: info.get(r.fill).harvest }));
+    .map(r => ({ ...info.get(r.fill), id: r.id, name: r.name, sowM: info.get(r.fill).sow, harvestM: info.get(r.fill).harvest, grow: growMonths(info.get(r.fill).sow, info.get(r.fill).harvest) }));
 }
 function forget() { syncedSig = null; }
 
-module.exports = { PRESET, PERM, GRASS, list, sync, forget, hsl };
+// Wachstumsdauer in Monaten: der kleinste Abstand, bei dem möglichst viele Saatmonate in einem Erntemonat landen
+function growMonths(sow, harvest) {
+  if (!sow.length || !harvest.length) return null;
+  const hs = new Set(harvest);
+  let best = null, bestHits = -1;
+  for (let d = 1; d < 12; d++) {
+    const hits = sow.filter(m => hs.has((m + d) % 12)).length;
+    if (hits > bestHits) { best = d; bestHits = hits; }
+  }
+  return best;
+}
+// Erntemonat zum Saatmonat (und umgekehrt): mit der Wachstumsdauer, sonst der nächste passende Monat
+function harvestFor(c, sow) {
+  const d = growMonths(c.sowM || c.sow, c.harvestM || c.harvest), hs = c.harvestM || c.harvest;
+  if (d === null || !hs.length) return null;
+  for (let k = 0; k < 12; k++) { const m = (sow + d + k) % 12; if (hs.includes(m)) return m; }
+  return null;
+}
+function sowFor(c, harvest) {
+  const d = growMonths(c.sowM || c.sow, c.harvestM || c.harvest), ss = c.sowM || c.sow;
+  if (d === null || !ss.length) return null;
+  for (let k = 0; k < 12; k++) { const m = (harvest - d - k + 24) % 12; if (ss.includes(m)) return m; }
+  return null;
+}
+
+module.exports = { PRESET, PERM, GRASS, list, sync, forget, hsl, growMonths, harvestFor, sowFor };

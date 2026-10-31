@@ -84,6 +84,23 @@
     <% if (gameUploaded) { %><form method="post" action="/admin/farming/spieldaten/loeschen" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>Hochgeladene Datei vergessen</button></form><% } %>
   </fieldset>
 
+  <fieldset class="groupbox" id="mod"><legend>Mod im Spiel: Export, Produktionsberater, Austausch</legend>
+    <% const lv = live; %>
+    <p>Ab Version 3.0 kann die Mod mehr als exportieren: Ihr <b>Produktionsberater</b> prüft Produktionen, Ställe und Silos jedes Hofs und meldet leer laufende Eingänge, volle Ausgänge und blockierte Paletten-Ausgänge als Aufgaben (🎮 im Reiter „Aufgaben“ des Hofs, dort auch die Schwellen je Hof). Der Hub schickt im Gegenzug seine Aufgaben, Notizen und diese Einstellungen ins Spiel. Ausgetauscht wird über zwei kleine Dateien im FTP-Ordner <code><%= lv.dir %></code>.</p>
+    <p><% if (!lv.on) { %>Austausch aus<%= ftp.host ? '' : ' (kein FTP eingetragen)' %>.<% } else if (lv.connected) { %>✔ Mod verbunden (<%= lv.mod || 'Version ?' %>), letzte Meldung <%= ago(lv.at) %>, <%= lv.problems %> offene <%= lv.problems === 1 ? 'Meldung' : 'Meldungen' %>.<% } else if (lv.at) { %>⚠ Letzte Meldung der Mod <%= ago(lv.at) %>.<% } else { %>Noch keine Meldung der Mod in diesem Ordner.<% } %>
+      <% if (lv.error) { %><br>⚠ FTP: <%= lv.error %><% } %>
+      <% if (lv.inboxSeq) { %><br>Inbox <%= lv.ack >= lv.inboxSeq ? 'von der Mod gelesen' : 'hochgeladen, von der Mod noch nicht gelesen' %>.<% } %></p>
+    <form method="post" action="/admin/farming/mod"><input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label class="inline"><input type="checkbox" name="export" value="1"<%= lv.export ? ' checked' : '' %>> Export beim Speichern (Kartendaten, Rezepte, Tiere); aus = nur noch auf Befehl <code>hubExport</code></label><br>
+      <label class="inline"><input type="checkbox" name="advisor" value="1"<%= lv.advisor ? ' checked' : '' %>> Produktionsberater (Aufgaben aus dem Spiel)</label><br>
+      <label class="inline"><input type="checkbox" name="fs_live_on" value="1"<%= s.fs_live_on !== '0' ? ' checked' : '' %>> Austausch mit der Mod über FTP</label>
+      <label>alle <input type="number" name="fs_int_live" min="20" value="<%= lv.interval %>" style="width:70px"> Sekunden</label><br>
+      <label>Ordner <input name="fs_live_dir" value="<%= s.fs_live_dir %>" placeholder="<%= lv.dir %>" style="width:340px"></label>
+      <p class="muted">Leer lassen: neben dem Spielstand-Ordner unter modSettings. Export und Produktionsberater gelten erst, wenn die Mod die Inbox gelesen hat (meist unter einer Minute). Im Spiel geht es auch über die Konsole: <code>hubStatus</code>, <code>hubSet export off</code>, <code>hubSet advisor on</code>.</p>
+      <div class="actions"><button>Speichern</button> <button name="jetzt" value="1">Speichern und jetzt abgleichen</button></div>
+    </form>
+  </fieldset>
+
   <fieldset class="groupbox" id="wiki"><legend>Wiki: Tiere und Anbaukalender</legend>
     <p>Die Tierdaten fürs Wiki (Futter, Erzeugnisse, Preise, Nachwuchs, Futtergruppen, Ställe) liefert die Mod ab Version 2.4. Der Hub legt sie als eigene Datei <code>wiki.xml</code> ab und schreibt sie neu, wenn ein Export andere Daten bringt. Eine selbst hochgeladene wiki.xml (oder farmingHubExport.xml, z. B. aus dem Einzelspieler mit anderen DLCs) bleibt, bis du sie löschst.</p>
     <p><% if (wiki) { %>✔ <%= wiki.types.length %> Tierarten mit <%= wiki.types.reduce((n, t) => n + t.subs.length, 0) %> Rassen, <%= wiki.stalls.length %> Ställe<%= wiki.source === 'upload' ? ' (hochgeladen)' : ' (aus dem Export)' %><%= wiki.saved ? ', Stand ' + wiki.saved : '' %><%= wiki.mapTitle ? ' · ' + wiki.mapTitle : '' %><% } else { %>Noch keine Tierdaten.<% } %></p>

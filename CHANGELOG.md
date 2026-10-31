@@ -1,5 +1,14 @@
 # Changelog
 
+## 31.10.2026 – Farming Hub: Produktionsberater und Austausch mit dem Spiel (Mod 3.0)
+
+- **Produktionsberater in der Mod:** Die Mod „Farming Hub Export“ prüft auf dem Server alle 10 Sekunden die Produktionen, Ställe und Silos jedes Hofs. Sie meldet Zutaten, die nur noch wenige Spielstunden reichen (aus Rezept und Zyklen gerechnet), Produktionen, die stehen, volle Ausgänge, blockierte Paletten-Ausgänge, knappes Futter, Wasser und Stroh, volle Milch-, Gülle- und Misttanks und volle Silos.
+- **Aufgaben aus dem Spiel im Hub:** Jede Meldung wird eine Aufgabe des Hofs (🎮 aus dem Spiel). Ist das Problem im Spiel behoben, hakt der Hub sie selbst ab. Wer sie vorher abhakt, sieht sie erst wieder, wenn das Problem einmal weg war. Wer für eine Stelle zuständig war, bekommt sie beim nächsten Mal wieder, bei „Produktion steht“ auch als Push.
+- **Hub → Spiel:** Offene Aufgaben und Notizen der Website gehen ins Spiel (vorerst in der Konsole mit `hubStatus`, das Fenster im Spiel folgt). Aufgaben, die aus dem Spiel kamen, schickt der Hub nicht zurück.
+- **Einstellungen:** Export beim Speichern und Produktionsberater lassen sich in der Seitenverwaltung (Farming Simulator → Server → „Mod im Spiel“) ein- und ausschalten, die Schwellen je Hof im Reiter „Aufgaben“ des Hofs. Im Spiel geht das auch mit `hubSet`.
+- **Austausch:** Über zwei kleine Dateien in `modSettings/FS25_FarmingHubExport/<Spielstand>` per FTP, etwa alle 45 Sekunden.
+- **Kein Blinken mehr:** Beim Klick auf einen Reiter oder Link blitzte im Hub-Fenster kurz der graue Fensterhintergrund auf, bevor das dunkle Spielmenü kam. Das Aussehen lädt jetzt sofort, und das Fenster hält beim Seitenwechsel die dunkle Farbe.
+
 ## 31.10.2026 – Farming Hub: Spielstände wechseln und Backups
 
 - **Eigener Reiter „Spielstände“** in der Seitenverwaltung unter Farming Simulator: was gerade läuft, alle Spielstand-Ordner auf dem FTP, beiseitegelegte Hub-Daten und Backups an einer Stelle.

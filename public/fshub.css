@@ -15,6 +15,11 @@
   --g-body: "FS Barlow", "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
 }
+/* Hintergrund ab dem ersten Bild dunkel (die Datei lädt im Kopf jeder /farming-Seite), damit beim Seitenwechsel weder der
+   Desktop-Hintergrund noch das graue Fenster aufblitzt. Neuere Browser blenden die Seiten zusätzlich weich über. */
+html:has(> body.embed), html:has(> body.embed) > body.embed { background: #161916; }
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .12s; }
 body.embed:has(.fsg) { background: #161916; overflow: hidden; }
 body.embed:has(.fsg) > .body { padding: 0; height: 100vh; display: flex; flex-direction: column; background: var(--g-bg, #161916); }
 .fs-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }

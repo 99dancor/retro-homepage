@@ -342,13 +342,13 @@ router.get('/farming', (req, res) => {
   const m = hub.model();
   res.render('admin/farming', {
     title: 'Farming Simulator', N: require('../fsnames'), feedRows, ftp: { ...ftp, password: undefined, pass_set: !!ftp.password }, m, hub,
-    s: Object.fromEntries(['fs_enabled', 'fs_view', 'fs_edit', 'fs_map_border', 'fs_auto_wear', 'fs_auto_diesel', 'fs_auto_pallets', 'fs_auto_food', 'fs_auto_fields', 'fs_shapes', 'fs_modlist'].map(k => [k, getSetting(k, '')])),
+    s: Object.fromEntries(['fs_enabled', 'fs_view', 'fs_edit', 'fs_map_border', 'fs_auto_wear', 'fs_auto_diesel', 'fs_auto_pallets', 'fs_auto_food', 'fs_auto_fields', 'fs_shapes', 'fs_modlist', 'fs_live_on', 'fs_live_dir'].map(k => [k, getSetting(k, '')])),
     customMap: fsfiles.find(f => /^map-custom\./.test(f)) || null, hasServerMap: fsfiles.includes('map-server'), iconCount: require('../fsicons').list().size,
     saves: { list: saves.list(), id: saves.identity(), unsure: saves.unsure(), counts: saves.liveCounts(), slots: saves.slots(), mismatch: saves.mismatch(),
       follow: getSetting('fs_slots_follow', '0') === '1', ftpSet: feeds.configured('ftp'), ftpDir: feeds.ftpConfig().dir, viaWeb: !!feeds.url('savegame') },
     backups: require('../fsbackup').list(),
     gameExport: require('../fsexport').summary(require('../fsexport').current()), gameUploaded: require('../fsexport').uploaded(),
-    wiki: require('../fswiki').stored(), hemisphere: getSetting('fs_hemisphere', ''),
+    wiki: require('../fswiki').stored(), hemisphere: getSetting('fs_hemisphere', ''), live: require('../fslive').status(),
     gameShapes: (() => { const shp = hub.shapes(m); return (shp && shp.game) || 0; })(),
     bgs: hub.backgrounds(), bgName: hub.mapName(), bgKey: hub.slug(hub.mapName()) || 'karte',
     users: db.prepare('SELECT u.id, u.username, u.display_name, m.farm_id FROM users u LEFT JOIN fs_members m ON m.user_id = u.id WHERE u.disabled = 0 ORDER BY u.username COLLATE NOCASE').all(),
@@ -470,6 +470,18 @@ router.post('/farming/wiki', fsI3dUpload.single('wiki'), multipartCsrf, (req, re
   if (!req.file) return res.redirect('/admin/farming?err=' + encodeURIComponent('Bitte eine wiki.xml oder farmingHubExport.xml wählen.') + '#wiki');
   try { require('../fswiki').upload(req.file.buffer); } catch (e) { return res.redirect('/admin/farming?err=' + encodeURIComponent(e.message) + '#wiki'); }
   res.redirect('/admin/farming?ok=1#wiki');
+});
+// Mod ab 3.0: Export und Produktionsberater an/aus, Austausch über modSettings (src/fslive.js)
+router.post('/farming/mod', async (req, res) => {
+  const live = require('../fslive'), b = req.body;
+  live.saveGlobal({ export: b.export === '1', advisor: b.advisor === '1' });
+  setSetting('fs_live_on', b.fs_live_on === '1' ? '1' : '0');
+  const iv = Math.round(Number(b.fs_int_live));
+  setSetting('fs_int_live', Number.isFinite(iv) && iv >= 20 ? String(Math.min(3600, iv)) : '');
+  setSetting('fs_live_dir', String(b.fs_live_dir || '').trim().slice(0, 300));
+  if (b.jetzt === '1') await live.run({ force: true });
+  else live.soon();
+  res.redirect('/admin/farming?ok=1#mod');
 });
 router.post('/farming/wiki/loeschen', (req, res) => {
   require('../fswiki').remove();

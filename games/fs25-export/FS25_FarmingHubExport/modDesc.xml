@@ -1,20 +1,23 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="104">
     <author>Chaosfarm</author>
-    <version>2.7.0.0</version>
+    <version>3.0.0.0</version>
     <title>
         <en>Farming Hub Export</en>
         <de>Farming Hub Export</de>
     </title>
     <description>
         <en><![CDATA[Writes field outlines, farmlands, station positions, production recipes and storage, all fill types and fruit types (growth, sowing and harvest months), every production from the shop, all animals (food, products, prices, offspring, food groups) and the fill levels of every barn to farmingHubExport.xml in the savegame folder on every save, for the Farming Hub website.
-Console: hubExport]]></en>
+Production advisor (from 3.0): watches every farm's productions, barns and silos (inputs running low, outputs full, blocked pallet exits, food, water, straw, milk, slurry) and exchanges the resulting tasks, the website's tasks and notes and all settings with the Farming Hub through modSettings/FS25_FarmingHubExport.
+Console: hubExport, hubStatus, hubSet]]></en>
         <de><![CDATA[Schreibt bei jedem Speichern Feldumrisse, Grundstücke, Positionen der Stationen, Rezepte und Lager der Produktionen, alle Waren und Früchte (Wachstum, Saat- und Erntemonate), alle Produktionen aus dem Shop, alle Tiere (Futter, Erzeugnisse, Preise, Nachwuchs, Futtergruppen) und die Füllstände jedes Stalls in farmingHubExport.xml im Spielstand-Ordner, für den Farming Hub der Website.
-Konsole: hubExport]]></de>
+Produktionsberater (ab 3.0): überwacht Produktionen, Ställe und Silos jedes Hofs (Eingänge laufen leer, Ausgänge voll, Paletten-Ausgang blockiert, Futter, Wasser, Stroh, Milch, Gülle) und tauscht die Aufgaben daraus, die Aufgaben und Notizen der Website und alle Einstellungen über modSettings/FS25_FarmingHubExport mit dem Farming Hub aus.
+Konsole: hubExport, hubStatus, hubSet]]></de>
     </description>
     <iconFilename>icon_farmingHubExport.dds</iconFilename>
     <multiplayer supported="true"/>
     <extraSourceFiles>
         <sourceFile filename="FarmingHubExport.lua"/>
+        <sourceFile filename="FarmingHubLive.lua"/>
     </extraSourceFiles>
 </modDesc>

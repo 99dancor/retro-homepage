@@ -553,7 +553,7 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubLive.lua"\/>/);
-  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.0\.0\.0<\/version>/);
+  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.0\.1\.0<\/version>/);
   assert.throws(() => E.read('<placeables/>'), /Farming Hub Export/);
 });
 

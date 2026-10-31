@@ -464,7 +464,11 @@ end
 
 function FarmingHubLive:checkPlaceable(found, p)
     local farm = (p.getOwnerFarmId ~= nil and p:getOwnerFarmId()) or 0
-    if farm == nil or farm < 1 or (FarmManager ~= nil and FarmManager.SPECTATOR_FARM_ID ~= nil and farm == FarmManager.SPECTATOR_FARM_ID) then
+    -- Nur echte Höfe (1–8). Gebäude, die noch zum Kauf stehen, gehören im Spiel einem Platzhalter-Hof (z. B. 15)
+    if farm == nil or farm < 1 or farm > 8 or (FarmManager ~= nil and FarmManager.SPECTATOR_FARM_ID ~= nil and farm == FarmManager.SPECTATOR_FARM_ID) then
+        return
+    end
+    if g_farmManager ~= nil and g_farmManager.getFarmById ~= nil and g_farmManager:getFarmById(farm) == nil then
         return
     end
     local cfg = self:farm(farm)

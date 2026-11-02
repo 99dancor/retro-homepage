@@ -1,5 +1,12 @@
 # Changelog
 
+## 02.11.2026 – FS25 Hub Link 3.10: Hofsymbol, Reiter „Werte“, Plantagen-Abbild
+
+- **Hofsymbol:** Das Spiel speichert beim Hof nur Name und Farbe, kein eigenes Bild. Links neben dem Hofnamen steht deshalb jetzt ein kleiner Hof in der Farbe deines Hofs (nie zusammen mit dem Strich). Hat eine Mod dem Hof ein eigenes Bild gegeben, nimmt die Mod das.
+- **Optionen:** Der zweite Reiter heißt „Werte“ statt nach dem Hof. Bei den Trackern steht die Seitenwahl ganz unten, nach allen Einträgen.
+- **Bananen-Fungizid nicht verpassen:** Die DLC-Plantagen zeigen Krankheit und Bäume nicht im Spiel an. Die Mod lässt deshalb jede Plantage alle 2 Minuten selbst speichern, ohne den Spielstand zu speichern, und legt in modSettings/FS25_FarmingHubExport/<Spielstand>/ ab: `hubLinkOrchards.xml` (neuester Stand), eine Kopie je Spieltag für 10 Tage, eine Kopie bei jeder Änderung von Krankheits-, Spritz- oder Wachstumswerten und den Verlauf `hubLinkOrchardLog.xml` mit Tag und Uhrzeit. Findet sie dabei einen Krankheitswert, meldet sie die kranken Bäume gleich als Aufgabe.
+- Mehr Diagnose in der Live-Datei: eigene Felder der Plantage, Grundstück und Besitzer an ihrer Position, passende Namen im Spiel.
+
 ## 02.11.2026 – FS25 Hub Link 3.9: Hofname und Logo, Tracker-Werte, Preisspitzen
 
 - **Overlay-Kopf:** Statt „Hof 1“ steht der Name des Hofs aus dem Spiel da, links davon das Logo des Hofs, wenn die Mod es findet. Der verrutschte gelbe Strich ist weg; der Name steht bündig mit den Zeilen darunter.

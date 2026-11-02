@@ -364,6 +364,19 @@ local function diagOf(p, spec, desc, areas)
         d.deep = deepList(spec)
     end
     d.methods = methodList(p)
+    -- ab 3.10: eigene Felder der Plantage (ohne spec_) und Funktionen direkt am Objekt
+    d.fields = keyList(p, function(k, v)
+        return string.sub(k, 1, 5) ~= "spec_" and type(v) ~= "function"
+    end)
+    d.funcs = keyList(p, function(k, v)
+        if type(v) ~= "function" then
+            return false
+        end
+        local l = string.lower(k)
+        return sickWord(k) ~= nil or string.find(l, "orchard", 1, true) ~= nil or string.find(l, "tree", 1, true) ~= nil or string.find(l, "growth", 1, true) ~= nil
+            or string.find(l, "spray", 1, true) ~= nil or string.find(l, "fung", 1, true) ~= nil or string.find(l, "state", 1, true) ~= nil or string.find(l, "rail", 1, true) ~= nil
+            or string.find(l, "worker", 1, true) ~= nil or string.find(l, "row", 1, true) ~= nil
+    end)
     if desc ~= nil then
         d.fruit = keyList(desc, function(k, v)
             local l = string.lower(k)
@@ -391,7 +404,7 @@ function FarmingHubLive:readOrchards()
         return self.orchardCache
     end
     self.orchardT = g_time
-    local list = {}
+    local list, objs = {}, {}
     for _, p in ipairs(placeables()) do
         local spec, specName = FarmingHubLive.orchardSpec(p)
         if spec ~= nil or looksLikeOrchard(p) then
@@ -400,11 +413,16 @@ function FarmingHubLive:readOrchards()
                 o.x, o.z = FarmingHubLive.posOfNode(p.rootNode)
             end
             -- Plantagen des DLC gehören im Spiel niemandem (0); es zählt, wem das Grundstück gehört (ab 3.9)
-            if (o.farm or 0) < 1 and o.x ~= nil and g_farmlandManager ~= nil and g_farmlandManager.getOwnerIdAtWorldPosition ~= nil then
-                local ok, f = pcall(g_farmlandManager.getOwnerIdAtWorldPosition, g_farmlandManager, o.x, o.z)
-                if ok and type(f) == "number" then
-                    o.farm = f
-                end
+            o.pos = string.format("x=%s z=%s", tostring(o.x), tostring(o.z))
+            if (o.farm or 0) < 1 and o.x ~= nil and g_farmlandManager ~= nil then
+                pcall(function()
+                    local f = g_farmlandManager:getOwnerIdAtWorldPosition(o.x, o.z)
+                    local land = g_farmlandManager.getFarmlandIdAtWorldPosition ~= nil and g_farmlandManager:getFarmlandIdAtWorldPosition(o.x, o.z) or nil
+                    o.pos = string.format("%s farmland=%s owner=%s", o.pos, tostring(land), tostring(f))
+                    if type(f) == "number" and f > 0 then
+                        o.farm = f
+                    end
+                end)
             end
             local desc, areas, total = nil, {}, 0
             local fruit = FarmingHubLive.fruitOf(spec)
@@ -448,9 +466,17 @@ function FarmingHubLive:readOrchards()
             end
             U.try("Plantage Diagnose", function()
                 o.diag = diagOf(p, spec, desc, areas)
+                o.diag.pos = o.pos
             end)
             table.insert(list, o)
+            table.insert(objs, { p = p, o = o })
         end
+    end
+    -- ab 3.10: Abbild aus dem Speichern der Plantagen, mit Verlauf (HubLinkDiag.lua)
+    if FarmingHubLive.orchardSnapshot ~= nil then
+        U.try("Plantage Abbild", function()
+            self:orchardSnapshot(objs)
+        end)
     end
     self.orchardCache = list
     return list
@@ -928,7 +954,11 @@ function FarmingHubLive:writeWatchData(xml, r)
             xml:setInt(bk .. "#stored", s.stored)
         end
     end
-    for i, o in ipairs(self:readOrchards()) do
+    local orchards = self:readOrchards()
+    if #orchards > 0 and FarmingHubLive.missionKeys ~= nil then
+        xml:setString(r .. ".orchards#missionKeys", FarmingHubLive.missionKeys())
+    end
+    for i, o in ipairs(orchards) do
         local k = string.format("%s.orchards.orchard(%d)", r, i - 1)
         xml:setString(k .. "#uid", tostring(o.uid))
         xml:setInt(k .. "#farm", o.farm or 0)
@@ -949,7 +979,7 @@ function FarmingHubLive:writeWatchData(xml, r)
             xml:setString(k .. "#sickFrom", o.sickFrom)
         end
         -- Diagnose, bis klar ist, wo das DLC die Krankheit führt
-        for _, part in ipairs({ "states", "specs", "spec", "deep", "methods", "fruit", "sick" }) do
+        for _, part in ipairs({ "states", "specs", "spec", "deep", "methods", "fruit", "sick", "fields", "funcs", "pos", "save" }) do
             if o.diag ~= nil and o.diag[part] ~= nil and o.diag[part] ~= "" then
                 xml:setString(k .. ".debug#" .. part, o.diag[part])
             end

@@ -833,6 +833,18 @@ function FarmingHubLive:writeGameData(xml, r)
                 table.sort(methods)
                 xml:setString(k .. "#debug", string.sub(table.concat(keys, " "), 1, 1500))
                 xml:setString(k .. "#methods", string.sub(table.concat(methods, " "), 1, 1500))
+                -- ab 3.10: was die Klasse Farm kennt (Farbliste, Symbole)
+                if Farm ~= nil and n == 1 then
+                    local cls = {}
+                    for fk, fv in pairs(Farm) do
+                        if type(fk) == "string" then
+                            local t = type(fv)
+                            table.insert(cls, fk .. (t == "table" and (":t" .. #fv) or (t == "function" and "()" or ("=" .. string.sub(tostring(fv), 1, 30)))))
+                        end
+                    end
+                    table.sort(cls)
+                    xml:setString(r .. ".farms#farmClass", string.sub(table.concat(cls, " "), 1, 2000))
+                end
             end)
             local stats = farm.stats
             local names = FinanceStats ~= nil and FinanceStats.statNames or nil

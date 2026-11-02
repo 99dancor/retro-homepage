@@ -1,5 +1,9 @@
 # Changelog
 
+## 02.11.2026 – FS25 Hub Link 3.10.1: Karte geht wieder
+
+- **Kartenmarkierungen abgeschaltet:** Nach dem Öffnen der Karte im Menü war das ganze Menü weg und das Spiel ließ sich nur noch mit Alt+F4 beenden. Auslöser sind die Markierungen der Mod auf der Karte (seit 3.8). Sie sind jetzt aus, der Schalter in den Optionen ist ausgeblendet, bis es einen sicheren Weg gibt.
+
 ## 02.11.2026 – FS25 Hub Link 3.10: Hofsymbol, Reiter „Werte“, Plantagen-Abbild
 
 - **Hofsymbol:** Das Spiel speichert beim Hof nur Name und Farbe, kein eigenes Bild. Links neben dem Hofnamen steht deshalb jetzt ein kleiner Hof in der Farbe deines Hofs (nie zusammen mit dem Strich). Hat eine Mod dem Hof ein eigenes Bild gegeben, nimmt die Mod das.

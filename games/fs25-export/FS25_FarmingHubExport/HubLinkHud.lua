@@ -23,6 +23,9 @@ HubLinkHud.FILE = "hubLinkHud.xml"
 -- alpha -1 = Deckkraft wie die Spiel-HUD
 HubLinkHud.prefs = { visible = true, x = 0.74, y = 0.79, w = 420, rows = 5, scale = 1, alpha = -1, details = true, notes = true, accent = 1, round = true, trackers = true, track = {}, markers = true, trackHide = {} }
 HubLinkHud.markers = {}
+-- 3.10.1: Kartenmarkierungen aus. Ein PlaceableHotspot ohne Gebäude legt im Spiel die Karte im Menü lahm
+-- (Menü weg, nur Alt+F4). Bleibt aus, bis ein Weg ohne dieses Problem gefunden ist.
+HubLinkHud.MARKERS_ON = false
 HubLinkHud.MARKER_MAX = 30
 HubLinkHud.catalog = {}
 HubLinkHud.catalogFarm = 0
@@ -816,7 +819,7 @@ end
 -- Markierungen passend zur Liste: neue anlegen, verschwundene weg, Namen nachziehen
 function HubLinkHud:updateMarkers(rows)
     local want, n = {}, 0
-    if self.prefs.markers and not self.markerFail and g_currentMission ~= nil and g_dedicatedServer == nil then
+    if HubLinkHud.MARKERS_ON and self.prefs.markers and not self.markerFail and g_currentMission ~= nil and g_dedicatedServer == nil then
         for _, e in ipairs(rows or {}) do
             if e.src == 1 and type(e.x) == "number" and type(e.z) == "number" and n < HubLinkHud.MARKER_MAX then
                 want[e.key] = e
@@ -1398,7 +1401,9 @@ function HubLinkHud:drawOptions(ox, oy, ow)
         group(T("hubLink_grpContent", "Inhalt"))
         toggle(T("hubLink_optDetails", "Werte anzeigen"), p.details, function() self:setPref("details", not p.details) end, true)
         toggle(T("hubLink_optNotes", "Notizen anzeigen"), p.notes, function() self:setPref("notes", not p.notes) end, true)
-        toggle(T("hubLink_optMarkers", "Markierungen auf der Karte"), p.markers, function() self:setPref("markers", not p.markers) end, true)
+        if HubLinkHud.MARKERS_ON then
+            toggle(T("hubLink_optMarkers", "Markierungen auf der Karte"), p.markers, function() self:setPref("markers", not p.markers) end, true)
+        end
     elseif tab == "farm" or tab == "more" then
         local function ft(label, key)
             toggle(label, cfg[key], function() self:setFarm(farm, key, not cfg[key]) end, canFarm)

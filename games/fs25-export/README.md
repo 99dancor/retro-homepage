@@ -122,3 +122,25 @@ Leguminosen, Hackfrucht) mit Pausen für Raps, Leguminosen und Hackfrüchte.
 
 **Beschreibung:** `modDesc.xml` trägt unter der Kurzbeschreibung den Changelog der letzten zwei Versionen („Neu in …“,
 „Changes in …“); ein Test prüft, dass es genau die zwei neuesten sind.
+
+## Ab 3.9: Hofname, Tracker-Werte, Plantagen-Fix
+
+**Kopf:** `HubLinkHud:farmName` (Name aus `g_farmManager:getFarmById`), `farmLogo` probiert `iconFilename`, `getIcon…`,
+`icon`/`iconIndex` mit `Farm.ICONS` und zeichnet das Bild mit `createImageOverlay`/`renderOverlay`. Ohne Treffer kein Logo
+und kein Strich. Die Live-Datei schreibt je Hof `#name`, `#debug` (Felder) und `#methods` (Funktionen der Klasse), damit
+der Ort des Logos sich finden lässt.
+
+**Tracker-Werte:** `trackParts(e)` liefert je Tracker Einzelwerte mit fester id (`i:FLOUR`, `f`, `c:Milk`, Ware …);
+`prefs.trackHide[Schlüssel][id]` blendet sie aus (`hubLinkHud.xml`: `hide(i)#key`, `#part`).
+
+**Plantagen:** Spezialisierung über den Namen (`orchard`, `vine`, `plantation`, z. B. `spec_pdlc_beansAndAlpacasPack.orchard`),
+Frucht über `fruitOf` (Tabelle mit `index` und Wachstumsstufen oder eine Nummer `…fruit…`), Reihen über `nodesOf`. Gebäude
+mit `spec_productionPoint` zählen nie. Besitzer 0 → Besitzer des Grundstücks (`getOwnerIdAtWorldPosition`). Diagnose neu:
+`deep` (eine Ebene tiefer) und `methods` (Klassenfunktionen mit sick/growth/spray/orchard/tree im Namen).
+
+**Wetter:** `forecastList()` liest `forecastItems` (Typ über `typeName`, `weatherType`, `objectIndex`) oder
+`weather.forecast:dataForTime`, dazu `getRainFallScale` für „regnet gerade“. `<environment><weatherDebug>` zeigt, was da ist.
+
+**Preisspitzen (Website, `peaks`/`announcePeaks` in `src/fshub.js`):** Spitze = höchstens 2 % unter dem besten Monat und
+mindestens 8 % über dem Jahresschnitt. Jetzt → Vorschlag (Aufgabe `peak:…`), nächster Monat → Benachrichtigung einmal je
+Hof, Ware und Monat. Nur Waren, die eine Station kauft, ohne `SUPPLIES`. Schalter `fs_auto_peaks`.

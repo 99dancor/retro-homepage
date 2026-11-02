@@ -737,6 +737,13 @@ function suggestions(farmId) {
     if (!s) continue;
     out.push({ key: `demand:${d.fill}:${d.day}`, sig: '1', icon: '📈', title: `Große Nachfrage ${N.fill(d.fill)} +${Math.round((d.mult - 1) * 100)} %${d.running ? ' (läuft)' : d.day ? ' ab ' + (fmtDay(d.day) || 'Tag ' + d.day) : ''}`, why: `Ihr habt ${Math.round(s.amount).toLocaleString('de-DE')} l` });
   }
+  // Preisspitzen: im besten Monat verkaufen (Ankündigung einen Monat vorher in announcePeaks)
+  if (getSetting('fs_auto_peaks', '1') === '1' && m.date) {
+    for (const p of peaks(m, f).filter(x => x.now)) {
+      out.push({ key: `peak:${f.id}:${p.fill}:${m.date.year}:${p.month}`, sig: '1', icon: '💰', title: `Preisspitze ${p.name}: jetzt verkaufen (+${p.over} % über Jahresschnitt)`,
+        why: `${Math.round(p.price).toLocaleString('de-DE')} € je 1 000 l im ${N.MONTHS[p.month]} · ${p.why}` });
+    }
+  }
   if (getSetting('fs_auto_food', '1') === '1' && !(mod && cfg.stall)) {
     for (const b of f.buildings) if (b.kind === 'husbandry' && b.hasFood && b.food < 1) out.push({ key: `food:${f.id}:${b.idx}`, sig: String((feeds.get('ftp') || {}).at || ''), icon: '🐄', title: `Futter auffüllen: ${b.name}`, why: 'Laut letztem Autosave leer' });
   }
@@ -763,6 +770,56 @@ function suggestions(farmId) {
 // Vorschläge → Aufgaben. Besteht der Anlass nicht mehr, hakt der Hub sie ab. Abgehakt, solange er noch besteht: kommt erst wieder,
 // wenn er einmal weg war oder sich geändert hat (sig, z. B. andere Felder). Nach jedem Abruf; beim Seitenaufruf höchstens alle 5 Sekunden.
 let lastAuto = 0;
+// Erzeugnisse eines Hofs mit Preisspitze jetzt (now) oder im nächsten Monat (next). Zählen nur Waren, die der Hof lagert,
+// geladen hat, herstellt oder auf eigenen Feldern anbaut, die eine Station kauft und die keine Betriebsmittel sind
+// (Saatgut, Dünger, Kalk, Diesel …). Spitze: höchstens 2 % unter dem besten Monat und mindestens 8 % über dem Jahresschnitt.
+const PEAK_NEAR = 0.98, PEAK_OVER = 1.08, PEAK_MAX = 5;
+function peaks(m, f) {
+  const ec = m.economy;
+  if (!ec || m.month === null || m.month === undefined) return [];
+  const cur = m.month, next = (cur + 1) % 12;
+  const why = new Map(), amount = new Map();
+  const has = (fill, text, l = 0) => { if (!why.has(fill)) why.set(fill, text); amount.set(fill, (amount.get(fill) || 0) + l); };
+  for (const s of f.stock) if (!s.supply && s.amount > 0) has(s.fill, `Ihr habt ${Math.round(s.amount).toLocaleString('de-DE')} l`, s.amount);
+  for (const c of f.cargo) if (c.amount > 0) has(c.fill, `Ihr habt ${Math.round(c.amount).toLocaleString('de-DE')} l geladen`, c.amount);
+  try {
+    for (const b of planner().eigene) if (b.farmId === f.id) for (const r of b.recipes) if (r.active !== false) for (const o of r.outputs) has(o.fill, `Ihr stellt es her (${b.label || b.name})`);
+  } catch { /* ohne Planer: nur Lager */ }
+  for (const x of fieldStates()) if (x.owner === f.id && x.cropFill) has(x.cropFill, `Wächst auf euren Feldern`);
+  const sold = new Set(m.stations.flatMap(s => s.sells || []));
+  const out = [];
+  for (const [fill, text] of why) {
+    if (SUPPLIES.has(fill) || NOT_GOODS.test(fill) || !sold.has(fill)) continue;
+    const vals = (ec.prices[fill] || []).map(v => v || 0);
+    if (vals.length < 12) continue;
+    const max = Math.max(...vals), avg = vals.reduce((a, v) => a + v, 0) / 12;
+    if (!max || max < avg * PEAK_OVER) continue;
+    const isPeak = i => vals[i] >= max * PEAK_NEAR;
+    const base = { fill, name: N.fill(fill), why: text, have: amount.get(fill) || 0 };
+    if (isPeak(cur)) out.push({ ...base, now: true, month: cur, price: vals[cur], over: Math.round((vals[cur] / avg - 1) * 100) });
+    else if (isPeak(next)) out.push({ ...base, now: false, month: next, price: vals[next], over: Math.round((vals[next] / avg - 1) * 100) });
+  }
+  // Die wertvollsten zuerst (was ihr habt mal Preis), höchstens fünf je Art
+  out.sort((a, b) => b.have * b.price - a.have * a.price || b.over - a.over);
+  return [...out.filter(p => p.now).slice(0, PEAK_MAX), ...out.filter(p => !p.now).slice(0, PEAK_MAX)];
+}
+// Ankündigung an die Mitglieder eines Hofs, einmal je Ware und Monat
+function announcePeaks(m = model()) {
+  if (getSetting('fs_auto_peaks', '1') !== '1' || !m.date) return 0;
+  let n = 0;
+  for (const f of m.farms) {
+    const list = peaks(m, f).filter(p => !p.now);
+    if (!list.length) continue;
+    const members = db.prepare('SELECT user_id FROM fs_members WHERE farm_id = ?').all(f.id);
+    for (const p of list) {
+      for (const r of members) {
+        if (notify.send(r.user_id, 'fshub', { key: `fs-peak:${f.id}:${p.fill}:${m.date.year}:${p.month}`, once: true, title: `📈 Preisspitze im ${N.MONTHS[p.month]}: ${p.name}`,
+          body: `+${p.over} % über dem Jahresschnitt (${Math.round(p.price).toLocaleString('de-DE')} € je 1 000 l). ${p.why}, besser bis dahin lagern.`, url: `/farming/preise?w=${encodeURIComponent(p.fill)}` })) n++;
+      }
+    }
+  }
+  return n;
+}
 function syncAuto(force = false) {
   if (!force && Date.now() - lastAuto < 5e3) return;
   lastAuto = Date.now();
@@ -772,6 +829,7 @@ function syncAuto(force = false) {
   const taken = new Set(db.prepare("SELECT auto_key FROM fs_tasks WHERE auto_key IS NOT NULL AND source <> 'auto' AND (done_at IS NULL OR done_at > ?)").all(now() - 86400).map(r => r.auto_key));
   // Erst alles ausrechnen (das kann selbst schreiben, z. B. Früchte), dann in einem Rutsch eintragen
   const lists = m.farms.map(f => [f, suggestions(f.id).filter(x => hidden.get(x.key) !== x.sig && !taken.has(x.key))]);
+  try { announcePeaks(m); } catch (e) { console.error('Farming Hub, Preisspitzen:', e); }
   tx(() => {
     for (const [f, list] of lists) {
       const keys = new Set(list.map(x => x.key));
@@ -1182,7 +1240,7 @@ function start() {
 
 module.exports = {
   mapName, backgrounds, backgroundFile, saveBackground, removeBackground, slug,
-  STATUS, stations: fsst, fscrops, wiki: fswiki, exportData: () => fsexport.current(), parcelAt: (x, z) => fsexport.parcelAt(fsexport.current(), x, z), REPEAT, MAX, SUPPLIES, DEFAULT_COLORS, enabled, canView, canEditFarm, farmOf, model, invalidate, farm, feed, ftpFile,
+  peaks, announcePeaks, STATUS, stations: fsst, fscrops, wiki: fswiki, exportData: () => fsexport.current(), parcelAt: (x, z) => fsexport.parcelAt(fsexport.current(), x, z), REPEAT, MAX, SUPPLIES, DEFAULT_COLORS, enabled, canView, canEditFarm, farmOf, model, invalidate, farm, feed, ftpFile,
   currentDay, setDay, estimateDay, calendarYear, dateOf, dayOfMonth, fmtDay, hhmm, daysPerPeriod, today, accountFor, history, record,
   join, leave, setMember, saveFarm, notes, addNote, note, canChangeNote, editNote, removeNote,
   tasks, openTasks, task, addTask, editTask, completeTask, reopenTask, removeTask, isDue, dueLabel, repeatLabel,

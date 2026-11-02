@@ -342,7 +342,7 @@ router.get('/farming', (req, res) => {
   const m = hub.model();
   res.render('admin/farming', {
     title: 'Farming Simulator', N: require('../fsnames'), feedRows, ftp: { ...ftp, password: undefined, pass_set: !!ftp.password }, m, hub,
-    s: Object.fromEntries(['fs_enabled', 'fs_view', 'fs_edit', 'fs_map_border', 'fs_auto_wear', 'fs_auto_diesel', 'fs_auto_pallets', 'fs_auto_food', 'fs_auto_fields', 'fs_shapes', 'fs_modlist', 'fs_live_on', 'fs_live_dir'].map(k => [k, getSetting(k, '')])),
+    s: Object.fromEntries(['fs_enabled', 'fs_view', 'fs_edit', 'fs_map_border', 'fs_auto_wear', 'fs_auto_diesel', 'fs_auto_pallets', 'fs_auto_food', 'fs_auto_fields', 'fs_auto_peaks', 'fs_shapes', 'fs_modlist', 'fs_live_on', 'fs_live_dir'].map(k => [k, getSetting(k, '')])),
     customMap: fsfiles.find(f => /^map-custom\./.test(f)) || null, hasServerMap: fsfiles.includes('map-server'), iconCount: require('../fsicons').list().size,
     saves: { list: saves.list(), id: saves.identity(), unsure: saves.unsure(), counts: saves.liveCounts(), slots: saves.slots(), mismatch: saves.mismatch(),
       follow: getSetting('fs_slots_follow', '0') === '1', ftpSet: feeds.configured('ftp'), ftpDir: feeds.ftpConfig().dir, viaWeb: !!feeds.url('savegame') },
@@ -409,6 +409,7 @@ router.post('/farming/allgemein', (req, res) => {
   setSetting('fs_auto_pallets', n(b.fs_auto_pallets, 6, 1, 500));
   setSetting('fs_auto_food', b.fs_auto_food === '1' ? '1' : '0');
   setSetting('fs_auto_fields', b.fs_auto_fields === '1' ? '1' : '0');
+  setSetting('fs_auto_peaks', b.fs_auto_peaks === '1' ? '1' : '0');
   setSetting('fs_shapes', b.fs_shapes === '1' ? '1' : '0');
   setSetting('fs_modlist', db.prepare('SELECT 1 FROM modlists WHERE slug = ?').get(String(b.fs_modlist || '')) ? String(b.fs_modlist) : '');
   setSetting('fs_map_border', n(b.fs_map_border, 0, 0, 45));

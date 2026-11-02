@@ -1023,6 +1023,7 @@ const DEFAULT_SETTINGS = {
   fs_auto_pallets: '6',         // Vorschlag Paletten abholen ab so vielen an einem Ort
   fs_auto_food: '1',            // Vorschlag Futter, wenn ein Stall (FTP) leer ist
   fs_auto_fields: '1',          // Vorschläge aus fields.xml (FTP): ernten, kalken, pflügen, düngen
+  fs_auto_peaks: '1',           // Preisspitzen: Aufgabe im besten Monat, Ankündigung einen Monat vorher
   fs_shapes: '1',               // echte Feldformen aus densityMap_ground.gdm (FTP), sonst Kreise
 };
 // Das Freundebuch der Seite heißt seit den Profil-Freundebüchern „Besucherbuch“: unveränderte Standardtexte mitziehen

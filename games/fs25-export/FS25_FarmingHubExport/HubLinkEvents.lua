@@ -40,7 +40,7 @@ function HubLinkSyncEvent.new(list)
 end
 
 function HubLinkSyncEvent:writeStream(streamId, connection)
-    local n = math.min(#self.list, 60)
+    local n = math.min(#self.list, 90)
     streamWriteUInt8(streamId, n)
     for i = 1, n do
         local e = self.list[i]
@@ -54,13 +54,20 @@ function HubLinkSyncEvent:writeStream(streamId, connection)
         streamWriteString(streamId, cut(e.fill, 40))
         streamWriteString(streamId, cut(e.fillTitle, 60))
         streamWriteString(streamId, cut(e.title, 160))
-        streamWriteString(streamId, cut(e.sub, 80))
+        streamWriteString(streamId, cut(e.sub, 250))
         streamWriteFloat32(streamId, e.pct or -1)
         streamWriteFloat32(streamId, e.hours or -1)
         streamWriteFloat32(streamId, e.level or -1)
         streamWriteFloat32(streamId, e.cap or -1)
         streamWriteString(streamId, cut(e.file, 250))
         streamWriteString(streamId, cut(e.custom, 80))
+        -- Ort für die Kartenmarkierung (ab 3.8)
+        local hasPos = type(e.x) == "number" and type(e.z) == "number"
+        streamWriteBool(streamId, hasPos)
+        if hasPos then
+            streamWriteFloat32(streamId, e.x)
+            streamWriteFloat32(streamId, e.z)
+        end
     end
 end
 
@@ -86,6 +93,10 @@ function HubLinkSyncEvent:readStream(streamId, connection)
         e.cap = streamReadFloat32(streamId)
         e.file = streamReadString(streamId)
         e.custom = streamReadString(streamId)
+        if streamReadBool(streamId) then
+            e.x = streamReadFloat32(streamId)
+            e.z = streamReadFloat32(streamId)
+        end
         table.insert(self.list, e)
     end
     self:run(connection)
@@ -278,6 +289,126 @@ function HubLinkSetEvent.send(farm, key, value, user)
         return true
     end
     return false
+end
+
+-- ---------- Spieler → Server: Tracker-Auswahl (ab 3.7), auf Wunsch mit Katalog zurück ----------
+HubLinkTrackEvent = {}
+local HubLinkTrackEvent_mt = Class(HubLinkTrackEvent, Event)
+InitEventClass(HubLinkTrackEvent, "HubLinkTrackEvent")
+
+function HubLinkTrackEvent.emptyNew()
+    return Event.new(HubLinkTrackEvent_mt)
+end
+
+function HubLinkTrackEvent.new(keys, farm, wantCatalog)
+    local self = HubLinkTrackEvent.emptyNew()
+    self.keys, self.farm, self.wantCatalog = keys or {}, farm or 0, wantCatalog == true
+    return self
+end
+
+function HubLinkTrackEvent:writeStream(streamId, connection)
+    local n = math.min(#self.keys, FarmingHubLive.TRACK_MAX or 8)
+    streamWriteUInt8(streamId, n)
+    for i = 1, n do
+        streamWriteString(streamId, cut(self.keys[i], 120))
+    end
+    streamWriteUInt8(streamId, math.max(0, math.min(255, self.farm)))
+    streamWriteBool(streamId, self.wantCatalog)
+end
+
+function HubLinkTrackEvent:readStream(streamId, connection)
+    self.keys = {}
+    for _ = 1, streamReadUInt8(streamId) do
+        table.insert(self.keys, streamReadString(streamId))
+    end
+    self.farm = streamReadUInt8(streamId)
+    self.wantCatalog = streamReadBool(streamId)
+    self:run(connection)
+end
+
+function HubLinkTrackEvent:run(connection)
+    if connection == nil or connection:getIsServer() then
+        return
+    end
+    -- Katalog nur für den eigenen Hof (Admins jeden)
+    local farm, master = 0, false
+    pcall(function()
+        local user = g_currentMission.userManager:getUserByConnection(connection)
+        master = user:getIsMasterUser() == true
+        local f = g_farmManager:getFarmByUserId(user:getId())
+        farm = f ~= nil and f.farmId or 0
+    end)
+    FarmingHubLive:setTrack(connection, self.keys)
+    if self.wantCatalog and (master or self.farm == farm) then
+        connection:sendEvent(HubLinkCatalogEvent.new(FarmingHubLive:catalog(self.farm), self.farm))
+    end
+end
+
+function HubLinkTrackEvent.send(keys, farm, wantCatalog)
+    if g_currentMission ~= nil and g_currentMission:getIsServer() then
+        FarmingHubLive:setTrack("local", keys)
+        if wantCatalog and HubLinkHud ~= nil then
+            HubLinkHud:onCatalog(FarmingHubLive:catalog(farm), farm)
+        end
+        return true
+    end
+    if g_client ~= nil then
+        g_client:getServerConnection():sendEvent(HubLinkTrackEvent.new(keys, farm, wantCatalog))
+        return true
+    end
+    return false
+end
+
+-- ---------- Server → Spieler: was sich auf dem Hof verfolgen lässt ----------
+HubLinkCatalogEvent = {}
+local HubLinkCatalogEvent_mt = Class(HubLinkCatalogEvent, Event)
+InitEventClass(HubLinkCatalogEvent, "HubLinkCatalogEvent")
+
+function HubLinkCatalogEvent.emptyNew()
+    return Event.new(HubLinkCatalogEvent_mt)
+end
+
+function HubLinkCatalogEvent.new(list, farm)
+    local self = HubLinkCatalogEvent.emptyNew()
+    self.list, self.farm = list or {}, farm or 0
+    return self
+end
+
+function HubLinkCatalogEvent:writeStream(streamId, connection)
+    local n = math.min(#self.list, 200)
+    streamWriteUInt8(streamId, math.max(0, math.min(255, self.farm)))
+    streamWriteUInt8(streamId, n)
+    for i = 1, n do
+        local e = self.list[i]
+        streamWriteString(streamId, cut(e.key, 120))
+        streamWriteString(streamId, cut(e.kind, 20))
+        streamWriteString(streamId, cut(e.name, 80))
+        streamWriteString(streamId, cut(e.fill, 40))
+        streamWriteString(streamId, cut(e.file, 250))
+        streamWriteString(streamId, cut(e.custom, 80))
+    end
+end
+
+function HubLinkCatalogEvent:readStream(streamId, connection)
+    self.farm = streamReadUInt8(streamId)
+    self.list = {}
+    for _ = 1, streamReadUInt8(streamId) do
+        local e = {}
+        e.key = streamReadString(streamId)
+        e.kind = streamReadString(streamId)
+        e.name = streamReadString(streamId)
+        e.fill = streamReadString(streamId)
+        e.file = streamReadString(streamId)
+        e.custom = streamReadString(streamId)
+        table.insert(self.list, e)
+    end
+    self:run(connection)
+end
+
+function HubLinkCatalogEvent:run(connection)
+    if connection ~= nil and connection:getIsServer() and HubLinkHud ~= nil then
+        HubLinkHud:onCatalog(self.list, self.farm)
+    end
 end
 
 -- Neuer Spieler: aktuelle Liste und Einstellungen gleich mitschicken

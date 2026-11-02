@@ -221,6 +221,12 @@
       if (c.stations.length) h += '<div class="hint">Hier stehen: ' + c.stations.map(function (s) { return '<a href="#" data-goto-station="' + esc(s.uid) + '">' + esc(s.name) + '</a>'; }).join(', ') + '</div>';
       if (c.autoAt) h += '<div class="hint">laut letztem Autosave, abgeholt ' + esc(c.autoAt) + '</div>';
       if (c.plan) h += '<div class="hint">Plan: ' + esc(c.plan) + '</div>';
+      // Feldbuch (ab Mod 3.8): gesät und geerntet je Feld, dazu ein Vorschlag für die nächste Frucht
+      (c.book || []).forEach(function (b) {
+        h += '<div class="hint">Feldbuch Feld ' + b.id + '</div><div class="fs-rows">' +
+          b.log.map(function (e) { return row(esc(e.when || '–'), esc(e.what)); }).join('') +
+          (b.next ? row('Als Nächstes', '<b>' + esc(b.next.text) + '</b>' + (b.next.why ? '<br><small>' + esc(b.next.why) + '</small>' : '')) : '') + '</div>';
+      });
       if (c.farm && c.edit) h += '<div class="row"><a class="btn small" href="/farming/hof/' + c.farm.id + '?tab=kalender&feld=' + c.id + '#plan">Anbau planen</a> <a class="btn small" href="/farming/hof/' + c.farm.id + '?tab=aufgaben&feld=' + c.id + '#neu">Aufgabe</a></div>';
       show(h, ['feld', c.id]);
       if (soilTpl) {

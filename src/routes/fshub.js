@@ -20,6 +20,7 @@ const hub = require('../fshub');
 const feeds = require('../fsfeeds');
 const N = require('../fsnames');
 const fsicons = require('../fsicons');
+const fieldlog = require('../fsfieldlog');
 const { getSetting, setSetting } = require('../db');
 const profiles = require('../profiles');
 
@@ -275,7 +276,14 @@ function fieldCard(g, req, m, ex) {
     growth: a ? a.growth : null, soil: a ? { lime: a.lime, spray: a.spray, plow: !!a.plow } : null,
     care: g.care.map(c => c.label), autoAt: g.autoAt && (a || pt) ? when(g.autoAt) : null, orchard: g.orchard ? N.fill(g.orchard) : null, soilType: g.soil, stations: here,
     plan: g.plan ? `${g.plan.crop}, säen ${N.MONTHS[g.plan.sow_month]}, ernten ${N.MONTHS[g.plan.harvest_month]}` : null,
+    book: fieldBook(g),
     edit: !!req.user && !!g.farm && hub.canEditFarm(req.user, g.farm.id) };
+}
+// Feldbuch je Feld des Grundstücks (ab Mod 3.8): letzte Einträge und Vorschlag für die nächste Frucht
+function fieldBook(g) {
+  const live = require('../fslive').gameData();
+  const fruitOf = new Map(((live && live.fields) || []).map(f => [f.id, f.fruit]));
+  return (g.fieldIds || []).map(id => ({ id, ...fieldlog.card(id, fruitOf.get(id) || null, hub.fmtDay) })).filter(b => b.log.length || b.next);
 }
 
 // Daten je Station für Markierung und Infokarte (Lage im Kartenmaß 0–1000)

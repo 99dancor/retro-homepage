@@ -572,13 +572,18 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   // Jede Kopie gleich (das Spiel vergleicht im Mehrspieler die Prüfsumme der ZIP mit der auf dem Server)
   const t0 = Date.now(); while (Date.now() - t0 < 2100) { /* zweiter Bau zu einer anderen Uhrzeit */ }
   assert.ok(first.equals(E.modZip()), 'gleiche Bytes bei jedem Herunterladen');
-  assert.deepEqual(zip.getEntries().map(x => x.entryName).sort(), ['FarmingHubExport.lua', 'FarmingHubLive.lua', 'HubLinkEvents.lua', 'HubLinkHud.lua', 'icon_farmingHubExport.dds', 'modDesc.xml']);
+  assert.deepEqual(zip.getEntries().map(x => x.entryName).sort(), ['FarmingHubExport.lua', 'FarmingHubLive.lua', 'HubLinkAlerts.lua', 'HubLinkEvents.lua', 'HubLinkHud.lua', 'HubLinkWatch.lua', 'icon_farmingHubExport.dds', 'modDesc.xml']);
   const dds = zip.getEntry('icon_farmingHubExport.dds').getData();
   assert.equal(dds.toString('latin1', 0, 4), 'DDS ');
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubLive.lua"\/>/);
-  assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<version>3\.5\.0\.0<\/version>/);
+  const desc = zip.getEntry('modDesc.xml').getData().toString();
+  assert.match(desc, /<version>3\.8\.0\.0<\/version>/);
+  // Beschreibung: Changelog der letzten zwei Versionen, die neueste zuerst
+  const de = desc.match(/<de><!\[CDATA\[([\s\S]*?)\]\]><\/de>/)[1];
+  assert.deepEqual([...de.matchAll(/^Neu in (\d+\.\d+):/gm)].map(m => m[1]), ['3.8', '3.7']);
+  assert.deepEqual([...desc.matchAll(/^Changes in (\d+\.\d+):/gm)].map(m => m[1]), ['3.8', '3.7']);
   assert.throws(() => E.read('<placeables/>'), /FS25 Hub Link/);
 });
 
@@ -939,7 +944,7 @@ test('Mod 3.3: Geld, Wetter, Felder und Aufträge live aus dem Spiel', () => {
   assert.equal(g.missions.length, 2, 'ohne Typ zählt nicht');
   // Ältere Mod: nichts davon
   const old = L.read('<farmingHubLive version="1" mod="3.2.0.0" seq="1"><tasks count="0"/></farmingHubLive>').game;
-  assert.deepEqual(old, { farms: null, environment: null, fields: null, missions: null });
+  assert.deepEqual(old, { farms: null, environment: null, fields: null, missions: null, bales: null });
 
   L.apply(live);
   assert.ok(L.gameData());
@@ -976,6 +981,76 @@ test('Mod 3.4: Feld-Meldungen und deutsche Gebäudenamen', () => {
   assert.equal(L.titleOf({ kind: 'food', farm: 1, uid: 'u1', name: 'x', pct: 0 }, new Map([['u1', 'Pigsty (large)']])), 'Schweinestall (groß): Futter leer');
   assert.equal(L.titleOf({ kind: 'food', farm: 1, uid: 'u1', name: 'x', pct: 0 }, new Map([['u1', 'Opas Stall']])), 'Opas Stall: Futter leer');
   assert.equal(L.farmSettings(5).fields, true);
+});
+
+test('Mod 3.7: Plantagen, Ballen, neue Schalter', () => {
+  const { setSetting, now } = require('../src/db');
+  const hub = require('../src/fshub');
+  const L = require('../src/fslive');
+  assert.equal(L.titleOf({ kind: 'orchardSpray', farm: 1, uid: 'b1', name: 'Banana plantation', pct: 0.4 }), 'Banana plantation: mit Fungizid spritzen (1 % krank)');
+  assert.equal(L.titleOf({ kind: 'orchardHarvest', farm: 1, uid: 'b1', name: 'Plantage Nord', fill: 'WHEAT', pct: 60 }), 'Plantage Nord: Weizen ernten (60 %)');
+  assert.equal(L.titleOf({ kind: 'orchardCut', farm: 1, uid: 'b1', name: 'Plantage Nord', pct: 12 }), 'Plantage Nord: zurückschneiden (12 %)');
+  assert.equal(L.titleOf({ kind: 'balesReady', farm: 1, uid: 'bales', name: '', level: 6 }), 'Silage fertig gegoren: 6 Ballen');
+  assert.equal(L.titleOf({ kind: 'objects', farm: 1, uid: 's1', name: 'Ballenhalle', level: 95, cap: 100, pct: 95 }), 'Ballenhalle: Lager fast voll (95 %)');
+  assert.deepEqual([L.farmSettings(3).orchard, L.farmSettings(3).bales], [true, true]);
+  // Hof-Formular: abgewählt bleibt aus
+  L.saveFarm(3, { input: '1', orchard: '', bales: '1' });
+  assert.deepEqual([L.farmSettings(3).orchard, L.farmSettings(3).bales], [false, true]);
+  assert.match(L.inboxBody(), /<farm id="3"[^>]* orchard="false" bales="true"/);
+  // Live-Ballen statt items.xml
+  setSetting('fs_ftp_path', '/profile/savegame2');
+  const live = L.read(`<farmingHubLive version="1" mod="3.7.0.0" seq="30" ack="0"><tasks count="1"><task key="balesReady:1:bales:silage" kind="balesReady" farm="1" uid="bales" name="" level="6" sev="2"/></tasks>
+    <farms><farm id="1" money="5" loan="0"/></farms>
+    <bales><farm id="1"><bale fillType="SILAGE" count="8" liters="32000" fermenting="2" fermentPct="70" stored="0"/><bale fillType="STRAW" count="95" liters="380000" fermenting="0" stored="95"/></farm></bales>
+    <orchards><orchard uid="b1" farm="1" fruitType="BANANA" ripe="60"><debug states="5:60"/></orchard></orchards></farmingHubLive>`);
+  assert.deepEqual(live.game.bales, [{ id: 1, list: [{ fill: 'SILAGE', count: 8, liters: 32000, fermenting: 2, fermentPct: 70, stored: 0 }, { fill: 'STRAW', count: 95, liters: 380000, fermenting: 0, fermentPct: null, stored: 95 }] }]);
+  L.apply(live);
+  hub.invalidate();
+  const f1 = hub.model().farms.find(f => f.id === 1);
+  assert.equal(f1.bales, 103);
+  const straw = f1.stock.find(s => s.fill === 'STRAW');
+  assert.ok(straw && straw.where.some(w => w.label === '95 Ballen, 95 im Lager'), 'Stroh im Ballenlager');
+  const silage = f1.stock.find(s => s.fill === 'SILAGE');
+  assert.ok(silage && silage.where.some(w => /2 gären \(70 %\)/.test(w.label)));
+  setSetting('fs_live_game', JSON.stringify({ ...L.gameData(), at: now() - 700 }));
+  L.forgetGame();
+  hub.invalidate();
+  setSetting('fs_ftp_path', '');
+});
+
+test('Mod 3.8: Helfer, Regen, Feldbuch mit Fruchtfolge', () => {
+  const L = require('../src/fslive');
+  const FL = require('../src/fsfieldlog');
+  const { db, setSetting } = require('../src/db');
+  assert.equal(L.titleOf({ kind: 'helper', farm: 1, uid: 'v1', name: 'Fendt 942', fill: 'outOfFuel' }), 'Fendt 942: Helfer angehalten (kein Sprit)');
+  assert.equal(L.titleOf({ kind: 'helperDone', farm: 1, uid: 'v1', name: 'Fendt 942', fill: 'finished' }), 'Fendt 942: Helfer fertig');
+  assert.equal(L.titleOf({ kind: 'rain', farm: 1, uid: 'rain', name: '3, 7', hours: 4 }), 'Regen in 4 Stunden: Felder 3, 7 erntereif');
+  assert.equal(L.titleOf({ kind: 'rain', farm: 1, uid: 'rain', name: '', sub: 'Bananenplantage', hours: 0 }), 'Regen: Bananenplantage erntereif');
+  assert.deepEqual([L.farmSettings(4).helper, L.farmSettings(4).rain], [true, true]);
+  const live = L.read('<farmingHubLive version="1" mod="3.8.0.0" seq="1" ack="0"><tasks count="1"><task key="helper:1:v1:outOfFuel" kind="helper" farm="1" uid="v1" name="Fendt" fill="outOfFuel" sub="Helfer Max: kein Diesel" sev="3"/></tasks></farmingHubLive>');
+  assert.equal(live.tasks[0].sub, 'Helfer Max: kein Diesel');
+
+  // Feldbuch: erster Stand nur merken, dann gesät und geerntet
+  setSetting('fs_field_last', '');
+  db.prepare('DELETE FROM fs_fieldlog').run();
+  assert.equal(FL.record([{ id: 5, fruit: 'WHEAT', ground: 'SOWN' }], 10), 0);
+  assert.equal(FL.record([{ id: 5, fruit: 'WHEAT', ground: 'HARVEST_READY' }], 40), 0);
+  assert.equal(FL.record([{ id: 5, fruit: 'WHEAT', ground: 'STUBBLE_TILLAGE' }], 41), 1);
+  assert.equal(FL.record([{ id: 5, fruit: 'CANOLA', ground: 'SOWN' }], 45), 1);
+  assert.equal(FL.record([{ id: 5, fruit: 'GRASS', ground: 'GRASS' }], 46), 0, 'Grünland zählt nicht');
+  assert.deepEqual(FL.entries(5).map(r => [r.event, r.fruit, r.game_day]), [['sow', 'CANOLA', 45], ['harvest', 'WHEAT', 41]]);
+  // Fruchtfolge
+  assert.equal(FL.suggest(['WHEAT']).fruit, 'CANOLA');
+  assert.equal(FL.suggest(['CANOLA', 'WHEAT']).fruit, 'WHEAT');
+  assert.equal(FL.suggest(['WHEAT', 'CANOLA', 'WHEAT']).fruit, 'SOYBEAN', 'Raps erst nach Pause wieder');
+  assert.equal(FL.suggest(['SOYBEAN']).fruit, 'WHEAT');
+  assert.equal(FL.suggest(['BANANA']).fruit, null);
+  assert.equal(FL.suggest([]), null);
+  const c = FL.card(5, 'CANOLA', null);
+  assert.equal(c.next.fruit, 'WHEAT');
+  assert.equal(c.log.length, 2);
+  db.prepare('DELETE FROM fs_fieldlog').run();
+  setSetting('fs_field_last', '');
 });
 
 test('Anbau planen: Wachstumsdauer, Erntemonat aus Saatmonat und umgekehrt', () => {

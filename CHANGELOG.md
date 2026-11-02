@@ -1,5 +1,22 @@
 # Changelog
 
+## 02.11.2026 – FS25 Hub Link 3.8: Helfer, Regen, Karte, Feldbuch
+
+- **Helfer-Meldungen:** Hält ein KI-Helfer an (kein Sprit, blockiert, Feld nicht bereit, Korntank voll, Abladestelle voll …), wird das eine Aufgabe mit der Meldung des Spiels, im Overlay und im Hub. Ein fertiger Auftrag erscheint als leiser Hinweis und verschwindet nach 15 Minuten. Startet der Helfer wieder, ist die Meldung weg. Selbst beendete Aufträge melden nichts.
+- **Regen-Warnung:** Sind Felder oder Plantagen erntereif und kommt in den nächsten 6 Spielstunden Regen, Gewitter, Hagel oder Schnee, gibt es eine Aufgabe mit allen betroffenen Feldern.
+- **Markierungen auf der Karte im Spiel:** Meldungen mit Ort (Gebäude, Felder, Plantagen, Helfer) erscheinen als Punkt auf der Karte. Jeder Spieler schaltet sie im Optionsmenü unter Anzeige → Inhalt ein oder aus.
+- **Feldbuch:** Auf der Karte der Website zeigt jedes Feld, was zuletzt gesät und geerntet wurde, und schlägt die nächste Frucht für eine gute Fruchtfolge vor (z. B. nach Weizen Raps, nach Raps Weizen). Das Feldbuch füllt sich aus den Live-Daten der Mod und gehört zum Spielstand.
+- **Optionsmenü:** Die Prüfungen sind auf zwei Reiter verteilt (Hof und Mehr), damit nichts mehr unten aus dem Bild läuft. Helfer und Regen lassen sich je Hof abschalten (Website und Optionsmenü).
+- **Mod-Beschreibung:** Im Mod-Menü steht jetzt der Changelog der letzten zwei Versionen.
+
+## 02.11.2026 – FS25 Hub Link 3.7: Tracker, Plantagen, Ballen
+
+- **Overlay in der Farbe des Spiels:** Der Hintergrund nimmt jetzt genau die Farbe der Spiel-HUD (dunkler als bisher), die Deckkraft steht auf „wie Spiel“ und lässt sich weiter verstellen.
+- **Tracker:** Im Optionsmenü gibt es den Reiter „Tracker“. Dort wählst du bis zu 8 Dinge deines Hofs aus, deren Werte das Overlay dauerhaft zeigt, ohne dass daraus eine Aufgabe wird: Füllstände von Produktionen (mit Reichweite), Ställen und Silos, Ballenlager, Ballen (mit Gärung), Plantagen und das Wachstum einzelner Felder. Die Auswahl gilt nur für dich.
+- **Plantagen im Berater:** Kaffee, Bananen, Wein und Oliven melden, wenn sie erntereif sind oder zurückgeschnitten werden müssen. Kranke Bananen (Fungizid) meldet die Mod, sobald sie die Krankheit im Spiel findet; dafür schreibt sie eine Diagnose in die Live-Datei.
+- **Ballen:** Fertig gegorene Silageballen werden zur Aufgabe, fast volle Ballenlager auch. Das Inventar auf der Website zählt die Ballen live aus dem Spiel, auch die im Ballenlager.
+- Plantagen und Silage lassen sich je Hof abschalten (Website und Optionsmenü).
+
 ## 31.10.2026 – FS25 Hub Link: gleiche ZIP für alle
 
 - **Mitspieler kommen wieder auf den Server:** Die ZIP der Mod hatte bei jedem Herunterladen eine andere Prüfsumme (die Uhrzeit stand in den Einträgen). Im Mehrspieler muss die eigene Datei aber genau der auf dem Server gleichen, sonst zeigt das Spiel ein rotes Warnzeichen. Jetzt ist jede heruntergeladene ZIP derselben Version Byte für Byte gleich. Einmal neu auf den Server laden, dann passt jede Kopie von der Website.

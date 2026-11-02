@@ -743,6 +743,16 @@ CREATE TABLE IF NOT EXISTS fs_fields (
   game_day INTEGER,
   updated_at INTEGER NOT NULL
 );
+-- Feldbuch (ab Mod 3.8): gesät und geerntet je Feld, aus den Live-Daten der Mod (src/fsfieldlog.js)
+CREATE TABLE IF NOT EXISTS fs_fieldlog (
+  id INTEGER PRIMARY KEY,
+  field INTEGER NOT NULL,
+  event TEXT NOT NULL,
+  fruit TEXT NOT NULL,
+  game_day INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS fsfl_field ON fs_fieldlog(field, id);
 -- Online-Zeiten je Spielername (aus dem Stats-Feed)
 CREATE TABLE IF NOT EXISTS fs_sessions (
   id INTEGER PRIMARY KEY,

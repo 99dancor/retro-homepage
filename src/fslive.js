@@ -33,20 +33,20 @@ const EVERY = 45, MIN = 20;
 // Prüfungen je Hof mit Vorgabe (wie FarmingHubLive.FARM_KEYS in der Mod)
 const FARM_KEYS = {
   input: true, inputHours: 6, inputPct: 10, output: true, outputPct: 85, pallets: true, stall: true, stallPct: 15, stallFullPct: 85, silo: true, siloPct: 90, fields: true,
-  orchard: true, bales: true,
+  orchard: true, bales: true, helper: true, rain: true,
 };
 const LIMITS = { inputHours: [1, 240], inputPct: [1, 90], outputPct: [10, 100], stallPct: [1, 90], stallFullPct: [10, 100], siloPct: [10, 100] };
 const KINDS = {
   input: '⏳ Eingang läuft leer', stopped: '⛔ Produktion steht', output: '📦 Ausgang voll', blocked: '🚧 Paletten-Ausgang blockiert',
   food: '🌾 Futter knapp', supply: '💧 Stall: knapp', product: '🪣 Stall: voll', pallets: '🚧 Stall: kein Palettenplatz', silo: '🏚 Silo voll',
   harvest: '🌾 Erntereif', lime: '🪨 Kalk nötig', plow: '🚜 Pflügen fällig', fertilize: '💧 Düngen', weed: '🌿 Unkraut',
-  orchardHarvest: '🍌 Plantage erntereif', orchardCut: '✂️ Plantage zurückschneiden', orchardSpray: '🧪 Plantage krank', balesReady: '🧺 Silage fertig',
+  orchardHarvest: '🍌 Plantage erntereif', orchardCut: '✂️ Plantage zurückschneiden', orchardSpray: '🧪 Plantage krank', balesReady: '🧺 Silage fertig', helper: '🤖 Helfer angehalten', helperDone: '🤖 Helfer fertig', rain: '🌧️ Regen bei reifen Feldern',
   objects: '🏚 Ballenlager voll',
 };
 // Feld-Meldungen (ab Mod 3.4): je Hof eine je Arbeit, name = Feldnummern
 const FIELD_WORK = { lime: 'Kalken', plow: 'Pflügen', fertilize: 'Düngen', weed: 'Unkraut bekämpfen' };
 // Push nur, wenn wirklich etwas steht, und nur an den, der für diese Stelle zuständig ist
-const PUSH = new Set(['stopped', 'blocked', 'orchardSpray']);
+const PUSH = new Set(['stopped', 'blocked', 'orchardSpray', 'helper', 'rain']);
 
 // ---------- Einstellungen ----------
 function json(key, fallback) { try { return JSON.parse(getSetting(key, '') || 'null') || fallback; } catch { return fallback; } }
@@ -118,7 +118,7 @@ function read(xml) {
   };
   const tasks = X.kids(X.kid(s, 'tasks'), 'task').map(t => ({
     key: t.a.key || '', kind: t.a.kind || '', farm: num(t.a.farm, 0), uid: t.a.uid || '', name: t.a.name || '', fill: t.a.fill || '', fillTitle: t.a.fillTitle || '',
-    sev: num(t.a.sev, 2), level: num(t.a.level), cap: num(t.a.cap), pct: num(t.a.pct), hours: num(t.a.hours),
+    sev: num(t.a.sev, 2), level: num(t.a.level), cap: num(t.a.cap), pct: num(t.a.pct), hours: num(t.a.hours), sub: (t.a.sub || '').slice(0, 250),
   })).filter(t => t.key && t.farm > 0);
   const done = X.kids(X.kid(s, 'done'), 'item').map(d => ({
     id: d.a.id || '', game: d.a.game || '', task: num(d.a.task), by: (d.a.by || '').slice(0, 60), farm: num(d.a.farm, 0),
@@ -187,6 +187,14 @@ function duration(h) {
   if (h < 48) return `${Math.round(h)} ${Math.round(h) === 1 ? 'Stunde' : 'Stunden'}`;
   return `${Math.round(h / 24)} Tage`;
 }
+// Grund, aus dem ein Helfer angehalten hat (Code aus der Mod, ab 3.8)
+const HELPER = {
+  outOfFuel: 'kein Sprit', outOfFill: 'nichts mehr geladen', outOfMoney: 'kein Geld', blocked: 'blockiert', notReachable: 'Ziel nicht erreichbar',
+  fieldNotReady: 'Feld nicht bereit', fieldNotOwned: 'Feld gehört euch nicht', tankFull: 'Korntank voll', broken: 'kaputt', stationFull: 'Abladestelle voll',
+  palletsFull: 'Paletten voll', wrongSeason: 'falsche Jahreszeit', wrongWay: 'Gerät falsch herum', noThreshing: 'Dreschen gerade nicht möglich', noField: 'kein Feld gefunden',
+  notPrepared: 'nicht vorbereitet', wrongFill: 'falsche Ladung', noPallets: 'keine Paletten geladen', stationGone: 'Station weg', vehicleGone: 'Fahrzeug weg',
+  noVine: 'keine Reihen gefunden', unknown: '',
+};
 function titleOf(t, names) {
   if (t.uid === 'fields') {
     const where = (String(t.name).includes(',') ? 'Felder ' : 'Feld ') + t.name;
@@ -208,6 +216,12 @@ function titleOf(t, names) {
     case 'orchardHarvest': return `${place}: ${good || 'Früchte'} ernten (${pct(t.pct)})`;
     case 'orchardCut': return `${place}: zurückschneiden (${pct(t.pct)})`;
     case 'orchardSpray': return `${place}: mit Fungizid spritzen (${pct(Math.max(1, t.pct || 0))} krank)`;
+    case 'helper': return `${t.name || 'Fahrzeug'}: Helfer angehalten${HELPER[t.fill] ? ` (${HELPER[t.fill]})` : ''}`;
+    case 'helperDone': return `${t.name || 'Fahrzeug'}: Helfer fertig`;
+    case 'rain': {
+      const where = t.name ? (String(t.name).includes(',') ? 'Felder ' : 'Feld ') + t.name : t.sub || 'Plantagen';
+      return t.hours !== null && t.hours >= 0.5 ? `Regen in ${duration(t.hours)}: ${where} erntereif` : `Regen: ${where} erntereif`;
+    }
     default: return `${place}: ${good || t.kind}`;
   }
 }
@@ -220,6 +234,8 @@ function noteOf(t) {
   if (t.kind === 'orchardHarvest' || t.kind === 'orchardCut') bits.push('Anteil der Plantage laut Pflanzen im Spiel');
   if (t.kind === 'input' && t.hours !== null) bits.push('Reichweite in Spielstunden bei laufender Produktion');
   if (t.uid === 'fields') bits.push('laut Feldzustand im Spiel');
+  if ((t.kind === 'helper' || t.kind === 'helperDone') && t.sub) bits.push(t.sub);
+  if (t.kind === 'rain') { if (t.name && t.sub) bits.push(`Plantagen: ${t.sub}`); bits.push('vorher ernten, nass geht es nicht'); }
   return bits.join(' · ');
 }
 
@@ -352,6 +368,7 @@ function storeGame(g) {
   if (day && day !== hub.currentDay()) hub.setDay(day, 'live');
   hub.invalidate();
   try { hub.record(); } catch (e) { console.error('Farming Hub, Verlauf:', e); }
+  if (g.fields) try { require('./fsfieldlog').record(g.fields, day); } catch (e) { console.error('Farming Hub, Feldbuch:', e); }
 }
 function gameData() {
   if (!game) game = json('fs_live_game', null) || { at: 0 };

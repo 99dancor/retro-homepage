@@ -1,5 +1,14 @@
 # Changelog
 
+## 02.11.2026 – FS25 Hub Link 3.8: Helfer, Regen, Karte, Feldbuch
+
+- **Helfer-Meldungen:** Hält ein KI-Helfer an (kein Sprit, blockiert, Feld nicht bereit, Korntank voll, Abladestelle voll …), wird das eine Aufgabe mit der Meldung des Spiels, im Overlay und im Hub. Ein fertiger Auftrag erscheint als leiser Hinweis und verschwindet nach 15 Minuten. Startet der Helfer wieder, ist die Meldung weg. Selbst beendete Aufträge melden nichts.
+- **Regen-Warnung:** Sind Felder oder Plantagen erntereif und kommt in den nächsten 6 Spielstunden Regen, Gewitter, Hagel oder Schnee, gibt es eine Aufgabe mit allen betroffenen Feldern.
+- **Markierungen auf der Karte im Spiel:** Meldungen mit Ort (Gebäude, Felder, Plantagen, Helfer) erscheinen als Punkt auf der Karte. Jeder Spieler schaltet sie im Optionsmenü unter Anzeige → Inhalt ein oder aus.
+- **Feldbuch:** Auf der Karte der Website zeigt jedes Feld, was zuletzt gesät und geerntet wurde, und schlägt die nächste Frucht für eine gute Fruchtfolge vor (z. B. nach Weizen Raps, nach Raps Weizen). Das Feldbuch füllt sich aus den Live-Daten der Mod und gehört zum Spielstand.
+- **Optionsmenü:** Die Prüfungen sind auf zwei Reiter verteilt (Hof und Mehr), damit nichts mehr unten aus dem Bild läuft. Helfer und Regen lassen sich je Hof abschalten (Website und Optionsmenü).
+- **Mod-Beschreibung:** Im Mod-Menü steht jetzt der Changelog der letzten zwei Versionen.
+
 ## 02.11.2026 – FS25 Hub Link 3.7: Tracker, Plantagen, Ballen
 
 - **Overlay in der Farbe des Spiels:** Der Hintergrund nimmt jetzt genau die Farbe der Spiel-HUD (dunkler als bisher), die Deckkraft steht auf „wie Spiel“ und lässt sich weiter verstellen.

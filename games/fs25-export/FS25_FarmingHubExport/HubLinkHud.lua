@@ -15,11 +15,15 @@
 --
 -- Ab 3.7: Hintergrund in der Farbe der Spiel-HUD (HUD.COLOR.BACKGROUND), Tracker (Werte ohne Aufgabe, Reiter „Tracker“ im
 -- Optionsmenü, je Spieler höchstens 8) in einem eigenen Block unter den Meldungen.
+--
+-- Ab 3.8: Helfer-Meldungen, Regen-Warnung und Markierungen auf der Karte (je Spieler unter Anzeige → Inhalt schaltbar).
 
 HubLinkHud = {}
 HubLinkHud.FILE = "hubLinkHud.xml"
 -- alpha -1 = Deckkraft wie die Spiel-HUD
-HubLinkHud.prefs = { visible = true, x = 0.74, y = 0.79, w = 420, rows = 5, scale = 1, alpha = -1, details = true, notes = true, accent = 1, round = true, trackers = true, track = {} }
+HubLinkHud.prefs = { visible = true, x = 0.74, y = 0.79, w = 420, rows = 5, scale = 1, alpha = -1, details = true, notes = true, accent = 1, round = true, trackers = true, track = {}, markers = true }
+HubLinkHud.markers = {}
+HubLinkHud.MARKER_MAX = 30
 HubLinkHud.catalog = {}
 HubLinkHud.catalogFarm = 0
 HubLinkHud.trackRows = {}
@@ -318,6 +322,16 @@ function HubLinkHud:textOf(e)
         return string.format(T("hubLink_orchardCut", "%s: zurückschneiden (%d %%)"), place, pct)
     elseif k == "orchardSpray" then
         return string.format(T("hubLink_orchardSpray", "%s: Fungizid spritzen (%d %% krank)"), place, math.max(1, pct))
+    elseif k == "helper" then
+        return string.format(T("hubLink_helper", "%s: Helfer angehalten"), place)
+    elseif k == "helperDone" then
+        return string.format(T("hubLink_helperDone", "%s: Helfer fertig"), place)
+    elseif k == "rain" then
+        local where = e.name ~= "" and string.format(string.find(e.name, ",") and T("hubLink_fieldsMany", "Felder %s") or T("hubLink_fieldsOne", "Feld %s"), e.name) or e.sub
+        if (e.hours or 0) < 0.5 then
+            return string.format(T("hubLink_rainNow", "Regen: %s erntereif"), where)
+        end
+        return string.format(T("hubLink_rainSoon", "Regen in %s: %s erntereif"), hours(e.hours), where)
     elseif FIELD_KINDS[k] ~= nil then
         local where = string.format(string.find(e.name or "", ",") and T("hubLink_fieldsMany", "Felder %s") or T("hubLink_fieldsOne", "Feld %s"), e.name or "")
         if k == "harvest" then
@@ -336,6 +350,15 @@ function HubLinkHud:detailOf(e)
     local cfg = FarmingHubLive:farm(e.farm)
     local bits = {}
     local k = e.kind
+    if k == "helper" or k == "helperDone" then
+        return e.sub or ""
+    elseif k == "rain" then
+        if e.name ~= "" and e.sub ~= "" then
+            table.insert(bits, e.sub)
+        end
+        table.insert(bits, T("hubLink_rainHint", "vorher ernten, nass geht es nicht"))
+        return table.concat(bits, "  ·  ")
+    end
     if k == "objects" then
         table.insert(bits, string.format(T("hubLink_pieces", "%s / %s Stück"), fmt(e.level), fmt(e.cap)))
     elseif (e.level or -1) >= 0 and (e.cap or 0) > 0 then
@@ -607,6 +630,87 @@ function HubLinkHud:refresh()
         end
     end
     self.trackRows = track
+    pcall(self.updateMarkers, self, rows)
+end
+
+-- ---------- Kartenmarkierungen (ab 3.8) ----------
+local function markerType()
+    if PlaceableHotspot == nil or PlaceableHotspot.TYPE == nil then
+        return nil
+    end
+    for _, n in ipairs({ "EXCLAMATION_MARK", "UNLOADING" }) do
+        if PlaceableHotspot.TYPE[n] ~= nil then
+            return PlaceableHotspot.TYPE[n]
+        end
+    end
+    return nil
+end
+
+function HubLinkHud:removeMarker(key)
+    local m = self.markers[key]
+    if m ~= nil then
+        pcall(function()
+            g_currentMission:removeMapHotspot(m.hotspot)
+        end)
+        pcall(function()
+            m.hotspot:delete()
+        end)
+        self.markers[key] = nil
+    end
+end
+
+function HubLinkHud:clearMarkers()
+    for key in pairs(self.markers) do
+        self:removeMarker(key)
+    end
+end
+
+-- Markierungen passend zur Liste: neue anlegen, verschwundene weg, Namen nachziehen
+function HubLinkHud:updateMarkers(rows)
+    local want, n = {}, 0
+    if self.prefs.markers and not self.markerFail and g_currentMission ~= nil and g_dedicatedServer == nil then
+        for _, e in ipairs(rows or {}) do
+            if e.src == 1 and type(e.x) == "number" and type(e.z) == "number" and n < HubLinkHud.MARKER_MAX then
+                want[e.key] = e
+                n = n + 1
+            end
+        end
+    end
+    for key, m in pairs(self.markers) do
+        local e = want[key]
+        if e == nil or math.abs(m.x - e.x) > 1 or math.abs(m.z - e.z) > 1 then
+            self:removeMarker(key)
+        end
+    end
+    local typ = n > 0 and markerType() or nil
+    for key, e in pairs(want) do
+        local name = "Hub: " .. tostring(self:textOf(e) or "")
+        local m = self.markers[key]
+        if m == nil and typ ~= nil then
+            local ok, err = pcall(function()
+                local h = PlaceableHotspot.new()
+                h:setPlaceableType(typ)
+                h:setWorldPosition(e.x, e.z)
+                h:setName(name)
+                if h.setOwnerFarmId ~= nil then
+                    h:setOwnerFarmId(e.farm)
+                end
+                g_currentMission:addMapHotspot(h)
+                self.markers[key] = { hotspot = h, x = e.x, z = e.z, name = name }
+            end)
+            if not ok then
+                self.markerFail = true
+                print("Hub Link: Kartenmarkierung geht nicht: " .. tostring(err))
+                self:clearMarkers()
+                return
+            end
+        elseif m ~= nil and m.name ~= name then
+            pcall(function()
+                m.hotspot:setName(name)
+            end)
+            m.name = name
+        end
+    end
 end
 
 -- ---------- Abhaken ----------
@@ -773,6 +877,10 @@ function HubLinkHud:loadPrefs()
     else
         p.alpha = -1
     end
+    local mk = xml:getBool(r .. "#markers")
+    if mk ~= nil then
+        p.markers = mk
+    end
     local tr = xml:getBool(r .. "#trackers")
     if tr ~= nil then
         p.trackers = tr
@@ -830,6 +938,7 @@ function HubLinkHud:savePrefs()
     xml:setInt(r .. "#v", 2)
     xml:setFloat(r .. "#alpha", p.alpha)
     xml:setBool(r .. "#trackers", p.trackers)
+    xml:setBool(r .. "#markers", p.markers)
     for i, key in ipairs(p.track or {}) do
         xml:setString(string.format("%s.track(%d)#key", r, i - 1), key)
     end
@@ -1055,6 +1164,7 @@ function HubLinkHud:drawOptions(ox, oy, ow)
     local tabs = { { "view", T("hubLink_tabView", "Anzeige") } }
     if farm > 0 then
         table.insert(tabs, { "farm", string.format(T("hubLink_tabFarm", "Hof %d"), farm) })
+        table.insert(tabs, { "more", T("hubLink_tabMore", "Mehr") })
         table.insert(tabs, { "track", T("hubLink_tabTrack", "Tracker") })
     end
     table.insert(tabs, { "server", T("hubLink_tabServer", "Server") })
@@ -1103,31 +1213,37 @@ function HubLinkHud:drawOptions(ox, oy, ow)
         group(T("hubLink_grpContent", "Inhalt"))
         toggle(T("hubLink_optDetails", "Werte anzeigen"), p.details, function() self:setPref("details", not p.details) end, true)
         toggle(T("hubLink_optNotes", "Notizen anzeigen"), p.notes, function() self:setPref("notes", not p.notes) end, true)
-    elseif tab == "farm" then
+        toggle(T("hubLink_optMarkers", "Markierungen auf der Karte"), p.markers, function() self:setPref("markers", not p.markers) end, true)
+    elseif tab == "farm" or tab == "more" then
         local function ft(label, key)
             toggle(label, cfg[key], function() self:setFarm(farm, key, not cfg[key]) end, canFarm)
         end
         local function fs(label, key, unit)
             stepper(label, string.format("%s %s", tostring(math.floor((cfg[key] or 0) + 0.5)), unit), function() self:stepFarm(farm, key, -1) end, function() self:stepFarm(farm, key, 1) end, canFarm and cfg[key] ~= nil)
         end
-        group(T("hubLink_optInput", "Eingänge"))
-        ft(T("hubLink_optWatch", "Prüfen"), "input")
-        fs(T("hubLink_optInputHours", "reicht weniger als"), "inputHours", T("hubLink_unitHours", "Std."))
-        fs(T("hubLink_optInputPct", "ohne Verbrauch unter"), "inputPct", "%")
-        group(T("hubLink_optOutput", "Ausgänge"))
-        ft(T("hubLink_optWatch", "Prüfen"), "output")
-        fs(T("hubLink_optOutputPct", "voll ab"), "outputPct", "%")
-        ft(T("hubLink_optPallets", "Paletten-Ausgänge"), "pallets")
-        group(T("hubLink_optStall", "Ställe"))
-        ft(T("hubLink_optWatch", "Prüfen"), "stall")
-        fs(T("hubLink_optStallPct", "knapp unter"), "stallPct", "%")
-        fs(T("hubLink_optStallFullPct", "voll ab"), "stallFullPct", "%")
-        group(T("hubLink_grpMore", "Silos, Felder, Plantagen"))
-        ft(T("hubLink_optSilo", "Silos"), "silo")
-        fs(T("hubLink_optSiloPct", "voll ab"), "siloPct", "%")
-        ft(T("hubLink_optFieldsShort", "Felder (ernten, kalken, pflügen …)"), "fields")
-        ft(T("hubLink_optOrchard", "Plantagen (ernten, schneiden, Fungizid)"), "orchard")
-        ft(T("hubLink_optBales", "Silage fertig gegoren"), "bales")
+        if tab == "farm" then
+            group(T("hubLink_optInput", "Eingänge"))
+            ft(T("hubLink_optWatch", "Prüfen"), "input")
+            fs(T("hubLink_optInputHours", "reicht weniger als"), "inputHours", T("hubLink_unitHours", "Std."))
+            fs(T("hubLink_optInputPct", "ohne Verbrauch unter"), "inputPct", "%")
+            group(T("hubLink_optOutput", "Ausgänge"))
+            ft(T("hubLink_optWatch", "Prüfen"), "output")
+            fs(T("hubLink_optOutputPct", "voll ab"), "outputPct", "%")
+            ft(T("hubLink_optPallets", "Paletten-Ausgänge"), "pallets")
+            group(T("hubLink_optStall", "Ställe"))
+            ft(T("hubLink_optWatch", "Prüfen"), "stall")
+            fs(T("hubLink_optStallPct", "knapp unter"), "stallPct", "%")
+            fs(T("hubLink_optStallFullPct", "voll ab"), "stallFullPct", "%")
+        else
+            group(T("hubLink_grpMore", "Weitere Prüfungen"))
+            ft(T("hubLink_optSilo", "Silos"), "silo")
+            fs(T("hubLink_optSiloPct", "voll ab"), "siloPct", "%")
+            ft(T("hubLink_optFieldsShort", "Felder (ernten, kalken, pflügen …)"), "fields")
+            ft(T("hubLink_optOrchard", "Plantagen (ernten, schneiden, Fungizid)"), "orchard")
+            ft(T("hubLink_optBales", "Silage fertig gegoren"), "bales")
+            ft(T("hubLink_optHelper", "Helfer angehalten oder fertig"), "helper")
+            ft(T("hubLink_optRain", "Regen bei reifen Feldern"), "rain")
+        end
     elseif tab == "track" then
         if self.catalogAsk == nil or g_time - self.catalogAsk > 10000 then
             self:sendTrack(true)
@@ -1357,6 +1473,9 @@ function HubLinkHud:deleteMap()
     self.trackRows = {}
     self.trackSent = nil
     self.colorsDone = false
+    pcall(self.clearMarkers, self)
+    self.markers = {}
+    self.markerFail = nil
 end
 
 function HubLinkHud:update(dt)

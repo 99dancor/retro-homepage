@@ -61,6 +61,13 @@ function HubLinkSyncEvent:writeStream(streamId, connection)
         streamWriteFloat32(streamId, e.cap or -1)
         streamWriteString(streamId, cut(e.file, 250))
         streamWriteString(streamId, cut(e.custom, 80))
+        -- Ort für die Kartenmarkierung (ab 3.8)
+        local hasPos = type(e.x) == "number" and type(e.z) == "number"
+        streamWriteBool(streamId, hasPos)
+        if hasPos then
+            streamWriteFloat32(streamId, e.x)
+            streamWriteFloat32(streamId, e.z)
+        end
     end
 end
 
@@ -86,6 +93,10 @@ function HubLinkSyncEvent:readStream(streamId, connection)
         e.cap = streamReadFloat32(streamId)
         e.file = streamReadString(streamId)
         e.custom = streamReadString(streamId)
+        if streamReadBool(streamId) then
+            e.x = streamReadFloat32(streamId)
+            e.z = streamReadFloat32(streamId)
+        end
         table.insert(self.list, e)
     end
     self:run(connection)

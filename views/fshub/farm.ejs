@@ -380,7 +380,9 @@
         <label class="inline"><input type="checkbox" name="silo" value="1"<%= watch.silo ? ' checked' : '' %>> Silos und Lager ab <input type="number" name="siloPct" min="10" max="100" value="<%= watch.siloPct %>" style="width:56px"> % voll</label><br>
         <label class="inline"><input type="checkbox" name="fields" value="1"<%= watch.fields ? ' checked' : '' %>> Felder: ernten, kalken, pflügen, düngen, Unkraut (ab Mod 3.4; solange sie verbunden ist, lässt der Hub seine eigenen Feld- und Futtervorschläge weg)</label><br>
         <label class="inline"><input type="checkbox" name="orchard" value="1"<%= watch.orchard ? ' checked' : '' %>> Plantagen (Kaffee, Bananen, Wein, Oliven): erntereif, zurückschneiden, krank und Fungizid nötig (ab Mod 3.7)</label><br>
-        <label class="inline"><input type="checkbox" name="bales" value="1"<%= watch.bales ? ' checked' : '' %>> Ballen: Silage fertig gegoren (ab Mod 3.7; volle Ballenlager laufen unter „Silos und Lager“)</label>
+        <label class="inline"><input type="checkbox" name="bales" value="1"<%= watch.bales ? ' checked' : '' %>> Ballen: Silage fertig gegoren (ab Mod 3.7; volle Ballenlager laufen unter „Silos und Lager“)</label><br>
+        <label class="inline"><input type="checkbox" name="helper" value="1"<%= watch.helper ? ' checked' : '' %>> Helfer: angehalten (kein Sprit, blockiert, Feld nicht bereit, Tank voll …) oder fertig (ab Mod 3.8)</label><br>
+        <label class="inline"><input type="checkbox" name="rain" value="1"<%= watch.rain ? ' checked' : '' %>> Regen: reife Felder oder Plantagen und Regen in den nächsten 6 Stunden (ab Mod 3.8)</label>
         <p class="hint">Gemeldet wird beim Erreichen der Schwelle, wieder frei ist es erst mit etwas Abstand (z. B. voll ab 85 %, frei unter 75 %), damit nichts flackert. Die Mod übernimmt Änderungen beim nächsten Abgleich, meist innerhalb einer Minute.</p>
         <div class="actions"><button>Speichern</button></div>
       </form>

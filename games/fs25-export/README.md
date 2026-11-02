@@ -97,3 +97,28 @@ reisen als kurze Zeichenkette (`i:FLOUR:40:12.0;o:BREAD:95:-1`), der Spieler set
 
 **Farben:** Hintergrund aus `HUD.COLOR.BACKGROUND`, erste Hervorhebung aus `HUD.COLOR.ACTIVE`; Deckkraft standardmäßig
 wie das Spiel (`alpha = -1` in `hubLinkHud.xml`, `v = 2`; ältere Dateien fangen wieder bei „wie Spiel“ an).
+
+## Ab 3.8: Helfer, Regen, Kartenmarkierungen (`HubLinkAlerts.lua`)
+
+**Helfer:** Der Server abonniert `MessageType.AI_JOB_STOPPED` und `AI_JOB_STARTED`. Der Grund kommt aus der Klasse der
+`AIMessage` (`isa`), als kurzer Code im Feld `fill` (`outOfFuel`, `blocked`, `fieldNotReady`, `tankFull`, …), der Text des
+Spiels (`getMessage(job)`) als `sub`. Fehler → `helper` (sev 3), `finished`/`siloEmpty` → `helperDone` (sev 1, 15 Minuten),
+`byUser` → nichts. Schlüssel je Fahrzeug (`getUniqueId`). Schalter je Hof: `helper`.
+
+**Regen:** `weather.forecastItems` (`startDay`, `startDayTime`, `duration`), Typen RAIN, THUNDER, HAIL, SNOW, in den
+nächsten `RAIN_HOURS` (6) Spielstunden. Mit reifen Feldern (`readFields`) oder Plantagen ab 10 % erntereif → `rain` je Hof,
+`name` = Felder, `sub` = Plantagen, `hours` = Stunden bis zum Regen. Schalter je Hof: `rain`.
+
+**Orte:** Jede Meldung trägt, wenn bekannt, `x`/`z` (Gebäude über `rootNode`, Felder über `posX`/`posZ`, Helfer über das
+Fahrzeug). Die Liste an die Spieler (`HubLinkSyncEvent`) hängt sie mit einem Bool an. Das Overlay legt dafür je Meldung
+einen `PlaceableHotspot` (Typ `EXCLAMATION_MARK`, sonst `UNLOADING`) an, höchstens 30, und räumt ihn weg, wenn die
+Meldung verschwindet. Schalter je Spieler: `markers` in `hubLinkHud.xml`. Klappt das Anlegen nicht, schaltet sich das
+Overlay die Markierungen für die Sitzung ab und schreibt den Fehler ins Log.
+
+**Feldbuch (Website, `src/fsfieldlog.js`):** Aus den Live-Feldern merkt sich der Hub den letzten Stand je Feld
+(`fs_field_last`) und schreibt Wechsel nach `fs_fieldlog`: `sow` (andere Frucht), `harvest` (war `HARVEST_READY`, ist es
+nicht mehr). Grünland zählt nicht. Der Vorschlag für die nächste Frucht folgt Fruchtgruppen (Getreide, Mais, Ölfrucht,
+Leguminosen, Hackfrucht) mit Pausen für Raps, Leguminosen und Hackfrüchte.
+
+**Beschreibung:** `modDesc.xml` trägt unter der Kurzbeschreibung den Changelog der letzten zwei Versionen („Neu in …“,
+„Changes in …“); ein Test prüft, dass es genau die zwei neuesten sind.

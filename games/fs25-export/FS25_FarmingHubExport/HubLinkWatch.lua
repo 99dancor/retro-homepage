@@ -283,6 +283,9 @@ function FarmingHubLive:readOrchards()
         local spec, specName = FarmingHubLive.orchardSpec(p)
         if spec ~= nil or looksLikeOrchard(p) then
             local o = { uid = U.uidOf(p), farm = ownerOf(p), name = nameOfPlaceable(p), file = p.configFileName, custom = p.nameCustom, specName = specName or "" }
+            if FarmingHubLive.posOfNode ~= nil then
+                o.x, o.z = FarmingHubLive.posOfNode(p.rootNode)
+            end
             local desc, areas, total = nil, {}, 0
             if spec ~= nil and spec.fruitType ~= nil then
                 local idx = spec.fruitType.index
@@ -335,7 +338,7 @@ end
 function FarmingHubLive:checkOrchards(found)
     for _, o in ipairs(self:readOrchards()) do
         if farmOk(o.farm) and self:farm(o.farm).orchard ~= false and (o.total or 0) > 0 then
-            local base = { farm = o.farm, uid = o.uid, name = o.name, file = o.file, custom = o.custom, fill = o.fill, fillTitle = o.fruitTitle }
+            local base = { farm = o.farm, uid = o.uid, name = o.name, file = o.file, custom = o.custom, fill = o.fill, fillTitle = o.fruitTitle, x = o.x, z = o.z }
             local function put(kind, pct, limit, sev)
                 local open = self:wasOpen(kind, o.farm, o.uid, kind)
                 if pct ~= nil and pct >= (open and limit / 2 or limit) then

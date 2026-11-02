@@ -43,6 +43,7 @@ FarmingHubLive.FARM_KEYS = {
     { "silo", true }, { "siloPct", 90 },
     { "fields", true },
     { "orchard", true }, { "bales", true },
+    { "helper", true }, { "rain", true },
 }
 
 FarmingHubLive.settings = { rev = 0, export = true, advisor = true, farms = {} }
@@ -285,6 +286,12 @@ function FarmingHubLive:add(found, p)
     p.file = p.file or self.curFile
     p.custom = p.custom or self.curCustom
     p.key = string.format("%s:%d:%s:%s", p.kind, p.farm, p.uid, p.part or p.fill or "")
+    -- Ort für die Kartenmarkierung (ab 3.8)
+    local place = p.placeable or self.curPlaceable
+    if p.x == nil and place ~= nil and FarmingHubLive.posOfNode ~= nil then
+        p.x, p.z = FarmingHubLive.posOfNode(place.rootNode)
+    end
+    p.placeable = nil
     found[p.key] = p
 end
 
@@ -488,7 +495,7 @@ function FarmingHubLive:checkPlaceable(found, p)
     local cfg = self:farm(farm)
     local base = { farm = farm, uid = uidOf(p), name = (p.getName ~= nil and tostring(p:getName() or "")) or "", placeable = p,
         custom = p.nameCustom, file = p.configFileName }
-    self.curFile, self.curCustom = base.file, base.custom
+    self.curFile, self.curCustom, self.curPlaceable = base.file, base.custom, p
     local point = p.spec_productionPoint ~= nil and p.spec_productionPoint.productionPoint or nil
     if point ~= nil then
         try("Produktion", self.checkProduction, self, found, cfg, base, point)
@@ -508,10 +515,13 @@ function FarmingHubLive:check()
         for _, p in ipairs(list) do
             self:checkPlaceable(found, p)
         end
+        self.curPlaceable = nil
         try("Felder", self.checkFields, self, found)
         try("Plantagen", self.checkOrchards, self, found)
         try("Ballen", self.checkBales, self, found)
+        try("Regen", self.checkRain, self, found)
     end
+    try("Helfer", self.checkHelpers, self, found)
     try("Tracker", self.collectTrackers, self)
     self.problems = found
     -- Im Spiel abgehakt: vergessen, sobald das Problem weg ist
@@ -600,6 +610,10 @@ function FarmingHubLive:writeLive()
         end
         if type(p.hours) == "number" then
             xml:setString(k .. "#hours", num(p.hours, 1))
+        end
+        -- ab 3.8: Text des Spiels (Helfer) bzw. Plantagen (Regen)
+        if p.sub ~= nil and p.sub ~= "" then
+            xml:setString(k .. "#sub", tostring(p.sub))
         end
     end
     xml:setInt(r .. ".tasks#count", n)
@@ -715,7 +729,7 @@ function FarmingHubLive:readFields()
             pcall(function()
                 maxGrowth = g_fruitTypeManager:getFruitTypeByIndex(st.fruitTypeIndex).numGrowthStates
             end)
-            table.insert(list, { id = id, farm = fieldFarm(field), fruit = fruit, fruitTitle = fruit ~= nil and fruitTitle(st.fruitTypeIndex) or nil, maxGrowth = maxGrowth, fruitIndex = st.fruitTypeIndex,
+            table.insert(list, { id = id, farm = fieldFarm(field), fruit = fruit, fruitTitle = fruit ~= nil and fruitTitle(st.fruitTypeIndex) or nil, maxGrowth = maxGrowth, fruitIndex = st.fruitTypeIndex, x = field.posX, z = field.posZ,
                 ripe = fruit ~= nil and isRipe(st, ground), growth = st.growthState, ground = ground,
                 planned = fruitName(field.plannedFruitTypeIndex), spray = st.sprayLevel, lime = st.limeLevel, plow = st.plowLevel, roller = st.rollerLevel,
                 stubble = st.stubbleShredLevel, weed = st.weedState, stone = st.stoneLevel })
@@ -734,7 +748,7 @@ function FarmingHubLive:checkFields(found)
         local k = kind .. ":" .. farm .. ":" .. part
         local g = groups[k]
         if g == nil then
-            g = { kind = kind, farm = farm, uid = "fields", part = part, ids = {}, sev = 2 }
+            g = { kind = kind, farm = farm, uid = "fields", part = part, ids = {}, sev = 2, x = f.x, z = f.z }
             for a, b in pairs(extra or {}) do
                 g[a] = b
             end
@@ -1004,8 +1018,8 @@ function FarmingHubLive:buildView()
                 file = NetworkUtil.convertToNetworkFilename(file)
             end
             table.insert(list, { key = key, src = 1, farm = p.farm, sev = p.sev or 2, kind = p.kind, uid = tostring(p.uid or ""), name = tostring(p.name or ""), fill = p.fill or "",
-                fillTitle = tostring(p.fillTitle or ""), title = "", sub = "", pct = type(p.pct) == "number" and p.pct or -1, hours = type(p.hours) == "number" and p.hours or -1,
-                level = type(p.level) == "number" and p.level or -1, cap = type(p.cap) == "number" and p.cap or -1, file = file, custom = tostring(p.custom or "") })
+                fillTitle = tostring(p.fillTitle or ""), title = "", sub = tostring(p.sub or ""), pct = type(p.pct) == "number" and p.pct or -1, hours = type(p.hours) == "number" and p.hours or -1,
+                level = type(p.level) == "number" and p.level or -1, cap = type(p.cap) == "number" and p.cap or -1, file = file, custom = tostring(p.custom or ""), x = p.x, z = p.z })
         end
     end
     for _, h in ipairs(self.hubTasks) do
@@ -1160,12 +1174,16 @@ function FarmingHubLive:loadMap(filename)
     if g_currentMission ~= nil and g_currentMission:getIsServer() then
         try("Einstellungen laden", self.loadSettings, self)
         try("Inbox", self.readInbox, self)
+        try("Helfer", self.initHelpers, self)
     end
 end
 
 function FarmingHubLive:deleteMap()
     removeConsoleCommand("hubStatus")
     removeConsoleCommand("hubSet")
+    if self.doneHelpers ~= nil then
+        pcall(self.doneHelpers, self)
+    end
     self.exchangeDir = nil
     self.saveName = nil
     self.problems = {}

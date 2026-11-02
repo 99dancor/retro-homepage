@@ -1,5 +1,13 @@
 # Changelog
 
+## 02.11.2026 – FS25 Hub Link 3.7: Tracker, Plantagen, Ballen
+
+- **Overlay in der Farbe des Spiels:** Der Hintergrund nimmt jetzt genau die Farbe der Spiel-HUD (dunkler als bisher), die Deckkraft steht auf „wie Spiel“ und lässt sich weiter verstellen.
+- **Tracker:** Im Optionsmenü gibt es den Reiter „Tracker“. Dort wählst du bis zu 8 Dinge deines Hofs aus, deren Werte das Overlay dauerhaft zeigt, ohne dass daraus eine Aufgabe wird: Füllstände von Produktionen (mit Reichweite), Ställen und Silos, Ballenlager, Ballen (mit Gärung), Plantagen und das Wachstum einzelner Felder. Die Auswahl gilt nur für dich.
+- **Plantagen im Berater:** Kaffee, Bananen, Wein und Oliven melden, wenn sie erntereif sind oder zurückgeschnitten werden müssen. Kranke Bananen (Fungizid) meldet die Mod, sobald sie die Krankheit im Spiel findet; dafür schreibt sie eine Diagnose in die Live-Datei.
+- **Ballen:** Fertig gegorene Silageballen werden zur Aufgabe, fast volle Ballenlager auch. Das Inventar auf der Website zählt die Ballen live aus dem Spiel, auch die im Ballenlager.
+- Plantagen und Silage lassen sich je Hof abschalten (Website und Optionsmenü).
+
 ## 31.10.2026 – FS25 Hub Link: gleiche ZIP für alle
 
 - **Mitspieler kommen wieder auf den Server:** Die ZIP der Mod hatte bei jedem Herunterladen eine andere Prüfsumme (die Uhrzeit stand in den Einträgen). Im Mehrspieler muss die eigene Datei aber genau der auf dem Server gleichen, sonst zeigt das Spiel ein rotes Warnzeichen. Jetzt ist jede heruntergeladene ZIP derselben Version Byte für Byte gleich. Einmal neu auf den Server laden, dann passt jede Kopie von der Website.

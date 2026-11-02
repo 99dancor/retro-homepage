@@ -12,10 +12,18 @@
 --
 -- Tasten (in der Steuerung änderbar): Alt+H Overlay ein/aus, Alt+J Mauszeiger ein/aus. Konsole: hubHud, hubDone.
 -- Was jeder Spieler für die Anzeige eingestellt hat, liegt nur bei ihm in modSettings/FS25_FarmingHubExport/hubLinkHud.xml.
+--
+-- Ab 3.7: Hintergrund in der Farbe der Spiel-HUD (HUD.COLOR.BACKGROUND), Tracker (Werte ohne Aufgabe, Reiter „Tracker“ im
+-- Optionsmenü, je Spieler höchstens 8) in einem eigenen Block unter den Meldungen.
 
 HubLinkHud = {}
 HubLinkHud.FILE = "hubLinkHud.xml"
-HubLinkHud.prefs = { visible = true, x = 0.74, y = 0.79, w = 420, rows = 5, scale = 1, alpha = 0.72, details = true, notes = true, accent = 1, round = true }
+-- alpha -1 = Deckkraft wie die Spiel-HUD
+HubLinkHud.prefs = { visible = true, x = 0.74, y = 0.79, w = 420, rows = 5, scale = 1, alpha = -1, details = true, notes = true, accent = 1, round = true, trackers = true, track = {} }
+HubLinkHud.catalog = {}
+HubLinkHud.catalogFarm = 0
+HubLinkHud.trackRows = {}
+HubLinkHud.trackPage = 1
 HubLinkHud.optTab = nil
 HubLinkHud.hiddenNotes = {}
 HubLinkHud.pending = {}
@@ -28,8 +36,8 @@ HubLinkHud.mx, HubLinkHud.my = -1, -1
 HubLinkHud.flash = nil
 
 local C = {
-    bg = { 0.12, 0.12, 0.12, 0.72 },
-    bgHover = { 0.24, 0.24, 0.24, 0.86 },
+    bg = { 0, 0, 0, 0.8 },
+    bgHover = { 0.16, 0.16, 0.16, 0.9 },
     chip = { 0.05, 0.05, 0.05, 0.82 },
     text = { 1, 1, 1, 1 },
     dim = { 0.72, 0.72, 0.72, 1 },
@@ -48,6 +56,31 @@ local ACCENTS = {
 HubLinkHud.ACCENTS = ACCENTS
 local function useAccent(i)
     C.accent = ACCENTS[i] or ACCENTS[1]
+end
+
+-- Farben der Spiel-HUD übernehmen (ab 3.7): Hintergrund der Infokästen und das Orange der aktiven Symbole
+local function useGameColors()
+    pcall(function()
+        local bg = HUD.COLOR.BACKGROUND
+        if type(bg) == "table" and type(bg[1]) == "number" then
+            C.bg = { bg[1], bg[2], bg[3], bg[4] or 0.8 }
+            C.bgHover = { math.min(1, bg[1] + 0.14), math.min(1, bg[2] + 0.14), math.min(1, bg[3] + 0.14), math.min(1, (bg[4] or 0.8) + 0.08) }
+        end
+        local act = HUD.COLOR.ACTIVE
+        if type(act) == "table" and type(act[1]) == "number" then
+            ACCENTS[1] = { act[1], act[2], act[3], 1 }
+        end
+    end)
+end
+HubLinkHud.useGameColors = useGameColors
+
+-- Deckkraft: eigene Einstellung oder wie das Spiel
+local function bgAlpha()
+    local a = HubLinkHud.prefs.alpha
+    if type(a) ~= "number" or a < 0 then
+        return C.bg[4]
+    end
+    return a
 end
 
 -- Grenzen wie im Hub (src/fslive.js LIMITS) und Schrittweite der Knöpfe
@@ -275,6 +308,16 @@ function HubLinkHud:textOf(e)
         return string.format(T("hubLink_pallets", "%s: kein Platz für Paletten"), place)
     elseif k == "silo" then
         return string.format(T("hubLink_almostFull", "%s: %s fast voll (%d %%)"), place, goodName(e), pct)
+    elseif k == "objects" then
+        return string.format(T("hubLink_storeFull", "%s: Lager fast voll (%d %%)"), place, pct)
+    elseif k == "balesReady" then
+        return string.format(T("hubLink_balesReady", "Silage fertig: %d Ballen"), math.floor((e.level or 0) + 0.5))
+    elseif k == "orchardHarvest" then
+        return string.format(T("hubLink_orchardHarvest", "%s: %s ernten (%d %%)"), place, goodName(e), pct)
+    elseif k == "orchardCut" then
+        return string.format(T("hubLink_orchardCut", "%s: zurückschneiden (%d %%)"), place, pct)
+    elseif k == "orchardSpray" then
+        return string.format(T("hubLink_orchardSpray", "%s: Fungizid spritzen (%d %% krank)"), place, math.max(1, pct))
     elseif FIELD_KINDS[k] ~= nil then
         local where = string.format(string.find(e.name or "", ",") and T("hubLink_fieldsMany", "Felder %s") or T("hubLink_fieldsOne", "Feld %s"), e.name or "")
         if k == "harvest" then
@@ -292,13 +335,15 @@ function HubLinkHud:detailOf(e)
     end
     local cfg = FarmingHubLive:farm(e.farm)
     local bits = {}
-    if (e.level or -1) >= 0 and (e.cap or 0) > 0 then
+    local k = e.kind
+    if k == "objects" then
+        table.insert(bits, string.format(T("hubLink_pieces", "%s / %s Stück"), fmt(e.level), fmt(e.cap)))
+    elseif (e.level or -1) >= 0 and (e.cap or 0) > 0 then
         table.insert(bits, string.format(T("hubLink_level", "%s / %s l"), fmt(e.level), fmt(e.cap)))
     end
-    if (e.pct or -1) >= 0 and e.kind ~= "stopped" then
+    if (e.pct or -1) >= 0 and k ~= "stopped" and k ~= "orchardHarvest" and k ~= "orchardCut" and k ~= "orchardSpray" then
         table.insert(bits, string.format("%d %%", math.floor(e.pct + 0.5)))
     end
-    local k = e.kind
     if k == "input" then
         if e.hours >= 0 then
             table.insert(bits, string.format(T("hubLink_limitBelow", "Grenze unter %s"), string.format(T("hubLink_hours", "%d Std."), cfg.inputHours)))
@@ -313,8 +358,14 @@ function HubLinkHud:detailOf(e)
         table.insert(bits, string.format(T("hubLink_limitFrom", "Grenze ab %s"), cfg.stallFullPct .. " %"))
     elseif k == "food" or k == "supply" then
         table.insert(bits, string.format(T("hubLink_limitBelow", "Grenze unter %s"), cfg.stallPct .. " %"))
-    elseif k == "silo" then
+    elseif k == "silo" or k == "objects" then
         table.insert(bits, string.format(T("hubLink_limitFrom", "Grenze ab %s"), cfg.siloPct .. " %"))
+    elseif k == "balesReady" then
+        table.insert(bits, T("hubLink_balesHint", "fertig gegoren, abholen oder einlagern"))
+    elseif k == "orchardHarvest" or k == "orchardCut" then
+        table.insert(bits, T("hubLink_orchardHint", "Anteil der Plantage, laut Pflanzen im Spiel"))
+    elseif k == "orchardSpray" then
+        table.insert(bits, T("hubLink_sprayHint", "vor der letzten Wachstumsstufe spritzen"))
     elseif k == "blocked" then
         table.insert(bits, T("hubLink_blockedHint", "Palette passt nicht aus dem Ausgang"))
     elseif k == "pallets" then
@@ -323,6 +374,168 @@ function HubLinkHud:detailOf(e)
         table.insert(bits, T("hubLink_fieldHint", "laut Feldzustand im Spiel"))
     end
     return table.concat(bits, "  ·  ")
+end
+
+-- ---------- Tracker (ab 3.7) ----------
+local TRACK_GROUPS = {
+    prod = { "hubLink_trProd", "Produktionen" }, stall = { "hubLink_trStall", "Ställe" }, silo = { "hubLink_trSilo", "Silos und Lager" },
+    store = { "hubLink_trStore", "Ballenlager" }, bales = { "hubLink_trBales", "Ballen" }, orchard = { "hubLink_trOrchard", "Plantagen" }, field = { "hubLink_trField", "Felder" },
+}
+HubLinkHud.TRACK_GROUPS = TRACK_GROUPS
+
+local function parts(s)
+    local out = {}
+    for part in string.gmatch(s or "", "[^;]+") do
+        local f = {}
+        for x in string.gmatch(part, "[^:]+") do
+            table.insert(f, x)
+        end
+        table.insert(out, f)
+    end
+    return out
+end
+
+local function good(name)
+    return goodName({ fill = name, fillTitle = name })
+end
+
+local function pctText(v)
+    return string.format("%d %%", math.floor((tonumber(v) or 0) + 0.5))
+end
+
+function HubLinkHud:trackName(e)
+    if e.kind == "field" then
+        return string.format(T("hubLink_fieldsOne", "Feld %s"), e.name or "")
+    elseif e.kind == "bales" then
+        return T("hubLink_trBales", "Ballen")
+    end
+    return self:placeName(e)
+end
+
+-- Wert rechts in der ersten Zeile und die Einzelheiten darunter
+function HubLinkHud:trackValue(e)
+    local k, right, bits = e.kind, "", {}
+    if k == "prod" then
+        for _, f in ipairs(parts(e.sub)) do
+            local t = good(f[2]) .. " " .. pctText(f[3])
+            local h = tonumber(f[4] or "") or -1
+            if f[1] == "i" and h >= 0 then
+                t = t .. " (" .. hours(h) .. ")"
+            end
+            table.insert(bits, t)
+        end
+        if (e.pct or -1) >= 0 then
+            right = pctText(e.pct)
+        end
+    elseif k == "stall" then
+        for _, f in ipairs(parts(e.sub)) do
+            if f[1] == "a" then
+                table.insert(bits, string.format(T("hubLink_trAnimals", "%s Tiere"), f[2] or "0"))
+            elseif f[1] == "f" then
+                table.insert(bits, T("hubLink_trFood", "Futter") .. " " .. pctText(f[2]))
+            elseif f[1] == "c" then
+                table.insert(bits, (f[2] or "?") .. " " .. pctText(f[3]))
+            end
+        end
+        if (e.pct or -1) >= 0 then
+            right = pctText(e.pct)
+        end
+    elseif k == "silo" then
+        for _, f in ipairs(parts(e.sub)) do
+            table.insert(bits, good(f[1]) .. " " .. string.format(T("hubLink_trLiters", "%s l"), fmt(tonumber(f[2]) or 0)))
+        end
+        if (e.pct or -1) >= 0 then
+            right = pctText(e.pct)
+        end
+    elseif k == "store" then
+        for _, f in ipairs(parts(e.sub)) do
+            table.insert(bits, good(f[1]) .. " " .. (f[2] or "0"))
+        end
+        right = string.format("%s / %s", fmt(e.level), fmt(e.cap))
+    elseif k == "field" then
+        if e.fill ~= nil and e.fill ~= "" then
+            right = goodName(e)
+            if e.sev == 1 then
+                table.insert(bits, T("hubLink_trRipe", "erntereif"))
+            elseif (e.level or -1) >= 0 and (e.cap or -1) > 0 then
+                table.insert(bits, string.format(T("hubLink_trStage", "Stufe %d / %d"), e.level, e.cap))
+            end
+        else
+            table.insert(bits, T("hubLink_trNoCrop", "nichts angebaut"))
+        end
+    elseif k == "orchard" then
+        right = goodName(e)
+        local v = {}
+        for _, f in ipairs(parts(e.sub)) do
+            v[f[1]] = { tonumber(f[2]) or -1, tonumber(f[3] or "") or -1 }
+        end
+        table.insert(bits, T("hubLink_trRipe", "erntereif") .. " " .. pctText(v.r and v.r[1] or 0))
+        if v.w ~= nil and v.w[1] > 0 then
+            table.insert(bits, T("hubLink_trCut", "zurückschneiden") .. " " .. pctText(v.w[1]))
+        end
+        if v.s ~= nil and v.s[1] >= 0 then
+            table.insert(bits, T("hubLink_trSick", "krank") .. " " .. pctText(v.s[1]))
+        end
+        if v.g ~= nil and v.g[1] >= 0 and v.g[2] > 0 then
+            table.insert(bits, string.format(T("hubLink_trStage", "Stufe %d / %d"), v.g[1], v.g[2]))
+        end
+    elseif k == "bales" then
+        for _, f in ipairs(parts(e.sub)) do
+            local t = good(f[1]) .. " " .. (f[2] or "0")
+            local ferm = tonumber(f[3] or "") or 0
+            if ferm > 0 then
+                t = t .. " (" .. string.format(T("hubLink_trFerment", "%d gären, %s"), ferm, pctText(f[4])) .. ")"
+            end
+            table.insert(bits, t)
+        end
+        right = fmt(e.level)
+    end
+    return right, table.concat(bits, "  ·  ")
+end
+
+function HubLinkHud:trackSet()
+    local set = {}
+    for _, k in ipairs(self.prefs.track or {}) do
+        set[k] = true
+    end
+    return set
+end
+
+function HubLinkHud:toggleTrack(key)
+    local list, found = {}, false
+    for _, k in ipairs(self.prefs.track) do
+        if k == key then
+            found = true
+        else
+            table.insert(list, k)
+        end
+    end
+    if not found then
+        if #list >= (FarmingHubLive.TRACK_MAX or 8) then
+            return
+        end
+        table.insert(list, key)
+    end
+    self.prefs.track = list
+    self.trackDirty = true
+    self:refresh()
+    self:savePrefs()
+end
+
+-- Auswahl an den Server; mit Katalog, solange der Reiter offen ist
+function HubLinkHud:sendTrack(wantCatalog)
+    local farm = HubLinkHud.myFarm ~= nil and HubLinkHud.myFarm() or 0
+    self.trackSent = g_time
+    self.trackFarm = farm
+    if wantCatalog then
+        self.catalogAsk = g_time
+    end
+    pcall(HubLinkTrackEvent.send, self.prefs.track, farm, wantCatalog)
+end
+
+function HubLinkHud:onCatalog(list, farm)
+    self.catalog = list or {}
+    self.catalogFarm = farm or 0
 end
 
 -- ---------- Liste ----------
@@ -349,7 +562,7 @@ function HubLinkHud:refresh()
         local order = {}
         for i, e in ipairs(FarmingHubLive ~= nil and FarmingHubLive.viewList or {}) do
             local wait = self.pending[e.key]
-            if (wait == nil or g_time - wait > 15000) and (e.farm == farm or e.farm == 0) then
+            if e.src ~= 4 and (wait == nil or g_time - wait > 15000) and (e.farm == farm or e.farm == 0) then
                 if e.src == 3 then
                     if not self.hiddenNotes[e.key] then
                         table.insert(notes, e)
@@ -379,6 +592,21 @@ function HubLinkHud:refresh()
         end
     end
     self.rows = rows
+    -- Tracker in der Reihenfolge der Auswahl
+    local byKey, track = {}, {}
+    for _, e in ipairs(FarmingHubLive ~= nil and FarmingHubLive.viewList or {}) do
+        if e.src == 4 and e.farm == farm then
+            byKey[e.key] = e
+        end
+    end
+    if farm > 0 and self.prefs.trackers then
+        for _, k in ipairs(self.prefs.track or {}) do
+            if byKey[k] ~= nil then
+                table.insert(track, byKey[k])
+            end
+        end
+    end
+    self.trackRows = track
 end
 
 -- ---------- Abhaken ----------
@@ -537,7 +765,27 @@ function HubLinkHud:loadPrefs()
     p.w = clamp(xml:getFloat(r .. "#w"), 260, 900, p.w)
     p.rows = math.floor(clamp(xml:getFloat(r .. "#rows"), 1, 15, p.rows))
     p.scale = clamp(xml:getFloat(r .. "#scale"), 0.7, 1.5, p.scale)
-    p.alpha = clamp(xml:getFloat(r .. "#alpha"), 0.3, 0.95, p.alpha)
+    -- vor 3.7 gespeicherte Deckkraft (hellgrau, 72 %) nicht übernehmen: ab jetzt wie die Spiel-HUD
+    local v = xml:getInt(r .. "#v") or 1
+    local a = xml:getFloat(r .. "#alpha")
+    if v >= 2 and type(a) == "number" and a >= 0 then
+        p.alpha = clamp(a, 0.3, 0.95, -1)
+    else
+        p.alpha = -1
+    end
+    local tr = xml:getBool(r .. "#trackers")
+    if tr ~= nil then
+        p.trackers = tr
+    end
+    p.track = {}
+    local ti = 0
+    while xml:hasProperty(string.format("%s.track(%d)", r, ti)) do
+        local key = xml:getString(string.format("%s.track(%d)#key", r, ti))
+        if key ~= nil and #p.track < 8 then
+            table.insert(p.track, key)
+        end
+        ti = ti + 1
+    end
     local d = xml:getBool(r .. "#details")
     if d ~= nil then
         p.details = d
@@ -579,7 +827,12 @@ function HubLinkHud:savePrefs()
     xml:setFloat(r .. "#w", p.w)
     xml:setFloat(r .. "#rows", p.rows)
     xml:setFloat(r .. "#scale", p.scale)
+    xml:setInt(r .. "#v", 2)
     xml:setFloat(r .. "#alpha", p.alpha)
+    xml:setBool(r .. "#trackers", p.trackers)
+    for i, key in ipairs(p.track or {}) do
+        xml:setString(string.format("%s.track(%d)#key", r, i - 1), key)
+    end
     xml:setBool(r .. "#details", p.details)
     xml:setBool(r .. "#notes", p.notes)
     xml:setFloat(r .. "#accent", p.accent)
@@ -626,10 +879,16 @@ function HubLinkHud:draw()
     local mouse = self:cursorShown()
     local flash = self.flash ~= nil and g_time - self.flash.t < 3000
     local rows = self.rows
-    if #rows == 0 and not mouse and not flash and not self.options then
+    local track = self.trackRows or {}
+    if #rows == 0 and #track == 0 and not mouse and not flash and not self.options then
         return
     end
-    local alpha = p.alpha
+    if not self.colorsDone then
+        self.colorsDone = true
+        useGameColors()
+        useAccent(p.accent)
+    end
+    local alpha = bgAlpha()
     local w = px(p.w)
     local x = p.x
     local y = p.y
@@ -715,10 +974,39 @@ function HubLinkHud:draw()
         end
         bottom = y
     end
-    if #rows == 0 then
+    if #rows == 0 and #track == 0 then
         y = y - gap - py(30)
         box(x, y, w, py(30), C.bg, alpha)
         text(x + pad + px(4), mid(y, py(30), size), size, T("hubLink_allOk", "Alles in Ordnung"), C.dim, false)
+        bottom = y
+    end
+    -- Tracker (ab 3.7): nur Werte, kein Abhaken
+    for _, e in ipairs(track) do
+        y = y - gap - rowH
+        box(x, y, w, rowH, C.bg, alpha)
+        box(x + px(6), y + rowH * 0.2, px(4), rowH * 0.6, C.dim, nil, 2)
+        local tx = x + pad + px(4)
+        local right = x + w - pad
+        local value, detail = "", ""
+        local ok = pcall(function()
+            value, detail = self:trackValue(e)
+        end)
+        if not ok then
+            value, detail = "", ""
+        end
+        local name = self:trackName(e)
+        local vw = value ~= "" and math.min(getTextWidth(size, value) + px(10), (right - tx) * 0.45) or 0
+        if value ~= "" then
+            text(right, p.details and (y + rowH * 0.52 + size * 0.05) or mid(y, rowH, size), size, fit(value, size, vw), C.accent, true, RenderText.ALIGN_RIGHT)
+        end
+        if p.details then
+            text(tx, y + rowH * 0.52 + size * 0.05, size, fit(name, size, right - tx - vw), C.text, false)
+            if detail ~= "" then
+                text(tx, y + rowH * 0.14, small, fit(detail, small, right - tx), C.dim, false)
+            end
+        else
+            text(tx, mid(y, rowH, size), size, fit(name, size, right - tx - vw), C.text, false)
+        end
         bottom = y
     end
     local footY = bottom - gap - py(20)
@@ -767,6 +1055,7 @@ function HubLinkHud:drawOptions(ox, oy, ow)
     local tabs = { { "view", T("hubLink_tabView", "Anzeige") } }
     if farm > 0 then
         table.insert(tabs, { "farm", string.format(T("hubLink_tabFarm", "Hof %d"), farm) })
+        table.insert(tabs, { "track", T("hubLink_tabTrack", "Tracker") })
     end
     table.insert(tabs, { "server", T("hubLink_tabServer", "Server") })
     local tab = self.optTab
@@ -795,12 +1084,19 @@ function HubLinkHud:drawOptions(ox, oy, ow)
     local function colors()
         table.insert(cur.lines, { colors = true })
     end
+    local function note(label)
+        table.insert(cur.lines, { note = label })
+    end
 
     if tab == "view" then
         group(T("hubLink_grpWindow", "Fenster"))
         stepper(T("hubLink_optRows", "Zeilen"), tostring(p.rows), function() self:stepPref("rows", -1, 1, 15) end, function() self:stepPref("rows", 1, 1, 15) end, true)
         stepper(T("hubLink_optScale", "Schriftgröße"), string.format("%d %%", math.floor(p.scale * 100 + 0.5)), function() self:stepPref("scale", -0.1, 0.7, 1.5) end, function() self:stepPref("scale", 0.1, 0.7, 1.5) end, true)
-        stepper(T("hubLink_optAlpha", "Deckkraft"), string.format("%d %%", math.floor(p.alpha * 100 + 0.5)), function() self:stepPref("alpha", -0.1, 0.3, 0.95) end, function() self:stepPref("alpha", 0.1, 0.3, 0.95) end, true)
+        local game = p.alpha < 0
+        toggle(T("hubLink_optAlphaGame", "Deckkraft wie Spiel"), game, function()
+            self:setPref("alpha", game and math.floor(C.bg[4] * 10 + 0.5) / 10 or -1)
+        end, true)
+        stepper(T("hubLink_optAlpha", "Deckkraft"), string.format("%d %%", math.floor(bgAlpha() * 100 + 0.5)), function() self:stepPref("alpha", -0.1, 0.3, 0.95) end, function() self:stepPref("alpha", 0.1, 0.3, 0.95) end, not game)
         toggle(T("hubLink_optRound", "Runde Ecken"), p.round, function() self:setPref("round", not p.round) end, true)
         group(T("hubLink_grpColor", "Hervorhebung"))
         colors()
@@ -826,10 +1122,42 @@ function HubLinkHud:drawOptions(ox, oy, ow)
         ft(T("hubLink_optWatch", "Prüfen"), "stall")
         fs(T("hubLink_optStallPct", "knapp unter"), "stallPct", "%")
         fs(T("hubLink_optStallFullPct", "voll ab"), "stallFullPct", "%")
-        group(T("hubLink_grpMore", "Silos und Felder"))
+        group(T("hubLink_grpMore", "Silos, Felder, Plantagen"))
         ft(T("hubLink_optSilo", "Silos"), "silo")
         fs(T("hubLink_optSiloPct", "voll ab"), "siloPct", "%")
         ft(T("hubLink_optFieldsShort", "Felder (ernten, kalken, pflügen …)"), "fields")
+        ft(T("hubLink_optOrchard", "Plantagen (ernten, schneiden, Fungizid)"), "orchard")
+        ft(T("hubLink_optBales", "Silage fertig gegoren"), "bales")
+    elseif tab == "track" then
+        if self.catalogAsk == nil or g_time - self.catalogAsk > 10000 then
+            self:sendTrack(true)
+        end
+        local cat = self.catalogFarm == farm and self.catalog or {}
+        local sel = self:trackSet()
+        local max = FarmingHubLive.TRACK_MAX or 8
+        local per = 9
+        local pages = math.max(1, math.ceil(#cat / per))
+        self.trackPage = math.max(1, math.min(pages, self.trackPage or 1))
+        group(string.format(T("hubLink_trChosen", "Ausgewählt: %d von %d"), #p.track, max))
+        toggle(T("hubLink_trShow", "Tracker im Overlay zeigen"), p.trackers, function() self:setPref("trackers", not p.trackers) end, true)
+        if pages > 1 then
+            stepper(T("hubLink_trPage", "Seite"), string.format("%d / %d", self.trackPage, pages), function() self.trackPage = math.max(1, self.trackPage - 1) end,
+                function() self.trackPage = math.min(pages, self.trackPage + 1) end, true)
+        end
+        if #cat == 0 then
+            note(T("hubLink_trLoading", "Liste kommt vom Server …"))
+        end
+        local kind = nil
+        for i = (self.trackPage - 1) * per + 1, math.min(#cat, self.trackPage * per) do
+            local c = cat[i]
+            if c.kind ~= kind then
+                kind = c.kind
+                local g = TRACK_GROUPS[kind] or { "", kind }
+                group(T(g[1], g[2]))
+            end
+            local on = sel[c.key] == true
+            toggle(self:trackName(c), on, function() self:toggleTrack(c.key) end, on or #p.track < max)
+        end
     else
         group(T("hubLink_optServer", "Server (Admin)"))
         toggle(T("hubLink_optAdvisor", "Produktionsberater"), s.advisor ~= false, function() self:setFarm(0, "advisor", not (s.advisor ~= false)) end, canGlobal)
@@ -838,6 +1166,8 @@ function HubLinkHud:drawOptions(ox, oy, ow)
     local hint
     if tab == "view" then
         hint = T("hubLink_hintView", "Gilt nur für dich, auf diesem Rechner.")
+    elseif tab == "track" then
+        hint = T("hubLink_hintTrack", "Nur für dich. Tracker zeigen Werte und werden nie zur Aufgabe.")
     elseif tab == "farm" then
         hint = canFarm and T("hubLink_optHint", "Prüfungen gelten für den ganzen Hof und gehen an die Website.") or T("hubLink_optNoFarm", "Nur Mitglieder des Hofs ändern die Prüfungen.")
     else
@@ -851,8 +1181,9 @@ function HubLinkHud:drawOptions(ox, oy, ow)
         total = total + grpHead + grpPad + #g.lines * (lineH + gap) + gap
     end
     total = total + py(30)
-    local top = oy
-    box(x, top - total, w, total, C.bg, math.max(p.alpha, 0.88))
+    -- nicht unten aus dem Bild laufen
+    local top = math.min(0.995, math.max(oy, total + 0.01))
+    box(x, top - total, w, total, C.bg, math.max(bgAlpha(), 0.88))
 
     -- Kopf mit Titel und X
     local y = top - headH
@@ -888,7 +1219,9 @@ function HubLinkHud:drawOptions(ox, oy, ow)
             local right = x + w - pad - px(4)
             local lbh = lineH * 0.76
             local by = gy + (lineH - lbh) / 2
-            if l.colors then
+            if l.note ~= nil then
+                text(lx, mid(gy, lineH, small), small, fit(l.note, small, right - lx), C.dim, false)
+            elseif l.colors then
                 local sw, sgap = px(32), px(8)
                 for ci, col in ipairs(ACCENTS) do
                     local cx = lx + (ci - 1) * (sw + sgap)
@@ -1000,6 +1333,8 @@ end
 -- ---------- Ablauf ----------
 function HubLinkHud:loadMap()
     pcall(self.loadPrefs, self)
+    useGameColors()
+    useAccent(self.prefs.accent)
     addConsoleCommand("hubHud", "Hub Link: Overlay on|off | pos <x> <y> | rows <n> | reset", "consoleHud", HubLinkHud)
     addConsoleCommand("hubDone", "Hub Link: Eintrag Nr. <n> im Overlay abhaken", "consoleDone", HubLinkHud)
 end
@@ -1018,6 +1353,10 @@ function HubLinkHud:deleteMap()
     self.hits = {}
     self.drag = nil
     self.options = false
+    self.catalog = {}
+    self.trackRows = {}
+    self.trackSent = nil
+    self.colorsDone = false
 end
 
 function HubLinkHud:update(dt)
@@ -1025,6 +1364,12 @@ function HubLinkHud:update(dt)
     if self.refreshT > 2000 then
         self.refreshT = 0
         self:refresh()
+        -- Tracker-Auswahl: nach Änderung, Hofwechsel und alle 5 Minuten (der Server vergisst sie nach 30)
+        local farm = myFarm()
+        if g_dedicatedServer == nil and farm > 0 and (self.trackDirty or self.trackFarm ~= farm or self.trackSent == nil or g_time - self.trackSent > 300000) then
+            self.trackDirty = false
+            self:sendTrack(false)
+        end
     end
     -- Zeiger weg (z. B. Quick Selector zu): Menü zu
     if not self:cursorShown() then
@@ -1042,7 +1387,7 @@ function HubLinkHud:consoleHud(a, b, c)
     elseif a == "rows" and tonumber(b) ~= nil then
         p.rows = math.max(1, math.min(15, math.floor(tonumber(b))))
     elseif a == "reset" then
-        p.visible, p.x, p.y, p.w, p.rows, p.scale, p.alpha = true, 0.74, 0.79, 420, 5, 1, 0.72
+        p.visible, p.x, p.y, p.w, p.rows, p.scale, p.alpha = true, 0.74, 0.79, 420, 5, 1, -1
     elseif a == "on" or a == "off" then
         p.visible = a == "on"
     else

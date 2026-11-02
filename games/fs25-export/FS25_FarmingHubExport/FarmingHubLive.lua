@@ -42,6 +42,7 @@ FarmingHubLive.FARM_KEYS = {
     { "stall", true }, { "stallPct", 15 }, { "stallFullPct", 85 },
     { "silo", true }, { "siloPct", 90 },
     { "fields", true },
+    { "orchard", true }, { "bales", true },
 }
 
 FarmingHubLive.settings = { rev = 0, export = true, advisor = true, farms = {} }
@@ -508,7 +509,10 @@ function FarmingHubLive:check()
             self:checkPlaceable(found, p)
         end
         try("Felder", self.checkFields, self, found)
+        try("Plantagen", self.checkOrchards, self, found)
+        try("Ballen", self.checkBales, self, found)
     end
+    try("Tracker", self.collectTrackers, self)
     self.problems = found
     -- Im Spiel abgehakt: vergessen, sobald das Problem weg ist
     for key in pairs(self.seen) do
@@ -601,6 +605,10 @@ function FarmingHubLive:writeLive()
     xml:setInt(r .. ".tasks#count", n)
     -- Live-Daten (ab 3.3): Geld und Finanzen je Hof, Datum, Uhrzeit, Wetter mit Vorhersage, Felder, Aufträge
     try("Live-Daten", self.writeGameData, self, xml, r)
+    -- Ballen und Plantagen (ab 3.7), Plantagen mit Diagnose
+    if self.writeWatchData ~= nil then
+        try("Ballen und Plantagen", self.writeWatchData, self, xml, r)
+    end
     -- Im Spiel abgehakt, vom Hub noch nicht bestätigt
     for i, d in ipairs(self.doneList) do
         local k = string.format("%s.done.item(%d)", r, i - 1)
@@ -703,7 +711,11 @@ function FarmingHubLive:readFields()
             end
             local ground = nameOf(FieldGroundType, st.groundType)
             local fruit = fruitName(st.fruitTypeIndex)
-            table.insert(list, { id = id, farm = fieldFarm(field), fruit = fruit, fruitTitle = fruit ~= nil and fruitTitle(st.fruitTypeIndex) or nil,
+            local maxGrowth = nil
+            pcall(function()
+                maxGrowth = g_fruitTypeManager:getFruitTypeByIndex(st.fruitTypeIndex).numGrowthStates
+            end)
+            table.insert(list, { id = id, farm = fieldFarm(field), fruit = fruit, fruitTitle = fruit ~= nil and fruitTitle(st.fruitTypeIndex) or nil, maxGrowth = maxGrowth, fruitIndex = st.fruitTypeIndex,
                 ripe = fruit ~= nil and isRipe(st, ground), growth = st.growthState, ground = ground,
                 planned = fruitName(field.plannedFruitTypeIndex), spray = st.sprayLevel, lime = st.limeLevel, plow = st.plowLevel, roller = st.rollerLevel,
                 stubble = st.stubbleShredLevel, weed = st.weedState, stone = st.stoneLevel })
@@ -1018,6 +1030,12 @@ function FarmingHubLive:buildView()
     while #list > 60 do
         table.remove(list)
     end
+    -- Tracker (ab 3.7) dahinter, damit viele Meldungen sie nicht verdrängen
+    if self.trackView ~= nil then
+        for _, e in ipairs(self:trackView()) do
+            table.insert(list, e)
+        end
+    end
     return list
 end
 
@@ -1225,7 +1243,7 @@ function FarmingHubLive:consoleSet(a, b, c)
             end
         end
         if farm == nil or kind == nil or c == nil then
-            return "hubSet export|advisor on|off  oder  hubSet <Hof> <input|inputHours|inputPct|output|outputPct|pallets|stall|stallPct|stallFullPct|silo|siloPct> <Wert>"
+            return "hubSet export|advisor on|off  oder  hubSet <Hof> <input|inputHours|inputPct|output|outputPct|pallets|stall|stallPct|stallFullPct|silo|siloPct|fields|orchard|bales> <Wert>"
         end
         s.farms[farm] = s.farms[farm] or {}
         s.farms[farm][b] = kind == "boolean" and bool(c) or tonumber(c)
@@ -1257,6 +1275,10 @@ local function wrapSpawner(name)
 end
 wrapSpawner("spawnPallet")
 wrapSpawner("getOrSpawnPallet")
+
+-- Hilfen für HubLinkWatch.lua (Plantagen, Ballen, Tracker)
+FarmingHubLive.U = { log = log, try = try, call = call, fillName = fillName, fillTitle = fillTitle, num = num, uidOf = uidOf, fruitName = fruitName,
+    fruitTitle = fruitTitle, sortedKeys = sortedKeys, nameOf = nameOf, cyclesPerHour = cyclesPerHour }
 
 FarmingHubLive.modName = g_currentModName
 addModEventListener(FarmingHubLive)

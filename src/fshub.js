@@ -308,6 +308,7 @@ function model() {
   for (const v of vehicles) if (v.farmId > 0) ids.add(v.farmId);
   for (const f of lands.values()) if (f.owner > 0) ids.add(f.owner);
   for (const f of farmsX || []) if (f.id > 0) ids.add(f.id);
+  const liveG = require('./fslive').gameData();
   const farms = [...ids].filter(id => id > 0 && id < 100).sort((a, b) => a - b).map((id, i) => {
     const r = rows.get(id) || {}, fx = (farmsX || []).find(f => f.id === id);
     const own = [...lands.values()].filter(f => f.owner === id);
@@ -341,8 +342,16 @@ function model() {
         productions: p.productions, food: fills.filter(f => f.food).reduce((a, f) => a + f.amount, 0), hasFood: fills.some(f => f.food),
         stall: p.kind === 'husbandry' ? fswiki.stall(exStalls.get(p.uid), fills, Object.keys(animals)) : null };
     });
-    const bales = (items || []).filter(b => b.farmId === id);
+    // Ballen: live aus dem Spiel (Mod ab 3.7, auch die im Ballenlager), sonst aus items.xml vom letzten Autosave
+    const liveBales = liveG && liveG.bales ? (liveG.bales.find(b => b.id === id) || { list: [] }).list : null;
+    const bales = liveBales ? [] : (items || []).filter(b => b.farmId === id);
     for (const b of bales) put(b.fill, b.level, where(b.x, b.z).label, 'Ballen');
+    for (const b of liveBales || []) {
+      const bits = [`${b.count} Ballen`];
+      if (b.stored) bits.push(`${b.stored} im Lager`);
+      if (b.fermenting) bits.push(`${b.fermenting} gären${b.fermentPct !== null ? ` (${Math.round(b.fermentPct)} %)` : ''}`);
+      put(b.fill, b.liters, bits.join(', '), 'live');
+    }
     const stockList = [...stock.values()].map(s => ({ ...s, where: [...s.where.values()].sort((a, b) => b.amount - a.amount) })).sort((a, b) => b.value - a.value || b.amount - a.amount);
     const land = { ha: own.reduce((a, f) => a + f.area, 0), value: own.reduce((a, f) => a + f.price, 0), lands: own.length, fields: fields.filter(f => f.owner === id && !f.parcel).length };
     const stockValue = stockList.reduce((a, s) => a + s.value, 0);
@@ -353,7 +362,7 @@ function model() {
     return {
       id, name: r.name || (fx && fx.name) || `Farm ${id}`, gameName: fx ? fx.name : '', color: r.color || DEFAULT_COLORS[(id - 1) % DEFAULT_COLORS.length] || DEFAULT_COLORS[i % 8],
       members: members.get(id) || [], players: fx ? fx.players : [], money, moneyLive: !!(fx && fx.live), loan: fx ? fx.loan : 0, finances: fx ? fx.finances : [],
-      land, vehicles: fv, fleet, fleetValue, stock: stockList, stockValue, cargo, buildings, bales: bales.length,
+      land, vehicles: fv, fleet, fleetValue, stock: stockList, stockValue, cargo, buildings, bales: liveBales ? liveBales.reduce((a, b) => a + b.count, 0) : bales.length,
       pallets: fv.filter(v => v.pallet), credits, creditRest, creditYears: bank ? bank.years.filter(y => y.farmId === id).sort((a, b) => b.year - a.year) : [],
       bilanz: (money || 0) - ((fx && fx.loan) || 0) - creditRest + land.value + fleetValue + stockValue,
     };

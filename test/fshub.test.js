@@ -579,11 +579,11 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubLive.lua"\/>/);
   const desc = zip.getEntry('modDesc.xml').getData().toString();
-  assert.match(desc, /<version>3\.8\.0\.0<\/version>/);
+  assert.match(desc, /<version>3\.9\.0\.0<\/version>/);
   // Beschreibung: Changelog der letzten zwei Versionen, die neueste zuerst
   const de = desc.match(/<de><!\[CDATA\[([\s\S]*?)\]\]><\/de>/)[1];
-  assert.deepEqual([...de.matchAll(/^Neu in (\d+\.\d+):/gm)].map(m => m[1]), ['3.8', '3.7']);
-  assert.deepEqual([...desc.matchAll(/^Changes in (\d+\.\d+):/gm)].map(m => m[1]), ['3.8', '3.7']);
+  assert.deepEqual([...de.matchAll(/^Neu in (\d+\.\d+):/gm)].map(m => m[1]), ['3.9', '3.8']);
+  assert.deepEqual([...desc.matchAll(/^Changes in (\d+\.\d+):/gm)].map(m => m[1]), ['3.9', '3.8']);
   assert.throws(() => E.read('<placeables/>'), /FS25 Hub Link/);
 });
 
@@ -1051,6 +1051,23 @@ test('Mod 3.8: Helfer, Regen, Feldbuch mit Fruchtfolge', () => {
   assert.equal(c.log.length, 2);
   db.prepare('DELETE FROM fs_fieldlog').run();
   setSetting('fs_field_last', '');
+});
+
+test('Preisspitzen: nur verkaufbare Erzeugnisse, jetzt und nächsten Monat', () => {
+  const hub = require('../src/fshub');
+  const flat = v => Array(12).fill(v);
+  const wheat = flat(200); wheat[3] = 260;            // Spitze jetzt (Monat 3)
+  const canola = flat(400); canola[4] = 480;          // Spitze nächsten Monat
+  const seeds = flat(100); seeds[3] = 200;            // Betriebsmittel: nie
+  const oat = flat(300); oat[3] = 305;                // zu flach
+  const m = { month: 3, date: { year: 1 }, economy: { prices: { WHEAT: wheat, CANOLA: canola, SEEDS: seeds, OAT: oat, BARLEY: wheat }, demands: [] },
+    stations: [{ sells: ['WHEAT', 'CANOLA', 'SEEDS', 'OAT'] }], farms: [] };
+  const f = { id: 1, stock: [{ fill: 'WHEAT', amount: 5000 }, { fill: 'SEEDS', amount: 900, supply: false }, { fill: 'OAT', amount: 100 }, { fill: 'BARLEY', amount: 100 }],
+    cargo: [{ fill: 'CANOLA', amount: 2000 }] };
+  const p = hub.peaks(m, f);
+  assert.deepEqual(p.map(x => [x.fill, x.now, x.month]), [['WHEAT', true, 3], ['CANOLA', false, 4]], 'BARLEY kauft keiner, SEEDS ist Betriebsmittel, OAT zu flach');
+  assert.equal(p[0].over, Math.round((260 / ((200 * 11 + 260) / 12) - 1) * 100));
+  assert.match(p[1].why, /2\.000 l geladen/);
 });
 
 test('Anbau planen: Wachstumsdauer, Erntemonat aus Saatmonat und umgekehrt', () => {

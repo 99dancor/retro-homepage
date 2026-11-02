@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="104">
     <author>99dancor</author>
-    <version>3.8.0.0</version>
+    <version>3.9.0.0</version>
     <title>
         <en>FS25 Hub Link</en>
         <de>FS25 Hub Link</de>
@@ -12,16 +12,16 @@ Export: on every save, field outlines, farmlands, stations, production recipes, 
 Advisor: watches productions, barns, silos, fields, plantations, bales and helpers of every farm and exchanges the tasks, the website's tasks and notes and all settings with the Farming Hub (modSettings/FS25_FarmingHubExport). Live data (money, weather, fields, contracts, bales) every few minutes.
 Overlay: shows your farm's warnings, tasks, notes and trackers. With the mouse cursor (Quick Selector or Alt+J) drag, resize, tick off and open the options. Alt+H shows/hides it.
 
+Changes in 3.9:
+- Overlay header shows your farm's name and its logo (instead of "Farm 1" and the stripe).
+- Trackers: pick single values per tracker (Options, Trackers, "Values").
+- Plantations: DLC plantations are found by their specialization, belong to the owner of the land, processing buildings no longer count as plantations; more diagnostics for the banana disease.
+- Weather forecast read more robustly for the rain warning.
+
 Changes in 3.8:
 - Helpers: a helper that stops (out of fuel, blocked, field not ready, tank full …) becomes a task with the game's message; a finished job shows briefly.
 - Rain warning: ripe fields or plantations and rain, thunder, hail or snow in the next 6 hours.
 - Map markers: warnings with a location appear on the in-game map, switchable per player (Options, Display).
-
-Changes in 3.7:
-- Plantations (coffee, banana, grape, olive): ready to harvest, cut back, fungicide when diseased.
-- Bales: finished silage and almost full bale storages become tasks; bales go to the Farming Hub.
-- Trackers: up to 8 values in the overlay without a task (productions, barns, silos, bales, plantations, field growth).
-- Overlay in the colour of the game HUD.
 
 Console: hubExport, hubStatus, hubSet, hubHud, hubDone]]></en>
         <de><![CDATA[Verbindet dein Spiel mit dem Farming Hub der Website.
@@ -29,16 +29,16 @@ Export: bei jedem Speichern gehen Feldumrisse, Grundstücke, Stationen, Rezepte,
 Berater: überwacht Produktionen, Ställe, Silos, Felder, Plantagen, Ballen und Helfer jedes Hofs und tauscht die Aufgaben, die Aufgaben und Notizen der Website und alle Einstellungen mit dem Farming Hub aus (modSettings/FS25_FarmingHubExport). Live-Daten (Geld, Wetter, Felder, Aufträge, Ballen) alle paar Minuten.
 Overlay: zeigt Meldungen, Aufgaben, Notizen und Tracker deines Hofs. Mit Mauszeiger (Quick Selector oder Alt+J) verschieben, Größe ziehen, abhaken und Optionen öffnen. Alt+H blendet es ein und aus.
 
+Neu in 3.9:
+- Overlay-Kopf mit Name und Logo deines Hofs (statt „Hof 1“ und Strich).
+- Tracker: einzelne Werte je Tracker an- und abwählen (Optionen, Tracker, „Werte“).
+- Plantagen: DLC-Plantagen werden an ihrer Spezialisierung erkannt und gehören dem Besitzer des Grundstücks, Verarbeitungsgebäude zählen nicht mehr als Plantage; genauere Diagnose für die Bananenkrankheit.
+- Wettervorhersage für die Regen-Warnung zuverlässiger gelesen.
+
 Neu in 3.8:
 - Helfer: hält ein Helfer an (kein Sprit, blockiert, Feld nicht bereit, Tank voll …), wird das eine Aufgabe mit der Meldung des Spiels; ein fertiger Auftrag erscheint kurz.
 - Regen-Warnung: reife Felder oder Plantagen und Regen, Gewitter, Hagel oder Schnee in den nächsten 6 Stunden.
 - Kartenmarkierungen: Meldungen mit Ort erscheinen auf der Karte im Spiel, je Spieler schaltbar (Optionen, Anzeige).
-
-Neu in 3.7:
-- Plantagen (Kaffee, Bananen, Wein, Oliven): erntereif, zurückschneiden, Fungizid bei Krankheit.
-- Ballen: fertige Silage und fast volle Ballenlager werden Aufgaben; die Ballen gehen an den Farming Hub.
-- Tracker: bis zu 8 Werte im Overlay ohne Aufgabe (Produktionen, Ställe, Silos, Ballen, Plantagen, Wachstum der Felder).
-- Overlay in der Farbe der Spiel-HUD.
 
 Konsole: hubExport, hubStatus, hubSet, hubHud, hubDone]]></de>
     </description>
@@ -67,6 +67,13 @@ Konsole: hubExport, hubStatus, hubSet, hubHud, hubDone]]></de>
     <l10n>
         <text name="input_HUBLINK_TOGGLE"><en>Hub Link: show / hide overlay</en><de>Hub Link: Overlay ein / aus</de></text>
         <text name="input_HUBLINK_MOUSE"><en>Hub Link: mouse cursor on / off</en><de>Hub Link: Mauszeiger ein / aus</de></text>
+        <text name="hubLink_trValuesOf"><en>Values: %s</en><de>Werte: %s</de></text>
+        <text name="hubLink_trValues"><en>Values</en><de>Werte</de></text>
+        <text name="hubLink_trBackHint"><en>Back to the tracker list</en><de>Zur Liste der Tracker</de></text>
+        <text name="hubLink_back"><en>Back</en><de>Zurück</de></text>
+        <text name="hubLink_trNoParts"><en>This tracker has no single values.</en><de>Dieser Tracker hat keine einzelnen Werte.</de></text>
+        <text name="hubLink_trEdit"><en>Values</en><de>Werte</de></text>
+        <text name="hubLink_headName"><en>Hub Link · %s</en><de>Hub Link · %s</de></text>
         <text name="hubLink_head"><en>Hub Link · Farm %d</en><de>Hub Link · Hof %d</de></text>
         <text name="hubLink_allOk"><en>All good</en><de>Alles in Ordnung</de></text>
         <text name="hubLink_more"><en>+%d more</en><de>+%d weitere</de></text>

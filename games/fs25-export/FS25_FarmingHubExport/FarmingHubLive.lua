@@ -806,6 +806,34 @@ function FarmingHubLive:writeGameData(xml, r)
             xml:setInt(k .. "#id", id)
             xml:setString(k .. "#money", num(farm.money or 0, 0))
             xml:setString(k .. "#loan", num(farm.loan or 0, 0))
+            -- ab 3.9: Name und (zur Suche nach dem Hof-Logo) die Felder des Hofs
+            if type(farm.name) == "string" then
+                xml:setString(k .. "#name", farm.name)
+            end
+            pcall(function()
+                local keys = {}
+                for fk, fv in pairs(farm) do
+                    if type(fk) == "string" and type(fv) ~= "function" and type(fv) ~= "table" then
+                        table.insert(keys, fk .. "=" .. string.sub(tostring(fv), 1, 40))
+                    elseif type(fk) == "string" and type(fv) == "table" then
+                        table.insert(keys, fk .. ":t")
+                    end
+                end
+                table.sort(keys)
+                local methods = {}
+                local mt = getmetatable(farm)
+                local idx = mt ~= nil and rawget(mt, "__index") or nil
+                if type(idx) == "table" then
+                    for fk, fv in pairs(idx) do
+                        if type(fk) == "string" and type(fv) == "function" then
+                            table.insert(methods, fk)
+                        end
+                    end
+                end
+                table.sort(methods)
+                xml:setString(k .. "#debug", string.sub(table.concat(keys, " "), 1, 1500))
+                xml:setString(k .. "#methods", string.sub(table.concat(methods, " "), 1, 1500))
+            end)
             local stats = farm.stats
             local names = FinanceStats ~= nil and FinanceStats.statNames or nil
             if stats ~= nil and names ~= nil then
@@ -869,6 +897,31 @@ function FarmingHubLive:writeGameData(xml, r)
                 end
             end
         end
+    end
+
+    -- Wetter ab 3.9: ohne forecastItems aus forecastList, dazu was die Mod am Wetter sieht
+    if env ~= nil and FarmingHubLive.forecastList ~= nil then
+        try("Wetter", function()
+            local e = r .. ".environment"
+            if not xml:hasProperty(e .. ".weather.instance(0)") then
+                local day = env.currentMonotonicDay or env.currentDay or 0
+                local now = type(env.dayTime) == "number" and env.dayTime or 0
+                for i, w in ipairs(FarmingHubLive.forecastList()) do
+                    if i > 12 then
+                        break
+                    end
+                    local t = now + math.max(0, w.start)
+                    local wk = string.format("%s.weather.instance(%d)", e, i - 1)
+                    xml:setString(wk .. "#typeName", w.name)
+                    xml:setInt(wk .. "#startDay", day + math.floor(t / 86400000))
+                    xml:setInt(wk .. "#startDayTime", math.floor(t % 86400000))
+                    xml:setInt(wk .. "#duration", math.floor(w.finish - math.max(0, w.start)))
+                end
+            end
+            for k, v in pairs(FarmingHubLive.weatherDebug()) do
+                xml:setString(e .. ".weatherDebug#" .. k, tostring(v))
+            end
+        end)
     end
 
     -- Felder: Stand jedes Felds (wie fields.xml), alle 2 Minuten neu gelesen

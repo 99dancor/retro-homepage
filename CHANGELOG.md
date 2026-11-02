@@ -1,5 +1,13 @@
 # Changelog
 
+## 02.11.2026 – FS25 Hub Link 3.9: Hofname und Logo, Tracker-Werte, Preisspitzen
+
+- **Overlay-Kopf:** Statt „Hof 1“ steht der Name des Hofs aus dem Spiel da, links davon das Logo des Hofs, wenn die Mod es findet. Der verrutschte gelbe Strich ist weg; der Name steht bündig mit den Zeilen darunter.
+- **Tracker genauer einstellen:** Unter Optionen → Tracker hat jeder ausgewählte Tracker den Knopf „Werte“. Dort lässt sich jeder einzelne Füllstand oder Wert an- und abwählen, nur für dich.
+- **Preisspitzen:** Im besten Monat einer Ware gibt es eine Aufgabe „jetzt verkaufen“, einen Monat vorher eine Benachrichtigung an die Mitglieder des Hofs. Es zählen nur Erzeugnisse, die der Hof lagert, geladen hat, herstellt oder anbaut und die eine Station kauft. Saatgut, Dünger, Kalk, Diesel und andere Betriebsmittel zählen nie. Abschaltbar in der Seitenverwaltung.
+- **Bananen und Kaffee:** Die Live-Datei zeigte, dass die Mod die DLC-Plantagen nicht richtig gelesen hat. Sie erkennt sie jetzt an ihrer Spezialisierung, rechnet sie dem Besitzer des Grundstücks zu und hält Wasch- und Trockenstationen nicht mehr für Plantagen. Wo das Spiel die Bananenkrankheit führt, schreibt sie jetzt genauer in die Live-Datei.
+- **Regen-Warnung:** Die Wettervorhersage kam im Spiel nicht an. Die Mod liest sie jetzt auf mehreren Wegen und schreibt mit, was sie am Wetter sieht.
+
 ## 02.11.2026 – FS25 Hub Link 3.8: Helfer, Regen, Karte, Feldbuch
 
 - **Helfer-Meldungen:** Hält ein KI-Helfer an (kein Sprit, blockiert, Feld nicht bereit, Korntank voll, Abladestelle voll …), wird das eine Aufgabe mit der Meldung des Spiels, im Overlay und im Hub. Ein fertiger Auftrag erscheint als leiser Hinweis und verschwindet nach 15 Minuten. Startet der Helfer wieder, ist die Meldung weg. Selbst beendete Aufträge melden nichts.

@@ -87,31 +87,90 @@ local function cut(s, n)
 end
 
 -- ---------- Plantagen ----------
+-- Spezialisierung der Plantage: spec_vine (Grundspiel) oder eine des DLC, z. B. „spec_pdlc_beansAndAlpacasPack.orchard“.
+-- Ab 3.9 reicht der Name (orchard/vine); die Felder dafür sucht fruitOf/nodesOf.
+local function orchardKey(k)
+    if type(k) ~= "string" or string.sub(k, 1, 5) ~= "spec_" then
+        return false
+    end
+    local l = string.lower(k)
+    return string.find(l, "orchard", 1, true) ~= nil or string.find(l, "vine", 1, true) ~= nil or string.find(l, "plantation", 1, true) ~= nil
+end
+
 function FarmingHubLive.orchardSpec(p)
-    if type(p.spec_vine) == "table" and type(p.spec_vine.fruitType) == "table" then
+    if type(p.spec_vine) == "table" then
         return p.spec_vine, "spec_vine"
     end
+    local named = nil
     for k, v in pairs(p) do
-        if type(k) == "string" and string.sub(k, 1, 5) == "spec_" and type(v) == "table" and type(v.fruitType) == "table" and type(v.nodes) == "table" then
-            return v, k
+        if type(k) == "string" and string.sub(k, 1, 5) == "spec_" and type(v) == "table" then
+            if type(v.fruitType) == "table" and type(v.nodes) == "table" then
+                return v, k
+            end
+            if orchardKey(k) then
+                named = named or { v, k }
+            end
         end
+    end
+    if named ~= nil then
+        return named[1], named[2]
     end
     return nil, nil
 end
 
-local function looksLikeOrchard(p)
-    local f = string.lower(tostring(p.configFileName or ""))
-    for _, w in ipairs({ "orchard", "banana", "coffee", "plantation" }) do
-        if string.find(f, w, 1, true) then
-            return true
+-- Fruchtart einer Plantage: fruitType, eine Nummer (fruitTypeIndex …) oder irgendeine Tabelle, die wie eine Frucht aussieht
+local function isFruit(v)
+    return type(v) == "table" and type(v.index) == "number" and (v.minHarvestingGrowthState ~= nil or v.numGrowthStates ~= nil)
+end
+function FarmingHubLive.fruitOf(spec)
+    if spec == nil then
+        return nil
+    end
+    if isFruit(spec.fruitType) then
+        return spec.fruitType
+    end
+    for k, v in pairs(spec) do
+        if isFruit(v) then
+            return v
+        end
+        if type(k) == "string" and type(v) == "number" and string.find(string.lower(k), "fruit", 1, true) and g_fruitTypeManager ~= nil then
+            local ok, d = pcall(g_fruitTypeManager.getFruitTypeByIndex, g_fruitTypeManager, v)
+            if ok and isFruit(d) then
+                return d
+            end
         end
     end
-    for k in pairs(p) do
-        if type(k) == "string" and string.sub(k, 1, 5) == "spec_" then
-            local l = string.lower(k)
-            if string.find(l, "orchard", 1, true) or string.find(l, "plantation", 1, true) then
-                return true
+    return nil
+end
+
+-- Pflanzreihen: spec.nodes oder eine Tabelle, deren Einträge growthValues haben
+function FarmingHubLive.nodesOf(spec)
+    if spec == nil then
+        return nil
+    end
+    if type(spec.nodes) == "table" then
+        return spec.nodes
+    end
+    for _, v in pairs(spec) do
+        if type(v) == "table" then
+            for _, e in pairs(v) do
+                if type(e) == "table" and (type(e.growthValues) == "table" or type(e.sections) == "table") then
+                    return v
+                end
+                break
             end
+        end
+    end
+    return nil
+end
+
+local function looksLikeOrchard(p)
+    if p.spec_productionPoint ~= nil then
+        return false
+    end
+    for k in pairs(p) do
+        if orchardKey(k) then
+            return true
         end
     end
     return false
@@ -131,7 +190,9 @@ end
 
 function FarmingHubLive.orchardAreas(spec)
     local areas, total = {}, 0
-    for _, data in pairs(spec.nodes or {}) do
+    local nodes = FarmingHubLive.nodesOf(spec) or {}
+    local fruit = FarmingHubLive.fruitOf(spec)
+    for _, data in pairs(nodes) do
         if type(data) == "table" then
             for _, gv in pairs(data.growthValues or {}) do
                 if type(gv) == "table" then
@@ -144,11 +205,11 @@ function FarmingHubLive.orchardAreas(spec)
         return areas, total, "cache"
     end
     -- Noch nichts zwischengespeichert (z. B. Server ohne Grafik): selbst nachmessen wie PlaceableVine:updateVineNode
-    if FSDensityMapUtil == nil or FSDensityMapUtil.updateVineAreaValues == nil or spec.fruitType == nil then
+    if FSDensityMapUtil == nil or FSDensityMapUtil.updateVineAreaValues == nil or fruit == nil then
         return areas, 0, "none"
     end
-    local top = math.min(31, math.floor(2 ^ (spec.fruitType.numStateChannels or 4)) - 1)
-    for _, data in pairs(spec.nodes or {}) do
+    local top = math.min(31, math.floor(2 ^ (fruit.numStateChannels or 4)) - 1)
+    for _, data in pairs(nodes) do
         if type(data) == "table" then
             for _, sec in pairs(data.sections or {}) do
                 if type(sec) == "table" and #sec >= 6 then
@@ -156,7 +217,7 @@ function FarmingHubLive.orchardAreas(spec)
                     for st = 0, top do
                         values[st] = 0
                     end
-                    if pcall(FSDensityMapUtil.updateVineAreaValues, spec.fruitType.index, sec[1], sec[2], sec[3], sec[4], sec[5], sec[6], values) then
+                    if pcall(FSDensityMapUtil.updateVineAreaValues, fruit.index, sec[1], sec[2], sec[3], sec[4], sec[5], sec[6], values) then
                         total = total + addAreas(areas, values)
                     end
                 end
@@ -243,6 +304,56 @@ local function keyList(t, filter)
     return cut(table.concat(out, " "), 1500)
 end
 
+-- Eine Ebene tiefer: je Tabelle der Spezialisierung ihre Felder, bei Listen die des ersten Eintrags (ab 3.9)
+local function deepList(spec)
+    local out = {}
+    for k, v in pairs(spec) do
+        if type(k) == "string" and type(v) == "table" then
+            local first = nil
+            for _, e in pairs(v) do
+                first = e
+                break
+            end
+            local inner = keyList(v)
+            if inner == "" and type(first) == "table" then
+                inner = "[" .. keyList(first) .. "]"
+            elseif type(first) == "table" then
+                inner = inner .. " [" .. keyList(first) .. "]"
+            end
+            table.insert(out, k .. "{" .. cut(inner, 300) .. "}")
+        end
+    end
+    table.sort(out)
+    return cut(table.concat(out, " "), 3000)
+end
+
+-- Funktionen der Klasse (über die Metatabelle), deren Name nach Plantage, Wachstum oder Krankheit klingt
+local function methodList(p)
+    local out, seen = {}, {}
+    local mt = getmetatable(p)
+    local depth = 0
+    while mt ~= nil and depth < 8 do
+        local idx = rawget(mt, "__index")
+        if type(idx) ~= "table" then
+            break
+        end
+        for k, v in pairs(idx) do
+            if type(k) == "string" and type(v) == "function" and not seen[k] then
+                local l = string.lower(k)
+                if sickWord(k) ~= nil or string.find(l, "orchard", 1, true) or string.find(l, "growth", 1, true) or string.find(l, "spray", 1, true)
+                    or string.find(l, "fungi", 1, true) or string.find(l, "tree", 1, true) then
+                    seen[k] = true
+                    table.insert(out, k)
+                end
+            end
+        end
+        mt = getmetatable(idx)
+        depth = depth + 1
+    end
+    table.sort(out)
+    return cut(table.concat(out, " "), 1500)
+end
+
 local function diagOf(p, spec, desc, areas)
     local d = {}
     d.specs = keyList(p, function(k)
@@ -250,7 +361,9 @@ local function diagOf(p, spec, desc, areas)
     end)
     if spec ~= nil then
         d.spec = keyList(spec)
+        d.deep = deepList(spec)
     end
+    d.methods = methodList(p)
     if desc ~= nil then
         d.fruit = keyList(desc, function(k, v)
             local l = string.lower(k)
@@ -286,13 +399,21 @@ function FarmingHubLive:readOrchards()
             if FarmingHubLive.posOfNode ~= nil then
                 o.x, o.z = FarmingHubLive.posOfNode(p.rootNode)
             end
+            -- Plantagen des DLC gehören im Spiel niemandem (0); es zählt, wem das Grundstück gehört (ab 3.9)
+            if (o.farm or 0) < 1 and o.x ~= nil and g_farmlandManager ~= nil and g_farmlandManager.getOwnerIdAtWorldPosition ~= nil then
+                local ok, f = pcall(g_farmlandManager.getOwnerIdAtWorldPosition, g_farmlandManager, o.x, o.z)
+                if ok and type(f) == "number" then
+                    o.farm = f
+                end
+            end
             local desc, areas, total = nil, {}, 0
-            if spec ~= nil and spec.fruitType ~= nil then
-                local idx = spec.fruitType.index
+            local fruit = FarmingHubLive.fruitOf(spec)
+            if fruit ~= nil then
+                local idx = fruit.index
                 pcall(function()
                     desc = g_fruitTypeManager:getFruitTypeByIndex(idx)
                 end)
-                desc = desc or spec.fruitType
+                desc = desc or fruit
                 o.fruit = U.fruitName(idx)
                 o.fill = fillOfFruit(idx)
                 o.fruitTitle = U.fruitTitle(idx)
@@ -828,7 +949,7 @@ function FarmingHubLive:writeWatchData(xml, r)
             xml:setString(k .. "#sickFrom", o.sickFrom)
         end
         -- Diagnose, bis klar ist, wo das DLC die Krankheit führt
-        for _, part in ipairs({ "states", "specs", "spec", "fruit", "sick" }) do
+        for _, part in ipairs({ "states", "specs", "spec", "deep", "methods", "fruit", "sick" }) do
             if o.diag ~= nil and o.diag[part] ~= nil and o.diag[part] ~= "" then
                 xml:setString(k .. ".debug#" .. part, o.diag[part])
             end

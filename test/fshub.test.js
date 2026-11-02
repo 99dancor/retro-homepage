@@ -579,7 +579,7 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubLive.lua"\/>/);
   const desc = zip.getEntry('modDesc.xml').getData().toString();
-  assert.match(desc, /<version>3\.10\.0\.0<\/version>/);
+  assert.match(desc, /<version>3\.10\.1\.0<\/version>/);
   // Beschreibung: Changelog der letzten zwei Versionen, die neueste zuerst
   const de = desc.match(/<de><!\[CDATA\[([\s\S]*?)\]\]><\/de>/)[1];
   assert.deepEqual([...de.matchAll(/^Neu in (\d+\.\d+):/gm)].map(m => m[1]), ['3.10', '3.9']);

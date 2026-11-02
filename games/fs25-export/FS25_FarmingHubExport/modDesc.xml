@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="104">
     <author>99dancor</author>
-    <version>3.10.0.0</version>
+    <version>3.10.1.0</version>
     <title>
         <en>FS25 Hub Link</en>
         <de>FS25 Hub Link</de>
@@ -13,6 +13,7 @@ Advisor: watches productions, barns, silos, fields, plantations, bales and helpe
 Overlay: shows your farm's warnings, tasks, notes and trackers. With the mouse cursor (Quick Selector or Alt+J) drag, resize, tick off and open the options. Alt+H shows/hides it.
 
 Changes in 3.10:
+- 3.10.1: map markers switched off, opening the map broke the menu.
 - Overlay header shows the farm symbol in your farm's color next to the name.
 - Options: second tab is now called "Values"; on the tracker tab the page switch is at the bottom.
 - Plantations: every 2 minutes the mod writes what the game saves about each plantation to hubLinkOrchards.xml, one copy per game day (10 days) and one per change of disease, spray or growth values, with a log in hubLinkOrchardLog.xml.
@@ -30,6 +31,7 @@ Berater: überwacht Produktionen, Ställe, Silos, Felder, Plantagen, Ballen und 
 Overlay: zeigt Meldungen, Aufgaben, Notizen und Tracker deines Hofs. Mit Mauszeiger (Quick Selector oder Alt+J) verschieben, Größe ziehen, abhaken und Optionen öffnen. Alt+H blendet es ein und aus.
 
 Neu in 3.10:
+- 3.10.1: Kartenmarkierungen abgeschaltet, das Öffnen der Karte hat das Menü lahmgelegt.
 - Overlay-Kopf mit dem Hofsymbol in der Farbe deines Hofs neben dem Namen.
 - Optionen: der zweite Reiter heißt jetzt „Werte“; bei den Trackern steht die Seitenwahl ganz unten.
 - Plantagen: alle 2 Minuten schreibt die Mod, was das Spiel über jede Plantage speichert, in hubLinkOrchards.xml, dazu eine Kopie je Spieltag (10 Tage) und eine bei jeder Änderung von Krankheits-, Spritz- oder Wachstumswerten, mit Verlauf in hubLinkOrchardLog.xml.

@@ -144,3 +144,15 @@ mit `spec_productionPoint` zählen nie. Besitzer 0 → Besitzer des Grundstücks
 **Preisspitzen (Website, `peaks`/`announcePeaks` in `src/fshub.js`):** Spitze = höchstens 2 % unter dem besten Monat und
 mindestens 8 % über dem Jahresschnitt. Jetzt → Vorschlag (Aufgabe `peak:…`), nächster Monat → Benachrichtigung einmal je
 Hof, Ware und Monat. Nur Waren, die eine Station kauft, ohne `SUPPLIES`. Schalter `fs_auto_peaks`.
+
+## Ab 3.10: Hofsymbol, Plantagen-Abbild (`HubLinkDiag.lua`)
+
+- **Hofsymbol:** FS25 speichert am Hof nur `name` und `color` (Index in `Farm.COLORS`). Der Overlay-Kopf zeichnet links vom Namen einen kleinen Hof aus Rechtecken in dieser Farbe. Bringt eine Mod ein eigenes Bild mit (`iconFilename` o. ä.), wird das gezeichnet. Nie zusätzlich ein Strich.
+- **Optionen:** zweiter Reiter „Werte“ (`hubLink_tabValues`), Seitenwahl der Tracker als eigene Gruppe ganz unten.
+- **Plantagen-Abbild:** `readOrchards` ruft alle 2 Minuten auf dem Server `saveToXMLFile` jeder Plantage in eine eigene Datei auf (Schema `Placeable.xmlSchemaSavegame`, der Spielstand wird nicht gespeichert):
+  - `hubLinkOrchards.xml` neuester Stand,
+  - `hubLinkOrchards_tag<N>.xml` einmal je Spieltag (N = Tag mod 10),
+  - `hubLinkOrchards_wechsel<N>.xml` bei jeder Änderung der Werte, deren Name nach Krankheit, Pilz, Spritzen, Stufe oder Wachstum klingt (die letzten 10),
+  - `hubLinkOrchardLog.xml` Verlauf dieser Änderungen mit Spieltag, Uhrzeit und Werteverteilung (die letzten 60).
+  Liefert das Spiel den Text (`saveXMLFileToMemory`), zählt ein Krankheitswert über 0 auch als „krank“ (`sickFrom="save:tag#attr"`).
+- Live-Datei: je Plantage `debug#fields`, `#funcs`, `#pos` (Position, Grundstück, Besitzer), `#save` (Werteverteilung aus dem Abbild), dazu `orchards#missionKeys` und `farms#farmClass`.

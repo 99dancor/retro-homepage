@@ -572,18 +572,18 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   // Jede Kopie gleich (das Spiel vergleicht im Mehrspieler die Prüfsumme der ZIP mit der auf dem Server)
   const t0 = Date.now(); while (Date.now() - t0 < 2100) { /* zweiter Bau zu einer anderen Uhrzeit */ }
   assert.ok(first.equals(E.modZip()), 'gleiche Bytes bei jedem Herunterladen');
-  assert.deepEqual(zip.getEntries().map(x => x.entryName).sort(), ['FarmingHubExport.lua', 'FarmingHubLive.lua', 'HubLinkAlerts.lua', 'HubLinkEvents.lua', 'HubLinkHud.lua', 'HubLinkWatch.lua', 'icon_farmingHubExport.dds', 'modDesc.xml']);
+  assert.deepEqual(zip.getEntries().map(x => x.entryName).sort(), ['FarmingHubExport.lua', 'FarmingHubLive.lua', 'HubLinkAlerts.lua', 'HubLinkDiag.lua', 'HubLinkEvents.lua', 'HubLinkHud.lua', 'HubLinkWatch.lua', 'icon_farmingHubExport.dds', 'modDesc.xml']);
   const dds = zip.getEntry('icon_farmingHubExport.dds').getData();
   assert.equal(dds.toString('latin1', 0, 4), 'DDS ');
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubLive.lua"\/>/);
   const desc = zip.getEntry('modDesc.xml').getData().toString();
-  assert.match(desc, /<version>3\.9\.0\.0<\/version>/);
+  assert.match(desc, /<version>3\.10\.0\.0<\/version>/);
   // Beschreibung: Changelog der letzten zwei Versionen, die neueste zuerst
   const de = desc.match(/<de><!\[CDATA\[([\s\S]*?)\]\]><\/de>/)[1];
-  assert.deepEqual([...de.matchAll(/^Neu in (\d+\.\d+):/gm)].map(m => m[1]), ['3.9', '3.8']);
-  assert.deepEqual([...desc.matchAll(/^Changes in (\d+\.\d+):/gm)].map(m => m[1]), ['3.9', '3.8']);
+  assert.deepEqual([...de.matchAll(/^Neu in (\d+\.\d+):/gm)].map(m => m[1]), ['3.10', '3.9']);
+  assert.deepEqual([...desc.matchAll(/^Changes in (\d+\.\d+):/gm)].map(m => m[1]), ['3.10', '3.9']);
   assert.throws(() => E.read('<placeables/>'), /FS25 Hub Link/);
 });
 

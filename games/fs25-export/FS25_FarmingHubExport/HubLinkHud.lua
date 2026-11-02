@@ -648,6 +648,54 @@ local function logoFile(f)
     return nil, nil
 end
 
+-- Hoffarbe (ab 3.10): FS25 speichert beim Hof nur Name und Farbe (farm.color), kein eigenes Bild.
+-- Das Hofsymbol im Spiel ist ein Hof in dieser Farbe, also zeichnen wir genau das.
+local function colorOf(c)
+    if type(c) ~= "table" then
+        return nil
+    end
+    local r, g, b = c[1] or c.r, c[2] or c.g, c[3] or c.b
+    if type(r) == "number" and type(g) == "number" and type(b) == "number" then
+        return { r, g, b, 1 }
+    end
+    return nil
+end
+function HubLinkHud:farmColor(id)
+    local col = nil
+    pcall(function()
+        local f = g_farmManager:getFarmById(id)
+        if f == nil then
+            return
+        end
+        if type(f.getColor) == "function" then
+            col = colorOf({ f:getColor() }) or colorOf(f:getColor())
+        end
+        if col == nil and type(f.color) == "number" and Farm ~= nil and type(Farm.COLORS) == "table" then
+            col = colorOf(Farm.COLORS[f.color])
+        end
+        if col == nil and type(f.color) == "table" then
+            col = colorOf(f.color)
+        end
+    end)
+    return col
+end
+
+-- kleiner Hof aus Rechtecken: Dach in Stufen, Wand, dunkles Tor
+function HubLinkHud:drawFarmIcon(x, y, h, col)
+    local w = h * g_screenHeight / g_screenWidth
+    local dark = { col[1] * 0.45, col[2] * 0.45, col[3] * 0.45, 1 }
+    local wallH = h * 0.5
+    drawFilledRect(x + w * 0.1, y, w * 0.8, wallH, col[1], col[2], col[3], 1)
+    local steps = 4
+    for i = 0, steps - 1 do
+        local sw = w * (1 - i / steps)
+        local sh = (h - wallH) / steps
+        drawFilledRect(x + (w - sw) / 2, y + wallH + i * sh, sw, sh, dark[1], dark[2], dark[3], 1)
+    end
+    drawFilledRect(x + w * 0.38, y, w * 0.24, wallH * 0.62, dark[1], dark[2], dark[3], 1)
+    return w
+end
+
 HubLinkHud.logos = {}
 function HubLinkHud:farmLogo(id)
     if id == nil or id < 1 or createImageOverlay == nil then
@@ -1133,11 +1181,18 @@ function HubLinkHud:draw()
     -- Hof-Logo statt Strich (ab 3.9); ohne Logo kein Strich, der Name steht bündig mit den Zeilen
     local logo = self:farmLogo(farm)
     local titleX = x + pad + px(4)
+    local lh = headH * 0.56
     if logo ~= nil then
-        local lh = headH * 0.62
         local lw = lh * g_screenHeight / g_screenWidth
         pcall(renderOverlay, logo, x + px(8), y + (headH - lh) / 2, lw, lh)
         titleX = x + px(8) + lw + px(8)
+    else
+        -- kein Bild im Spiel: Hofsymbol in der Hoffarbe (nie zusätzlich ein Strich)
+        local col = farm ~= nil and farm >= 1 and drawFilledRect ~= nil and self:farmColor(farm) or nil
+        if col ~= nil then
+            local lw = self:drawFarmIcon(x + px(8), y + (headH - lh) / 2, lh, col)
+            titleX = x + px(8) + lw + px(8)
+        end
     end
     local count, hot = 0, false
     for _, r in ipairs(rows) do
@@ -1290,7 +1345,7 @@ function HubLinkHud:drawOptions(ox, oy, ow)
     -- Reiter: Anzeige (nur für mich), Hof (Prüfungen), Server (Admin)
     local tabs = { { "view", T("hubLink_tabView", "Anzeige") } }
     if farm > 0 then
-        table.insert(tabs, { "farm", self:farmName(farm) })
+        table.insert(tabs, { "farm", T("hubLink_tabValues", "Werte") })
         table.insert(tabs, { "more", T("hubLink_tabMore", "Mehr") })
         table.insert(tabs, { "track", T("hubLink_tabTrack", "Tracker") })
     end
@@ -1409,10 +1464,6 @@ function HubLinkHud:drawOptions(ox, oy, ow)
         self.trackPage = math.max(1, math.min(pages, self.trackPage or 1))
         group(string.format(T("hubLink_trChosen", "Ausgewählt: %d von %d"), #p.track, max))
         toggle(T("hubLink_trShow", "Tracker im Overlay zeigen"), p.trackers, function() self:setPref("trackers", not p.trackers) end, true)
-        if pages > 1 then
-            stepper(T("hubLink_trPage", "Seite"), string.format("%d / %d", self.trackPage, pages), function() self.trackPage = math.max(1, self.trackPage - 1) end,
-                function() self.trackPage = math.min(pages, self.trackPage + 1) end, true)
-        end
         if #cat == 0 then
             note(T("hubLink_trLoading", "Liste kommt vom Server …"))
         end
@@ -1427,6 +1478,12 @@ function HubLinkHud:drawOptions(ox, oy, ow)
             local on = sel[c.key] == true
             local extra = on and { upper(T("hubLink_trEdit", "Werte")), function() self.trackEdit = c.key end } or nil
             toggle(self:trackName(c), on, function() self:toggleTrack(c.key) end, on or #p.track < max, extra)
+        end
+        -- Seitenwahl ganz unten: man liest von oben nach unten und blättert dann weiter
+        if pages > 1 then
+            group(T("hubLink_trPages", "Weitere Tracker"))
+            stepper(T("hubLink_trPage", "Seite"), string.format("%d / %d", self.trackPage, pages), function() self.trackPage = math.max(1, self.trackPage - 1) end,
+                function() self.trackPage = math.min(pages, self.trackPage + 1) end, true)
         end
     else
         group(T("hubLink_optServer", "Server (Admin)"))

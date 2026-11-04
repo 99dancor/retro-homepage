@@ -190,6 +190,14 @@
     </form>
     <p><small class="muted">Danach bist du auf allen anderen Geräten abgemeldet.</small></p>
     </fieldset>
+    <fieldset class="groupbox"><legend>Kennworthinweis</legend>
+    <form method="post" action="/konto/hinweis">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label>Hinweis (freiwillig, höchstens 100 Zeichen):<input type="text" name="hint" class="w100" maxlength="100" value="<%= profile.password_hint || '' %>" autocomplete="off"></label>
+      <div class="actions"><button class="small">💡 Hinweis speichern</button></div>
+    </form>
+    <p><small class="muted">Erscheint auf dem Anmeldebildschirm hinter dem „?“-Knopf. Wie früher bei Windows kann ihn jeder sehen, der deinen Benutzernamen kennt. Schreib also nichts hinein, mit dem andere dein Kennwort erraten können.</small></p>
+    </fieldset>
     <fieldset class="groupbox"><legend>Angemeldete Geräte</legend>
       <p>Außer diesem bist du noch auf <b><%= sessions %></b> <%= sessions === 1 ? 'anderen Gerät' : 'anderen Geräten' %> angemeldet.</p>
       <% if (sessions) { %><form method="post" action="/konto/abmelden" data-confirm="Auf allen anderen Geräten abmelden?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small">🚪 Überall sonst abmelden</button></form><% } %>

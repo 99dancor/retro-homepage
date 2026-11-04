@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
   can_upload INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
   last_login INTEGER,
+  password_hint TEXT,                         -- Kennworthinweis für den Anmeldebildschirm, freiwillig
   display_name TEXT,                          -- Anzeigename, sonst gilt der Benutzername
   avatar TEXT,                                -- Profilbild unter data/avatare
   about TEXT,                                 -- „Über mich“ im Profil
@@ -918,6 +919,7 @@ addColumn('users', 'show_last_seen', 'INTEGER NOT NULL DEFAULT 1');
 addColumn('friends', 'note', 'TEXT');                                // kurzer Satz zur Freundschaftsanfrage
 addColumn('private_messages', 'kind', "TEXT NOT NULL DEFAULT 'text'"); // text | nudge (Anstupsen) | invite (Einladung)
 addColumn('private_messages', 'meta', 'TEXT');                       // Einladung: JSON mit Ziel
+addColumn('users', 'password_hint', 'TEXT');                          // Kennworthinweis (Anmeldebildschirm)
 // Seit den Kategorien gibt es keine Felder Version und optional mehr: beides wandert in die Bemerkung
 db.exec(`UPDATE mod_items SET notes = trim(
     CASE WHEN required = 0 THEN 'optional' ELSE '' END ||

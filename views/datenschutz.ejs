@@ -69,6 +69,7 @@
   <li>Deine Darstellung über den 🖥️-Knopf neben der Uhr: Windows 98 oder XP, Farben, Schrift, Hintergrund, Lauftext, eigenes CSS und die Größe der Oberfläche. Ein eigenes Hintergrundbild und die Größe bleiben immer im Browser und werden nicht hochgeladen. Mit Konto kannst du die Darstellung zusätzlich <a href="#darstellung">am Konto speichern</a>.</li>
   <li>Desktop ohne Konto: wohin du Symbole geschoben hast und wie sie sortiert sind. Mit Konto: ob das Widget „Offene Lobbys“ zugeklappt ist.</li>
   <li>Die gewählte Ansicht im Texteditor.</li>
+  <li>Der Anmeldebildschirm merkt sich das zuletzt angemeldete Konto: Benutzername, Anzeigename, Profilbild und ob es ein Admin-Konto ist, aber kein Kennwort. „Nicht mehr merken“ auf dem Anmeldebildschirm löscht es. Dazu für den laufenden Tab, dass nach dem An- oder Abmelden der Bildschirm einmal übersprungen wird.</li>
   <li>Pixelpfoten: ohne Konto der ganze Spielstand, mit Konto eine Kopie, damit bei Verbindungsproblemen nichts verloren geht.</li>
   <li>Paint: deine Palette, eigene Farben, welche Leisten du siehst und die Einstellungen der Werkzeuge. Was du malst, bleibt im Browser, bis du es speicherst. „Als Hintergrund“ legt das Bild als eigenes Hintergrundbild der Darstellung ab, ebenfalls nur im Browser.</li>
   <li>Minesweeper: Stufe, Marken, Farbe und Sound, ohne Konto auch deine Bestzeiten mit dem eingetragenen Namen.</li>
@@ -89,6 +90,7 @@
   <%- code('paintPrefs', 'Unter diesem Namen merkt sich Paint Palette, eigene Farben, Ansicht und Werkzeug-Optionen.') %>
   <%- code('wallpaper', 'So setzt Paint ein Bild als Hintergrund: Es landet unter <code>darstellung-bild</code> im Browser, nicht auf dem Server.') %>
   <%- code('guide', 'Die Startseite merkt sich nur, dass du den Rundgang schon gesehen hast.') %>
+  <%- code('logon', 'Das ist alles, was der Anmeldebildschirm im Browser ablegt.') %>
   <%- code('editor', 'Der Editor merkt sich nur, ob du lieber „Modern“ oder „Markdown“ schreibst.') %>
   <%- code('pet', 'Unter diesen Namen speichert das Haustier-Spiel im Browser: Spielstand, Einstellungen, eine Kopie der Möbel auf dem Desktop, die Optionen für Tiere auf dem Desktop und welcher Tab sie gerade zeigt.') %>
   <%- code('volume', 'Die Lautstärke liegt unter diesem Namen im Browser. Mediaplayer und Haustier-Spiel lesen sie von dort.') %>
@@ -103,10 +105,12 @@
   <li>Das Passwort wird mit bcrypt unumkehrbar verschlüsselt. Auch der Admin kann es nicht lesen.</li>
   <li>Keine E-Mail-Adresse, kein echter Name. Anzeigename, Profilbild und „Über mich“ sind freiwillig (siehe <a href="#profil">Profil</a>).</li>
   <li>Wenn du das Passwort änderst, werden alle anderen Geräte abgemeldet.</li>
+  <li>Freiwillig ein <b>Kennworthinweis</b> (unter Konto und Passwort → Kennwort). Wie früher bei Windows kann ihn jeder auf dem Anmeldebildschirm über „?“ sehen, der deinen Benutzernamen kennt.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('users', 'Das ist die komplette Nutzertabelle. Mehr Spalten gibt es nicht. Die letzten sechs gehören zum Profil.') %>
   <%- code('password', 'Das Passwort wird mit bcrypt (Stufe 12) gehasht, bevor es gespeichert wird.') %>
+  <%- code('hint', 'So holt der Anmeldebildschirm den Hinweis: nur den Hinweis, nichts sonst über das Konto.') %>
 </details>
 <details><summary>👁 So sieht es der Admin</summary>
   <div class="shots"><%- shot('admin-nutzer.png', 'Nutzerliste: Name, Rolle, Gruppen, letzter Login') %></div>

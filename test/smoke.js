@@ -2782,6 +2782,43 @@ async function main() {
       sql.close();
     });
 
+    await step('Anmeldebildschirm: Desktop, JSON-Login, Kennworthinweis, Schalter', async () => {
+      let t = await admin.csrf('/admin/users');
+      await admin.form('/admin/users/create', { _csrf: t, username: 'dora', password: 'passwort123' });
+      const dora = browser();
+      const home = await dora.req('/', { top: true });
+      assert.match(home.text_, /<div id="logon" class="logon"/);
+      assert.match(home.text_, /logon\.js/);
+      assert.doesNotMatch(home.text_, /data-me=/, 'Gast hat keine eigene Kachel');
+      const tk = home.text_.match(/data-csrf="([a-f0-9]+)"/)[1];
+      const json = (url, data) => dora.req(url, { method: 'POST', body: new URLSearchParams({ _csrf: tk, ...data }),
+        headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json', 'x-forwarded-for': '10.9.2.1' } });
+      const bad = await json('/login', { username: 'dora', password: 'falsch' });
+      assert.equal(bad.status, 401);
+      assert.match(JSON.parse(bad.text_).error, /falsch/);
+      const ok = JSON.parse((await json('/login', { username: 'dora', password: 'passwort123', next: '/blog' })).text_);
+      assert.equal(ok.next, '/blog');
+      assert.equal(ok.user.u, 'dora');
+      assert.doesNotMatch(JSON.stringify(ok), /hash|passwort/i);
+      const me = await dora.req('/', { top: true });
+      assert.match(me.text_, /data-me="[^"]*dora/);
+      // Hinweis setzen: das Kennwort selbst geht nicht
+      const kt = await dora.csrf('/konto?reiter=kennwort');
+      assert.match((await dora.form('/konto/hinweis', { _csrf: kt, hint: 'passwort123' })).headers.get('location'), /err=hinweis/);
+      assert.match((await dora.form('/konto/hinweis', { _csrf: kt, hint: '  Mein  <b>Hund</b>  ' })).headers.get('location'), /ok=hinweis/);
+      const hint = JSON.parse((await guest.req('/api/kennworthinweis?u=dora')).text_);
+      assert.equal(hint.hint, 'Mein <b>Hund</b>');
+      assert.equal(JSON.parse((await guest.req('/api/kennworthinweis?u=niemand')).text_).hint, null);
+      assert.ok(JSON.parse((await json('/logout', {})).text_).ok);
+      // Abgeschaltet: kein Bildschirm, alte Anmeldefenster
+      const { DatabaseSync } = require('node:sqlite');
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
+      sql.prepare("INSERT OR REPLACE INTO settings(key, value) VALUES ('logon_screen', '0')").run();
+      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /id="logon"/);
+      sql.prepare("DELETE FROM settings WHERE key = 'logon_screen'").run();
+      sql.close();
+    });
+
     await step('Besucherstatistik zählt Aufrufe', async () => {
       const r = await admin.req('/admin?days=7');
       assert.match(r.text_, /Seitenaufrufe<b>[1-9]/);

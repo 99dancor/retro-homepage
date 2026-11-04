@@ -1,9 +1,34 @@
 <%- include('partials/head') %>
-<%# Mediaplayer: Logik in public/music.js, Visualisierungen in public/visualizer.js %>
-<div class="mp" id="mp" data-csrf="<%= csrf %>" data-upload="<%= canUploadMusic ? '1' : '' %>" data-lobby="<%= lobbyOn ? '1' : '' %>" data-youtube="<%= youtubeOn ? '1' : '' %>" data-view="all" data-tab="queue">
+<%# Mediaplayer: Logik in public/music.js, Aussehen (Skins) in public/music.css, Visualisierungen in public/visualizer.js.
+    Alle Bereiche sind Geschwister in einem CSS-Raster (.mp-main und .mp-center sind display: contents); jeder Skin ordnet sie
+    über grid-template-areas an. Skin-eigene Teile (Menüleiste, Reiter, Winamp-Anzeige) blenden die anderen Skins aus. %>
+<link rel="stylesheet" href="<%= asset('music.css') %>">
+<div class="mp" id="mp" data-csrf="<%= csrf %>" data-upload="<%= canUploadMusic ? '1' : '' %>" data-lobby="<%= lobbyOn ? '1' : '' %>" data-youtube="<%= youtubeOn ? '1' : '' %>"
+  data-skin="<%= (player && player.skin) || skinDefault %>" data-skin-default="<%= skinDefault %>" data-player="<%= player ? JSON.stringify(player) : '' %>" data-view="all" data-tab="queue">
+  <div class="mp-menubar" id="mp-menubar" role="menubar" aria-label="Menü">
+    <button type="button" role="menuitem" data-menu="medien">Medien</button>
+    <button type="button" role="menuitem" data-menu="wiedergabe">Wiedergabe</button>
+    <button type="button" role="menuitem" data-menu="audio">Audio</button>
+    <button type="button" role="menuitem" data-menu="ansicht">Ansicht</button>
+    <% if (lobbyOn && user) { %><button type="button" role="menuitem" data-menu="lobby">Lobby</button><% } %>
+  </div>
+  <div class="mp-wtop" id="mp-wtop"></div>
+  <div class="mp-crumb" id="mp-crumb"></div>
+  <div class="mp-wa" id="mp-wa" aria-label="Anzeige">
+    <div class="mp-ptl"><span>WIEDERGABE</span></div>
+    <div class="mp-wa-body">
+      <div class="mp-wa-lcd"><div class="mp-wa-time"><small id="mp-wa-state">■</small><span id="mp-wa-time">00:00</span></div><canvas id="mp-wa-spec"></canvas></div>
+      <div class="mp-wa-right">
+        <div class="mp-wa-marq"><span id="mp-wa-title">Mediaplayer</span></div>
+        <div class="mp-wa-row"><span class="mp-wa-box" id="mp-wa-kind">---</span><span class="mp-wa-box" id="mp-wa-src">EIGENE</span><span class="sp"></span>
+          <button type="button" class="mp-wa-tg" data-act="eq" title="Equalizer">EQ</button><button type="button" class="mp-wa-tg" data-act="side-cycle" id="mp-wa-ml" title="Medienbibliothek ein oder aus">ML</button><button type="button" class="mp-wa-tg" data-act="skin-pop" title="Aussehen">SKIN</button></div>
+        <label class="mp-wa-row mp-wa-vol" title="Lautstärke">VOL<input type="range" id="mp-wa-vol" min="0" max="100" aria-label="Lautstärke"></label>
+      </div>
+    </div>
+  </div>
   <div class="mp-main">
-    <nav class="mp-side sunken" id="mp-side" aria-label="Aufgaben und Medienbibliothek"></nav>
-    <div class="mp-split mp-split-side" data-split="side" role="separator" tabindex="0" aria-label="Breite der Aufgabenleiste ändern (Doppelklick: zurücksetzen)"></div>
+    <nav class="mp-side sunken" id="mp-side" aria-label="Medienbibliothek, Playlists und Lobbys"></nav>
+    <div class="mp-split mp-split-side" data-split="side" role="separator" tabindex="0" aria-label="Breite der Seitenleiste ändern (Doppelklick: zurücksetzen)"></div>
     <section class="mp-center">
       <div class="mp-stage" id="mp-stage">
         <canvas id="mp-canvas"></canvas>
@@ -29,31 +54,37 @@
       <div class="mp-qtools" id="mp-qtools"></div>
     </aside>
     <div class="mp-tabs" role="tablist" aria-label="Bereiche">
+      <button type="button" class="mp-drawer-btn" data-act="drawer" title="Medienbibliothek, Playlists und Lobbys" aria-label="Seitenleiste">☰</button>
       <button type="button" role="tab" data-tab="queue" aria-selected="true">Warteschlange</button>
       <button type="button" role="tab" data-tab="lib" aria-selected="false">Bibliothek</button>
       <% if (lobbyOn && user) { %><button type="button" role="tab" data-tab="lobby" aria-selected="false">Lobby</button><% } %>
     </div>
   </div>
+  <div class="mp-lobbybar" id="mp-lobbybar" hidden></div>
   <div class="mp-controls">
+    <div class="mp-lcd" id="mp-lcd" aria-live="off"><span id="mp-lcd-title">Mediaplayer</span><span id="mp-lcd-time">0:00</span></div>
     <button type="button" data-act="play" class="mp-play" title="Abspielen" aria-label="Abspielen">
-      <svg class="i-play" width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 3v14l11-7z" fill="#fff"/></svg>
-      <svg class="i-pause" width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="3" width="4" height="14" fill="#fff"/><rect x="12" y="3" width="4" height="14" fill="#fff"/></svg>
+      <svg class="i-play" width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M6 3v14l11-7z" fill="currentColor"/></svg>
+      <svg class="i-pause" width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="3" width="4" height="14" fill="currentColor"/><rect x="12" y="3" width="4" height="14" fill="currentColor"/></svg>
     </button>
     <button type="button" data-act="stop" title="Stopp" aria-label="Stopp"><svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><rect width="12" height="12" fill="currentColor"/></svg></button>
     <button type="button" data-act="prev" title="Zurück" aria-label="Zurück"><svg width="13" height="11" viewBox="0 0 14 12" aria-hidden="true"><rect width="2" height="12" fill="currentColor"/><path d="M14 0v12L3 6z" fill="currentColor"/></svg></button>
     <button type="button" data-act="next" title="Weiter" aria-label="Weiter"><svg width="13" height="11" viewBox="0 0 14 12" aria-hidden="true"><path d="M0 0v12l11-6z" fill="currentColor"/><rect x="12" width="2" height="12" fill="currentColor"/></svg></button>
-    <button type="button" data-act="shuffle" title="Zufällige Reihenfolge" aria-label="Zufällige Reihenfolge" aria-pressed="false">🔀</button>
-    <button type="button" data-act="repeat" title="Wiederholen: aus" aria-label="Wiederholen" data-mode="aus">🔁</button>
+    <button type="button" data-act="shuffle" title="Zufällige Reihenfolge" aria-label="Zufällige Reihenfolge" aria-pressed="false"><svg width="15" height="13" viewBox="0 0 16 14" aria-hidden="true"><path d="M0 2h3l7 9h2V9l4 3-4 3v-2H9L2 4H0zM9 2h3V0l4 3-4 3V4h-2L8 6.6 6.8 5z" fill="currentColor"/></svg></button>
+    <button type="button" data-act="repeat" title="Wiederholen: aus" aria-label="Wiederholen" data-mode="aus"><svg width="15" height="13" viewBox="0 0 16 14" aria-hidden="true"><path d="M2 6a3 3 0 0 1 3-3h7V1l3 3-3 3V5H5a1 1 0 0 0-1 1v2H2zM14 8a3 3 0 0 1-3 3H4v2l-3-3 3-3v2h7a1 1 0 0 0 1-1V6h2z" fill="currentColor"/></svg><b class="one">1</b></button>
     <span class="mp-time" id="mp-time">0:00</span>
     <input type="range" id="mp-seek" min="0" max="1000" value="0" aria-label="Stelle im Titel">
     <span class="mp-time" id="mp-dur">0:00</span>
-    <span class="mp-vol" title="Lautstärke Musik (gilt für die ganze Seite, wie 🔊 neben der Uhr)">🔊<input type="range" id="mp-vol" min="0" max="100" aria-label="Lautstärke Musik"></span>
-    <div class="mp-lcd" id="mp-lcd" aria-live="off"><span id="mp-lcd-title">Mediaplayer</span><span id="mp-lcd-time">0:00</span></div>
-    <button type="button" data-act="fullscreen" class="mp-fs" title="Vollbild (oder Doppelklick auf das Bild)" aria-label="Vollbild">⛶</button>
-    <button type="button" data-act="mini" class="mp-mini-btn" title="Mini-Player: Das Fenster wird zur kleinen Leiste" aria-label="Mini-Player">▭ Mini</button>
+    <span class="mp-vol" title="Lautstärke Musik (gilt für die ganze Seite, wie 🔊 neben der Uhr)"><svg width="15" height="13" viewBox="0 0 16 14" aria-hidden="true"><path d="M0 4h3l4-4v14l-4-4H0zM9 3.5a4 4 0 0 1 0 7l-.8-1.2a2.6 2.6 0 0 0 0-4.6zM11 1a7 7 0 0 1 0 12l-.8-1.2a5.6 5.6 0 0 0 0-9.6z" fill="currentColor"/></svg><input type="range" id="mp-vol" min="0" max="100" aria-label="Lautstärke Musik"><span class="mp-volpct" id="mp-volpct"></span></span>
+    <button type="button" data-act="eq" class="mp-eq-btn" title="Equalizer" aria-label="Equalizer"><svg width="15" height="13" viewBox="0 0 16 14" aria-hidden="true"><path d="M2 0h2v14H2zM7 0h2v14H7zM12 0h2v14h-2zM0 9h6v2H0zM5 3h6v2H5zM10 7h6v2h-6z" fill="currentColor"/></svg></button>
+    <button type="button" data-act="big" class="mp-big-btn" title="Liste oder großes Bild" aria-label="Liste oder großes Bild" aria-pressed="false"><svg width="15" height="13" viewBox="0 0 16 14" aria-hidden="true"><path d="M0 0h16v2H0zM0 6h16v2H0zM0 12h16v2H0z" fill="currentColor"/></svg></button>
+    <button type="button" data-act="fullscreen" class="mp-fs" title="Vollbild (oder Doppelklick auf das Bild)" aria-label="Vollbild"><svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="M0 0h5v2H2v3H0zM9 0h5v5h-2V2H9zM0 9h2v3h3v2H0zM12 9h2v5H9v-2h3z" fill="currentColor"/></svg></button>
+    <button type="button" data-act="mini" class="mp-mini-btn" title="Mini-Player: Das Fenster wird zur kleinen Leiste" aria-label="Mini-Player"><svg width="14" height="13" viewBox="0 0 16 14" aria-hidden="true"><path d="M0 9h16v5H0zM0 0h16v2H0z" fill="currentColor"/></svg><span class="lbl"> Mini</span></button>
     <button type="button" data-act="mini-off" class="mp-mini-off" title="Wieder groß" aria-label="Wieder groß">⤢</button>
   </div>
   <div class="statusbar"><span id="mp-status">Bereit</span><span class="fixed" id="mp-mode">💿 Eigene Wiedergabe</span></div>
+  <div class="mp-pop" id="mp-pop" hidden></div>
+  <div class="mp-eq" id="mp-eq" role="dialog" aria-label="Equalizer" hidden></div>
 </div>
 <dialog class="window mp-dlg" id="mp-dlg">
   <div class="titlebar"><span class="ttl" id="mp-dlg-title"></span></div>

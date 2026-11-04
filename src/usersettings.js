@@ -116,7 +116,25 @@ function cleanIcu(p) {
   };
 }
 
-const CLEAN = { display: cleanDisplay, desk: cleanDesk, stats: cleanStats, cards: cleanCards, icu: cleanIcu };
+// Mediaplayer (public/music.js): Skin, Breite der Seitenleiste je Skin, zugeklappte Gruppen und der Equalizer
+const PLAYER_SKINS = ['klassisch', 'vlc-hell', 'vlc-dunkel', 'mediaplayer', 'winamp'];
+const PLAYER_SIDE = ['open', 'rail', 'closed'];
+const PLAYER_GROUPS = ['lib', 'pl', 'lob'];
+function cleanPlayer(p) {
+  p = p && typeof p === 'object' ? p : {};
+  const side = {};
+  if (p.side && typeof p.side === 'object') for (const k of PLAYER_SKINS) if (PLAYER_SIDE.includes(p.side[k])) side[k] = p.side[k];
+  const eq = p.eq && typeof p.eq === 'object' ? p.eq : {};
+  const gains = Array.isArray(eq.g) && eq.g.length === 10 ? eq.g.map(v => Math.max(-12, Math.min(12, Math.round(Number(v) || 0)))) : new Array(10).fill(0);
+  return {
+    skin: PLAYER_SKINS.includes(p.skin) ? p.skin : null,   // null = Vorgabe der Seite
+    side,
+    shut: Array.isArray(p.shut) ? [...new Set(p.shut.filter(g => PLAYER_GROUPS.includes(g)))] : [],
+    eq: { on: bool(eq.on, false), g: gains },
+  };
+}
+
+const CLEAN = { display: cleanDisplay, desk: cleanDesk, stats: cleanStats, cards: cleanCards, icu: cleanIcu, player: cleanPlayer };
 
 function readAll(userId) {
   const r = db.prepare('SELECT data FROM user_settings WHERE user_id = ?').get(userId);
@@ -209,4 +227,4 @@ function boardList(slug, rows, viewer) {
 }
 
 module.exports = {
-  ICU_SOUNDS, ICU_AWAY, get, set, statsOf, cleanDisplay, cleanDesk, cleanStats, cleanCards, CARD_FLOORS, orderGames, profileView, boardModes, boardMode, recordName, boardList, DESK, SEE, BOARD, SITE, DISPLAY, BOARD_GAMES };
+  PLAYER_SKINS, ICU_SOUNDS, ICU_AWAY, get, set, statsOf, cleanDisplay, cleanDesk, cleanStats, cleanCards, CARD_FLOORS, orderGames, profileView, boardModes, boardMode, recordName, boardList, DESK, SEE, BOARD, SITE, DISPLAY, BOARD_GAMES };

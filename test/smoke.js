@@ -586,6 +586,21 @@ async function main() {
       assert.equal((await api(guest, '/musik/playlists', { title: 'x' })).status, 401);
     });
 
+    await step('Mediaplayer: Aussehen, Seitenleiste und Equalizer im Konto', async () => {
+      const { anna } = members;
+      const gp = (await guest.req('/musik')).text_;
+      assert.match(gp, /data-skin="klassisch" data-skin-default="klassisch" data-player=""/, 'Gäste bekommen den Standard der Seite');
+      assert.match(gp, /<link rel="stylesheet" href="\/static\/music\.css\?v=\w+">/);
+      assert.match((await admin.req('/admin/settings')).text_, /<select name="music_skin">[\s\S]*value="winamp"/);
+      const saved = await api(anna, '/musik/einstellungen', { skin: 'winamp', side: { winamp: 'rail', 'vlc-hell': 'kaputt' }, shut: ['pl', 'quatsch'], eq: { on: true, g: [3, 99, -40, 'x', 0, 0, 0, 0, 0, 0] } });
+      assert.equal(saved.status, 200);
+      assert.deepEqual(saved.json.player, { skin: 'winamp', side: { winamp: 'rail' }, shut: ['pl'], eq: { on: true, g: [3, 12, -12, 0, 0, 0, 0, 0, 0, 0] } });
+      assert.equal((await api(anna, '/musik/einstellungen', { skin: 'fremd' })).json.player.skin, null, 'nur bekannte Skins');
+      await api(anna, '/musik/einstellungen', { skin: 'vlc-dunkel' });
+      assert.match((await anna.req('/musik')).text_, /data-skin="vlc-dunkel"/);
+      assert.equal((await api(guest, '/musik/einstellungen', { skin: 'winamp' })).status, 401);
+    });
+
     await step('Mediaplayer: Videos hochladen, YouTube-Links ohne Konto abspielen und mit Konto speichern', async () => {
       const { anna, bernd } = members;
       const fd = new FormData();

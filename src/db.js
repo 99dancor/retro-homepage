@@ -968,6 +968,7 @@ const DEFAULT_SETTINGS = {
   music_upload: 'members',      // Musik hochladen: members (alle Mitglieder) | upload (nur mit Upload-Recht) | admin
   lobby_enabled: '1',           // Musik-Lobbys zum gemeinsamen Hören
   youtube_enabled: '1',         // YouTube-Lieder in Lobbys
+  music_skin: 'klassisch',      // Aussehen des Mediaplayers für Gäste und alle, die noch keins gewählt haben
   ks_buyin: '1000',             // Kartenspiele-Kasse: Startgeld und jeder Nachkauf
   ks_rebuy_below: '200',        // Nachkaufen erst unter diesem Stand
   bj_enabled: '1',              // Blackjack (Spielgeld) für Mitglieder

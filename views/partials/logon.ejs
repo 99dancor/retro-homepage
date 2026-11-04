@@ -1,0 +1,25 @@
+<%# Anmeldebildschirm: erscheint bei jedem Laden des Desktops (abschaltbar in der Seitenverwaltung → Einstellungen).
+    Optik je nach Darstellung: XP-Willkommensseite oder 98-Anmeldedialog (public/logon.css). Die Kacheln baut public/logon.js,
+    weil das zuletzt angemeldete Konto nur im Browser steht. Ohne JavaScript bleibt der Bildschirm unsichtbar. %>
+<% const logonMe = user ? { u: user.username, n: user.name, a: user.avatar || '', id: user.id, admin: !!user.isAdmin } : null; %>
+<div id="logon" class="logon" role="dialog" aria-modal="true" aria-labelledby="logon-title" data-reg="<%= registrationOpen ? 1 : 0 %>"<% if (logonMe) { %> data-me="<%= JSON.stringify(logonMe) %>"<% } %>>
+  <div class="lg-top"></div>
+  <div class="lg-mid">
+    <div class="lg-left">
+      <div class="lg-logo"><svg class="lg-emb" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="42" rx="6" fill="#eef4ff" stroke="#16349c" stroke-width="2"/><rect x="6" y="10" width="52" height="10" rx="5" fill="#2b5fd6"/><circle cx="50" cy="15" r="2.4" fill="#e24b2b"/><circle cx="25" cy="36" r="8" fill="#ffc84a" stroke="#d58a00"/><path d="M10 50 L26 38 L36 46 L44 40 L54 50 Z" fill="#3aa83a"/></svg><span><b id="logon-title"><%= site.title %></b><small data-host></small></span></div>
+      <p class="lg-hint" data-hint></p>
+      <div class="lg-welcome">Willkommen<small>Persönliche Einstellungen werden geladen …</small></div>
+    </div>
+    <div class="lg-right">
+      <div class="lg-dlg">
+        <div class="titlebar"><span class="ttl">🔑 Anmelden bei <%= site.title %></span></div>
+        <div class="lg-body">
+          <p class="lg-intro"><span class="lg-key" aria-hidden="true">🔑</span><span data-intro></span></p>
+          <div class="lg-tiles" data-tiles></div>
+          <p class="lg-welcome98">⌛ Willkommen<span data-wname></span>. Persönliche Einstellungen werden geladen …</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="lg-bot"></div>
+</div>

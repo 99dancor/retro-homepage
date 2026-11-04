@@ -322,36 +322,55 @@ ${s('theme_custom_css').replace(/<\/?style/gi, '')}
 // ---------- Konto ----------
 // Ziel nach An- oder Registrierung: nur Pfade dieser Seite ("//…" oder "/\…" führten zu fremden Seiten)
 const localPath = v => (typeof v === 'string' && /^\/(?![/\\])/.test(v) ? v : null);
+// Der Anmeldebildschirm (public/logon.js) schickt dieselben Formulare per fetch und will JSON zurück
+const wantsJson = req => req.accepts(['html', 'json']) === 'json';
+const logonInfo = u => ({ u: u.username, n: u.display_name || u.username, a: u.avatar || '', admin: u.role === 'admin' });
 router.get('/login', (req, res) => res.render('login', { title: 'Anmelden', err: null, next: req.query.next || '' }));
 router.post('/login', auth.rateLimit('login', 10, 600), (req, res) => {
   const u = db.prepare('SELECT * FROM users WHERE username = ?').get(String(req.body.username || ''));
   const nextUrl = localPath(req.body.next) || (u && u.role === 'admin' ? '/admin' : '/');
   if (!u || u.disabled || !auth.checkPassword(String(req.body.password || ''), u.password_hash)) {
+    if (wantsJson(req)) return res.status(401).json({ error: 'Benutzername oder Kennwort falsch.' });
     return res.status(401).render('login', { title: 'Anmelden', err: 'Benutzername oder Passwort falsch.', next: req.body.next || '' });
   }
+  // Wer schon angemeldet war (Anderer Benutzer…), wird dabei abgemeldet
+  auth.endSession(req, res);
   auth.startSession(req, res, u.id);
+  if (wantsJson(req)) return res.json({ ok: true, next: nextUrl, user: logonInfo(u) });
   res.redirect(nextUrl);
 });
-router.post('/logout', (req, res) => { auth.endSession(req, res); res.redirect('/'); });
+router.post('/logout', (req, res) => {
+  auth.endSession(req, res);
+  if (wantsJson(req)) return res.json({ ok: true });
+  res.redirect('/');
+});
+// Kennworthinweis für den „?“-Knopf. Wie früher bei Windows sieht ihn jeder, der den Benutzernamen kennt.
+router.get('/api/kennworthinweis', auth.rateLimit('hinweis', 30, 600), (req, res) => {
+  const u = db.prepare('SELECT password_hint FROM users WHERE username = ? AND disabled = 0').get(String(req.query.u || '').slice(0, 32));
+  res.set('Cache-Control', 'no-store').json({ hint: (u && u.password_hint) || null });
+});
 
 router.get('/register', (req, res, next) => {
   if (getSetting('registration_open') !== '1') return next();
   res.render('register', { title: 'Registrieren', err: null, next: req.query.next || '' });
 });
 router.post('/register', auth.rateLimit('reg', 5, 3600), (req, res, next) => {
-  if (getSetting('registration_open') !== '1') return next();
+  if (getSetting('registration_open') !== '1') return wantsJson(req) ? res.status(403).json({ error: 'Registrieren ist gerade geschlossen.' }) : next();
   const { username, password, password2 } = req.body;
   let err = null;
   if (!auth.validUsername(username)) err = 'Benutzername: 3–32 Zeichen, nur Buchstaben, Zahlen, _ . -';
   else if (!auth.validPassword(password)) err = 'Passwort muss mindestens 8 Zeichen haben.';
   else if (password !== password2) err = 'Die Passwörter stimmen nicht überein.';
   else if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username)) err = 'Dieser Benutzername ist schon vergeben.';
-  if (err) return res.render('register', { title: 'Registrieren', err, next: req.body.next || '' });
+  if (err) return wantsJson(req) ? res.status(400).json({ error: err }) : res.render('register', { title: 'Registrieren', err, next: req.body.next || '' });
   const id = auth.createUser(username, password);
   mail.notifyQuietly('Neue Registrierung', `Neuer Nutzer: ${username}`);
   notify.toAdmins('👤 Neue Registrierung: ' + username, 'Ein neues Mitglied hat sich angemeldet.', '/nutzer/' + encodeURIComponent(username), 'admin:register');
+  auth.endSession(req, res);
   auth.startSession(req, res, id);
-  res.redirect(localPath(req.body.next) || '/');
+  const nextUrl = localPath(req.body.next) || '/';
+  if (wantsJson(req)) return res.json({ ok: true, next: nextUrl, user: { u: username, n: username, a: '', admin: false } });
+  res.redirect(nextUrl);
 });
 
 module.exports = router;

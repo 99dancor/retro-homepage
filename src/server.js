@@ -74,6 +74,8 @@ app.use((req, res, next) => {
     marquee: getSetting('theme_marquee'),
     // Design ohne eigene Wahl (Seitenverwaltung → Design): 98, xp, xp-oliv oder xp-silber; display.js liest es aus <html data-design>
     siteDesign: getSetting('theme_design', '98'),
+    // Anmeldebildschirm bei jedem Laden des Desktops (views/partials/logon.ejs, public/logon.js), abschaltbar in der Seitenverwaltung
+    logonScreen: getSetting('logon_screen', '1') === '1',
     programs: require('./programs'),
     ico: require('./programs').ico,
     showCounter: getSetting('theme_show_counter') === '1',

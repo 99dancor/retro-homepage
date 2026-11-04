@@ -18,6 +18,7 @@ const OK = {
   profil: 'Profil gespeichert.', bild: 'Profilbild gespeichert.', bildweg: 'Profilbild entfernt.', privat: 'Privatsphäre gespeichert.',
   notify: 'Benachrichtigungen gespeichert.', geraet: 'Gerät abgemeldet.', stats: 'Statistik gespeichert.', icu: 'Messenger gespeichert.',
   passwort: 'Kennwort geändert. Auf allen anderen Geräten bist du jetzt abgemeldet.', abgemeldet: 'Auf allen anderen Geräten abgemeldet.',
+  hinweis: 'Kennworthinweis gespeichert.', hinweisweg: 'Kennworthinweis entfernt.',
   spielstand: 'Spielstand gelöscht.', ignore: 'Liste der Ignorierten geändert.',
 };
 const ERR = {
@@ -29,6 +30,7 @@ const ERR = {
   aktuell: 'Das aktuelle Kennwort stimmt nicht.',
   kurz: 'Das neue Kennwort braucht mindestens 8 Zeichen.',
   gleich: 'Die beiden neuen Kennwörter stimmen nicht überein.',
+  hinweis: 'Der Hinweis darf nicht das Kennwort selbst sein und höchstens 100 Zeichen haben.',
 };
 const pick = (map, key) => (typeof key === 'string' && Object.hasOwn(map, key) ? map[key] : null);
 const TABS = ['profil', 'privatsphaere', 'statistik', 'benachrichtigungen', 'kennwort', 'spielstaende'];
@@ -90,6 +92,14 @@ router.post(['/konto/kennwort', '/account'], auth.requireLogin, auth.rateLimit('
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(auth.hashPassword(req.body.password), u.id);
   db.prepare('DELETE FROM sessions WHERE user_id = ? AND id != ?').run(u.id, req.cookies.sid);
   done(req, res, 'kennwort', 'ok=passwort');
+});
+// Kennworthinweis: steht auf dem Anmeldebildschirm hinter dem „?“-Knopf, für jeden, der den Benutzernamen kennt
+router.post('/konto/hinweis', auth.requireLogin, auth.rateLimit('pw', 10, 600), (req, res) => {
+  const hint = String(req.body.hint || '').trim().replace(/\s+/g, ' ');
+  const u = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
+  if (hint.length > 100 || (hint && auth.checkPassword(hint, u.password_hash))) return done(req, res, 'kennwort', 'err=hinweis');
+  db.prepare('UPDATE users SET password_hint = ? WHERE id = ?').run(hint || null, req.user.id);
+  done(req, res, 'kennwort', hint ? 'ok=hinweis' : 'ok=hinweisweg');
 });
 router.post('/konto/abmelden', auth.requireLogin, (req, res) => {
   db.prepare('DELETE FROM sessions WHERE user_id = ? AND id != ?').run(req.user.id, req.cookies.sid);

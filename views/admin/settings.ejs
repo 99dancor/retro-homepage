@@ -18,6 +18,7 @@
   </fieldset>
   <fieldset class="groupbox"><legend>🔐 Besucher & Mitmachen</legend>
     <label class="inline"><input type="checkbox" name="registration_open" value="1" <%= s.registration_open === '1' ? 'checked' : '' %>> Jeder darf sich registrieren</label><br>
+    <label class="inline"><input type="checkbox" name="logon_screen" value="1" <%= s.logon_screen === '1' ? 'checked' : '' %>> Anmeldebildschirm bei jedem Laden der Seite (Anmelden, Registrieren oder als Gast weiter)</label><br>
     <label class="inline"><input type="checkbox" name="guestbook_enabled" value="1" <%= s.guestbook_enabled === '1' ? 'checked' : '' %>> Besucherbuch aktiv</label>
     <label class="inline"><input type="checkbox" name="guestbook_moderation" value="1" <%= s.guestbook_moderation === '1' ? 'checked' : '' %>> Besucherbuch-Einträge erst nach Freischaltung anzeigen</label><br>
     <label class="inline"><input type="checkbox" name="board_enabled" value="1" <%= s.board_enabled === '1' ? 'checked' : '' %>> Forum aktiv (schreiben dürfen angemeldete Nutzer)</label>

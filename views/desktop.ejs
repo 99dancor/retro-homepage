@@ -15,6 +15,8 @@
 <% if (typeof deskDisplay !== 'undefined' && deskDisplay) { %><script type="application/json" id="darstellung-konto"><%- JSON.stringify(deskDisplay).replace(/</g, '\\u003c') %></script><% } %>
 <script src="<%= asset('display.js') %>"></script>
 <script src="<%= asset('sound.js') %>"></script>
+<% if (logonScreen) { %><link rel="stylesheet" href="<%= asset('logon.css') %>">
+<script src="<%= asset('logon.js') %>"></script><% } %>
 </head>
 <body class="desktop" data-user="<%= user ? user.id : '' %>" data-title="<%= site.title %>" data-csrf="<%= csrf %>">
 <div id="desk">
@@ -59,6 +61,7 @@
   </div>
 </div>
 <%- include('partials/startmenu') %>
+<% if (logonScreen) { %><%- include('partials/logon') %><% } %>
 <% if (typeof desk !== 'undefined') { %><script type="application/json" id="desk-daten"><%- JSON.stringify(desk).replace(/</g, '\\u003c') %></script><% } %>
 <script src="<%= asset('retro.js') %>"></script>
 <script src="<%= asset('winui.js') %>"></script>

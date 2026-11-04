@@ -1,5 +1,14 @@
 # Changelog
 
+## 04.11.2026 – Anmeldebildschirm
+
+- **Bei jedem Laden der Seite** kommt jetzt ein Anmeldebildschirm im Stil der Darstellung: bei XP die blaue Willkommensseite über den ganzen Bildschirm, bei 98 ein Anmeldedialog auf leerem Desktop.
+- **Ohne frühere Anmeldung** gibt es die Kacheln Anmelden, Registrieren und Als Gast weiter. **War man auf dem Gerät schon angemeldet**, steht nur das eigene Konto da, darunter Anderer Benutzer…, Neues Konto und Als Gast weiter. Läuft die Anmeldung noch, reicht ein Klick auf die eigene Kachel. „Nicht mehr merken“ entfernt das Konto vom Gerät.
+- **Kennworthinweis:** unter Konto und Passwort → Kennwort. Auf dem Anmeldebildschirm zeigt ihn der „?“-Knopf, wie früher bei Windows für jeden, der den Benutzernamen kennt. Ein falsches Kennwort meldet eine gelbe Sprechblase, eine aktive Feststelltaste wird angezeigt.
+- **Abmelden** im Startmenü öffnet einen Dialog mit „Benutzer wechseln“ und „Abmelden“. Bei XP wird der Desktop dabei grau, bei 98 gerastert.
+- Anmelde- und Registrierfenster aus Spielen und Bereichen öffnen jetzt ebenfalls den Anmeldebildschirm, danach geht es zum Ziel weiter.
+- Abschaltbar in der Seitenverwaltung unter Einstellungen → Besucher & Mitmachen. Eigenes Zeichen und eigene Töne, keine Windows-Logos oder -Klänge.
+
 ## 04.11.2026 – Mediaplayer: Skins und neue Seitenleiste
 
 - **Fünf Skins:** Klassisch (wie der Desktop, 98 oder XP), VLC hell, VLC dunkel, Media Player (schwarzes Glas, Reiter oben) und Winamp (grüne Anzeige, Fenster übereinander). Umschalten über „Aussehen“ unten in der Seitenleiste, über „Ansicht“ in der Menüleiste oder über SKIN bei Winamp. Mit Konto gilt der Skin auf allen Geräten, Gäste behalten ihn im Browser. Den Standard für Gäste legst du in der Seitenverwaltung unter Mediaplayer fest.

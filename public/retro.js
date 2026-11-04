@@ -229,6 +229,14 @@
       location.href = (active || w).url;
       return;
     }
+    // Anmelden oder Registrieren im Fenster: stattdessen der Anmeldebildschirm (public/logon.js), sein Ziel kommt mit
+    var cur = cleanUrl(w.iframe.contentWindow.location), ck = winKey(cur);
+    if ((ck === 'login' || ck === 'register') && window.RetroLogon) {
+      var lnext = new URLSearchParams(w.iframe.contentWindow.location.search).get('next') || '';
+      close(w);
+      window.RetroLogon.show({ mode: ck, next: lnext });
+      return;
+    }
     w.url = cleanUrl(w.iframe.contentWindow.location);
     // Zwischen zwei Seiten ist der Rahmen kurz leer und zeigt seinen eigenen Hintergrund: den der Seite übernehmen, sonst
     // blitzt bei dunklen Programmen (Farming Hub) bei jedem Klick das graue Fenster auf

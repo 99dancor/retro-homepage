@@ -24,6 +24,30 @@
   try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREF_KEY)) || {}); } catch (e) { /* Standard */ }
   function savePrefs() { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch (e) { /* privat */ } }
 
+  // ---------- Aussehen (Skins) ----------
+  // Ein Skin ist nur CSS (public/music.css, .mp[data-skin=…]). Mitglieder haben ihre Wahl am Konto (POST /musik/einstellungen,
+  // src/usersettings.js → player), Gäste im Browser. Ohne eigene Wahl gilt die Vorgabe der Seite (Seitenverwaltung).
+  var SKINS = [
+    { id: 'klassisch', name: 'Klassisch', sub: 'wie der Desktop (98 oder XP)' },
+    { id: 'vlc-hell', name: 'VLC hell', sub: 'schlicht, orange Akzente' },
+    { id: 'vlc-dunkel', name: 'VLC dunkel', sub: 'wie VLC hell, nur dunkel' },
+    { id: 'mediaplayer', name: 'Media Player', sub: 'schwarzes Glas, Reiter oben' },
+    { id: 'winamp', name: 'Winamp', sub: 'grüne Anzeige, Fenster gestapelt' }
+  ];
+  var MEMBER = !!root.dataset.player, SKIN_DEFAULT = root.dataset.skinDefault || 'klassisch';
+  var player = { skin: null, side: {}, shut: [], eq: { on: false, g: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] } };
+  try { Object.assign(player, MEMBER ? JSON.parse(root.dataset.player) : prefs.player || {}); } catch (e) { /* Vorgaben */ }
+  function skinOk(id) { return SKINS.some(function (k) { return k.id === id; }); }
+  function skin() { return skinOk(player.skin) ? player.skin : skinOk(SKIN_DEFAULT) ? SKIN_DEFAULT : 'klassisch'; }
+  function sideMode() { return player.side[skin()] || 'open'; }
+  var playerTimer = null;
+  function savePlayer() {
+    prefs.player = player; savePrefs();
+    if (!MEMBER) return;
+    clearTimeout(playerTimer);
+    playerTimer = setTimeout(function () { post('/musik/einstellungen', player).catch(function () { /* bleibt im Browser */ }); }, 600);
+  }
+
   // ---------- Kleinkram ----------
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function fmt(sec) {
@@ -91,7 +115,11 @@
 
   // ---------- Ton: Web Audio für Visualisierung und Lautstärke ----------
   // Musik und Videos laufen über dasselbe <video>-Element; bei Musik bleibt es unsichtbar
-  var actx = null, gain = null, analyser = null, freq, wave;
+  var actx = null, gain = null, analyser = null, freq, wave, eqNodes = [];
+  var EQ_FREQ = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+  function applyEq() {
+    eqNodes.forEach(function (b, i) { b.gain.value = player.eq.on ? player.eq.g[i] || 0 : 0; });
+  }
   function graph() {
     if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
     var AC = window.AudioContext || window.webkitAudioContext;
@@ -102,7 +130,17 @@
       analyser = actx.createAnalyser();
       analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0.78;
       gain = actx.createGain();
-      src.connect(analyser); analyser.connect(gain); gain.connect(actx.destination);
+      // Equalizer vor der Messung, damit die Visualisierung zeigt, was man hört
+      eqNodes = EQ_FREQ.map(function (f, i) {
+        var b = actx.createBiquadFilter();
+        b.type = i === 0 ? 'lowshelf' : i === EQ_FREQ.length - 1 ? 'highshelf' : 'peaking';
+        b.frequency.value = f; b.Q.value = 1.1;
+        return b;
+      });
+      var last = src;
+      eqNodes.forEach(function (b) { last.connect(b); last = b; });
+      last.connect(analyser); analyser.connect(gain); gain.connect(actx.destination);
+      applyEq();
       freq = new Uint8Array(analyser.frequencyBinCount); wave = new Uint8Array(analyser.fftSize);
       media.volume = 1;
     } catch (e) { actx = null; gain = null; analyser = null; }
@@ -112,13 +150,21 @@
     var v = Sound.musik();
     if (gain) gain.gain.value = v; else media.volume = v;
     if (yt.ready) { ytCmd('setVolume', [Math.round(v * 100)]); ytCmd(v ? 'unMute' : 'mute'); }
-    volEl.value = Math.round(Sound.get().musik * 100);
+    var pct = Math.round(Sound.get().musik * 100);
+    volEl.value = pct; waVol.value = pct;
+    volEl.style.setProperty('--v', pct + '%');
+    $('mp-volpct').textContent = pct + ' %';
   }
+  var waVol = $('mp-wa-vol');
   Sound.onChange(applyVolume);
   volEl.addEventListener('input', function () { Sound.set({ musik: volEl.value / 100, stumm: false }); });
+  waVol.addEventListener('input', function () { Sound.set({ musik: waVol.value / 100, stumm: false }); });
 
   // ---------- Bild: Video, Visualisierung oder YouTube ----------
   var vis = window.RetroVis ? window.RetroVis.create($('mp-canvas')) : null;
+  // kleines Spektrum in der Winamp-Anzeige
+  var waVis = window.RetroVis ? window.RetroVis.create($('mp-wa-spec')) : null;
+  if (waVis) waVis.setMode('balken');
   var VIS_LIST = window.RetroVis ? window.RetroVis.list : [];
   if (vis) {
     VIS_LIST.forEach(function (m) { visSelect.add(new Option(m.name, m.id)); });
@@ -132,7 +178,6 @@
     if (vis) vis.setMode(id);
     if (isVideo(playingItem())) prefs.picture = 'vis';
     savePrefs(); applyPicture(); kick();
-    if (view === 'vis') renderList();
   }
   function playingItem() { return lob ? currentLobbyItem() : current; }
   var showsVideo = false;
@@ -153,6 +198,10 @@
     if (vis) {
       if (active) { analyser.getByteFrequencyData(freq); analyser.getByteTimeDomainData(wave); vis.draw(freq, wave, t / 1000); idle = 0; }
       else { vis.dim(); idle++; }
+    }
+    if (waVis && skin() === 'winamp' && !root.classList.contains('phone')) {
+      if (analyser && !media.paused && it && !isYt(it)) { if (!active) { analyser.getByteFrequencyData(freq); analyser.getByteTimeDomainData(wave); } waVis.draw(freq, wave, t / 1000); idle = 0; }
+      else waVis.dim();
     }
     showTime();
     if (idle < 90) requestAnimationFrame(frame); else looping = false;
@@ -201,7 +250,7 @@
       if (root.classList.contains('theater')) setTheater(false);
       root.classList.add('mini'); document.body.classList.add('mp-mini');
       layout();
-      if (!d || !d.mini(window, true, 540, root.offsetHeight + 8)) {
+      if (!d || !d.mini(window, true, 540, root.offsetHeight + (skin() === 'klassisch' ? 8 : 0))) {
         root.classList.remove('mini'); document.body.classList.remove('mp-mini');
         layout();
         status('Den Mini-Player gibt es nur auf dem großen Bildschirm.');
@@ -218,10 +267,17 @@
   window.addEventListener('resize', function () { if (root.classList.contains('mini') && window.innerHeight > 220) setMini(false); });
 
   // ---------- Ziehleisten: Aufgabenleiste, Wiedergabeliste, Höhe des Bilds ----------
-  var main = root.querySelector('.mp-main'), center = root.querySelector('.mp-center');
+
   // Schmales Fenster (Handy): Reiter statt Seitenleisten, aber nicht im Mini-Player und nicht im Theater
   var narrow = window.matchMedia('(max-width: 640px)');
-  function layout() { root.classList.toggle('phone', narrow.matches && !root.classList.contains('mini') && !root.classList.contains('theater')); }
+  function layout() {
+    root.classList.toggle('phone', narrow.matches && !root.classList.contains('mini') && !root.classList.contains('theater'));
+    if (!isPhone()) root.classList.remove('drawer');
+    root.dataset.skin = skin();
+    var sm = sideMode();
+    ['open', 'rail', 'closed'].forEach(function (m) { root.classList.toggle('side-' + m, sm === m); });
+    root.classList.toggle('big', /^vlc/.test(skin()) && !!prefs.big);
+  }
   function isPhone() { return root.classList.contains('phone'); }
   var clamp = function (v, lo, hi) { return Math.max(lo, Math.min(hi, v)); };
   function applySizes() {
@@ -230,8 +286,9 @@
     root.style.setProperty('--mp-stage', prefs.stageH ? prefs.stageH + 'px' : '');
   }
   function sizeFrom(which, x, y) {
-    var m = main.getBoundingClientRect(), c = center.getBoundingClientRect();
-    if (which === 'stage') prefs.stageH = Math.round(clamp(y - c.top, 80, c.height - 90));
+    // .mp-main und .mp-center haben keine eigene Box (display: contents): gemessen wird am Player und am Bild
+    var m = root.getBoundingClientRect(), c = stage.getBoundingClientRect(), ctl = root.querySelector('.mp-controls').getBoundingClientRect();
+    if (which === 'stage') prefs.stageH = Math.round(clamp(y - c.top, 80, ctl.top - c.top - 120));
     else if (which === 'queue') prefs.queueW = Math.round(clamp(m.right - x, 160, m.width * 0.5));
     else prefs.sideW = Math.round(clamp(x - m.left, 110, m.width * 0.4));
     applySizes();
@@ -290,65 +347,113 @@
     }).catch(oops);
   }
   function playlist(key) { var id = Number(String(key).slice(3)); return lib.playlists.filter(function (p) { return p.id === id; })[0] || null; }
+  // Ansichten: all (alles), sammlung, mitglieder, meine, pl:<id>; dazu now (Wiedergabe läuft) und lobbys.
+  // Musik, Videos und YouTube sind keine eigenen Ansichten mehr, sondern ein Filter über jeder Liste (kindF).
+  var kindF = '';
   function viewTracks(key) {
     var all = lib.tracks;
-    if (key === 'musik') return all.filter(function (t) { return t.kind === 'audio'; });
-    if (key === 'videos') return all.filter(function (t) { return t.kind === 'video'; });
-    if (key === 'youtube') return all.filter(function (t) { return t.kind === 'youtube'; });
     if (key === 'sammlung') return all.filter(function (t) { return t.byAdmin; });
     if (key === 'mitglieder') return all.filter(function (t) { return !t.byAdmin; });
     if (key === 'meine') return all.filter(function (t) { return t.mine; });
     if (/^pl:/.test(key)) { var p = playlist(key); return p ? p.tracks.map(function (id) { return byId[id]; }).filter(Boolean) : []; }
     return all;
   }
-  function isLibView(key) { return !/^(now|lobbys|vis)$/.test(key); }
+  function isLibView(key) { return !/^(now|lobbys)$/.test(key); }
   function filtered(tracks) {
+    if (kindF) tracks = tracks.filter(function (t) { return (t.kind || 'audio') === kindF; });
     if (!filter) return tracks;
     var f = filter.toLowerCase();
     return tracks.filter(function (t) { return (t.title + ' ' + t.artist + ' ' + t.album + ' ' + (t.by || '')).toLowerCase().indexOf(f) >= 0; });
   }
+  // Media Player zeigt die Bibliothek nach Alben gruppiert (Playlists behalten ihre Reihenfolge)
+  function grouped() { return skin() === 'mediaplayer' && !/^pl:/.test(view); }
+  function albumOf(t) { return t.kind === 'youtube' ? 'YouTube' : t.album || (t.kind === 'video' ? 'Videos' : 'Ohne Album'); }
+  function listTracks() {
+    var tracks = filtered(viewTracks(view));
+    if (!grouped()) return tracks;
+    return tracks.map(function (t, i) { return { t: t, i: i }; }).sort(function (a, b) {
+      var x = albumOf(a.t).localeCompare(albumOf(b.t), 'de');
+      return x || a.i - b.i;
+    }).map(function (x) { return x.t; });
+  }
+  function hue(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; return h; }
 
-  // Aufgabenleiste links wie beim Media Player 9; auf dem Handy werden daraus Knöpfe im Reiter „Bibliothek“
-  function renderSide() {
-    var me = lib.me, h = '';
-    function item(key, label, n, cls) {
-      return '<button type="button" class="mp-nav' + (cls ? ' ' + cls : '') + (view === key ? ' active' : '') + '" data-view="' + esc(key) + '">' + label +
-        (n !== undefined ? ' <small>(' + n + ')</small>' : '') + '</button>';
-    }
-    h += item('now', '▶ Wiedergabe läuft', undefined, 'mp-task mp-desk-only');
-    h += item('all', '📚 Medienbibliothek', lib.tracks.length, 'mp-task');
-    h += '<div class="mp-sub">' + item('musik', '🎵 Musik', viewTracks('musik').length) + item('videos', '🎬 Videos', viewTracks('videos').length);
-    if (CAN_YT) h += item('youtube', '▶️ YouTube-Links', viewTracks('youtube').length);
-    h += item('sammlung', '💿 Sammlung', viewTracks('sammlung').length) + item('mitglieder', '👥 Von Mitgliedern', viewTracks('mitglieder').length);
-    if (me) h += item('meine', '⭐ Meine Titel', viewTracks('meine').length);
-    h += '</div>';
+  // ---------- Seitenleiste ----------
+  // Gruppen Bibliothek, Playlists und Lobbys, einzeln zuklappbar; drei Breiten: offen, schmal (nur Symbole) und zu.
+  // Auf dem Handy liegt sie als Schublade hinter ☰.
+  var VIEW_NAME = { all: 'Alles', sammlung: 'Sammlung', mitglieder: 'Von Mitgliedern hochgeladen', meine: 'Meine Titel' };
+  function navBtn(o) {
+    return '<button type="button" class="mp-nav' + (o.cls ? ' ' + o.cls : '') + (o.on ? ' active' : '') + '"' + (o.go ? ' data-go="' + esc(o.go) + '"' : '') +
+      (o.act ? ' data-act="' + o.act + '"' : '') + (o.lobby ? ' data-lobby="' + esc(o.lobby) + '"' : '') + (o.drop ? ' data-drop="' + esc(o.drop) + '"' : '') +
+      ' title="' + esc(o.title || o.label) + '">' + (o.live ? '<span class="mp-live"></span>' : '<span class="ic">' + o.ic + '</span>') + '<span class="t">' + esc(o.label) +
+      (o.who ? ' <span class="who">' + esc(o.who) + '</span>' : '') + '</span>' + (o.n !== undefined ? '<small class="n">' + o.n + '</small>' : '') + '</button>';
+  }
+  function groups() {
+    var me = lib.me, out = [];
+    var libItems = [{ ic: '📚', label: 'Alles', go: 'all', n: lib.tracks.length }, { ic: '💿', label: 'Sammlung', go: 'sammlung', n: viewTracks('sammlung').length },
+      { ic: '👥', label: 'Von Mitgliedern', go: 'mitglieder', n: viewTracks('mitglieder').length }];
+    if (me) libItems.push({ ic: '⭐', label: 'Meine Titel', go: 'meine', n: viewTracks('meine').length });
+    libItems.forEach(function (o) { o.on = view === o.go; });
+    out.push({ id: 'lib', ic: '📚', label: 'Bibliothek', items: libItems });
     if (me) {
       var mine = lib.playlists.filter(function (p) { return p.mine; }), other = lib.playlists.filter(function (p) { return !p.mine; });
-      h += '<div class="mp-group">📃 Playlists</div><div class="mp-sub">' + mine.map(function (p) { return item('pl:' + p.id, '📃 ' + esc(p.title), p.tracks.length); }).join('') +
-        '<button type="button" class="mp-nav" data-act="new-playlist">➕ Neue Playlist …</button>';
-      if (other.length) h += other.map(function (p) { return item('pl:' + p.id, '📃 ' + esc(p.title) + ' <small>von ' + esc(p.owner) + '</small>'); }).join('');
-      h += '</div>';
+      out.push({ id: 'pl', ic: '📃', label: 'Playlists', add: 'new-playlist', addTitle: 'Neue Playlist', badge: lib.playlists.length,
+        items: mine.map(function (p) { return { ic: '📃', label: p.title, go: 'pl:' + p.id, n: p.tracks.length, on: view === 'pl:' + p.id, drop: 'pl:' + p.id }; }),
+        empty: mine.length ? '' : 'Noch keine eigene Playlist.',
+        sub: other.length ? 'Von anderen' : '', subItems: other.map(function (p) { return { ic: '📃', label: p.title, who: 'von ' + p.owner, go: 'pl:' + p.id, n: p.tracks.length, on: view === 'pl:' + p.id }; }) });
     }
     if (CAN_LOBBY && me) {
-      h += item('lobbys', '🎧 Lobbys', undefined, 'mp-task mp-desk-only');
-      if (lob && lob.state) h += '<div class="mp-sub mp-desk-only">' + item('now', '🔴 ' + esc(lob.state.name) + ' <small>(' + lob.state.listeners.length + ')</small>', undefined, 'mp-lobby-now') + '</div>';
+      var li = lobbies.map(function (l) {
+        var here = lob && lob.id === l.id;
+        return { ic: '🎧', live: here, label: l.name, who: l.host, n: '👥 ' + l.listeners, lobby: l.id, drop: here ? 'lobby' : '', title: l.name + ' – ' + (l.now ? '▶ ' + l.now : 'Pause') + (here ? ' (du bist drin)' : '') };
+      });
+      if (lob && lob.state && !lobbies.some(function (l) { return l.id === lob.id; })) li.unshift({ live: true, label: lob.state.name, n: '👥 ' + lob.state.listeners.length, lobby: lob.id, drop: 'lobby' });
+      li.push({ ic: '📋', label: 'Alle Lobbys', go: 'lobbys', on: view === 'lobbys' });
+      out.push({ id: 'lob', ic: '🎧', label: 'Lobbys', add: 'lobby-new', addTitle: 'Lobby öffnen', badge: lobbies.length, live: !!lob, items: li });
     }
-    if (lib.canUpload) h += '<button type="button" class="mp-nav mp-task" data-act="upload">📤 Hochladen</button>';
-    if (vis) h += item('vis', '🌈 Visualisierungen', undefined, 'mp-task');
-    if (!me) h += '<p class="mp-hint"><a href="/login?next=/musik">Melde dich an</a>, um Playlists anzulegen, Musik und Videos hochzuladen und mit anderen gemeinsam zu hören.</p>';
-    if (lib.quota) h += '<p class="mp-hint mp-quota">Speicher: ' + fmtSize(lib.quota.used) + ' von ' + fmtSize(lib.quota.total) + '</p>';
-    side.innerHTML = h;
-    // „Wiedergabe läuft“ ist auch aktiv, wenn man über die Lobby dorthin kam
-    var nowBtns = side.querySelectorAll('[data-view=now]');
-    if (nowBtns.length > 1 && view === 'now') nowBtns[0].classList.remove('active');
+    return out;
   }
-  side.addEventListener('click', function (e) {
-    var b = e.target.closest('[data-view]');
-    if (b) show(b.dataset.view);
-  });
+  function renderSide() {
+    var me = lib.me, mode = isPhone() ? 'open' : sideMode(), h = '', nowOn = view === 'now';
+    side.classList.toggle('rail', mode === 'rail');
+    if (mode === 'rail') {
+      h += '<button type="button" class="mp-rb mp-sb-tg" data-act="side-open" title="Seitenleiste aufklappen">»</button>';
+      h += '<button type="button" class="mp-rb' + (nowOn ? ' active' : '') + '" data-go="now" data-drop="queue" title="Wiedergabe läuft">▶' + (lob ? '<span class="mp-live"></span>' : '') + '</button>';
+      groups().forEach(function (g) {
+        var on = g.items.some(function (o) { return o.on; });
+        h += '<div class="mp-rb' + (on ? ' active' : '') + '" tabindex="0" aria-label="' + g.label + '">' + g.ic + (g.live ? '<span class="mp-live"></span>' : g.badge ? '<span class="badge">' + g.badge + '</span>' : '') +
+          '<div class="mp-fly"><div class="mp-fly-in"><div class="mp-fly-h">' + g.label + (g.add ? '<button type="button" class="mp-grp-add" data-act="' + g.add + '" title="' + g.addTitle + '">＋</button>' : '') + '</div>' +
+          '<div class="mp-grp-body">' + g.items.map(navBtn).join('') + (g.subItems && g.subItems.length ? '<div class="mp-grp-sub">' + g.sub + '</div>' + g.subItems.map(navBtn).join('') : '') + '</div></div></div></div>';
+      });
+      h += '<div class="mp-rail-foot">' + (lib.canUpload ? '<button type="button" class="mp-rb" data-act="upload" title="Hochladen">📤</button>' : '') +
+        '<button type="button" class="mp-rb" data-act="skin-pop" title="Aussehen">🎨</button></div>';
+      side.innerHTML = h;
+      return;
+    }
+    h += '<div class="mp-sb-top"><span>Navigation</span>' + (isPhone() ? '' : '<button type="button" class="mp-sb-tg" data-act="side-rail" title="Seitenleiste verkleinern">«</button>') + '</div>';
+    h += navBtn({ ic: '▶', label: 'Wiedergabe läuft', go: 'now', on: nowOn, cls: 'strong', drop: 'queue' });
+    if (lob && lob.state) h += navBtn({ live: true, label: lob.state.name, go: 'now', n: '👥 ' + lob.state.listeners.length, cls: 'mp-sub1', drop: 'lobby', title: 'Deine Lobby' });
+    groups().forEach(function (g) {
+      var shut = player.shut.indexOf(g.id) >= 0;
+      h += '<div class="mp-grp' + (shut ? ' shut' : '') + '"><div class="mp-grp-head"><button type="button" class="mp-grp-tg" data-act="grp" data-grp="' + g.id + '" aria-expanded="' + !shut + '">' +
+        (shut ? '▸ ' : '▾ ') + g.label + '</button>' + (g.add ? '<button type="button" class="mp-grp-add" data-act="' + g.add + '" title="' + g.addTitle + '">＋</button>' : '') + '</div>' +
+        '<div class="mp-grp-body">' + g.items.map(navBtn).join('') + (g.empty ? '<p class="mp-hint">' + g.empty + '</p>' : '') +
+        (g.subItems && g.subItems.length ? '<div class="mp-grp-sub">' + g.sub + '</div>' + g.subItems.map(navBtn).join('') : '') + '</div></div>';
+    });
+    if (!me) h += '<p class="mp-hint"><a href="/login?next=/musik">Melde dich an</a>, um Playlists anzulegen, Musik und Videos hochzuladen und mit anderen gemeinsam zu hören.</p>';
+    var cur = SKINS.filter(function (k) { return k.id === skin(); })[0];
+    h += '<div class="mp-sb-foot">' + (lib.canUpload ? '<button type="button" class="small" data-act="upload">📤 Hochladen</button>' : '') +
+      (lib.quota ? '<div class="mp-quota"><span>Speicher: ' + fmtSize(lib.quota.used) + ' von ' + fmtSize(lib.quota.total) + '</span><div class="bar"><i style="width:' +
+        Math.min(100, Math.round(lib.quota.used / Math.max(1, lib.quota.total) * 100)) + '%"></i></div></div>' : '') +
+      navBtn({ ic: '🎨', label: 'Aussehen: ' + cur.name, act: 'skin-pop', n: '▾', title: 'Aussehen des Players wählen' }) + '</div>';
+    side.innerHTML = h;
+  }
   function show(key) {
     if (key === 'lobbys' && !lib.me) key = 'all';
+    if (key === 'now' && isPhone() && !lob) key = 'all';
     view = key; filter = '';
+    if (key !== 'now' && skin().indexOf('vlc') === 0 && prefs.big) { prefs.big = false; savePrefs(); }
+    root.classList.remove('drawer');
     layout();
     if (isPhone()) tab = key === 'now' ? (lob ? 'lobby' : 'queue') : key === 'lobbys' ? 'lobby' : 'lib';
     render();
@@ -357,23 +462,46 @@
   function render() {
     layout();
     root.dataset.view = view;
-    renderTabs(); renderSide(); renderHead(); renderList(); renderQueue(); applyPicture(); updateButtons();
+    renderTabs(); renderSide(); renderTop(); renderHead(); renderList(); renderQueue(); renderLobbyBar(); applyPicture(); updateButtons(); nowWa();
   }
 
   function totalTime(tracks) { return tracks.reduce(function (n, t) { return n + (t.duration || 0); }, 0); }
-  var VIEW_NAME = { all: 'Medienbibliothek', musik: 'Musik', videos: 'Videos', youtube: 'YouTube-Links', sammlung: 'Sammlung', mitglieder: 'Von Mitgliedern hochgeladen', meine: 'Meine Titel' };
+  // Media Player: Reiter oben und Pfadzeile
+  function renderTop() {
+    var s = skin();
+    if (s !== 'mediaplayer') { $('mp-wtop').innerHTML = ''; $('mp-crumb').innerHTML = ''; return; }
+    var lobView = view === 'lobbys';
+    $('mp-wtop').innerHTML = '<div class="mp-wtabs" role="tablist"><button type="button" data-go="now" class="' + (view === 'now' ? 'on' : '') + '">Wiedergabe läuft</button>' +
+      '<button type="button" data-go="all" class="' + (isLibView(view) ? 'on' : '') + '">Bibliothek</button>' +
+      (CAN_LOBBY && lib.me ? '<button type="button" data-go="lobbys" class="' + (lobView ? 'on' : '') + '">Lobbys</button>' : '') +
+      (lib.canUpload ? '<button type="button" data-act="upload">Hochladen</button>' : '') + '</div><button type="button" class="mp-wskin" data-act="skin-pop" title="Aussehen">🎨</button>';
+    var p = /^pl:/.test(view) ? playlist(view) : null;
+    var path = view === 'now' ? ['Wiedergabe läuft'] : lobView ? ['Lobbys'] : p ? ['Playlists', p.title] : ['Bibliothek', VIEW_NAME[view] || ''];
+    if (kindF) path.push({ audio: 'Musik', video: 'Videos', youtube: 'YouTube' }[kindF]);
+    $('mp-crumb').innerHTML = (view !== 'now' ? '<button type="button" class="small" data-act="side-toggle" title="Navigationsbereich ein- oder ausblenden">☰</button>' : '') +
+      '<span class="path">Musik<i>▸</i>' + path.map(esc).join('<i>▸</i>') + '</span>';
+  }
+  function chips() {
+    var opts = [['', 'Alle'], ['audio', '🎵 Musik'], ['video', '🎬 Videos']];
+    if (CAN_YT) opts.push(['youtube', '▶️ YouTube']);
+    return '<span class="mp-chips" role="group" aria-label="Art">' + opts.map(function (o) {
+      return '<button type="button" data-act="kind" data-kind="' + o[0] + '" class="' + (kindF === o[0] ? 'on' : '') + '" aria-pressed="' + (kindF === o[0]) + '">' + o[1] + '</button>';
+    }).join('') + '</span>';
+  }
+  function sideBtn() {
+    return sideMode() === 'closed' && !isPhone() && skin() !== 'mediaplayer' ? '<button type="button" class="small" data-act="side-open" title="Seitenleiste zeigen">☰</button> ' : '';
+  }
   function renderHead() {
     if (view === 'now') { head.innerHTML = infoHead(); return; }
     if (view === 'lobbys') { head.innerHTML = lobbyListHead(); return; }
-    if (view === 'vis') { head.innerHTML = '<div class="mp-title"><b>🌈 Visualisierungen</b> <small>wie beim Windows Media Player. Bei Videos schaltet „🌈 Visualisierung“ im Bild um.</small></div>'; return; }
-    var tracks = viewTracks(view), p = /^pl:/.test(view) ? playlist(view) : null;
-    var h = '<div class="mp-title"><b>' + (p ? '📃 ' + esc(p.title) : esc(VIEW_NAME[view] || '')) + '</b> <small>' + tracks.length + ' Titel' +
+    var tracks = filtered(viewTracks(view)), p = /^pl:/.test(view) ? playlist(view) : null;
+    var h = '<div class="mp-title">' + sideBtn() + '<b>' + (p ? '📃 ' + esc(p.title) : esc(VIEW_NAME[view] || '')) + '</b> <small>' + tracks.length + ' Titel' +
       (totalTime(tracks) ? ' · ' + fmt(totalTime(tracks)) : '') + (p ? ' · ' + VIS_LABEL[p.visibility] + (p.mine ? '' : ' · von ' + esc(p.owner)) : '') + '</small></div>';
-    h += '<div class="mp-tools"><input type="search" id="mp-filter" placeholder="🔍 Suchen" aria-label="Titel suchen">';
+    h += '<div class="mp-tools">' + chips() + '<input type="search" id="mp-filter" placeholder="🔍 Suchen" aria-label="Titel suchen" value="' + esc(filter) + '">';
     if (lob) h += '<button type="button" class="small" data-act="lobby-add-view" title="Alle Titel dieser Liste in die Lobby">🎧 Alle in die Lobby</button>';
     else h += '<button type="button" class="small" data-act="play-view">▶ Alle abspielen</button><button type="button" class="small" data-act="queue-view" title="Alle Titel hinten an die Wiedergabeliste hängen">➕ Anhängen</button>';
     if (p && p.mine) h += '<button type="button" class="small" data-act="edit-playlist">✎ Bearbeiten</button><button type="button" class="small danger" data-act="delete-playlist">🗑</button>';
-    if (view === 'youtube' && lib.me && CAN_YT) h += '<button type="button" class="small" data-act="yt-save" title="YouTube-Links dauerhaft in der Bibliothek ablegen">💾 Links speichern …</button>';
+    if (kindF === 'youtube' && lib.me && CAN_YT) h += '<button type="button" class="small" data-act="yt-save" title="YouTube-Links dauerhaft in der Bibliothek ablegen">💾 Links speichern …</button>';
     h += '</div>';
     if (lob) h += '<p class="mp-hint">🎧 Du bist in einer Lobby: Ein Klick auf einen Titel fügt ihn der Warteschlange der Lobby hinzu.</p>';
     head.innerHTML = h;
@@ -384,32 +512,28 @@
   function renderList() {
     if (view === 'now') { list.innerHTML = ''; return; }
     if (view === 'lobbys') { renderLobbies(); return; }
-    if (view === 'vis') {
-      list.innerHTML = '<div class="mp-picks mp-vis-list">' + VIS_LIST.map(function (m) {
-        return '<button type="button" class="mp-nav' + (m.id === prefs.vis ? ' active' : '') + '" data-act="vis-pick" data-vis="' + esc(m.id) + '">🌈 ' + esc(m.name) + '</button>';
-      }).join('') + '</div>';
-      return;
-    }
     var p = /^pl:/.test(view) ? playlist(view) : null, own = p && p.mine;
-    var tracks = filtered(viewTracks(view));
+    var tracks = listTracks();
     if (!tracks.length) {
-      var empty = filter ? 'Nichts gefunden.' : p ? 'Diese Playlist ist noch leer. Füge Titel über 📃 in der Bibliothek hinzu.'
-        : view === 'meine' ? (lib.canUpload ? 'Du hast noch nichts hochgeladen. Links über 📤 Hochladen geht es los.' : 'Du hast noch nichts hochgeladen.')
-          : view === 'youtube' ? 'Noch keine YouTube-Links gespeichert.' + (lib.me ? ' Oben über 💾 Links speichern oder rechts in der Wiedergabeliste geht es los.' : '')
-            : view === 'videos' ? 'Hier gibt es noch keine Videos.' : 'Hier gibt es noch nichts.';
+      var empty = filter || kindF ? 'Nichts gefunden.' : p ? 'Diese Playlist ist noch leer. Füge Titel über 📃 in der Bibliothek hinzu oder ziehe sie auf die Playlist in der Seitenleiste.'
+        : view === 'meine' ? (lib.canUpload ? 'Du hast noch nichts hochgeladen. Über 📤 Hochladen geht es los.' : 'Du hast noch nichts hochgeladen.') : 'Hier gibt es noch nichts.';
       list.innerHTML = '<p class="mp-empty">' + empty + '</p>';
       return;
     }
-    var playingId = lob ? null : current && current.id;
+    var playingId = lob ? null : current && current.id, group = grouped(), lastAlbum = null;
     var rows = tracks.map(function (t, i) {
-      var acts = '';
+      var acts = '', pre = '';
+      if (group && albumOf(t) !== lastAlbum) {
+        lastAlbum = albumOf(t);
+        pre = '<tr class="mp-grp-row"><td colspan="6"><span class="mp-art" style="--h:' + hue(lastAlbum) + '">' + kindIcon(t) + '</span><b>' + esc(lastAlbum) + '</b> <small>' + esc(t.artist) + '</small></td></tr>';
+      }
       if (!lob) acts += '<button type="button" class="small" data-act="track-queue" title="An die Wiedergabeliste hängen">➕</button>';
       if (lib.me) acts += '<button type="button" class="small" data-act="to-playlist" title="Zu einer Playlist hinzufügen">📃</button>';
       if (own) acts += '<button type="button" class="small" data-act="pl-up" title="Nach oben">▲</button><button type="button" class="small" data-act="pl-down" title="Nach unten">▼</button>' +
         '<button type="button" class="small" data-act="pl-remove" title="Aus der Playlist nehmen">✕</button>';
       else if (t.canEdit) acts += '<button type="button" class="small" data-act="edit-track" title="Bearbeiten">✎</button><button type="button" class="small danger" data-act="delete-track" title="Löschen">🗑</button>';
       var now = t.id === playingId;
-      return '<tr data-id="' + t.id + '" data-i="' + i + '" class="' + (now ? 'playing' : '') + (lob && !t.shareable ? ' locked' : '') + '">' +
+      return pre + '<tr data-id="' + t.id + '" data-i="' + i + '" draggable="true" class="' + (now ? 'playing' : '') + (lob && !t.shareable ? ' locked' : '') + '">' +
         '<td class="num">' + (now ? (isPlaying() ? '🔊' : '⏸') : i + 1) + '</td>' +
         '<td><span class="mp-ico" title="' + (isYt(t) ? 'YouTube' : isVideo(t) ? 'Video' : 'Audio') + '">' + kindIcon(t) + '</span> <button type="button" class="mp-track" data-act="play-track">' + esc(t.title) + '</button>' +
         (t.visibility !== 'public' ? ' <small title="' + VIS_LABEL[t.visibility] + '">' + (t.visibility === 'private' ? '🔒' : t.visibility === 'friends' ? '🤝' : '👥') + '</small>' : '') +
@@ -423,12 +547,11 @@
   list.addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]');
     if (!b) return;
-    if (b.dataset.act === 'vis-pick') { setVis(b.dataset.vis); return; }
     var tr = e.target.closest('tr[data-id], tr[data-lobby]');
     if (!tr) return;
     var act = b.dataset.act;
     if (tr.dataset.lobby) { if (act === 'join') joinLobby(tr.dataset.lobby); return; }
-    var id = Number(tr.dataset.id), t = byId[id], tracks = filtered(viewTracks(view));
+    var id = Number(tr.dataset.id), t = byId[id], tracks = listTracks();
     if (act === 'play-track') { if (lob) lobbyAdd({ tracks: [id] }); else playList(tracks, Number(tr.dataset.i)); }
     else if (act === 'track-queue') enqueue([t]);
     else if (act === 'to-playlist') toPlaylist(id);
@@ -437,23 +560,48 @@
     else if (/^pl-/.test(act)) changePlaylist(playlist(view), Number(tr.dataset.i), act);
   });
 
-  // ---------- Wiedergabe läuft: Angaben zum laufenden Titel und zur Lobby ----------
+  // Titel auf eine Playlist, die Wiedergabeliste oder die eigene Lobby in der Seitenleiste ziehen
+  var dragId = null;
+  list.addEventListener('dragstart', function (e) {
+    var tr = e.target.closest && e.target.closest('tr[data-id]');
+    if (!tr) return;
+    dragId = Number(tr.dataset.id);
+    e.dataTransfer.effectAllowed = 'copy';
+    try { e.dataTransfer.setData('text/plain', byId[dragId] ? byId[dragId].title : ''); } catch (err) { /* alt */ }
+  });
+  list.addEventListener('dragend', function () { dragId = null; side.querySelectorAll('.drop-ok').forEach(function (x) { x.classList.remove('drop-ok'); }); });
+  side.addEventListener('dragover', function (e) {
+    var t = dragId && e.target.closest('[data-drop]');
+    if (!t || !t.dataset.drop) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+    t.classList.add('drop-ok');
+  });
+  side.addEventListener('dragleave', function (e) { var t = e.target.closest('[data-drop]'); if (t) t.classList.remove('drop-ok'); });
+  side.addEventListener('drop', function (e) {
+    var t = e.target.closest('[data-drop]'), id = dragId;
+    if (!t || !id || !byId[id]) return;
+    e.preventDefault(); t.classList.remove('drop-ok');
+    var d = t.dataset.drop;
+    if (d === 'queue') { if (lob) lobbyAdd({ tracks: [id] }); else enqueue([byId[id]]); }
+    else if (d === 'lobby') lobbyAdd({ tracks: [id] });
+    else if (/^pl:/.test(d)) addToPlaylist(playlist(d), id);
+  });
+
+  // ---------- Wiedergabe läuft: Angaben zum laufenden Titel ----------
   function infoHead() {
-    var it = playingItem(), h = '<div class="mp-info">';
+    var it = playingItem(), h = '<div class="mp-info">' + sideBtn();
     if (it) {
       var by = lob ? (it.by ? 'hinzugefügt von ' + userLink(it.by, it.byUser) : '') : it.byAdmin ? '' : it.by ? 'von ' + userLink(it.by, it.byUser) : '';
       h += '<div class="mp-info-title"><b>' + esc(it.title) + '</b> ' + kindBadge(it) + '</div>' +
         '<div class="mp-info-sub">' + [esc(it.artist), esc(it.album), by].filter(Boolean).join(' · ') + '</div>';
     } else if (!lob) {
-      h += '<div class="mp-info-title"><b>Gerade läuft nichts.</b></div><div class="mp-info-sub">Wähle links in der Medienbibliothek einen Titel' +
-        (CAN_YT ? ' oder füge rechts in der Wiedergabeliste einen YouTube-Link ein' : '') + '.</div>';
+      h += '<div class="mp-info-title"><b>Gerade läuft nichts.</b></div><div class="mp-info-sub">Wähle in der Medienbibliothek einen Titel' +
+        (CAN_YT ? ' oder füge in der Wiedergabeliste einen YouTube-Link ein' : '') + '.</div>';
     }
     h += '</div>';
-    if (lob) h += lobbyHead();
-    else if (CAN_LOBBY && lib.me) h += '<p class="mp-hint">🎧 Mit anderen gleichzeitig hören? <button type="button" class="small" data-view-go="lobbys">Lobbys ansehen</button></p>';
+    if (!lob && CAN_LOBBY && lib.me) h += '<p class="mp-hint">🎧 Mit anderen gleichzeitig hören? <button type="button" class="small" data-go="lobbys">Lobbys ansehen</button></p>';
     return h;
   }
-  head.addEventListener('click', function (e) { var b = e.target.closest('[data-view-go]'); if (b) show(b.dataset.viewGo); });
 
   // ---------- Eigene Wiedergabe ----------
   // Die Wiedergabeliste hält Titel aus der Bibliothek und YouTube-Videos (auch ohne Konto); jeder Eintrag hat einen eigenen Schlüssel
@@ -501,11 +649,23 @@
     if (t) document.body.dataset.status = (isPlaying() ? '▶ ' : '⏸ ') + t.title + (t.artist ? ' – ' + t.artist : '');
     else delete document.body.dataset.status;
   }
+  // Winamp: Lauftext, Art und Quelle in der grünen Anzeige
+  var waTime = $('mp-wa-time'), waState = $('mp-wa-state'), waTitle = $('mp-wa-title');
+  function nowWa() {
+    var t = playingItem(), q = lob ? (lob.state ? lob.state.index : -1) : cur;
+    var txt = t ? (q + 1) + '. ' + (t.artist ? t.artist + ' - ' : '') + t.title + (t.duration ? ' (' + fmt(t.duration) + ')' : '') + '  ***  ' : 'Mediaplayer  ***  ';
+    if (waTitle.textContent !== txt) waTitle.textContent = txt;
+    $('mp-wa-kind').textContent = !t ? '---' : isYt(t) ? 'YOUTUBE' : isVideo(t) ? 'VIDEO' : 'AUDIO';
+    $('mp-wa-src').textContent = lob ? 'LOBBY' : 'EIGENE';
+    $('mp-wa-ml').classList.toggle('on', sideMode() !== 'closed');
+    root.querySelectorAll('[data-act=eq]').forEach(function (b) { b.classList.toggle('on', !!player.eq.on); });
+  }
   function nowPlaying() {
     var t = playingItem();
     nowEl.textContent = t ? t.title + (t.artist ? ' – ' + t.artist : '') : '';
     lcdTitle.textContent = t ? t.title + (t.artist ? ' – ' + t.artist : '') : 'Mediaplayer';
     nowStatus();
+    nowWa();
     if ('mediaSession' in navigator) {
       try { navigator.mediaSession.metadata = t ? new window.MediaMetadata({ title: t.title, artist: t.artist || '', album: t.album || '' }) : null; } catch (e) { /* alt */ }
     }
@@ -637,7 +797,6 @@
     var sh = btn('shuffle'), rp = btn('repeat');
     sh.setAttribute('aria-pressed', prefs.shuffle); sh.classList.toggle('pressed', prefs.shuffle);
     rp.dataset.mode = prefs.repeat; rp.classList.toggle('pressed', prefs.repeat !== 'aus');
-    rp.textContent = prefs.repeat === 'einen' ? '🔂' : '🔁';
     rp.title = 'Wiederholen: ' + { aus: 'aus', alle: 'alle', einen: 'diesen Titel' }[prefs.repeat];
     sh.disabled = rp.disabled = !!lob;
     var ctl = !lob || lobbyCanControl();
@@ -664,11 +823,17 @@
     timeEl.textContent = t;
     durEl.textContent = fmt(x.d);
     if (!seeking) seek.value = x.d ? Math.round(Math.min(1, x.t / x.d) * 1000) : 0;
-    if (root.classList.contains('mini')) lcdTime.textContent = t + ' / ' + fmt(x.d) + (lob && lob.state ? ' · Lobby' : '');
+    seek.style.setProperty('--p', seek.value / 10 + '%');
+    if (skin() === 'winamp') {
+      var sec = Math.max(0, Math.floor(Math.min(x.t, x.d || x.t)));
+      waTime.textContent = String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
+      waState.textContent = isPlaying() ? '▶' : playingItem() ? '❚❚' : '■';
+    }
+    if (root.classList.contains('mini') || skin() === 'mediaplayer') lcdTime.textContent = t + ' / ' + fmt(x.d) + (lob && lob.state ? ' · Lobby' : '');
     // YouTube ohne Lobby: nach 30 Sekunden zählt das Video als gehört
     if (!lob && !counted && isYt(current) && x.t > 30) countPlay();
   }
-  seek.addEventListener('input', function () { seeking = true; var x = timing(); timeEl.textContent = fmt(seek.value / 1000 * x.d); });
+  seek.addEventListener('input', function () { seeking = true; var x = timing(); timeEl.textContent = fmt(seek.value / 1000 * x.d); seek.style.setProperty('--p', seek.value / 10 + '%'); });
   seek.addEventListener('change', function () {
     seeking = false;
     var x = timing();
@@ -798,10 +963,29 @@
   }
 
   root.addEventListener('click', function (e) {
+    var go = e.target.closest('[data-go]');
+    if (go && root.contains(go)) { closePop(); show(go.dataset.go); return; }
+    var lj = e.target.closest('[data-lobby]');
+    if (lj && side.contains(lj)) { closePop(); joinLobby(lj.dataset.lobby); return; }
     var b = e.target.closest('button[data-act]');
-    if (!b || list.contains(b) || qlist.contains(b) || dlg.contains(b)) return;
+    if (!b) { if (!e.target.closest('.mp-pop, .mp-eq')) closePop(); return; }
+    if (list.contains(b) || qlist.contains(b) || dlg.contains(b)) return;
     var a = b.dataset.act;
-    if (a === 'play') playPause();
+    if (a !== 'menu' && a !== 'skin-pop') closePop();
+    if (a === 'menu') openMenu(b);
+    else if (a === 'skin-pop') openSkins(b);
+    else if (a === 'skin') setSkin(b.dataset.skin);
+    else if (a === 'vis-pick') setVis(b.dataset.vis);
+    else if (a === 'side-rail') setSide('rail');
+    else if (a === 'side-open') setSide('open');
+    else if (a === 'side-toggle' || a === 'side-cycle') setSide(sideMode() === 'closed' ? 'open' : 'closed');
+    else if (a === 'grp') toggleGroup(b.dataset.grp);
+    else if (a === 'drawer') { root.classList.toggle('drawer'); renderSide(); loadLobbies(); }
+    else if (a === 'kind') { kindF = b.dataset.kind; renderTop(); renderHead(); renderList(); }
+    else if (a === 'big') { prefs.big = !prefs.big; savePrefs(); if (prefs.big && view !== 'now') view = 'now'; render(); }
+    else if (a === 'eq') toggleEq();
+    else if (a === 'lobby-new') { show('lobbys'); setTimeout(function () { var n = $('mp-lobby-name'); if (n) n.focus(); }, 0); }
+    else if (a === 'play') playPause();
     else if (a === 'stop') stop();
     else if (a === 'next') next(false);
     else if (a === 'prev') prev();
@@ -824,6 +1008,7 @@
     else if (a === 'q-clear') clearQueue();
     else if (a === 'lobby-create') createLobby();
     else if (a === 'lobby-refresh') loadLobbies();
+    else if (a === 'lobby-list') show('lobbys');
     else if (a === 'lobby-leave') leaveLobby();
     else if (a === 'lobby-link') copyLink();
     else if (a === 'lobby-settings') lobbySettings();
@@ -849,6 +1034,133 @@
     } catch (e) { /* nicht unterstützt */ }
   }
 
+  // ---------- Aussehen, Seitenleiste, Menüs ----------
+  function setSkin(id) {
+    if (!skinOk(id)) return;
+    if (document.fullscreenElement) document.exitFullscreen();
+    player.skin = id; savePlayer();
+    render(); kick();
+    status('Aussehen: ' + SKINS.filter(function (k) { return k.id === id; })[0].name);
+  }
+  function setSide(mode) {
+    player.side[skin()] = mode; savePlayer();
+    render(); loadLobbies();
+  }
+  function toggleGroup(id) {
+    var i = player.shut.indexOf(id);
+    if (i >= 0) player.shut.splice(i, 1); else player.shut.push(id);
+    savePlayer(); renderSide();
+    if (id === 'lob') loadLobbies();
+  }
+  // Ein Aufklappmenü am Knopf: Einträge sind Knöpfe mit data-act, der Klick-Verteiler oben führt sie aus
+  var pop = $('mp-pop'), popFor = null;
+  function closePop() {
+    if (pop.hidden) return;
+    pop.hidden = true; pop.innerHTML = '';
+    if (popFor) popFor.classList.remove('open');
+    popFor = null;
+  }
+  function showPop(anchor, html) {
+    if (popFor === anchor && !pop.hidden) { closePop(); return; }
+    closePop();
+    pop.innerHTML = html; pop.hidden = false; popFor = anchor; anchor.classList.add('open');
+    var r = anchor.getBoundingClientRect(), m = root.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+    var left = r.left - m.left, top = r.bottom - m.top + 2;
+    if (left + w > m.width - 4) left = Math.max(4, m.width - w - 4);
+    if (top + h > m.height - 4) top = Math.max(4, r.top - m.top - h - 2);
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+    var first = pop.querySelector('button:not(:disabled)');
+    if (first) first.focus();
+  }
+  function popItem(o) {
+    if (o === '-') return '<hr>';
+    return '<button type="button" data-act="' + o.act + '"' + (o.data || '') + (o.off ? ' disabled' : '') + '><span class="chk">' + (o.on ? '✓' : '') + '</span>' + o.label +
+      (o.key ? '<span class="key">' + o.key + '</span>' : '') + '</button>';
+  }
+  function openSkins(anchor) {
+    if (pop.contains(anchor)) { anchor = popFor; closePop(); }
+    var h = '<div class="ph">🎨 Aussehen des Players</div>' + SKINS.map(function (k) {
+      return '<button type="button" data-act="skin" data-skin="' + k.id + '" class="' + (k.id === skin() ? 'cur' : '') + '"><span class="sw sw-' + k.id + '"></span><span>' + k.name +
+        '<span class="sub">' + k.sub + '</span></span></button>';
+    }).join('');
+    if (VIS_LIST.length) h += '<hr><div class="ph">🌈 Visualisierung</div>' + VIS_LIST.map(function (m) { return popItem({ act: 'vis-pick', data: ' data-vis="' + esc(m.id) + '"', label: esc(m.name), on: m.id === prefs.vis }); }).join('');
+    h += '<hr><p class="mp-hint">' + (MEMBER ? 'Gilt auf allen deinen Geräten.' : 'Gilt in diesem Browser.') + '</p>';
+    showPop(anchor, h);
+  }
+  // Menüleiste (VLC)
+  var MENUS = {
+    medien: function () {
+      return [{ act: 'upload', label: '📤 Hochladen …', off: !lib.canUpload }, { act: 'yt-save', label: '💾 YouTube-Links speichern …', off: !lib.me || !CAN_YT },
+        { act: 'new-playlist', label: '📃 Neue Playlist …', off: !lib.me }, '-', { act: 'q-save', label: 'Wiedergabeliste speichern …', off: !lib.me }, { act: 'q-clear', label: 'Wiedergabeliste leeren' }];
+    },
+    wiedergabe: function () {
+      return [{ act: 'play', label: isPlaying() ? 'Pause' : 'Abspielen', key: 'Leertaste' }, { act: 'stop', label: 'Stopp' }, { act: 'prev', label: 'Zurück' }, { act: 'next', label: 'Weiter' }, '-',
+        { act: 'shuffle', label: 'Zufällige Reihenfolge', on: prefs.shuffle, off: !!lob }, { act: 'repeat', label: 'Wiederholen: ' + { aus: 'aus', alle: 'alle', einen: 'diesen Titel' }[prefs.repeat], off: !!lob }];
+    },
+    audio: function () { return [{ act: 'eq', label: 'Equalizer …', on: player.eq.on }]; },
+    ansicht: function () {
+      var m = sideMode();
+      return [{ act: 'side-open', label: 'Seitenleiste offen', on: m === 'open' }, { act: 'side-rail', label: 'Seitenleiste schmal', on: m === 'rail' }, { act: 'side-toggle', label: 'Seitenleiste aus', on: m === 'closed' }, '-',
+        { act: 'big', label: 'Großes Bild statt Liste', on: !!prefs.big }, { act: 'theater', label: 'Theater' }, { act: 'fullscreen', label: 'Vollbild' }, { act: 'mini', label: 'Mini-Player', off: root.classList.contains('no-mini') }, '-',
+        { act: 'skin-pop', label: '🎨 Aussehen …' }];
+    },
+    lobby: function () {
+      return [{ act: 'lobby-new', label: 'Lobby öffnen …' }, { act: 'lobby-list', label: 'Alle Lobbys' }, '-',
+        { act: 'lobby-link', label: '🔗 Einladungslink', off: !lob }, { act: 'lobby-settings', label: '⚙️ Einstellungen', off: !lob || !lobbyIsHost() }, { act: 'lobby-leave', label: '🚪 Verlassen', off: !lob }];
+    },
+  };
+  function openMenu(b) {
+    var items = MENUS[b.dataset.menu] ? MENUS[b.dataset.menu]() : [];
+    showPop(b, items.map(popItem).join(''));
+  }
+  root.querySelector('.mp-menubar').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-menu]');
+    if (!b) return;
+    e.stopPropagation();
+    if (popFor === b && !pop.hidden) closePop(); else openMenu(b);
+  });
+  // Skin-Auswahl öffnet sich aus dem 🎨-Knopf; Escape schließt Menüs
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closePop(); if (!eqBox.hidden) toggleEq(); } });
+
+  // ---------- Equalizer (Web Audio, wirkt nicht auf YouTube) ----------
+  var eqBox = $('mp-eq');
+  var EQ_PRESETS = { flach: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], bass: [7, 6, 5, 3, 1, 0, 0, 0, 0, 0], hoehen: [0, 0, 0, 0, 0, 1, 3, 5, 6, 7], pop: [-1, 1, 3, 4, 3, 0, -1, -1, 0, 1],
+    rock: [5, 4, 2, -1, -2, -1, 2, 4, 5, 5], klassik: [4, 3, 2, 1, 0, 0, 0, 1, 3, 4], sprache: [-4, -3, -1, 2, 4, 4, 3, 1, -1, -3] };
+  var EQ_NAMES = { flach: 'Flach', bass: 'Mehr Bass', hoehen: 'Mehr Höhen', pop: 'Pop', rock: 'Rock', klassik: 'Klassik', sprache: 'Sprache' };
+  function eqLabel(f) { return f >= 1000 ? f / 1000 + 'k' : String(f); }
+  function renderEq() {
+    var g = player.eq.g;
+    var preset = Object.keys(EQ_PRESETS).filter(function (k) { return EQ_PRESETS[k].every(function (v, i) { return v === g[i]; }); })[0] || '';
+    eqBox.classList.toggle('off', !player.eq.on);
+    eqBox.innerHTML = '<div class="eq-tb"><span>🎚 Equalizer</span><button type="button" data-act="eq" title="Schließen" aria-label="Schließen">×</button></div>' +
+      '<div class="eq-row"><label class="inline"><input type="checkbox" id="mp-eq-on"' + (player.eq.on ? ' checked' : '') + '> An</label>' +
+      '<select id="mp-eq-preset" aria-label="Voreinstellung"><option value="">Eigene</option>' + Object.keys(EQ_PRESETS).map(function (k) {
+        return '<option value="' + k + '"' + (k === preset ? ' selected' : '') + '>' + EQ_NAMES[k] + '</option>';
+      }).join('') + '</select></div><div class="eq-bands">' + EQ_FREQ.map(function (f, i) {
+        return '<label class="eq-band" title="' + eqLabel(f) + 'Hz: ' + g[i] + ' dB"><input type="range" class="vertical" min="-12" max="12" step="1" value="' + g[i] + '" data-band="' + i + '" aria-label="' + eqLabel(f) + ' Hertz">' + eqLabel(f) + '</label>';
+      }).join('') + '</div><p class="eq-note">−12 bis +12 dB. Wirkt auf Musik und Videos aus der Bibliothek, nicht auf YouTube.</p>';
+  }
+  function toggleEq() {
+    eqBox.hidden = !eqBox.hidden;
+    if (!eqBox.hidden) { renderEq(); graph(); }
+  }
+  eqBox.addEventListener('input', function (e) {
+    var t = e.target;
+    if (t.dataset.band !== undefined) {
+      player.eq.g[Number(t.dataset.band)] = Number(t.value);
+      if (!player.eq.on) { player.eq.on = true; $('mp-eq-on').checked = true; eqBox.classList.remove('off'); }
+      t.parentNode.title = eqLabel(EQ_FREQ[t.dataset.band]) + 'Hz: ' + t.value + ' dB';
+      var p = $('mp-eq-preset');
+      p.value = Object.keys(EQ_PRESETS).filter(function (k) { return EQ_PRESETS[k].every(function (v, i) { return v === player.eq.g[i]; }); })[0] || '';
+    }
+    applyEq(); savePlayer(); nowWa();
+  });
+  eqBox.addEventListener('change', function (e) {
+    if (e.target.id === 'mp-eq-on') { player.eq.on = e.target.checked; eqBox.classList.toggle('off', !player.eq.on); }
+    else if (e.target.id === 'mp-eq-preset' && EQ_PRESETS[e.target.value]) { player.eq.g = EQ_PRESETS[e.target.value].slice(); player.eq.on = true; renderEq(); }
+    applyEq(); savePlayer(); nowWa();
+  });
+
   // ---------- Handy: Reiter statt Seitenleisten ----------
   var tab = 'queue';
   function renderTabs() {
@@ -859,10 +1171,11 @@
     });
   }
   root.querySelector('.mp-tabs').addEventListener('click', function (e) {
+    if (e.target.closest('[data-act=drawer]')) return;
     var b = e.target.closest('[data-tab]');
     if (!b) return;
     var t = b.dataset.tab;
-    if (t === 'lib') show(isLibView(view) || view === 'vis' ? view : 'all');
+    if (t === 'lib') show(isLibView(view) ? view : 'all');
     else if (t === 'lobby') show(lob ? 'now' : 'lobbys');
     else { tab = 'queue'; renderTabs(); }
   });
@@ -964,11 +1277,13 @@
     }).join('') + '</div>' : '<p>Du hast noch keine Playlist.</p>';
     dialog('📃 Zur Playlist', html, [{ label: '➕ Neue Playlist …', value: 'new' }, { label: 'Abbrechen', value: 'cancel' }]).then(function (r) {
       if (r === 'new') return newPlaylist([id]);
-      var p = /^pl:/.test(r) && playlist(r);
-      if (!p) return;
-      post('/musik/playlists/' + p.id, { tracks: p.tracks.concat(id) })
-        .then(function () { status('„' + byId[id].title + '“ ist jetzt in „' + p.title + '“.'); return load(); }).catch(oops);
+      addToPlaylist(/^pl:/.test(r) && playlist(r), id);
     });
+  }
+  function addToPlaylist(p, id) {
+    if (!p || !p.mine) return;
+    post('/musik/playlists/' + p.id, { tracks: p.tracks.concat(id) })
+      .then(function () { status('„' + byId[id].title + '“ ist jetzt in „' + p.title + '“.'); return load(); }).catch(oops);
   }
   function changePlaylist(p, i, act) {
     var ids = filtered(viewTracks(view)).map(function (t) { return t.id; });
@@ -1005,12 +1320,25 @@
       '<label class="inline"><input type="checkbox" id="mp-lobby-hidden"> Nur mit Link</label>' +
       '<button type="button" class="small" data-act="lobby-create">➕ Lobby öffnen</button><button type="button" class="small" data-act="lobby-refresh" title="Aktualisieren">🔄</button></div>';
   }
+  // Offene Lobbys: alle 10 s in der Ansicht „Alle Lobbys“, sonst alle 15 s, solange die Gruppe in der Seitenleiste sichtbar ist
+  function lobbiesShown() {
+    if (!CAN_LOBBY || !lib.me || document.hidden) return false;
+    if (view === 'lobbys') return true;
+    var m = isPhone() ? (root.classList.contains('drawer') ? 'open' : 'closed') : sideMode();
+    return m === 'rail' || (m === 'open' && player.shut.indexOf('lob') < 0);
+  }
   function loadLobbies() {
     clearTimeout(lobbyTimer);
-    if (view !== 'lobbys') return;
-    req('GET', '/musik/lobbys').then(function (j) { lobbies = j.lobbies; if (view === 'lobbys') renderLobbies(); }).catch(oops);
-    lobbyTimer = setTimeout(loadLobbies, 10000);
+    if (!lobbiesShown()) return;
+    req('GET', '/musik/lobbys').then(function (j) {
+      var before = JSON.stringify(lobbies);
+      lobbies = j.lobbies;
+      if (view === 'lobbys') renderLobbies();
+      if (JSON.stringify(lobbies) !== before) { renderSide(); renderTop(); }
+    }).catch(function (e) { if (view === 'lobbys') oops(e); });
+    lobbyTimer = setTimeout(loadLobbies, view === 'lobbys' ? 10000 : 15000);
   }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) loadLobbies(); });
   function renderLobbies() {
     if (!lobbies.length) { list.innerHTML = '<p class="mp-empty">Gerade ist keine Lobby offen. Öffne oben eine und lade andere mit dem Link ein.</p>'; return; }
     list.innerHTML = '<table class="list mp-table"><thead><tr><th>Lobby</th><th>Gastgeber</th><th class="num">👥</th><th>Läuft gerade</th><th></th></tr></thead><tbody>' +
@@ -1056,6 +1384,7 @@
     overlay.hidden = true;
     nowPlaying();
     modeEl.textContent = '💿 Eigene Wiedergabe';
+    renderLobbyBar(); nowWa();
     if (!quiet) { status(msg || 'Lobby verlassen.'); if (view === 'now') view = 'lobbys'; show(view); }
   }
   function onLobbyState(s) {
@@ -1065,7 +1394,7 @@
     lob.offset = s.now - Date.now();
     if (first) status('Du bist in der Lobby „' + s.name + '“.');
     modeEl.textContent = '🎧 ' + s.name + ' · ' + s.listeners.length + ' hören zu';
-    renderSide(); renderQueue(); applyPicture(); updateButtons();
+    renderSide(); renderQueue(); renderLobbyBar(); applyPicture(); updateButtons(); nowWa();
     if (view === 'now') renderHead();
     if (isLibView(view)) renderList();
     syncLobby();
@@ -1120,20 +1449,22 @@
     overlay.hidden = false;
   }
 
-  function lobbyHead() {
+  // Lobby-Leiste: in jeder Ansicht sichtbar, solange man in einer Lobby ist
+  var lobbyBar = $('mp-lobbybar');
+  function renderLobbyBar() {
     var s = lob && lob.state;
-    if (!s) return '<div class="mp-title"><b>🎧 Lobby</b> <small>verbinde …</small></div>';
+    lobbyBar.hidden = !lob;
+    if (!lob) { lobbyBar.innerHTML = ''; return; }
+    if (!s) { lobbyBar.innerHTML = '<span class="mp-live"></span><span class="lb-name">Lobby</span><span class="lb-meta">verbinde …</span>'; return; }
     var host = lobbyIsHost();
-    return '<div class="mp-lobby"><div class="mp-title"><b>🔴 ' + esc(s.name) + '</b> <small>Gastgeber: ' + esc(s.host) + ' · ' + (s.open ? 'alle dürfen steuern' : 'nur der Gastgeber steuert') +
-      '</small></div><div class="mp-users" title="Auf einen Namen klicken für mehr">👥 ' + s.listeners.length + ': ' + s.listeners.map(function (u) {
-        return '<button type="button" class="small mp-user' + (lib.me && u.id === lib.me.id ? ' me' : '') + '" data-act="lobby-user" data-user="' + u.id + '">' +
+    lobbyBar.innerHTML = '<span class="mp-live" title="Du bist in dieser Lobby"></span><span class="lb-name">' + esc(s.name) + '</span><span class="lb-meta">Gastgeber ' + esc(s.host) + ' · ' +
+      (s.open ? 'alle dürfen steuern' : 'nur der Gastgeber steuert') + '</span><span class="lb-users" title="Auf einen Namen klicken für mehr">' + s.listeners.map(function (u) {
+        return '<button type="button" class="mp-user' + (lib.me && u.id === lib.me.id ? ' me' : '') + '" data-act="lobby-user" data-user="' + u.id + '">' +
           (u.host ? '👑 ' : u.control ? '🎶 ' : '') + esc(u.name) + '</button>';
-      }).join('') + '</div><div class="mp-tools">' +
-      '<button type="button" class="small" data-act="lobby-link">🔗 Einladungslink</button>' +
-      (host ? '<button type="button" class="small" data-act="lobby-settings">⚙️ Einstellungen</button>' : '') +
+      }).join('') + '</span><span class="lb-acts"><button type="button" class="small" data-act="lobby-link">🔗 Einladen</button>' +
+      (host ? '<button type="button" class="small" data-act="lobby-settings" title="Einstellungen der Lobby">⚙️</button>' : '') +
       '<button type="button" class="small" data-act="lobby-leave">🚪 Verlassen</button>' +
-      (host ? '<button type="button" class="small danger" data-act="lobby-close">✖ Lobby schließen</button>' : '') + '</div>' +
-      (lobbyCanControl() ? '<p class="mp-hint">Titel kommen über die Medienbibliothek oder einen YouTube-Link in der Wiedergabeliste dazu.</p>' : '') + '</div>';
+      (host ? '<button type="button" class="small danger" data-act="lobby-close" title="Lobby für alle schließen">✖</button>' : '') + '</span>';
   }
   function copyLink() {
     var url = location.origin + '/musik?lobby=' + encodeURIComponent(lob.id);
@@ -1367,7 +1698,7 @@
       if (r !== 'ok' || !text.trim()) return;
       youtubeIds(text).then(function (ids) { return post('/musik/youtube', { ids: ids, save: true, visibility: visibility }); })
         .then(function (j) { status(j.tracks.length + ' YouTube-' + (j.tracks.length === 1 ? 'Link' : 'Links') + ' in der Bibliothek.'); return load(); })
-        .then(function () { show('youtube'); }).catch(oops);
+        .then(function () { kindF = 'youtube'; show('all'); }).catch(oops);
     });
   }
 
@@ -1381,6 +1712,7 @@
     var tid = Number(q.get('titel')), pid = Number(q.get('playlist'));
     if (tid && byId[tid]) enqueue([byId[tid]]);
     if (pid && playlist('pl:' + pid)) show('pl:' + pid);
+    loadLobbies();
     if (want && CAN_LOBBY) {
       if (lib.me) joinLobby(want); else status('Melde dich an, um der Lobby beizutreten.');
     }

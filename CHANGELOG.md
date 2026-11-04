@@ -1,5 +1,14 @@
 # Changelog
 
+## 04.11.2026 – Mediaplayer: Skins und neue Seitenleiste
+
+- **Fünf Skins:** Klassisch (wie der Desktop, 98 oder XP), VLC hell, VLC dunkel, Media Player (schwarzes Glas, Reiter oben) und Winamp (grüne Anzeige, Fenster übereinander). Umschalten über „Aussehen“ unten in der Seitenleiste, über „Ansicht“ in der Menüleiste oder über SKIN bei Winamp. Mit Konto gilt der Skin auf allen Geräten, Gäste behalten ihn im Browser. Den Standard für Gäste legst du in der Seitenverwaltung unter Mediaplayer fest.
+- **Seitenleiste neu:** Drei Gruppen (Bibliothek, Playlists, Lobbys) zum Auf- und Zuklappen, oben „Wiedergabe läuft“. Die Leiste lässt sich offen, schmal (nur Symbole, Inhalt im Ausklappmenü) oder ganz zu schalten, getrennt je Skin. Titel lassen sich auf eine Playlist in der Leiste ziehen. Laufende Lobbys stehen direkt in der Leiste mit Anzahl der Zuhörer.
+- **Musik, Videos, YouTube** sind keine eigenen Seiten mehr, sondern Filter über jeder Liste. Media Player fasst die Titel nach Alben zusammen.
+- **Lobby überall:** Bist du in einer Lobby, zeigt eine Leiste in jedem Skin, wer Gastgeber ist, mit Einladen, Einstellungen und Verlassen.
+- **Equalizer:** 10 Bänder (31 Hz bis 16 kHz) mit Vorlagen wie Bass, Höhen, Pop, Rock und Sprache. Wirkt auf Musik und Videos aus der Bibliothek, nicht auf YouTube. Wird mit dem Konto gespeichert.
+- Theater, Vollbild, Mini-Player und die Handy-Ansicht funktionieren in allen Skins. Die Skins sind nachgebaut, ohne Logos oder Grafiken der Originale.
+
 ## 02.11.2026 – FS25 Hub Link 3.10.1: Karte geht wieder
 
 - **Kartenmarkierungen abgeschaltet:** Nach dem Öffnen der Karte im Menü war das ganze Menü weg und das Spiel ließ sich nur noch mit Alt+F4 beenden. Auslöser sind die Markierungen der Mod auf der Karte (seit 3.8). Sie sind jetzt aus, der Schalter in den Optionen ist ausgeblendet, bis es einen sicheren Weg gibt.

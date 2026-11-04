@@ -32,6 +32,11 @@
         <option value="upload" <%= s.music_upload === 'upload' ? 'selected' : '' %>>Nur Mitglieder mit „Darf selbst Dateien hochladen“</option>
         <option value="admin" <%= s.music_upload === 'admin' ? 'selected' : '' %>>Nur ich (Admin)</option>
       </select></label>
+    <label>Aussehen für Gäste und alle, die noch keins gewählt haben:
+      <select name="music_skin">
+        <% for (const [k, v] of [['klassisch', 'Klassisch (wie der Desktop)'], ['vlc-hell', 'VLC hell'], ['vlc-dunkel', 'VLC dunkel'], ['mediaplayer', 'Media Player'], ['winamp', 'Winamp']]) { %>
+        <option value="<%= k %>" <%= (s.music_skin || 'klassisch') === k ? 'selected' : '' %>><%= v %></option><% } %>
+      </select></label>
     <label class="inline"><input type="checkbox" name="lobby_enabled" value="1" <%= s.lobby_enabled === '1' ? 'checked' : '' %>> Lobbys zum gemeinsamen Hören</label>
     <label class="inline"><input type="checkbox" name="youtube_enabled" value="1" <%= s.youtube_enabled === '1' ? 'checked' : '' %>> YouTube-Videos im Player und in Lobbys erlauben</label>
     <br><small>Eine Datei (Musik oder Video) darf bei Mitgliedern höchstens 200 MB groß sein und zählt zu ihrem Speicher (<a href="/admin/desktop">Desktop</a>). Hochgeladene Musik und Videos verwaltest du unter <a href="/admin/musik">Mediaplayer</a>.</small>

@@ -77,7 +77,7 @@
   <li>Quiz ohne Konto: der zuletzt gewählte Name, das Bild und die Farbe, damit du sie beim nächsten Mal nicht neu eingeben musst.</li>
   <li>Werwolf: ohne Konto der zuletzt gewählte Name und das Bild, außerdem ob der Erzähler auf diesem Gerät vorlesen soll. Die Stimme erzeugt dein Browser bzw. dein Gerät selbst.</li>
   <li>Modlisten: welche Kategorien einer Liste du zugeklappt hast und, wenn du ohne Konto etwas vorschlägst, den Namen, den du dabei angegeben hast.</li>
-  <li>Die Lautstärke für Musik und Effekte (🔊 neben der Uhr), im Mediaplayer die gewählte Visualisierung, ob Videos als Bild oder Visualisierung laufen, Zufall und Wiederholen, die Breite von Aufgabenleiste und Wiedergabeliste und die Höhe des Bilds, und ob du „YouTube laden“ für diesen Browser merken wolltest. Die eigene Wiedergabeliste liegt nur im offenen Fenster und ist nach dem Schließen weg.</li>
+  <li>Die Lautstärke für Musik und Effekte (🔊 neben der Uhr), im Mediaplayer die gewählte Visualisierung, ob Videos als Bild oder Visualisierung laufen, Zufall und Wiederholen, die Breite von Aufgabenleiste und Wiedergabeliste und die Höhe des Bilds, das Aussehen (Skin, Seitenleiste, zugeklappte Gruppen, Equalizer; mit Konto zusätzlich am Konto, siehe <a href="#desktop">Einstellungen am Konto</a>), und ob du „YouTube laden“ für diesen Browser merken wolltest. Die eigene Wiedergabeliste liegt nur im offenen Fenster und ist nach dem Schließen weg.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
   <%- code('desk', '<code>sessionStorage</code> vergisst alles, sobald der Tab geschlossen wird.') %>
@@ -92,7 +92,7 @@
   <%- code('editor', 'Der Editor merkt sich nur, ob du lieber „Modern“ oder „Markdown“ schreibst.') %>
   <%- code('pet', 'Unter diesen Namen speichert das Haustier-Spiel im Browser: Spielstand, Einstellungen, eine Kopie der Möbel auf dem Desktop, die Optionen für Tiere auf dem Desktop und welcher Tab sie gerade zeigt.') %>
   <%- code('volume', 'Die Lautstärke liegt unter diesem Namen im Browser. Mediaplayer und Haustier-Spiel lesen sie von dort.') %>
-  <%- code('musicPrefs', 'Der Mediaplayer merkt sich Visualisierung, Bild oder Visualisierung bei Videos, Zufall, Wiederholen und die Größe der Bereiche.') %>
+  <%- code('musicPrefs', 'Der Mediaplayer merkt sich Visualisierung, Bild oder Visualisierung bei Videos, Zufall, Wiederholen, die Größe der Bereiche, Skin, Seitenleiste und Equalizer.') %>
   <%- code('modsLocal', 'Unter <code>modliste:&lt;Nummer&gt;</code> liegen die zugeklappten Kategorien einer Modliste, unter <code>modliste-gast</code> dein Name für Vorschläge ohne Konto.') %>
   <%- code('youtubeKey', 'Hier steht nur „1“, wenn du „Für diesen Browser merken“ angekreuzt hast.') %>
 </details>
@@ -156,7 +156,7 @@
   <li><b>Papierkorb:</b> Gelöschtes liegt erst dort, ist für andere nicht mehr sichtbar und lässt sich zurückholen. Nach <%= deskLimits.trashDays %> Tagen löscht die Seite es endgültig, mit „Papierkorb leeren“ sofort.</li>
   <li><b>Ordner freigeben:</b> Ein freigegebener Ordner bekommt einen zufälligen Link. Wer ihn öffnet, sieht darin nur, was er ohnehin sehen dürfte; Verknüpfungen bleiben immer privat. „Freigabe beenden“ macht den Link ungültig.</li>
   <li><b>Internetlinks</b> öffnen die fremde Seite in einem neuen Tab, ohne dass sie erfährt, von wo du kamst. Was diese Seite dann speichert, liegt nicht in unserer Hand.</li>
-  <li><b>Einstellungen am Konto</b> (<code>user_settings</code>): ob du die readme.txt gelesen hast, ausgeblendete und verschobene Standardsymbole, Sortierung, ob Lobby-Widget und Suchleiste an sind, deine Wahl zu <a href="#statistik">Statistik und Bestenlisten</a>, deine eigene Ansicht an den <a href="#kartenspiele">Kartentischen</a> (Hintergrund und Tischrand) und, falls gewählt, die Darstellung.</li>
+  <li><b>Einstellungen am Konto</b> (<code>user_settings</code>): ob du die readme.txt gelesen hast, ausgeblendete und verschobene Standardsymbole, Sortierung, ob Lobby-Widget und Suchleiste an sind, deine Wahl zu <a href="#statistik">Statistik und Bestenlisten</a>, deine eigene Ansicht an den <a href="#kartenspiele">Kartentischen</a> (Hintergrund und Tischrand), das Aussehen des Mediaplayers (Skin, Breite der Seitenleiste, zugeklappte Gruppen, Equalizer) und, falls gewählt, die Darstellung.</li>
   <li id="darstellung"><b>Darstellung am Konto:</b> Nur wenn du unter 🖥️ „Auf allen meinen Geräten“ ankreuzt, schickt der Desktop deine Darstellung an den Server, damit sie auf deinen anderen Geräten gleich aussieht. Die Größe der Oberfläche und ein eigenes Hintergrundbild bleiben trotzdem nur im Browser. Nimmst du den Haken heraus, löscht die Seite die Kopie am Konto.</li>
   <li><b>Suche:</b> Was du ins Suchfeld tippst, geht an den Server, der damit nur durchsucht, was du auch öffnen darfst. Suchbegriffe werden weder gespeichert noch protokolliert, auch nicht in der Besucherstatistik.</li>
   <li><b>Offene Lobbys:</b> Das Widget fragt alle 15 Sekunden nach, solange es zu sehen ist. Es zeigt nur Lobbys, die du ohnehin finden würdest, und speichert nichts.</li>

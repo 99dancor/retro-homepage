@@ -10,6 +10,7 @@ const music = require('../music');
 const quota = require('../quota');
 const lobby = require('../lobby');
 const youtube = require('../youtube');
+const us = require('../usersettings');
 
 const router = express.Router();
 const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
@@ -34,7 +35,15 @@ router.get('/', (req, res) => {
     title: 'Mediaplayer',
     canUploadMusic: music.canUpload(req.user),
     lobbyOn: lobbyOn(), youtubeOn: youtubeOn(),
+    // Aussehen: Mitglieder haben ihre Wahl am Konto, sonst gilt die Vorgabe der Seite (Seitenverwaltung → Einstellungen)
+    skinDefault: getSetting('music_skin', 'klassisch'),
+    player: req.user ? us.get(req.user.id, 'player') : null,
   });
+});
+
+// Aussehen des Players am Konto: Skin, Seitenleiste, zugeklappte Gruppen, Equalizer
+router.post('/einstellungen', needLogin, (req, res) => {
+  res.json({ player: us.set(req.user.id, 'player', req.body) });
 });
 
 function trackRow(t, user) {

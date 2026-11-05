@@ -1,0 +1,72 @@
+<%- include('../partials/head') %>
+<%- include('../partials/files-tabs', { ftCur: 'vorschlaege' }) %>
+<%# Vorschlag prüfen (src/routes/admin-linkreq.js): was JDownloader gefunden hat, mit Haken nach den Regeln; ausgefiltertes grau mit Grund %>
+<% const visOpts = [['members', '👥 Angemeldete'], ['public', '🌐 Alle (öffentlich)'], ['friends', '⭐ Freunde des Vorschlagenden'], ['private', '🔒 Nur der Vorschlagende und du']]; %>
+<p><a href="/admin/files/vorschlaege?f=<%= r.open ? 'offen' : r.active ? 'laufend' : 'erledigt' %>">⬅ Zurück zur Liste</a></p>
+<fieldset class="groupbox"><legend><%= r.kindIcon %> <%= r.title || r.host || 'Link' %></legend>
+  <dl class="lr-dl">
+    <dt>Link</dt><dd class="lr-url"><a href="<%= r.url %>" target="_blank" rel="noopener noreferrer"><%= r.url %></a></dd>
+    <dt>Art</dt><dd><%= r.kindLabel %><%= r.kind === 'playlist' ? (r.mode === 'video' ? ' (Videos)' : ' (nur Ton)') : '' %></dd>
+    <dt>Von</dt><dd><%= r.username ? (r.display_name || r.username) : '–' %>, <%= fmtDate(r.created_at, true) %></dd>
+    <% if (r.note) { %><dt>Notiz</dt><dd>💬 „<%= r.note %>“</dd><% } %>
+    <dt>Status</dt><dd><%= r.statusIcon %> <%= r.statusLabel %><% if (r.reason) { %> · <span class="lr-why"><%= r.reason %></span><% } %></dd>
+    <% if (r.bytes_total) { %><dt>Größe</dt><dd><%= fmtSize(r.bytes_total) %><% if (tooBig) { %> <span class="lr-why">⚠ größer als <%= rules.maxReqGb %> GB pro Vorschlag</span><% } %></dd><% } %>
+  </dl>
+  <div class="lr-steps"><% for (const s of r.steps) { %><span class="<%= s.c %>"><%= s.t %></span><% } %></div>
+</fieldset>
+
+<% if (r.status === 'checking' || r.active) { %>
+  <p data-lr-reload><%= r.status === 'checking' ? '🔍 JDownloader löst den Link gerade auf …' : '⬇️ ' + r.statusLabel + (r.bytes_total ? ' (' + r.pct + ' %)' : '') + ' …' %> die Seite lädt sich von selbst neu. <a href="">Jetzt neu laden</a></p>
+<% } %>
+
+<% if (r.items.length) { %>
+<form method="post" action="/admin/files/vorschlaege/<%= r.id %>/genehmigen" id="lr-approve">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="has_items" value="1">
+  <fieldset class="groupbox"><legend>Gefunden: <%= r.items.length %> <%= r.items.length === 1 ? 'Datei' : 'Dateien' %>, <%= r.items.filter(i => i.chosen).length %> ausgewählt</legend>
+    <table class="list lr-items">
+      <thead><tr><th></th><th>Datei</th><th>Variante</th><th class="num">Größe</th><th>Hinweis</th></tr></thead>
+      <tbody>
+      <% for (const it of r.items) { const can = r.status === 'checked' && !it.existing_track && !/nie erlaubt/.test(it.note || ''); %>
+      <tr>
+        <td class="<%= it.chosen ? '' : 'lr-off' %>"><input type="checkbox" name="chosen" value="<%= it.id %>"<%= it.chosen ? ' checked' : '' %><%= can ? '' : ' disabled' %> aria-label="<%= it.name %> laden"></td>
+        <td class="<%= it.chosen ? '' : 'lr-off' %>"><%= it.name %></td>
+        <td class="<%= it.chosen ? '' : 'lr-off' %>"><small><%= it.variant || '–' %></small></td>
+        <td class="num <%= it.chosen ? '' : 'lr-off' %>"><%= it.size ? fmtSize(it.size) : '–' %></td>
+        <td><% if (it.note) { %><span class="lr-why"><%= it.note %></span><% } else if (it.chosen) { %><small>✔ passt zu den Regeln</small><% } %><% if (it.existing_track) { %><br><small>kommt trotzdem in die Playlist</small><% } %></td>
+      </tr>
+      <% } %>
+      </tbody>
+    </table>
+  </fieldset>
+  <% if (r.status === 'checked') { %>
+  <div class="row" style="gap:10px;align-items:end">
+    <% if (r.kind === 'playlist') { %><label style="flex:1;min-width:180px">Name der Playlist:<input type="text" name="title" class="w100" maxlength="120" value="<%= r.title || '' %>"></label><% } %>
+    <% if (r.kind !== 'privat') { %><label style="flex:1;min-width:180px">Sichtbar für:<select name="visibility" class="w100"><% for (const [k, l] of visOpts) { %><option value="<%= k %>"<%= k === r.visibility ? ' selected' : '' %>><%= l %></option><% } %></select></label><% } %>
+  </div>
+  <div class="actions"><button type="submit"><b>✔ Genehmigen und laden</b></button> <small class="muted">Nur die angehakten Dateien gehen in die Downloadliste, alles andere wird aus dem Linksammler entfernt.</small></div>
+  <% } %>
+</form>
+<% } %>
+
+<div class="actions">
+  <% if (['new', 'checked', 'failed', 'rejected'].includes(r.status) && jdReady) { %>
+    <form method="post" action="/admin/files/vorschlaege/<%= r.id %>/pruefen" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button type="submit"><%= r.status === 'new' ? '🔍 Prüfen' : '🔄 Noch einmal prüfen' %></button></form>
+  <% } %>
+  <% if (r.active) { %>
+    <form method="post" action="/admin/files/vorschlaege/<%= r.id %>/abbrechen" style="display:inline" data-confirm="Download abbrechen? Schon geladene Teile werden gelöscht."><input type="hidden" name="_csrf" value="<%= csrf %>"><button type="submit">⏹ Abbrechen</button></form>
+  <% } %>
+  <% if (r.resultUrl) { %><a class="btn" href="<%= r.resultUrl %>">▶ Ergebnis öffnen</a><% } %>
+</div>
+<% if (r.skipped.length) { %>
+<fieldset class="groupbox"><legend>⚠ Übersprungen</legend><ul><% for (const s of r.skipped) { %><li><%= s.name %>: <%= s.why %></li><% } %></ul>
+  <p class="muted"><small>Dateien in Quarantäne liegen im JDownloader-Ordner unter <code>quarantaene/hp-<%= r.id %></code>.</small></p></fieldset>
+<% } %>
+<% if (r.open) { %>
+<form method="post" action="/admin/files/vorschlaege/<%= r.id %>/ablehnen" class="groupbox" style="padding:8px">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label>Ablehnen mit kurzem Grund (sieht das Mitglied):<input type="text" name="reason" class="w100" maxlength="300" placeholder="z. B. MKV läuft nicht im Player, bitte als MP4 suchen"></label>
+  <div class="actions"><button type="submit">⛔ Ablehnen</button></div>
+</form>
+<% } %>
+<script src="<%= asset('linkreq.js') %>" defer></script>
+<%- include('../partials/foot') %>

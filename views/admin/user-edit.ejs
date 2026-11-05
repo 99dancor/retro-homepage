@@ -28,6 +28,8 @@
       <select name="role" <%= self ? 'disabled' : '' %>><option value="user" <%= u.role === 'user' ? 'selected' : '' %>>Nutzer</option><option value="admin" <%= u.role === 'admin' ? 'selected' : '' %>>Admin (darf alles)</option></select>
     </label>
     <label class="inline"><input type="checkbox" name="can_upload" value="1" <%= u.can_upload ? 'checked' : '' %>> Darf selbst Dateien hochladen</label>
+    <label class="inline"><input type="checkbox" name="can_private" value="1" <%= u.can_private ? 'checked' : '' %>> 🔞 Darf den Bereich „Privat“ sehen und dafür Links vorschlagen</label>
+    <label class="inline"><input type="checkbox" name="jd_trusted" value="1" <%= u.jd_trusted ? 'checked' : '' %>> 🔗 Vertrauenswürdig: Link-Vorschläge ohne Freigabe laden (nur innerhalb der Regeln und unter der Größengrenze)</label>
     <label class="inline"><input type="checkbox" name="disabled" value="1" <%= u.disabled ? 'checked' : '' %> <%= self ? 'disabled' : '' %>> Konto gesperrt</label>
   </fieldset>
   <fieldset class="groupbox"><legend>Gruppen</legend>

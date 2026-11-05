@@ -1,0 +1,38 @@
+<%# Reiter „Link vorschlagen“ im Fenster Hinzufügen (src/routes/linkreq.js, public/linkreq.js). Die Art erkennt public/linkreq.js am Link vor, das Mitglied kann sie ändern. %>
+<%
+  const kindKeys = linkKinds.map(k => k.key);
+  const vOpts = [['members', '👥 Alle angemeldeten Nutzer'], ['friends', '⭐ Nur meine Freunde'], ['private', '🔒 Nur ich und der Admin']];
+  if (user.isAdmin) vOpts.unshift(['public', '🌐 Alle (öffentlich)']);
+%>
+<div class="up-page lr-page">
+<% if (linkErr) { %><div class="msg err">⚠ <%= linkErr %></div><% } %>
+<% if (!jdReady && user.isAdmin) { %><div class="msg">ℹ JDownloader ist noch nicht verbunden. Vorschläge werden gesammelt und geprüft, sobald du ihn unter <a href="/admin/files/regeln#verbindung" target="_top">Seitenverwaltung → Downloads → Regeln</a> eingerichtet hast.</div><% } %>
+<form method="post" action="/files/vorschlag" id="lr-form" data-kinds="<%= kindKeys.join(' ') %>">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <label>Link(s), einer pro Zeile:
+    <textarea name="urls" class="w100 lr-urls" required rows="3" spellcheck="false" autocomplete="off" placeholder="https://www.youtube.com/watch?v=…" data-urls><%= linkUrl %></textarea></label>
+  <div class="lr-found" data-found hidden></div>
+  <fieldset class="lr-kinds" role="radiogroup" aria-label="Was ist es?">
+    <legend>Was ist es?</legend>
+    <% linkKinds.forEach((k, i) => { %>
+    <label class="lr-kind" title="<%= k.hint %>"><input type="radio" name="kind" value="<%= k.key %>"<%= i === 0 ? ' checked' : '' %>><span><%= k.icon %> <%= k.label %></span></label>
+    <% }) %>
+  </fieldset>
+  <div class="row lr-pl" style="gap:10px" data-pl hidden>
+    <label style="flex:1;min-width:160px">Playlist laden als:
+      <select name="mode" class="w100"><option value="audio">🎵 Nur Ton (Musik)</option><option value="video">🎬 Videos</option></select></label>
+    <label style="flex:1;min-width:160px">Name der Playlist:
+      <input type="text" name="title" class="w100" maxlength="120" placeholder="wie bei YouTube"></label>
+  </div>
+  <label>Notiz an den Admin (optional):<input type="text" name="note" class="w100" maxlength="500" placeholder="z. B. für den Spieleabend am Freitag"></label>
+  <div class="row" style="gap:10px;align-items:end">
+    <label style="flex:1;min-width:180px" data-vis>Wer darf es sehen?
+      <select name="visibility" class="w100"><% for (const [k, l] of vOpts) { %><option value="<%= k %>"<%= k === 'members' ? ' selected' : '' %>><%= l %></option><% } %></select></label>
+    <% if (user.isAdmin) { %><label class="lr-chk" style="flex:1;min-width:180px"><input type="checkbox" name="start" value="1" checked> Gleich laden (nach dem Prüfen, ohne Freigabe)</label><% } %>
+  </div>
+  <p class="muted lr-info" data-privnote hidden><small>🔞 Privat landet nur im abgetrennten Bereich „Privat“ in den Downloads und im Mediaplayer. Den sehen nur Konten, die der Admin dafür freigeschaltet hat.</small></p>
+  <p class="muted lr-info"><small><% if (user.isAdmin) { %>Die Download-Regeln gelten auch für dich: geladen werden nur erlaubte Formate und Qualitäten.<% } else { %>Dein Vorschlag geht an den Admin. Erst nach der Freigabe wird geladen, und nur in den erlaubten Formaten. Es zählt nicht auf deinen Speicher.<% if (linkMax) { %> Du hast <%= linkOpen %> von <%= linkMax %> offenen Vorschlägen.<% } %><% } %></small></p>
+  <div class="up-foot"><span class="grow"><a href="/files/vorschlaege">🔗 Meine Vorschläge</a></span><button type="submit"><b><%= user.isAdmin ? 'Hinzufügen' : 'Vorschlagen' %></b></button><a class="btn" href="/files">Abbrechen</a></div>
+</form>
+</div>
+<script src="<%= asset('linkreq.js') %>" defer></script>

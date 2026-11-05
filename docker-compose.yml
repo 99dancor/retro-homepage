@@ -14,6 +14,10 @@ services:
       - /mnt/user/appdata/retro-homepage:/data
       # Optional: große Downloads auf einer anderen Platte (Unraid-Freigabe mit Speicherort „Array“)
       # - /mnt/user/homepage-dateien:/data/uploads
+      # Optional: Ausgabeordner von JDownloader (Link-Vorschläge, README → JDownloader)
+      # - /mnt/user/downloads/jdownloader:/data/jd
+    # Optional für JDownloader: gemeinsames Docker-Netz, die Seite erreicht ihn dann unter http://jdownloader2:3128
+    # networks: [default, homepage-net]
     environment:
       TZ: Europe/Berlin
       PUID: "99"             # Unraid-Standard nobody:users

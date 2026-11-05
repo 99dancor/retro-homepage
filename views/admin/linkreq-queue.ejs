@@ -1,0 +1,35 @@
+<%- include('../partials/head') %>
+<%- include('../partials/files-tabs', { ftCur: 'warteschlange' }) %>
+<%# Warteschlange (src/routes/admin-linkreq.js): was JDownloader gerade für die Seite lädt. Fortschritt lädt public/linkreq.js nach. %>
+<% const STATE = { RUNNING: '⬇️ lädt', IDLE: '💤 wartet', PAUSE: '⏸ pausiert', STOPPED: '⏹ gestoppt', STOPPING: '⏹ hält an' }; %>
+<fieldset class="groupbox"><legend>🧲 JDownloader</legend>
+  <% if (!q.configured) { %><p>Noch nicht verbunden. <a href="/admin/files/regeln#verbindung">Jetzt einrichten</a></p>
+  <% } else if (!q.ok) { %><p class="lr-why">⚠ <%= q.error %></p>
+  <% } else { %>
+  <div class="lr-state">
+    <span>Zustand: <b><%= STATE[q.state] || q.state || '–' %></b></span>
+    <form method="post" action="/admin/files/warteschlange/<%= q.state === 'PAUSE' ? 'weiter' : 'pause' %>" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button type="submit" class="small"><%= q.state === 'PAUSE' ? '▶ Weiter' : '⏸ Pause' %></button></form>
+    <small class="muted">Fertige Downloads holt die Seite von selbst ab und sortiert sie ein.</small>
+  </div>
+  <% } %>
+</fieldset>
+<div data-lr-live="/admin/files/warteschlange.json">
+<% if (!q.items.length) { %><p class="muted">Gerade lädt nichts.</p><% } else { %>
+<table class="list">
+  <thead><tr><th></th><th>Vorschlag</th><th>Von</th><th>Fortschritt</th><th></th></tr></thead>
+  <tbody>
+  <% for (const r of q.items) { %>
+  <tr data-lr-id="<%= r.id %>" data-lr-status="<%= r.status %>" data-lr-active>
+    <td style="font-size:18px"><%= r.kindIcon %></td>
+    <td><a href="/admin/files/vorschlaege/<%= r.id %>"><b><%= r.title || r.host %></b></a><div class="lr-url muted"><%= r.url %></div></td>
+    <td><%= r.username ? (r.display_name || r.username) : '–' %></td>
+    <td style="min-width:180px"><span class="up-bar" style="width:160px"><i style="width:<%= r.pct %>%"></i></span><br><small data-lr-pct><%= r.bytes_total ? r.pct + ' % · ' + fmtSize(r.bytes_done) + ' von ' + fmtSize(r.bytes_total) : r.statusLabel %></small></td>
+    <td><form method="post" action="/admin/files/vorschlaege/<%= r.id %>/abbrechen" data-confirm="Download abbrechen? Schon geladene Teile werden gelöscht."><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="liste"><button type="submit" class="small">⏹ Abbrechen</button></form></td>
+  </tr>
+  <% } %>
+  </tbody>
+</table>
+<% } %>
+</div>
+<script src="<%= asset('linkreq.js') %>" defer></script>
+<%- include('../partials/foot') %>

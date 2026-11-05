@@ -1,4 +1,5 @@
 <%- include('../partials/head') %>
+<%- include('../partials/files-tabs', { ftCur: 'kategorien' }) %>
 <% if (ok) { %><div class="msg">✔ Gespeichert.</div><% } %>
 <p><a href="/admin/files">⬅ Zurück zu den Dateien</a></p>
 <form method="post" action="/admin/files/kategorien">

@@ -1,0 +1,43 @@
+<%- include('partials/head') %>
+<%# Meine Vorschläge (src/routes/linkreq.js): Weg jedes Links von Vorgeschlagen bis zum Ergebnis. Fortschritt lädt public/linkreq.js nach. %>
+<div class="explorer lr-mine" data-lr-live="/files/vorschlaege.json">
+  <div class="ex-toolbar" role="toolbar">
+    <a class="btn small" href="/files">⬅ Downloads</a>
+    <span class="ex-sep"></span>
+    <% if (canSuggest) { %><a class="btn small" href="/files/upload?tab=link"><b>🔗 Link vorschlagen</b></a><% } %>
+    <a class="btn small" href="/eigene-dateien">🗂️ Eigene Dateien</a>
+  </div>
+  <div class="ex-address"><span>Adresse</span><div class="sunken ex-path"><a href="/files">📁 Downloads</a> › 🔗 Meine Vorschläge</div></div>
+  <% if (neu) { %><div class="msg">✔ <%= neu === 1 ? 'Dein Vorschlag ist angekommen.' : neu + ' Vorschläge sind angekommen.' %> <%= user.isAdmin ? 'Er wird jetzt geprüft.' : 'Du bekommst eine Benachrichtigung, sobald er geladen oder abgelehnt ist.' %></div><% } %>
+  <% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+  <div class="sunken" style="flex:1;overflow:auto;min-height:0">
+    <% if (!list.length) { %>
+      <p class="muted lr-empty">Du hast noch nichts vorgeschlagen.<% if (canSuggest) { %><br><br><a class="btn small" href="/files/upload?tab=link">🔗 Link vorschlagen</a><% } %></p>
+    <% } else { %>
+    <ul class="lr-list">
+      <% for (const r of list) { %>
+      <li class="lr-item" data-lr-id="<%= r.id %>" data-lr-status="<%= r.status %>"<%- r.active || r.status === 'checking' ? ' data-lr-active' : '' %>>
+        <span class="lr-ic" aria-hidden="true"><%= r.kindIcon %></span>
+        <div>
+          <h3><%= r.title || r.host || 'Link' %> <small>· <%= r.kindLabel %><%= r.kind === 'playlist' ? (r.mode === 'video' ? ' (Videos)' : ' (nur Ton)') : '' %></small>
+            <span class="lr-badge <%= r.status === 'done' ? 'ok' : ['rejected', 'failed'].includes(r.status) ? 'no' : r.active || r.open ? 'run' : '' %>"><%= r.statusLabel %></span></h3>
+          <div class="lr-url muted"><%= r.url %></div>
+          <div class="lr-steps"><% for (const s of r.steps) { %><span class="<%= s.c %>"><%= s.t %></span><% } %></div>
+          <% if (r.skipped.length) { %><p class="lr-skip">⚠ <%= r.skipped.length %> übersprungen: <%= r.skipped.slice(0, 3).map(s => s.name + ' (' + s.why + ')').join(', ') %><%= r.skipped.length > 3 ? ' …' : '' %></p><% } %>
+          <% if (r.status === 'new' && r.reason) { %><p class="lr-skip">ℹ <%= r.reason %></p><% } %>
+        </div>
+        <div class="lr-side">
+          <% if (r.resultUrl) { %><a class="btn small" href="<%= r.resultUrl %>"><%= r.counts.playlist || r.counts.tracks ? '▶ Im Mediaplayer öffnen' : '📁 Öffnen' %></a>
+          <% } else if (r.active) { %><span class="up-bar" style="width:140px"><i style="width:<%= r.pct %>%"></i></span><br><small data-lr-pct><%= r.bytes_total ? r.pct + ' % · ' + fmtSize(r.bytes_done) + ' von ' + fmtSize(r.bytes_total) : r.statusLabel %></small>
+          <% } else if (r.open) { %><form method="post" action="/files/vorschlaege/<%= r.id %>/zurueckziehen"><input type="hidden" name="_csrf" value="<%= csrf %>"><button type="submit" class="small">↩ Zurückziehen</button></form>
+          <% } else { %><small class="muted"><%= fmtDate(r.updated_at) %></small><% } %>
+        </div>
+      </li>
+      <% } %>
+    </ul>
+    <% } %>
+  </div>
+  <div class="statusbar"><span><%= list.length %> <%= list.length === 1 ? 'Vorschlag' : 'Vorschläge' %> · <%= open %> offen<% if (left !== null) { %> · du kannst noch <%= left %> vorschlagen<% } %></span><span>Geladene Links zählen nicht auf deinen Speicher.</span></div>
+</div>
+<script src="<%= asset('linkreq.js') %>" defer></script>
+<%- include('partials/foot') %>

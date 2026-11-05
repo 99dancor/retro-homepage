@@ -15,7 +15,7 @@
   <li>Was du schreibst, kann der Admin lesen, auch „anonyme“ Forenbeiträge. Nachrichten im Messenger zeigt die Seite ihm nicht an, sie liegen aber unverschlüsselt auf dem Server.</li>
 </ul>
 <p>Springe zu: <a href="#besuch">Besuch</a> · <a href="#cookies">Cookies</a> · <a href="#browser">Im Browser</a> ·
-  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#pixelpfoten">Pixelpfoten</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#kartenspiele">UNO, Flip 7, Pilli Pilli</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#sudoku">Sudoku</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#werwolf">Werwolf</a> · <a href="#farming">Farming Simulator</a> · <a href="#dienste">Dienste, Laufband, Popups</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
+  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#vorschlaege">Link-Vorschläge</a> · <a href="#spiele">Spiele</a> · <a href="#pixelpfoten">Pixelpfoten</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#kartenspiele">UNO, Flip 7, Pilli Pilli</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#sudoku">Sudoku</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#werwolf">Werwolf</a> · <a href="#farming">Farming Simulator</a> · <a href="#dienste">Dienste, Laufband, Popups</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
 </fieldset>
 
 <h2 id="besuch">👣 Wenn du die Seite besuchst</h2>
@@ -239,6 +239,21 @@
   <%- code('plays', 'Der Abspiel-Zähler erhöht nur eine Zahl am Titel.') %>
   <%- code('lobbyState', 'Das bekommen alle Zuhörer einer Lobby: Name, Gastgeber, Warteschlange, Stelle im Lied und die Namen der Zuhörer.') %>
   <%- code('oembed', 'Die Titel von YouTube-Videos holt der Server über die öffentliche oEmbed-Adresse, ohne Angaben über dich.') %>
+</details>
+
+<h2 id="vorschlaege">🔗 Link-Vorschläge</h2>
+<ul>
+  <li><b>Was gespeichert wird:</b> Schlägst du einen Link vor, speichert die Seite den Link, die gewählte Art (Musik, Video, Playlist, Datei, Privat), deine Notiz an den Admin, die Sichtbarkeit, den Status mit Fortschritt, einen Ablehnungsgrund und dein Konto. Das sehen nur du (unter „Meine Vorschläge“) und der Admin.</li>
+  <li><b>Wer den Link abruft:</b> Nicht dein Browser und nicht der Server der Seite, sondern JDownloader, ein Download-Programm, das bei uns im Heimnetz läuft. Es fragt erst nach, was hinter dem Link steckt (Namen, Größen, Formate), und lädt erst nach der Freigabe durch den Admin. Die Gegenseite (z. B. YouTube) sieht dabei die Adresse unseres Anschlusses, nicht deine. Über dich geht nichts mit.</li>
+  <li><b>Interne Adressen:</b> Links ins Heimnetz (z. B. 192.168.…, localhost) nimmt die Seite nicht an, damit niemand über sie Geräte im Heimnetz abfragt.</li>
+  <li><b>Was daraus wird:</b> Geladene Titel und Dateien gehören der Seite; in den Eigenschaften steht „vorgeschlagen von“ mit deinem Namen und die Quelle. Eine Playlist gehört dir. Nichts davon zählt auf deinen Speicher. Löschst du dein Konto, verschwindet die Playlist; Titel und Vorschläge bleiben ohne Verbindung zu deinem Konto.</li>
+  <li><b>Privat:</b> Inhalte der Art „Privat“ sehen nur Konten, die der Admin dafür freigeschaltet hat. Sie stehen nur im eigenen Bereich „Privat“ in den Downloads und im Mediaplayer, nie auf der Startseite, in der Suche, im Laufband, in Musik-Lobbys oder im Profil. Gäste sehen sie nie, auch nicht mit Link.</li>
+  <li><b>Benachrichtigungen:</b> Der Admin bekommt eine bei neuen Vorschlägen, du eine, wenn dein Vorschlag fertig geladen oder abgelehnt ist. Abschalten kannst du sie unter Konto und Passwort → Benachrichtigungen.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('linkRequests', 'Diese Spalten speichert die Seite zu jedem Vorschlag.') %>
+  <%- code('linkCheck', 'Nur http(s)-Links ins Internet: Heimnetz-Adressen werden abgewiesen, bevor JDownloader sie sieht.') %>
+  <%- code('privatSql', 'Listen lassen den Bereich Privat weg, außer für freigeschaltete Konten an seiner eigenen Stelle.') %>
 </details>
 
 <h2 id="spiele">🎮 Spielstände</h2>

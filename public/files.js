@@ -34,7 +34,9 @@
     else dl.push(['Größe', size(r.size)]);
     if (r.file) dl.push(['Datei', r.file]);
     dl.push([r.type === 'playlist' ? 'Geändert' : 'Hinzugefügt', date(r.date)]);
-    if (r.by) dl.push([r.type === 'playlist' ? 'Von' : 'Hochgeladen von', r.by]);
+    if (r.requestedBy) dl.push(['Vorgeschlagen von', r.requestedBy]);
+    else if (r.by) dl.push([r.type === 'playlist' ? 'Von' : r.source ? 'Geladen von' : 'Hochgeladen von', r.by]);
+    if (r.source) { var host = ''; try { host = new URL(r.source).hostname.replace(/^www\./, ''); } catch (e) { host = ''; } dl.push(['Quelle', host || 'Link']); }
     if (r.visLabel) dl.push(['Sichtbar für', r.visLabel]);
     if (r.type === 'file') dl.push(['Heruntergeladen', r.downloads + '×']);
     if (r.plays) dl.push(['Gespielt', r.plays + '×']);

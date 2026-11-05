@@ -350,8 +350,10 @@
   // Ansichten: all (alles), sammlung, mitglieder, meine, pl:<id>; dazu now (Wiedergabe läuft) und lobbys.
   // Musik, Videos und YouTube sind keine eigenen Ansichten mehr, sondern ein Filter über jeder Liste (kindF).
   var kindF = '';
+  // Bereich „Privat“ (nur für freigeschaltete Konten): eigene Ansicht, in den anderen Listen nicht dabei
   function viewTracks(key) {
-    var all = lib.tracks;
+    var all = lib.tracks.filter(function (t) { return key === 'privat' ? t.privat : !t.privat; });
+    if (key === 'privat') return all;
     if (key === 'sammlung') return all.filter(function (t) { return t.byAdmin; });
     if (key === 'mitglieder') return all.filter(function (t) { return !t.byAdmin; });
     if (key === 'meine') return all.filter(function (t) { return t.mine; });
@@ -381,7 +383,7 @@
   // ---------- Seitenleiste ----------
   // Gruppen Bibliothek, Playlists und Lobbys, einzeln zuklappbar; drei Breiten: offen, schmal (nur Symbole) und zu.
   // Auf dem Handy liegt sie als Schublade hinter ☰.
-  var VIEW_NAME = { all: 'Alles', sammlung: 'Sammlung', mitglieder: 'Von Mitgliedern hochgeladen', meine: 'Meine Titel' };
+  var VIEW_NAME = { all: 'Alles', sammlung: 'Sammlung', mitglieder: 'Von Mitgliedern hochgeladen', meine: 'Meine Titel', privat: 'Privat' };
   function navBtn(o) {
     return '<button type="button" class="mp-nav' + (o.cls ? ' ' + o.cls : '') + (o.on ? ' active' : '') + '"' + (o.go ? ' data-go="' + esc(o.go) + '"' : '') +
       (o.act ? ' data-act="' + o.act + '"' : '') + (o.lobby ? ' data-lobby="' + esc(o.lobby) + '"' : '') + (o.drop ? ' data-drop="' + esc(o.drop) + '"' : '') +
@@ -390,9 +392,10 @@
   }
   function groups() {
     var me = lib.me, out = [];
-    var libItems = [{ ic: '📚', label: 'Alles', go: 'all', n: lib.tracks.length }, { ic: '💿', label: 'Sammlung', go: 'sammlung', n: viewTracks('sammlung').length },
+    var libItems = [{ ic: '📚', label: 'Alles', go: 'all', n: viewTracks('all').length }, { ic: '💿', label: 'Sammlung', go: 'sammlung', n: viewTracks('sammlung').length },
       { ic: '👥', label: 'Von Mitgliedern', go: 'mitglieder', n: viewTracks('mitglieder').length }];
     if (me) libItems.push({ ic: '⭐', label: 'Meine Titel', go: 'meine', n: viewTracks('meine').length });
+    if (lib.tracks.some(function (t) { return t.privat; })) libItems.push({ ic: '🔞', label: 'Privat', go: 'privat', n: viewTracks('privat').length });
     libItems.forEach(function (o) { o.on = view === o.go; });
     out.push({ id: 'lib', ic: '📚', label: 'Bibliothek', items: libItems });
     if (me) {

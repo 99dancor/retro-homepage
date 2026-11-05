@@ -55,6 +55,7 @@
                 <li><a href="/eigene-dateien?bib=<%= k %>" class="ex-node<%= kind === k ? ' current' : '' %>"><%= ic %> <%= label %> <small>(<%= libCount(k) %>)</small></a></li>
               <% } %></ul>
             </li>
+            <li><a href="/files/vorschlaege" class="ex-node">🔗 Meine Vorschläge</a></li>
             <li><a href="/eigene-dateien?ordner=papierkorb" class="ex-node<%= view === 'trash' ? ' current' : '' %>" data-drop="papierkorb">🗑️ Papierkorb<%= trashN ? ' (' + trashN + ')' : '' %></a></li>
           </ul>
         </li>

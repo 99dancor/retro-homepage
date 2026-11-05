@@ -166,6 +166,7 @@ app.use('/', require('./routes/games'));
 app.use('/', require('./routes/messenger'));
 app.use('/', require('./routes/konto').router);
 app.use('/', profileRoutes.router);
+app.use('/', require('./routes/linkreq'));
 app.use('/', require('./routes/public'));
 
 app.use((req, res) => res.status(404).render('error', { title: 'Nicht gefunden', message: 'Diese Seite gibt es nicht (oder du hast keinen Zugriff).' }));
@@ -189,6 +190,7 @@ if (!db.prepare('SELECT 1 FROM users LIMIT 1').get()) {
 
 // Dienste abfragen (src/services.js), alten Lauftext ins Laufband übernehmen, Ereignisanzeige aufräumen
 require('./services').start();
+require('./linkreq').start();
 require('./ticker').migrate();
 const events = require('./events');
 events.cleanup();

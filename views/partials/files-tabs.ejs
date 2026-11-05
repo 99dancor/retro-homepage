@@ -1,0 +1,7 @@
+<%# Reiter über den Seiten der Seitenverwaltung → Downloads (Dateien, Kategorien, Link-Vorschläge, Warteschlange, Regeln) %>
+<% const ftCur = locals.ftCur || ''; const ftN = locals.lrCounts || { offen: locals.counts ? locals.counts.links : 0, laufend: 0 }; %>
+<nav class="tabs ft-tabs" aria-label="Downloads">
+  <% for (const [k, label, url] of [['dateien', '📁 Dateien', '/admin/files'], ['kategorien', '🏷️ Kategorien', '/admin/files/kategorien'], ['vorschlaege', '🔗 Link-Vorschläge', '/admin/files/vorschlaege'], ['warteschlange', '⬇️ Warteschlange', '/admin/files/warteschlange'], ['regeln', '📐 Regeln und Verbindung', '/admin/files/regeln']]) { %>
+    <a class="btn" href="<%= url %>"<%- ftCur === k ? ' aria-current="page"' : '' %>><%= label %><% if (ftN && k === 'vorschlaege' && ftN.offen) { %> <i class="n"><%= ftN.offen %></i><% } %><% if (ftN && k === 'warteschlange' && ftN.laufend) { %> <small>(<%= ftN.laufend %>)</small><% } %></a>
+  <% } %>
+</nav>

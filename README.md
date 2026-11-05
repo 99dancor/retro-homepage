@@ -74,6 +74,50 @@ Eine Platte außerhalb des Arrays (Plugin „Unassigned Devices“) geht genauso
 erscheinen sie dann zum Übernehmen – Kategorie und Sichtbarkeit wählen, fertig.
 Das geht ohne Größengrenze und ohne Umweg über den Raspberry Pi.
 
+### JDownloader und Link-Vorschläge
+
+Mitglieder schlagen Links vor (Musik, Videos, YouTube-Playlists, Dateien, Privat), du genehmigst sie unter
+**Seitenverwaltung → Downloads → Link-Vorschläge**, und JDownloader lädt nur, was die Regeln erlauben
+(Format, Qualität, Größe). Fertiges sortiert die Seite ein: Musik und Videos in den Mediaplayer, eine Playlist
+als eigene Playlist des Mitglieds, Dateien in die Downloads, „Privat“ in den abgetrennten Bereich.
+
+1. **Container:** Unraid → Apps → **JDownloader2** von *jlesage* installieren.
+   - `/config` → `/mnt/user/appdata/jdownloader2`
+   - `/output` → `/mnt/user/downloads/jdownloader` (neue Freigabe `downloads`, *Primary storage* Array)
+   - `USER_ID` **99**, `GROUP_ID` **100** (wie die Homepage, damit sie die fertigen Dateien verschieben darf)
+   - Port **5800** ist die Weboberfläche von JDownloader: nur im Heimnetz benutzen, **nicht** in den Nginx Proxy Manager
+     eintragen. Am besten mit `WEB_AUTHENTICATION` und Kennwort.
+2. **Gemeinsames Docker-Netz** (einmal im Unraid-Terminal):
+   ```bash
+   docker network create homepage-net
+   docker network connect homepage-net retro-homepage
+   docker network connect homepage-net JDownloader2
+   ```
+   Damit es Neustarts übersteht: bei beiden Containern unter *Edit* → *Network Type* **Custom: homepage-net** wählen
+   (Unraid zeigt eigene Netze, wenn unter Settings → Docker „Preserve user defined networks“ an ist).
+   Port **3128 nicht** freigeben: Die Homepage erreicht JDownloader über das Netz unter `http://JDownloader2:3128`
+   (der Name ist der Container-Name).
+3. **Lokale Schnittstelle in JDownloader anschalten:** Weboberfläche (Port 5800) → Einstellungen →
+   Erweiterte Einstellungen → nach `RemoteAPI` suchen:
+   `RemoteAPI: Deprecated Api Enabled` **an**, `Deprecated Api Port` **3128**,
+   `Deprecated Api Localhost Only` **aus**. JDownloader neu starten.
+   *Die Schnittstelle hat keine Anmeldung. Deshalb nur im Docker-Netz, nie über NPM oder eine Portfreigabe.*
+4. **Homepage bekommt den Ordner:** Container *retro-homepage* bearbeiten → **JDownloader-Ordner** auf
+   `/mnt/user/downloads/jdownloader` (Compose: Zeile bei `volumes` aktivieren). Im Container heißt er `/data/jd`.
+5. **YouTube in JDownloader:** Einstellungen → Plugins → *youtube.com*: Untertitel, Beschreibung und Vorschaubild
+   ausschalten (die Seite wählt die Variante ohnehin selbst). Unter *Archiventpacker* „automatisch entpacken“ aus:
+   Archive kommen als Datei in die Downloads.
+6. **Seitenverwaltung → Downloads → Regeln und Verbindung:** Adresse `http://JDownloader2:3128`, Ausgabeordner
+   `/output`, **Speichern und testen**. Darüber stellst du Formate, Qualität, Größen und wer vorschlagen darf ein.
+
+Was du pro Konto vergeben kannst (Konten und Gruppen → Konto): **Privat sehen** (der Bereich ist sonst für alle
+unsichtbar) und **vertrauenswürdig** (Vorschläge laden ohne Freigabe, nur innerhalb der Regeln und unter der
+eingestellten Größe). Vom Handy geht es über „Teilen“, wenn die Seite zum Startbildschirm hinzugefügt ist.
+
+Dateien, deren Inhalt nicht zur Endung passt (oder Programme), legt die Seite in `quarantaene/` im JDownloader-Ordner
+statt in die Bibliothek. Geladene Musik liegt unter `musik/<Interpret>/<Titel>`, Videos unter `musik/videos/`,
+Privates unter `musik/privat/` bzw. `uploads/privat/`.
+
 ### Backup
 
 Den Ordner `/mnt/user/appdata/retro-homepage` sichern (z. B. mit dem Plugin „Appdata Backup“).

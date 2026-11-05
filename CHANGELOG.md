@@ -1,5 +1,16 @@
 # Changelog
 
+## Update 87 · 05.11.2026 – Link-Vorschläge mit JDownloader
+
+- **Link vorschlagen:** Im Fenster „Hinzufügen“ gibt es den Reiter „Link vorschlagen“ (auch für Mitglieder ohne Upload-Recht). Links einfügen, einer pro Zeile; das Fenster erkennt YouTube-Videos, YouTube-Playlists und Dateien und schlägt die Art vor: Musik, Video, Playlist, Datei oder Privat. Dazu eine Notiz an den Admin und wer es sehen darf. Vom Handy geht es direkt aus der YouTube-App über „Teilen“, wenn die Seite zum Startbildschirm hinzugefügt ist.
+- **Meine Vorschläge** (in den Downloads und den Eigenen Dateien): Jeder Vorschlag zeigt seinen Weg von Vorgeschlagen über Prüfen, Freigabe und Laden bis Fertig, mit Fortschritt, Ablehnungsgrund und „Im Mediaplayer öffnen“. Offene Vorschläge lassen sich zurückziehen.
+- **Seitenverwaltung → Downloads** hat jetzt Reiter: Dateien, Kategorien, Link-Vorschläge, Warteschlange, Regeln und Verbindung. JDownloader prüft jeden Link zuerst nur (lädt nichts), du siehst die gefundenen Dateien mit Haken nach deinen Regeln und Gründen für den Rest, genehmigst oder lehnst mit Grund ab. Eigene Links fügst du direkt hinzu und lässt sie gleich laden.
+- **Nur, was die Regeln erlauben:** pro Art Formate in Wunschreihenfolge (Musik M4A → Opus → MP3, Video MP4 → WebM bis 1080p), erlaubte Endungen und Größen. Bei YouTube wählt die Seite genau eine Variante pro Video und wirft alle anderen Dateien aus dem Linksammler, bevor etwas geladen wird. Nach dem Laden prüft sie den echten Dateityp; was nicht passt, kommt in die Quarantäne.
+- **Einsortiert:** Musik in den Mediaplayer (nach Interpret und Titel), Videos zu den Videos, eine YouTube-Playlist als eigene Playlist des Mitglieds in der Reihenfolge wie bei YouTube, vorhandene Titel kommen mit hinein statt doppelt geladen zu werden. Dateien landen in den Downloads. In den Details steht „vorgeschlagen von“ und die Quelle. Geladenes zählt nicht auf den Speicher des Mitglieds.
+- **Privat:** abgetrennter Bereich in den Downloads und im Mediaplayer, nur für Konten, die du dafür freischaltest. Er taucht nirgends sonst auf (Startseite, Suche, Neu hinzugefügt, Lobbys, Profil).
+- **Vertrauenswürdige Konten** laden auf Wunsch ohne Freigabe, aber nur innerhalb der Regeln und unter einer Größengrenze (Standard aus). Dazu Grenzen für offene Vorschläge pro Mitglied, Größe pro Vorschlag und freien Platz.
+- **Anbindung:** JDownloader läuft als eigener Container im gemeinsamen Docker-Netz; die Seite spricht mit seiner lokalen Schnittstelle, die nie nach außen geht. Die Anleitung steht in der README unter „JDownloader und Link-Vorschläge“, die Datenschutzseite hat einen neuen Abschnitt.
+
 ## Update 86 · 05.11.2026 – Downloads und Hinzufügen neu
 
 - **Downloads als Explorer:** Links ein Baum mit Alle Dateien, Neu hinzugefügt (letzte 14 Tage), der Mediathek (Musik, Videos, Playlists aus dem Mediaplayer) und den Kategorien, in der Mitte die Liste, rechts die Details der Auswahl mit Abspielen, Herunterladen und Eigenschaften. Spalten sortieren per Klick, das Suchfeld filtert sofort, Enter sucht in allen Bereichen. Doppelklick spielt Titel im Mediaplayer ab oder lädt Dateien herunter. Titel aus dem Mediaplayer lassen sich jetzt auch als Datei speichern.

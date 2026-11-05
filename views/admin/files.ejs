@@ -1,4 +1,5 @@
 <%- include('../partials/head') %>
+<%- include('../partials/files-tabs', { ftCur: 'dateien' }) %>
 <% if (importMsg) { %><div class="msg">✔ <%= importMsg %></div><% } %>
 <% if (disk) { %>
 <p>💽 Speicher für Downloads: <b><%= fmtSize(disk.free) %></b> frei von <%= fmtSize(disk.total) %>

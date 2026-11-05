@@ -1,11 +1,11 @@
 'use strict';
 // Ein Speicher für alles (Desktop 2.0): Downloads, Mediaplayer, Paint, Bilder in Beiträgen und Textdokumente
-// zählen zusammen gegen user_quota_mb. Der Admin hat keine Grenze, 0 heißt für alle ohne Grenze.
+// zählen zusammen gegen user_quota_mb (geladene Link-Vorschläge nicht, die stellt die Seite). Der Admin hat keine Grenze, 0 heißt für alle ohne Grenze.
 const { db, getSetting } = require('./db');
 
 const PARTS = {
-  files: ['📁 Downloads und eigene Uploads', 'SELECT COALESCE(SUM(size), 0) AS n FROM files WHERE uploader_id = ?'],
-  tracks: ['🎵 Mediaplayer', 'SELECT COALESCE(SUM(size), 0) AS n FROM tracks WHERE uploader_id = ?'],
+  files: ['📁 Downloads und eigene Uploads', 'SELECT COALESCE(SUM(size), 0) AS n FROM files WHERE uploader_id = ? AND source_url IS NULL'],
+  tracks: ['🎵 Mediaplayer', 'SELECT COALESCE(SUM(size), 0) AS n FROM tracks WHERE uploader_id = ? AND source_url IS NULL'],
   artworks: ['🎨 Paint-Bilder', 'SELECT COALESCE(SUM(size), 0) AS n FROM artworks WHERE owner_id = ?'],
   media: ['🖼️ Bilder in Beiträgen', 'SELECT COALESCE(SUM(size), 0) AS n FROM media WHERE uploader_id = ?'],
   texts: ['🗒️ Textdokumente', "SELECT COALESCE(SUM(length(CAST(body AS BLOB))), 0) AS n FROM desk_items WHERE user_id = ? AND kind = 'text'"],

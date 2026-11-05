@@ -16,7 +16,7 @@ const UA = 'Mozilla/5.0 (Smoke Test) Firefox/130';
 function startServer() {
   const child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', path.join(__dirname, '..', 'src', 'server.js')], {
     // YouTube ist im Test nicht erreichbar: Titel fallen auf „YouTube-Video <id>“ zurück
-    env: { ...process.env, PORT: String(PORT), DATA_DIR: DATA, ADMIN_USER: 'admin', ADMIN_PASSWORD: PASSWORD, PUID: '0', YOUTUBE_OEMBED_URL: 'http://127.0.0.1:9/oembed' },
+    env: { ...process.env, PORT: String(PORT), DATA_DIR: DATA, ADMIN_USER: 'admin', ADMIN_PASSWORD: PASSWORD, PUID: '0', YOUTUBE_OEMBED_URL: 'http://127.0.0.1:9/oembed', LINKREQ_NO_DNS: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let log = '';
@@ -2321,6 +2321,83 @@ async function main() {
       const tk2 = await admin.csrf('/admin/files/kategorien');
       const reset = new URLSearchParams({ _csrf: tk2, blocked: 'exe msi bat cmd com scr' });
       assert.equal((await admin.req('/admin/files/kategorien', { method: 'POST', body: reset })).status, 302);
+      sql.close();
+    });
+
+    await step('Link-Vorschläge: Fenster, Meine Vorschläge, Seitenverwaltung, Privat, Teilen vom Handy', async () => {
+      const { anna, bernd } = members;
+      const { DatabaseSync } = require('node:sqlite');
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
+      // Bernd darf nichts hochladen, aber Links vorschlagen: Hinzufügen öffnet gleich den Reiter Link vorschlagen
+      const page = (await bernd.req('/files/upload')).text_;
+      assert.match(page, /aria-selected="true">🔗 Link vorschlagen/);
+      assert.doesNotMatch(page, /📤 Datei hochladen/);
+      assert.doesNotMatch(page, /value="privat"/, 'Privat nur mit Recht');
+      assert.match((await bernd.req('/files')).text_, /href="\/files\/upload\?tab=link">🔗 Link vorschlagen/);
+      const t = await bernd.csrf('/files/upload?tab=link');
+      let r = await bernd.form('/files/vorschlag', { _csrf: t, urls: 'http://192.168.1.5/x.mp3', kind: 'musik' });
+      assert.match(decodeURIComponent(r.headers.get('location')), /Interne Adressen/);
+      r = await bernd.form('/files/vorschlag', { _csrf: t, urls: 'https://www.youtube.com/playlist?list=PLsmoke', kind: 'playlist', mode: 'audio', title: 'Smoke Mix', note: 'bitte', visibility: 'members' });
+      assert.equal(r.headers.get('location'), '/files/vorschlaege?neu=1');
+      const mine = (await bernd.req('/files/vorschlaege?neu=1')).text_;
+      assert.match(mine, /Smoke Mix[\s\S]*Playlist[\s\S]*Wartet auf Prüfung/);
+      assert.match(mine, /Zurückziehen/);
+      const id = sql.prepare("SELECT id FROM link_requests WHERE title = 'Smoke Mix'").get().id;
+      assert.equal((await anna.req('/files/vorschlaege')).text_.includes('Smoke Mix'), false, 'nur die eigenen');
+      assert.ok(JSON.parse((await bernd.req('/files/vorschlaege.json')).text_).items.some(x => x.id === id));
+      // Seitenverwaltung: Liste, Prüfen-Seite, Warteschlange, Regeln; ohne JDownloader ein Hinweis
+      const list = (await admin.req('/admin/files/vorschlaege')).text_;
+      assert.match(list, /JDownloader ist noch nicht verbunden/);
+      assert.match(list, /Smoke Mix[\s\S]*bernd/);
+      assert.match((await admin.req('/admin/files')).text_, /🔗 Link-Vorschläge <i class="n">1<\/i>/);
+      assert.match((await admin.req('/admin/files/vorschlaege/' + id)).text_, /Ablehnen mit kurzem Grund/);
+      assert.match((await admin.req('/admin/files/warteschlange')).text_, /Noch nicht verbunden/);
+      const rules = (await admin.req('/admin/files/regeln')).text_;
+      assert.match(rules, /value="m4a &gt; opus &gt; mp3"/);
+      const tr = await admin.csrf('/admin/files/regeln');
+      r = await admin.form('/admin/files/regeln', { _csrf: tr, musik_order: 'opus > m4a', musik_ext: 'opus m4a', video_order: 'mp4', video_res: '720', video_ext: 'mp4', datei_ext: 'zip', datei_gb: '5',
+        privat_ext: 'mp4', privat_res: '720', who: 'members', max_open: '5', max_req_gb: '10', min_free_gb: '50', trusted_gb: '2', auto_check: '1' });
+      assert.equal(r.status, 302);
+      assert.match((await admin.req('/admin/files/regeln')).text_, /value="opus &gt; m4a"[\s\S]*<option value="720" selected>/);
+      // Verbindung: Test gegen eine Adresse, an der niemand lauscht
+      r = await admin.form('/admin/files/regeln/verbindung', { _csrf: tr, jd_url: 'http://127.0.0.1:9', jd_out: '/output', test: '1' });
+      assert.match(r.text_, /JDownloader antwortet nicht/);
+      r = await admin.form('/admin/files/regeln/verbindung', { _csrf: tr, jd_url: 'ftp://x', jd_out: '/output' });
+      assert.match(decodeURIComponent(r.headers.get('location')), /Nur http/);
+      await admin.form('/admin/files/regeln/verbindung', { _csrf: tr, jd_url: '', jd_out: '/output' });
+      // Ablehnen mit Grund: Bernd sieht ihn
+      r = await admin.form('/admin/files/vorschlaege/' + id + '/ablehnen', { _csrf: tr, reason: 'Gibt es schon' });
+      assert.equal(r.status, 302);
+      assert.match((await bernd.req('/files/vorschlaege')).text_, /Abgelehnt: „Gibt es schon“/);
+      assert.ok(sql.prepare("SELECT 1 FROM notifications n JOIN users u ON u.id = n.user_id WHERE u.username = 'bernd' AND n.kind = 'vorschlag'").get());
+      // Zurückziehen geht nur bei offenen
+      const t2 = await bernd.csrf('/files/upload?tab=link');
+      await bernd.form('/files/vorschlag', { _csrf: t2, urls: 'https://example.com/save.zip', kind: 'datei' });
+      const id2 = sql.prepare("SELECT id FROM link_requests WHERE url = 'https://example.com/save.zip'").get().id;
+      await bernd.form('/files/vorschlaege/' + id2 + '/zurueckziehen', { _csrf: t2 });
+      assert.equal(sql.prepare('SELECT status FROM link_requests WHERE id = ?').get(id2).status, 'withdrawn');
+      // Privat: Knoten nur mit Recht, Dateien darin nirgends sonst
+      sql.prepare(`INSERT INTO files(title, category, original_name, stored_name, size, visibility, created_at, privat) VALUES ('Geheimclip', 'Privat', 'g.mp4', 'privat/g.mp4', 1, 'members', ?, 1)`).run(Math.floor(Date.now() / 1000));
+      sql.prepare("UPDATE users SET can_private = 1 WHERE username = 'anna'").run();
+      assert.match((await anna.req('/files')).text_, /🔞 Privat <small>\(1\)/);
+      assert.match((await anna.req('/files?ort=privat')).text_, /Geheimclip/);
+      assert.doesNotMatch((await anna.req('/files?ort=neu')).text_, /Geheimclip/);
+      assert.doesNotMatch((await bernd.req('/files')).text_, /🔞 Privat|Geheimclip/);
+      assert.doesNotMatch((await bernd.req('/files?q=Geheim')).text_, /Geheimclip/);
+      assert.match((await anna.req('/files/upload?tab=link')).text_, /value="privat"/);
+      const fid = sql.prepare("SELECT id FROM files WHERE title = 'Geheimclip'").get().id;
+      assert.equal((await bernd.req('/files/dl/' + fid)).status, 404);
+      sql.prepare("UPDATE users SET can_private = 0 WHERE username = 'anna'").run();
+      sql.prepare('DELETE FROM files WHERE id = ?').run(fid);
+      // Teilen vom Handy: Link aus dem Text landet im Formular
+      r = await bernd.req('/files/teilen?text=' + encodeURIComponent('Schau mal https://youtu.be/dQw4w9WgXcQ'));
+      assert.equal(r.headers.get('location'), '/files/upload?tab=link&url=' + encodeURIComponent('https://youtu.be/dQw4w9WgXcQ'));
+      assert.match((await bernd.req(r.headers.get('location'))).text_, /youtu\.be\/dQw4w9WgXcQ<\/textarea>/);
+      assert.match((await guest.req('/files/teilen?url=https://x.de/a')).headers.get('location'), /^\/login\?next=/);
+      assert.equal(JSON.parse((await guest.req('/manifest.webmanifest')).text_).share_target.action, '/files/teilen');
+      // Rechte im Konto
+      assert.match((await admin.req('/admin/users/' + sql.prepare("SELECT id FROM users WHERE username = 'bernd'").get().id)).text_, /name="can_private"[\s\S]*name="jd_trusted"/);
+      sql.prepare('DELETE FROM link_requests').run();
       sql.close();
     });
 

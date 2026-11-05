@@ -8,5 +8,13 @@
   <a class="btn" href="/paint/bild/<%= a.id %>.png?download=1">⬇ Herunterladen (PNG)</a>
   <a href="/galerie">« Zur Galerie</a>
 </div>
+<% if (popupMsg) { %><div class="msg<%= popupMsg === 'ok' ? '' : ' err' %>"><%= popupMsg === 'ok' ? '💬 Danke! Dein Bild ist vorgeschlagen. Sobald es freigeschaltet ist, geht es ab und zu als Popup-Fenster auf.' : '⚠ ' + popupMsg %></div><% } %>
+<% if (popup) { %>
+<form method="post" action="/galerie/<%= a.id %>/popup" class="actions">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <% if (popup.done) { %><button disabled>💬 Als Popup-Bild vorgeschlagen</button><% } else { %><button<%= popup.can ? '' : ' disabled' %>>💬 Als Popup-Bild vorschlagen</button><% } %>
+  <small class="muted"><%= popup.done ? 'Ob es schon dabei ist, entscheidet der Admin.' : popup.can ? 'Lustige Bilder gehen ab und zu als kleines Fenster auf dem Desktop auf, wie früher die Werbefenster.' : 'Geht mit öffentlichen, freigegebenen Bildern.' %></small>
+</form>
+<% } %>
 <% if (!a.mine) { %><p><small class="muted">In Paint malst du an einer Kopie weiter. Speichern legt sie unter deinen eigenen Bildern ab.</small></p><% } %>
 <%- include('partials/foot') %>

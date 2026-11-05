@@ -1,0 +1,11 @@
+<%- include('../partials/head') %>
+<%# Neuer Dienst: erst die Art wählen, dann das Formular (views/admin/dienst-edit.ejs) %>
+<p style="margin-top:0">Was soll die Seite abfragen?</p>
+<div class="svc-kinds">
+  <% for (const [k, K] of Object.entries(KINDS)) { %>
+  <a class="svc-kind" href="/admin/dienste/neu?art=<%= k %>"><span class="ic" aria-hidden="true"><%= K.icon %></span><b><%= K.name %></b><small><%= K.hint %></small></a>
+  <% } %>
+</div>
+<p><small>Die Seite fragt von deinem Server aus ab, Besucher verbinden sich nie selbst mit den Diensten. Ohne Docker-Zugriff: es geht nur über die normale Adresse oder den Port des Dienstes.</small></p>
+<p><a href="/admin/dienste">← Zurück zu Dienste</a></p>
+<%- include('../partials/foot') %>

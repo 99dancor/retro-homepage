@@ -1,7 +1,8 @@
 'use strict';
-// Kurzfassung des neuesten Eintrags aus CHANGELOG.md für die Startseite: Datum, Titel und die Stichworte der Punkte.
-// Erwartet wird „## <Datum> – <Titel>“ und darunter Punkte wie „- **Stichwort:** Text“. Die Datei liegt im Image
-// und ändert sich nur mit einem Update, darum wird sie nur einmal gelesen.
+// Kurzfassung des neuesten Eintrags aus CHANGELOG.md für die Startseite: Nummer, Datum, Titel und die Stichworte der Punkte.
+// Erwartet wird „## Update <N> · <Datum> – <Titel>“ und darunter Punkte wie „- **Stichwort:** Text“. Die Nummer ist die des
+// Pull Requests (Update 84 = PR #84); alte Einträge ohne Nummer gehen auch. Die Datei liegt im Image und ändert sich nur
+// mit einem Update, darum wird sie nur einmal gelesen.
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -38,12 +39,20 @@ function firstSentence(s) {
   return s;
 }
 
+// Überschrift „Update 84 · 04.11.2026 – Titel“ → { no: 84, date: '04.11.2026', title: 'Titel' }
+function heading(line) {
+  let head = plain(String(line).replace(/^##\s+/, ''));
+  const n = head.match(/^Update\s+(\d{1,5})\s*[·•|:-]\s*/i);
+  if (n) head = head.slice(n[0].length);
+  const m = head.match(/^(\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4})\s*[–—-]\s*(.+)$/);
+  return { no: n ? Number(n[1]) : null, date: m ? m[1] : '', title: m ? m[2] : head };
+}
+
 function parse(text) {
   const lines = String(text || '').split(/\r?\n/);
   const start = lines.findIndex(l => /^##\s+\S/.test(l));
   if (start < 0) return null;
-  const head = plain(lines[start].replace(/^##\s+/, ''));
-  const m = head.match(/^(\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4})\s*[–—-]\s*(.+)$/);
+  const h = heading(lines[start]);
   const raw = [];
   for (let i = start + 1; i < lines.length && !/^#{1,2}\s/.test(lines[i]); i++) {
     const b = lines[i].match(/^\s{0,3}[-*+]\s+(.+)$/);
@@ -57,7 +66,7 @@ function parse(text) {
     const rest = plain(lm ? lm[2] : r);
     return { label: label || shorten(firstSentence(rest).replace(/[.!?]$/, ''), 40), text: shorten(firstSentence(rest), 160) };
   }).filter(i => i.label);
-  return { date: m ? m[1] : '', title: m ? m[2] : head, items };
+  return { no: h.no, date: h.date, title: h.title, items };
 }
 
 // Alle Einträge mit vollem Text der Punkte (für den Changelog des Farming Hubs)
@@ -66,9 +75,8 @@ function sections(text) {
   let cur = null;
   for (const line of String(text || '').split(/\r?\n/)) {
     if (/^##\s+\S/.test(line)) {
-      const head = plain(line.replace(/^##\s+/, ''));
-      const m = head.match(/^(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{2,4})\s*[–—-]\s*(.+)$/);
-      cur = { date: m ? `${m[3].length === 2 ? '20' + m[3] : m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '', title: m ? m[4] : head, items: [] };
+      const h = heading(line), m = h.date.match(/^(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{2,4})$/);
+      cur = { no: h.no, date: m ? `${m[3].length === 2 ? '20' + m[3] : m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '', title: h.title, items: [] };
       out.push(cur);
       continue;
     }
@@ -92,4 +100,15 @@ function latest() {
   return cached;
 }
 
-module.exports = { parse, latest, sections, all, FILE };
+// Changelog als HTML: Überschriften mit Nummer als Plakette und Sprungmarke (#update-84), Datum klein dahinter
+function toHtml(html) {
+  return String(html).replace(/<h2>([\s\S]*?)<\/h2>/g, (m, inner) => {
+    const n = inner.match(/^Update\s+(\d{1,5})\s*[·•|:-]\s*/i);
+    const rest = n ? inner.slice(n[0].length) : inner;
+    const d = rest.match(/^(\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4})\s*[–—-]\s*([\s\S]+)$/);
+    const title = d ? d[2] : rest, date = d ? d[1] : '';
+    return `<h2${n ? ` id="update-${n[1]}"` : ''}>${n ? `<span class="upd-no">Update ${n[1]}</span> ` : ''}<span class="upd-t">${title}</span>${date ? ` <small>${date}</small>` : ''}</h2>`;
+  });
+}
+
+module.exports = { parse, latest, sections, all, heading, toHtml, FILE };

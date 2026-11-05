@@ -1,0 +1,110 @@
+<%- include('../partials/head') %>
+<%# Dienst anlegen oder ändern (src/services.js fromForm). Der Schlüssel wird nie ausgegeben: leer lassen behält ihn.
+    „Jetzt testen“ prüft mit den Werten im Formular, ohne zu speichern (public/admin.js → POST /admin/dienste/test). %>
+<% const c = svc.config || {}, has = f => K.fields.includes(f); %>
+<% if (history) { %>
+<div class="svc-head">
+  <span class="led big <%= svc.enabled ? svc.state : 'unknown' %>" aria-hidden="true"></span>
+  <div><b><%- ico(svc.icon) %> <%= svc.name %>:</b> <%= svc.enabled ? ({ up: 'Online', warn: 'Langsam', down: 'Offline', unknown: 'Noch nicht geprüft' })[svc.state] : 'Pausiert' %> <small class="muted">· <%= svc.text %></small><br>
+    <small class="muted">Zuletzt geprüft: <%= svc.last_check ? fmtDate(svc.last_check, true) : 'noch nie' %> · <%= history.up1 != null ? history.up1.toLocaleString('de-DE') + ' % in 24 Stunden' : '' %><%= history.up7 != null ? ' · ' + history.up7.toLocaleString('de-DE') + ' % in 7 Tagen' : '' %><%= history.watchers ? ' · ' + (history.watchers === 1 ? 'ein Mitglied wartet' : history.watchers + ' Mitglieder warten') + ' auf „Sag Bescheid“' : '' %></small></div>
+  <form method="post" action="/admin/dienste/<%= svc.id %>/pruefen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>🔄 Jetzt prüfen</button></form>
+</div>
+<% if (svc.info && (svc.info.streams || svc.info.counts || svc.info.players != null || svc.info.users != null)) { const i = svc.info; %>
+<fieldset class="groupbox"><legend>📋 Was der Dienst gerade meldet (nur für dich)</legend>
+  <% if (i.counts) { %><p style="margin-top:0">🎬 <%= i.counts.movies %> Filme · <%= i.counts.series %> Serien · <%= i.counts.episodes %> Folgen<%= i.counts.songs ? ' · ' + i.counts.songs + ' Lieder' : '' %></p><% } %>
+  <% if (i.streams && i.streams.length) { %><ul style="margin:0"><% for (const st of i.streams) { %><li><b><%= st.user %></b>: <%= st.title %></li><% } %></ul><% } %>
+  <% if (i.players != null) { %><p style="margin:0">🎮 <%= i.players %> von <%= i.max %> Spielern<%= i.map ? ' · Karte ' + i.map : '' %><%= i.server ? ' · ' + i.server : '' %><% if (i.motd) { %><br><small><%= i.motd %></small><% } %></p><% } %>
+  <% if (i.users != null) { %><p style="margin:0">☁️ <%= i.users %> Nutzer<%= i.files != null ? ' · ' + Number(i.files).toLocaleString('de-DE') + ' Dateien' : '' %><%= i.free != null ? ' · ' + fmtSize(i.free) + ' frei' : '' %></p><% } %>
+</fieldset>
+<% } %>
+<% } %>
+
+<form method="post" action="/admin/dienste/speichern" data-svc-form>
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="id" value="<%= svc.id || '' %>">
+  <input type="hidden" name="kind" value="<%= svc.kind %>">
+  <fieldset class="groupbox"><legend><%= K.icon %> <%= K.name %></legend>
+    <p style="margin-top:0"><small><%= K.hint %></small></p>
+    <div class="row">
+      <label>Name:<input type="text" name="name" value="<%= svc.name %>" maxlength="60" required></label>
+      <label style="flex:0 0 90px">Symbol:<input type="text" name="icon" value="<%= svc.icon %>" maxlength="8" style="width:70px"></label>
+    </div>
+    <% if (has('url')) { %>
+    <label>Adresse (wie der Server sie erreicht, gern intern):<input type="url" name="url" class="w100" value="<%= c.url || '' %>" placeholder="<%= K.placeholder %>" required autocomplete="off" spellcheck="false"></label>
+    <% } %>
+    <% if (has('host')) { %>
+    <div class="row">
+      <label>Rechner (Name oder IP):<input type="text" name="host" class="w100" value="<%= c.host || '' %>" placeholder="<%= K.placeholder %>" required autocomplete="off" spellcheck="false"></label>
+      <label style="flex:0 0 120px">Port:<input type="number" name="port" value="<%= c.port || K.port || '' %>" min="1" max="65535" required style="width:100px"></label>
+    </div>
+    <% if (svc.kind === 'steam') { %><small>Bei vielen Spielen ist das der Abfrage-Port, nicht der Spiel-Port (Valheim: Spiel-Port + 1).</small><% } %>
+    <% } %>
+    <% if (has('key')) { %>
+    <label><%= K.key %>:<input type="password" name="key" class="w100" placeholder="<%= c.key ? '•••••• (gespeichert, leer lassen behält ihn)' : 'leer lassen = ohne' %>" autocomplete="new-password" spellcheck="false"></label>
+    <% if (c.key) { %><label class="inline"><input type="checkbox" name="key_clear" value="1"> Gespeicherten Schlüssel löschen</label><br><% } %>
+    <% if (svc.kind === 'jellyfin') { %>
+    <div class="msg warn-box">⚠️ <b>Ein Jellyfin-API-Schlüssel hat volle Admin-Rechte</b> auf deinem Jellyfin (Jellyfin kennt keine eingeschränkten Schlüssel). Er bleibt auf diesem Server, steht nie in einer Seite und geht nur an die Adresse oben. Ohne Schlüssel siehst du online/offline und die Version, das reicht für die Statusanzeige.</div>
+    <label class="inline"><input type="checkbox" name="details" value="1" <%= c.details ? 'checked' : '' %>> Wer was schaut, hier in der Seitenverwaltung zeigen (Besucher sehen nur die Anzahl)</label>
+    <% } else if (svc.kind === 'immich') { %>
+    <small>Am besten in Immich (als Admin) unter Kontoeinstellungen → API-Schlüssel einen eigenen Schlüssel nur mit den Rechten <code>server.statistics</code> und <code>server.storage</code> anlegen.</small><br>
+    <label class="inline"><input type="checkbox" name="storage" value="1" <%= c.storage ? 'checked' : '' %>> Speicher von Immich bei „Belegter Speicher“ zeigen</label>
+    <% } else if (svc.kind === 'nextcloud') { %>
+    <small>Der Token der App „Serverinfo“ kann nur lesen: <code>occ config:app:set serverinfo token --value DEIN-TOKEN</code>. Kein Passwort nötig.</small><br>
+    <label class="inline"><input type="checkbox" name="storage" value="1" <%= c.storage ? 'checked' : '' %>> Freien Platz von Nextcloud bei „Belegter Speicher“ zeigen</label>
+    <% } %>
+    <% } %>
+    <% if (has('slow')) { %>
+    <label>„Langsam“ ab (Millisekunden):<input type="number" name="slow" value="<%= c.slow || 2000 %>" min="100" max="60000" style="width:100px"></label>
+    <% } %>
+    <% if (has('insecure')) { %>
+    <label class="inline"><input type="checkbox" name="insecure" value="1" <%= c.insecure ? 'checked' : '' %>> Selbst signiertes Zertifikat annehmen (nur für Adressen im eigenen Netz)</label>
+    <% } %>
+    <% if (svc.kind === 'fs25') { %><p><small>Nimmt den Server aus dem <a href="/admin/farming">Farming Hub</a>, ohne weitere Angaben.</small></p><% } %>
+    <div class="actions"><button type="button" data-svc-test>🔌 Jetzt testen</button> <span class="svc-result" data-svc-result role="status" aria-live="polite"></span></div>
+  </fieldset>
+
+  <fieldset class="groupbox"><legend>👀 Wer sieht ihn und wo</legend>
+    <div class="row">
+      <label>Sehen dürfen:<select name="visibility">
+        <% for (const [k, v] of Object.entries(VIS)) { %><option value="<%= k %>"<%= svc.visibility === k ? ' selected' : '' %>><%= v %></option><% } %>
+      </select></label>
+      <label>Link für Besucher (freiwillig):<input type="url" name="public_url" class="w100" value="<%= svc.public_url || '' %>" placeholder="https://jellyfin.example.de"></label>
+    </div>
+    <div class="show-checks">
+      <% for (const [k, v] of Object.entries(SHOW)) { %><label class="inline"><input type="checkbox" name="show" value="<%= k %>" <%= svc.show.includes(k) ? 'checked' : '' %>> <%= v %></label><% } %>
+    </div>
+    <small>Besucher sehen nur Name, Zustand und eine Kurzinfo (Spieler online, Anzahl Fotos …), nie Adresse oder Schlüssel. Ohne Link steht nur der Name da.</small>
+  </fieldset>
+
+  <fieldset class="groupbox"><legend>⏱️ Abfrage</legend>
+    <div class="row">
+      <label>Alle wie viele Sekunden (30–3600):<input type="number" name="every" value="<%= svc.every || 60 %>" min="30" max="3600" style="width:100px"></label>
+    </div>
+    <label class="inline"><input type="checkbox" name="notify_down" value="1" <%= svc.notify_down ? 'checked' : '' %>> Mir Bescheid sagen (🔔), wenn er ausfällt</label><br>
+    <label class="inline"><input type="checkbox" name="enabled" value="0" <%= svc.enabled ? '' : 'checked' %>> Pausieren (nicht abfragen, für Besucher ausgeblendet)</label>
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button> <a class="btn" href="/admin/dienste">Abbrechen</a></div>
+</form>
+
+<% if (history) { %>
+<fieldset class="groupbox"><legend>📈 Verlauf</legend>
+  <p style="margin-top:0"><b>Letzte 24 Stunden:</b> <%- include('../partials/up-bars', { bars: history.bars }) %></p>
+  <table class="list svc-days">
+    <tr><th>Tag</th><th class="num">Erreichbar</th><th class="num">Antwortzeit</th><th class="num">Abfragen</th></tr>
+    <% for (const d of history.days) { %>
+    <tr><td><%= fmtDate(d.at) %></td><td class="num"><%= d.pct != null ? d.pct.toLocaleString('de-DE') + ' %' : '–' %></td><td class="num"><%= d.ms != null ? d.ms + ' ms' : '–' %></td><td class="num"><%= d.n %></td></tr>
+    <% } %>
+  </table>
+  <% if (history.changes.length) { %>
+  <p style="margin-bottom:2px"><b>Wechsel:</b></p>
+  <ul class="svc-changes">
+    <% for (const ch of history.changes) { %><li><span class="led <%= ch.state %>" aria-hidden="true"></span> <%= fmtDate(ch.at, true) %>: <%= ({ up: 'online', warn: 'langsam', down: 'keine Antwort' })[ch.state] || ch.state %></li><% } %>
+  </ul>
+  <% } %>
+  <small class="muted">Die einzelnen Abfragen hebt die Seite 7 Tage auf.</small>
+</fieldset>
+<form method="post" action="/admin/dienste/<%= svc.id %>/loeschen" class="actions" data-confirm="„<%= svc.name %>“ entfernen? Der Verlauf ist dann weg.">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑️ Dienst entfernen</button>
+</form>
+<% } %>
+<%- include('../partials/foot') %>

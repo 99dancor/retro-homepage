@@ -1,137 +1,25 @@
 <%- include('../partials/head') %>
-<% if (mailMsg) { %><div class="msg">✉️ <%= mailMsg %></div><% } %>
+<%# System → Allgemein: Name der Website und Wartungsmodus. Alles andere hat seine eigene Seite im Baum links. %>
 <form method="post" action="/admin/settings">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
-  <fieldset class="groupbox"><legend>🏠 Allgemein</legend>
+  <fieldset class="groupbox" id="allgemein"><legend>🏠 Website</legend>
     <div class="row">
-      <label>Name der Website:<input type="text" name="site_title" class="w100" value="<%= s.site_title %>"></label>
-      <label>Untertitel (Statusleiste):<input type="text" name="site_tagline" class="w100" value="<%= s.site_tagline %>"></label>
+      <label>Name der Website:<input type="text" name="site_title" class="w100" value="<%= s.site_title %>" maxlength="100"></label>
+      <label>Untertitel (Statusleiste):<input type="text" name="site_tagline" class="w100" value="<%= s.site_tagline %>" maxlength="200"></label>
     </div>
-    <label>Text auf der Startseite:</label>
-    <%- include('../partials/md-editor', { name: 'home_md', value: s.home_md }) %>
-  </fieldset>
-  <fieldset class="groupbox"><legend>📋 Menü</legend>
-    <% for (const [k, v] of Object.entries(navItems)) { %>
-      <label class="inline"><input type="checkbox" name="nav" value="<%= k %>" <%= s.nav_hidden.split(',').includes(k) ? '' : 'checked' %>> <%= v %></label>
-    <% } %>
-    <br><small>Eigene Seiten fügst du unter <a href="/admin/pages">Seiten</a> hinzu.</small>
-  </fieldset>
-  <fieldset class="groupbox"><legend>🔐 Besucher & Mitmachen</legend>
-    <label class="inline"><input type="checkbox" name="registration_open" value="1" <%= s.registration_open === '1' ? 'checked' : '' %>> Jeder darf sich registrieren</label><br>
-    <label class="inline"><input type="checkbox" name="logon_screen" value="1" <%= s.logon_screen === '1' ? 'checked' : '' %>> Anmeldebildschirm bei jedem Laden der Seite (Anmelden, Registrieren oder als Gast weiter)</label><br>
-    <label class="inline"><input type="checkbox" name="guestbook_enabled" value="1" <%= s.guestbook_enabled === '1' ? 'checked' : '' %>> Besucherbuch aktiv</label>
-    <label class="inline"><input type="checkbox" name="guestbook_moderation" value="1" <%= s.guestbook_moderation === '1' ? 'checked' : '' %>> Besucherbuch-Einträge erst nach Freischaltung anzeigen</label><br>
-    <label class="inline"><input type="checkbox" name="board_enabled" value="1" <%= s.board_enabled === '1' ? 'checked' : '' %>> Forum aktiv (schreiben dürfen angemeldete Nutzer)</label>
-    <label class="inline"><input type="checkbox" name="board_members_only" value="1" <%= s.board_members_only === '1' ? 'checked' : '' %>> Forum nur für angemeldete Nutzer lesbar</label><br>
-    <label class="inline"><input type="checkbox" name="contact_enabled" value="1" <%= s.contact_enabled === '1' ? 'checked' : '' %>> Kontaktformular aktiv</label>
-    <label>Statistik-Daten aufbewahren (Tage):<input type="number" name="analytics_retention_days" value="<%= s.analytics_retention_days %>" min="7"></label>
-  </fieldset>
-  <fieldset class="groupbox"><legend>🎵 Mediaplayer</legend>
-    <label>Musik und Videos hochladen dürfen:
-      <select name="music_upload">
-        <option value="members" <%= s.music_upload === 'members' ? 'selected' : '' %>>Alle angemeldeten Mitglieder</option>
-        <option value="upload" <%= s.music_upload === 'upload' ? 'selected' : '' %>>Nur Mitglieder mit „Darf selbst Dateien hochladen“</option>
-        <option value="admin" <%= s.music_upload === 'admin' ? 'selected' : '' %>>Nur ich (Admin)</option>
-      </select></label>
-    <label>Aussehen für Gäste und alle, die noch keins gewählt haben:
-      <select name="music_skin">
-        <% for (const [k, v] of [['klassisch', 'Klassisch (wie der Desktop)'], ['vlc-hell', 'VLC hell'], ['vlc-dunkel', 'VLC dunkel'], ['mediaplayer', 'Media Player'], ['winamp', 'Winamp']]) { %>
-        <option value="<%= k %>" <%= (s.music_skin || 'klassisch') === k ? 'selected' : '' %>><%= v %></option><% } %>
-      </select></label>
-    <label class="inline"><input type="checkbox" name="lobby_enabled" value="1" <%= s.lobby_enabled === '1' ? 'checked' : '' %>> Lobbys zum gemeinsamen Hören</label>
-    <label class="inline"><input type="checkbox" name="youtube_enabled" value="1" <%= s.youtube_enabled === '1' ? 'checked' : '' %>> YouTube-Videos im Player und in Lobbys erlauben</label>
-    <br><small>Eine Datei (Musik oder Video) darf bei Mitgliedern höchstens 200 MB groß sein und zählt zu ihrem Speicher (<a href="/admin/desktop">Desktop</a>). Hochgeladene Musik und Videos verwaltest du unter <a href="/admin/musik">Mediaplayer</a>.</small>
-  </fieldset>
-  <fieldset class="groupbox" id="kasse"><legend>💰 Kartenspiele: Kasse</legend>
-    <div class="row">
-      <label>Buy-in in € (Startgeld und jeder Nachkauf):<input type="number" name="ks_buyin" value="<%= s.ks_buyin %>" min="1"></label>
-      <label>Nachkaufen erst unter (€):<input type="number" name="ks_rebuy_below" value="<%= s.ks_rebuy_below %>" min="0"></label>
-    </div>
-    <small>Alle Kartenspiele mit Geld (Blackjack, Poker) teilen sich eine Kasse pro Mitglied. Das Startgeld zählt als erster Buy-in; Bilanz = Kontostand − alles Eingekaufte.</small>
-  </fieldset>
-  <fieldset class="groupbox" id="blackjack"><legend>🃏 Blackjack</legend>
-    <label class="inline"><input type="checkbox" name="bj_enabled" value="1" <%= s.bj_enabled === '1' ? 'checked' : '' %>> Blackjack für angemeldete Mitglieder (Spielgeld)</label>
-    <div class="row">
-      <label>Decks im Schlitten (1–8):<input type="number" name="bj_decks" value="<%= s.bj_decks %>" min="1" max="8"></label>
-      <label>Bedenkzeit pro Zug (Sekunden, 5–300):<input type="number" name="bj_turn" value="<%= s.bj_turn %>" min="5" max="300"></label>
-    </div>
-    <label class="inline"><input type="checkbox" name="bj_h17" value="1" <%= s.bj_h17 === '1' ? 'checked' : '' %>> Dealer zieht auf Soft 17 (sonst steht er auf allen 17)</label>
-    <br><small>Änderungen gelten für neue Runden. Spieltische legen Mitglieder unter Kartenspiele selbst an.</small>
-  </fieldset>
-  <fieldset class="groupbox" id="poker"><legend>♠️ Poker</legend>
-    <label class="inline"><input type="checkbox" name="pk_enabled" value="1" <%= s.pk_enabled === '1' ? 'checked' : '' %>> Poker (Texas Hold'em) für angemeldete Mitglieder (Spielgeld)</label>
-    <div class="row">
-      <label>Bedenkzeit pro Zug (Sekunden, 5–300):<input type="number" name="pk_turn" value="<%= s.pk_turn %>" min="5" max="300"></label>
-    </div>
-    <small>Das Geld kommt aus der Kasse. Die Blinds wählt der Gastgeber pro Tisch.</small>
-  </fieldset>
-  <fieldset class="groupbox" id="durak"><legend>🎴 Durak</legend>
-    <label class="inline"><input type="checkbox" name="dk_enabled" value="1" <%= s.dk_enabled === '1' ? 'checked' : '' %>> Durak (Kartenspiel ohne Geld) für angemeldete Mitglieder</label>
-    <div class="row">
-      <label>Bedenkzeit zum Angreifen und Verteidigen (Sekunden, 5–300):<input type="number" name="dk_turn" value="<%= s.dk_turn %>" min="5" max="300"></label>
-    </div>
-    <small>Zum Zuwerfen gibt es die halbe Zeit. Wer nichts Passendes mehr hat, muss nicht auf „Fertig“ klicken.</small>
-  </fieldset>
-  <% for (const [id, icon, title, prefix, what] of [['uno', '🟥', 'UNO', 'uno', 'UNO nach den offiziellen Regeln'], ['flip7', '7️⃣', 'Flip 7', 'f7', 'Flip 7'], ['pilli', '🌶️', 'Pilli Pilli', 'pp', 'Pilli Pilli (Stichspiel)']]) { %>
-  <fieldset class="groupbox" id="<%= id %>"><legend><%= icon %> <%= title %></legend>
-    <label class="inline"><input type="checkbox" name="<%= prefix %>_enabled" value="1" <%= s[prefix + '_enabled'] === '1' ? 'checked' : '' %>> <%= what %> für angemeldete Mitglieder</label>
-    <div class="row">
-      <label>Bedenkzeit pro Zug (Sekunden, 5–300):<input type="number" name="<%= prefix %>_turn" value="<%= s[prefix + '_turn'] %>" min="5" max="300"></label>
-    </div>
-  </fieldset>
-  <% } %>
-  <fieldset class="groupbox" id="kreuzwortraetsel"><legend>📰 Kreuzworträtsel</legend>
-    <label>Eigene Wörter (eine Zeile pro Wort: <code>Wort=Hinweis</code>):
-      <textarea name="cw_words" rows="6" class="w100" placeholder="Unraid=Server-Betriebssystem mit Docker&#10;Pinball=Flipper auf Englisch"><%= s.cw_words %></textarea></label>
-    <small>Sie kommen zu den rund 600 eingebauten Wörtern dazu und ersetzen eingebaute mit gleichem Wort (anderer Hinweis). 3 bis 13 Buchstaben, Umlaute werden zu AE, OE, UE, ß zu SS. Gilt ab dem nächsten neuen Rätsel, das von heute bleibt, wie es ist.</small>
-  </fieldset>
-  <fieldset class="groupbox"><legend>✉️ E-Mail-Benachrichtigung</legend>
-    <p><small>Bei neuen Nachrichten, Besucherbuch-Einträgen und Registrierungen bekommst du eine E-Mail. Du brauchst dafür einen SMTP-Zugang – z. B. von deinem Mail-Anbieter (GMX, web.de, Gmail mit App-Passwort, Mailbox.org …).</small></p>
-    <div class="row">
-      <label>Benachrichtigung an:<input type="email" name="notify_email" class="w100" value="<%= s.notify_email %>" placeholder="du@example.de"></label>
-      <label>Absender-Adresse:<input type="text" name="smtp_from" class="w100" value="<%= s.smtp_from %>" placeholder="Website &lt;website@example.de&gt;"></label>
-    </div>
-    <div class="row">
-      <label>SMTP-Server:<input type="text" name="smtp_host" class="w100" value="<%= s.smtp_host %>" placeholder="smtp.gmail.com"></label>
-      <label>Port:<input type="number" name="smtp_port" value="<%= s.smtp_port %>"></label>
-      <label class="inline" style="margin-top:22px"><input type="checkbox" name="smtp_secure" value="1" <%= s.smtp_secure === '1' ? 'checked' : '' %>> SSL/TLS direkt (Port 465)</label>
-    </div>
-    <div class="row">
-      <label>Benutzername:<input type="text" name="smtp_user" class="w100" value="<%= s.smtp_user %>" autocomplete="off"></label>
-      <label>Passwort:<input type="password" name="smtp_pass" class="w100" placeholder="<%= s.smtp_pass_set ? '•••••• (gespeichert)' : '' %>" autocomplete="new-password"></label>
-    </div>
-    <% if (s.smtp_pass_set) { %><label class="inline"><input type="checkbox" name="smtp_pass_clear" value="1"> Gespeichertes Passwort löschen</label><% } %>
+    <small>Der Text auf der Startseite steht unter <a href="/admin/startseite#text">Aussehen → Startseite</a>, Farben und Hintergrund unter <a href="/admin/design">Design</a>.</small>
   </fieldset>
   <div class="actions"><button>💾 Speichern</button></div>
 </form>
-<form method="post" action="/admin/settings/testmail" class="actions">
-  <input type="hidden" name="_csrf" value="<%= csrf %>"><button>✉️ Test-E-Mail senden</button> <small>(erst speichern, dann testen)</small>
+<form method="post" action="/admin/settings">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="maint_form" value="1">
+  <fieldset class="groupbox" id="wartung"><legend>🚧 Wartungsmodus</legend>
+    <label class="inline"><input type="checkbox" name="maint_on" value="1" <%= s.maint_on === '1' ? 'checked' : '' %>> Seite für alle außer Admins sperren</label>
+    <p style="margin:4px 0"><small>Besucher sehen dann nur ein Fenster mit dem Text unten (und einem Anmelden für Admins). Du siehst die Seite weiter, oben steht 🚧. Laufende Spiele und Lobbys brechen beim nächsten Klick ab.</small></p>
+    <label>Text auf der Wartungsseite:
+      <textarea name="maint_text" rows="4" class="w100"><%= s.maint_text %></textarea></label>
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button></div>
 </form>
-<form method="post" action="/admin/settings/kasse-reset" class="actions" data-confirm="Die Kasse aller Mitglieder zurücksetzen? Jeder startet wieder mit dem Startgeld, auch die Einkäufe im Shop sind weg. Wer gerade an einem Geldtisch sitzt, behält dort seine Chips.">
-  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">💰 Kasse aller Mitglieder zurücksetzen</button> <small>(Kontostand und Bilanz; die Zahlen der einzelnen Spiele bleiben)</small>
-</form>
-<form method="post" action="/admin/settings/blackjack-reset" class="actions" data-confirm="Die Blackjack-Bestenliste und alle Bilanzen auf null setzen? Laufende Sitzungen an Tischen bleiben.">
-  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🃏 Blackjack-Bestenliste zurücksetzen</button> <small>(löscht alle abgeschlossenen Sitzungen und damit alle Bilanzen)</small>
-</form>
-<form method="post" action="/admin/settings/poker-reset" class="actions" data-confirm="Die Poker-Bestenliste und alle Bilanzen auf null setzen? Laufende Sitzungen an Tischen bleiben.">
-  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">♠️ Poker-Bestenliste zurücksetzen</button> <small>(löscht alle abgeschlossenen Sitzungen und damit alle Bilanzen)</small>
-</form>
-<form method="post" action="/admin/settings/durak-reset" class="actions" data-confirm="Die Durak-Bestenliste und die Durak-Zahlen aller Mitglieder löschen?">
-  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🎴 Durak-Bestenliste zurücksetzen</button> <small>(löscht alle gespeicherten Ergebnisse, auch die Zahlen in den Profilen)</small>
-</form>
-<% for (const [id, icon, title] of [['uno', '🟥', 'UNO'], ['flip7', '7️⃣', 'Flip 7'], ['pilli', '🌶️', 'Pilli Pilli']]) { %>
-<form method="post" action="/admin/settings/kartenspiel-reset/<%= id %>" class="actions" data-confirm="Die <%= title %>-Bestenliste und die <%= title %>-Zahlen aller Mitglieder löschen?">
-  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger"><%= icon %> <%= title %>-Bestenliste zurücksetzen</button> <small>(löscht alle gespeicherten Ergebnisse, auch die Zahlen in den Profilen)</small>
-</form>
-<% } %>
-<form method="post" action="/admin/settings/minesweeper-reset" class="actions" data-confirm="Alle Minesweeper-Bestzeiten und Statistiken aller Mitglieder löschen?">
-  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">💣 Minesweeper-Bestzeiten zurücksetzen</button> <small>(löscht alle gespeicherten Spiele, auch die Zahlen in den Profilen)</small>
-</form>
-<form method="post" action="/admin/settings/kreuzwortraetsel-reset" class="actions" data-confirm="Alle gelösten Kreuzworträtsel, Serien und Bestenlisten aller Mitglieder löschen?">
-  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">📰 Kreuzworträtsel-Statistik zurücksetzen</button> <small>(löscht den Stand aller Mitglieder, auch Serien und Zahlen im Profil; die Rätsel bleiben)</small>
-</form>
-<form method="post" action="/admin/settings/sudoku-reset" class="actions" data-confirm="Alle gelösten Sudokus, Serien und Bestenlisten aller Mitglieder löschen?">
-  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🔢 Sudoku-Statistik zurücksetzen</button> <small>(löscht den Stand aller Mitglieder, auch Serien und Zahlen im Profil; die Sudokus bleiben)</small>
-</form>
-<script src="<%= asset('admin.js') %>"></script>
 <%- include('../partials/foot') %>

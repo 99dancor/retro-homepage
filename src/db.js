@@ -929,6 +929,91 @@ db.exec(`UPDATE mod_items SET notes = trim(
   version = NULL, required = 1
   WHERE required = 0 OR coalesce(version, '') != ''`);
 
+// Seitenverwaltung 2.0: Dienste, Laufband, Popup-Bilder, Ereignisanzeige
+db.exec(`
+-- Dienste (src/services.js): andere Server und Container, deren Zustand die Seite zeigt. config hält Adresse, Port und
+-- Schlüssel als JSON und verlässt den Server nie; Besucher sehen nur Name, Zustand und die Kurzinfo.
+CREATE TABLE IF NOT EXISTS services (
+  id INTEGER PRIMARY KEY,
+  kind TEXT NOT NULL,                       -- http | tcp | jellyfin | immich | nextcloud | minecraft | steam | fs25
+  name TEXT NOT NULL,
+  icon TEXT NOT NULL DEFAULT '🗄️',
+  position INTEGER NOT NULL DEFAULT 0,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  config TEXT NOT NULL DEFAULT '{}',
+  visibility TEXT NOT NULL DEFAULT 'members',  -- public | members | admin
+  show_on TEXT NOT NULL DEFAULT 'home,widget', -- home, ticker, tray, widget
+  public_url TEXT,                          -- Link für Besucher (z. B. https://jellyfin.example.de), freiwillig
+  every INTEGER NOT NULL DEFAULT 60,        -- Sekunden zwischen zwei Abfragen
+  notify_down INTEGER NOT NULL DEFAULT 1,   -- Admin bekommt eine Meldung, wenn der Dienst ausfällt
+  state TEXT NOT NULL DEFAULT 'unknown',    -- up | warn | down | unknown
+  state_since INTEGER,
+  info TEXT,                                -- JSON der letzten Abfrage (Spieler, Version, Speicher …)
+  last_check INTEGER,
+  last_ms INTEGER,
+  fails INTEGER NOT NULL DEFAULT 0,         -- Fehlschläge hintereinander, ab 2 gilt der Dienst als ausgefallen
+  created_at INTEGER NOT NULL
+);
+-- Verlauf: eine Zeile je Abfrage, nach 7 Tagen weg
+CREATE TABLE IF NOT EXISTS service_checks (
+  service_id INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  at INTEGER NOT NULL,
+  state TEXT NOT NULL,
+  ms INTEGER
+);
+-- „Sag Bescheid, wenn er wieder da ist“: wer eine Benachrichtigung möchte
+CREATE TABLE IF NOT EXISTS service_watch (
+  service_id INTEGER NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (service_id, user_id)
+);
+-- Laufband (src/ticker.js): eigene Meldungen mit Zeitraum, dazu kommen automatische (Update, Beiträge, Dienste)
+CREATE TABLE IF NOT EXISTS ticker_items (
+  id INTEGER PRIMARY KEY,
+  text TEXT NOT NULL,
+  url TEXT,
+  starts_at INTEGER,
+  ends_at INTEGER,
+  audience TEXT NOT NULL DEFAULT 'all',     -- all | guests | members
+  position INTEGER NOT NULL DEFAULT 0,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL
+);
+-- Popup-Bilder (src/popups.js): Pool aus Bildern, nur Zähler ohne Bezug zu Personen
+CREATE TABLE IF NOT EXISTS popups (
+  id INTEGER PRIMARY KEY,
+  title TEXT NOT NULL,
+  image TEXT NOT NULL,                      -- /media/… oder /paint/bild/…
+  link TEXT,
+  weight INTEGER NOT NULL DEFAULT 1,        -- Häufigkeit: 1 selten, 2 normal, 3 oft
+  starts_at INTEGER,
+  ends_at INTEGER,
+  audience TEXT NOT NULL DEFAULT 'all',     -- all | guests | members
+  service_id INTEGER REFERENCES services(id) ON DELETE SET NULL,   -- nur zeigen, wenn dieser Dienst läuft
+  enabled INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'ok',        -- ok | pending (Vorschlag eines Mitglieds)
+  source TEXT NOT NULL DEFAULT 'upload',    -- upload | media | paint
+  artwork_id INTEGER REFERENCES artworks(id) ON DELETE CASCADE,
+  suggested_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  shown INTEGER NOT NULL DEFAULT 0,
+  clicks INTEGER NOT NULL DEFAULT 0,
+  closed INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+-- Ereignisanzeige (src/events.js): was auf der Seite passiert ist, nach 90 Tagen weg
+CREATE TABLE IF NOT EXISTS events (
+  id INTEGER PRIMARY KEY,
+  at INTEGER NOT NULL,
+  level TEXT NOT NULL DEFAULT 'info',       -- info | warn | error
+  source TEXT NOT NULL,
+  message TEXT NOT NULL,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS sc_service ON service_checks(service_id, at);
+CREATE INDEX IF NOT EXISTS ev_at ON events(at);
+`);
+
 function now() { return Math.floor(Date.now() / 1000); }
 
 function getSetting(key, fallback = null) {
@@ -1028,6 +1113,27 @@ const DEFAULT_SETTINGS = {
   fs_auto_fields: '1',          // Vorschläge aus fields.xml (FTP): ernten, kalken, pflügen, düngen
   fs_auto_peaks: '1',           // Preisspitzen: Aufgabe im besten Monat, Ankündigung einen Monat vorher
   fs_shapes: '1',               // echte Feldformen aus densityMap_ground.gdm (FTP), sonst Kreise
+  // Seitenverwaltung 2.0
+  prog_access: '{}',            // Programme ohne eigene Schalter: { schlüssel: 'members' | 'off' }, fehlt = für alle (src/programs.js)
+  ticker_on: '1',               // Laufband oben über dem Desktop (src/ticker.js)
+  ticker_style: 'led',          // led | bar | eil
+  ticker_label: '📢 NEU',
+  ticker_auto: 'update,posts,services',   // automatische Meldungen: update, posts, services, lobbies
+  popup_on: '1',                // Popup-Bilder aus dem Pool (src/popups.js), solange der Pool leer ist, kommt nichts
+  popup_first: '30',            // erstes Bild nach so vielen Sekunden
+  popup_every: '15',            // danach höchstens alle so vielen Minuten
+  popup_max: '3',               // höchstens so viele pro Besuch
+  popup_audience: 'all',        // all | guests | members
+  popup_mobile: '0',            // auch auf dem Handy
+  popup_cheeky: '0',            // frecher Modus: das Fenster wackelt und der ×-Knopf weicht einmal aus
+  popup_suggest: '1',           // Mitglieder dürfen Paint-Bilder als Popup vorschlagen
+  svc_widget: '1',              // Desktop-Widget „Dienste“ (wie „Offene Lobbys“)
+  svc_storage: '1',             // belegten Speicher zeigen (Widget, Startseite, Übersicht)
+  svc_storage_for: 'members',   // wer den Speicher sieht: public | members | admin
+  svc_disks: '',                // Platten mit eigenem Namen und an/aus als JSON, leer = alle gefundenen (src/services.js)
+  home_blocks: '',              // Bausteine der Startseite als JSON, leer = Vorgabe (src/homeblocks.js)
+  maint_on: '0',                // Wartungsmodus: nur Admins kommen auf die Seite
+  maint_text: 'Die Seite wird gerade gewartet. Schau bald wieder vorbei!',
 };
 // Das Freundebuch der Seite heißt seit den Profil-Freundebüchern „Besucherbuch“: unveränderte Standardtexte mitziehen
 for (const k of ['home_md', 'theme_marquee']) {

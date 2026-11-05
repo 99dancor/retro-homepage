@@ -70,13 +70,16 @@
       </div>
     </div>
     <div class="tab-page" data-page="effekte" role="tabpanel" hidden>
-      <fieldset class="groupbox"><legend>Lauftext</legend>
+      <fieldset class="groupbox"><legend>Laufband und Lauftext</legend>
         <label class="inline"><input type="radio" name="marquee" value="an"> Laufen lassen</label>
-        <label class="inline"><input type="radio" name="marquee" value="still"> Anhalten</label>
+        <label class="inline"><input type="radio" name="marquee" value="still"> Anhalten (Meldungen wechseln nur)</label>
         <label class="inline"><input type="radio" name="marquee" value="aus"> Ausblenden</label>
-        <br><small>Anhalten stoppt auch blinkende Schrift.</small>
+        <label>Tempo des Laufbands:
+          <select name="tickSpeed"><option value="langsam">Langsam</option><option value="normal">Normal</option><option value="schnell">Schnell</option></select></label>
+        <small>Anhalten stoppt auch blinkende Schrift.</small>
       </fieldset>
-      <label class="inline"><input type="checkbox" name="widgets" value="1"> Besucherzähler und Buttons auf dem Desktop zeigen</label>
+      <label class="inline"><input type="checkbox" name="popups" value="1"> Popup-Bilder zeigen (kleine Spaß-Fenster ab und zu)</label><br>
+      <label class="inline"><input type="checkbox" name="widgets" value="1"> Widgets, Besucherzähler und Buttons auf dem Desktop zeigen</label>
       <label>Eigenes CSS (für Profis):</label>
       <textarea name="css" class="code" spellcheck="false" placeholder="/* z. B. */&#10;.titlebar { font-family: 'Comic Sans MS'; }&#10;body { cursor: crosshair; }"></textarea>
     </div>

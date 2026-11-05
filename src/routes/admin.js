@@ -25,10 +25,17 @@ const CARD_GAMES = [['uno', 'UNO', 'uno'], ['flip7', 'Flip 7', 'f7'], ['pilli', 
 router.use(auth.requireAdmin);
 
 router.use((req, res, next) => {
-  res.locals.counts = {
+  // Zahlen im Baum: was im Postfach wartet, Dienste offline, Vorschläge für Popup-Bilder (src/adminnav.js)
+  const c = {
     unread: db.prepare('SELECT COUNT(*) AS n FROM messages WHERE is_read = 0').get().n,
     pending: db.prepare('SELECT COUNT(*) AS n FROM guestbook WHERE approved = 0').get().n,
+    paint: db.prepare("SELECT COUNT(*) AS n FROM artworks WHERE visibility = 'public' AND approved = 0").get().n,
+    popups: require('../popups').pendingCount(),
+    down: require('../services').downCount(),
   };
+  c.inbox = c.unread + c.pending + c.paint + c.popups;
+  res.locals.counts = c;
+  res.locals.adminNav = require('../adminnav');
   res.locals.allGroups = db.prepare('SELECT * FROM groups ORDER BY name').all();
   res.locals.flash = req.query.ok ? 'Gespeichert.' : null;
   next();
@@ -49,14 +56,14 @@ function saveVisibility(type, id, body) {
   auth.setAcl(type, id, body.visibility === 'groups' ? asArray(body.groups) : []);
 }
 
-// ---------- Übersicht / Statistik ----------
-router.get('/', (req, res) => {
+// ---------- Statistik (System → Statistik; die Übersicht steht in src/routes/admin-areas.js) ----------
+router.get('/statistik', (req, res) => {
   const days = [7, 30, 90, 365].includes(Number(req.query.days)) ? Number(req.query.days) : 30;
   const stats = analytics.stats(days);
   const fileTitles = new Map(db.prepare('SELECT id, title FROM files').all().map(f => [f.id, f.title]));
   stats.downloads = stats.downloads.map(d => ({ ...d, title: fileTitles.get(Number(d.path.split('/').pop())) || d.path }));
   res.render('admin/dashboard', {
-    title: 'Übersicht', stats, days,
+    title: 'Statistik', stats, days, retention: getSetting('analytics_retention_days', '365'),
     totals: {
       posts: db.prepare('SELECT COUNT(*) AS n FROM posts').get().n,
       files: db.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(size),0) AS size, COALESCE(SUM(downloads),0) AS dl FROM files').get(),
@@ -805,7 +812,7 @@ router.post('/apps/:id/delete', (req, res) => {
 
 // ---------- Design ----------
 const THEME_KEYS = ['theme_bg_color', 'theme_bg_image', 'theme_bg_mode', 'theme_window_color', 'theme_title_from', 'theme_title_to',
-  'theme_text_color', 'theme_link_color', 'theme_font', 'theme_marquee', 'theme_custom_css'];
+  'theme_text_color', 'theme_link_color', 'theme_font', 'theme_custom_css'];
 const { PRESETS: THEME_PRESETS, FONTS } = require('../themes');
 // Grunddesign für alle, die unter 🖥️ nichts Eigenes gewählt haben (siehe public/display.js)
 const THEME_DESIGNS = { 98: 'Windows 98', xp: 'Windows XP (Blau)', 'xp-oliv': 'Windows XP (Olivgrün)', 'xp-silber': 'Windows XP (Silber)' };
@@ -826,31 +833,25 @@ router.post('/design', up.mediaUpload.single('bg_upload'), multipartCsrf, (req, 
   res.redirect('/admin/design?ok=1');
 });
 
-// ---------- Desktop für alle ----------
-// readme.txt, Standardsymbole, Grenzen, Speicher pro Mitglied, Extras und was Mitglieder öffentlich zeigen
+// ---------- Desktop für alle (Aussehen → Desktop) und Speicher (Mitglieder → Speicher und Freigaben) ----------
+// Desktop: readme.txt, Standardsymbole von Windows (Eigene Dateien, Papierkorb, readme), Widgets und Suche.
+// Welche Programme auf dem Desktop liegen, steht seit der Seitenverwaltung 2.0 unter Programme (Spalte „Desktop“).
 const DESK_NUMS = { desk_text_chars: [100, 100000], desk_text_max: [0, 10000], desk_folders_max: [0, 10000], desk_links_max: [0, 10000],
   desk_trash_days: [1, 365], user_quota_mb: [0, 1048576] };
 const DESK_SYS = [['eigene-dateien', '🗂️ Eigene Dateien'], ['papierkorb', '🗑️ Papierkorb'], ['readme', '📄 readme.txt']];
-const deskPrograms = () => programs.flat({ canUpload: true }).filter(p => !DESK_SYS.some(([k]) => k === p.key));
 router.get('/desktop', (req, res) => {
-  const s = Object.fromEntries([...Object.keys(DESK_NUMS), 'desk_readme', 'desk_readme_version', 'desk_defaults', 'lobby_widget', 'search_enabled']
-    .map(k => [k, getSetting(k, '')]));
-  const icons = [...DESK_SYS, ...deskPrograms().map(p => [p.key, p.icon + ' ' + p.name])];
-  const usage = db.prepare("SELECT id, username, display_name, role = 'admin' AS is_admin FROM users WHERE disabled = 0").all()
-    .map(u => ({ ...u, used: quota.usedBytes(u.id) })).filter(u => u.used > 0).sort((a, b) => b.used - a.used).slice(0, 25);
-  res.render('admin/desktop', { title: 'Desktop', s, icons, on: s.desk_defaults.split(','), usage, shared: desk.publicList(),
-    visLabel: desk.VIS_LABEL, readmeDefault: require('../readme').DEFAULT });
+  const s = Object.fromEntries(['desk_readme', 'desk_readme_version', 'desk_defaults', 'lobby_widget', 'svc_widget', 'search_enabled'].map(k => [k, getSetting(k, '')]));
+  res.render('admin/desktop', { title: 'Desktop', s, icons: DESK_SYS, on: s.desk_defaults.split(','), readmeDefault: require('../readme').DEFAULT });
 });
 router.post('/desktop', (req, res) => {
   const b = req.body;
-  for (const [k, [min, max]] of Object.entries(DESK_NUMS)) {
-    const n = Math.round(Number(b[k]));
-    if (k in b && Number.isFinite(n)) setSetting(k, String(Math.min(max, Math.max(min, n))));
+  // Programme auf dem Desktop bleiben, wie sie unter Programme eingestellt sind
+  const keep = (getSetting('desk_defaults') || '').split(',').filter(k => k && !DESK_SYS.some(([s]) => s === k));
+  if ('icons_form' in b) setSetting('desk_defaults', [...asArray(b.icons).filter(k => DESK_SYS.some(([s]) => s === k)), ...keep].join(','));
+  if ('widgets_form' in b) {
+    setSetting('lobby_widget', b.lobby_widget ? '1' : '0');
+    setSetting('search_enabled', b.search_enabled ? '1' : '0');
   }
-  const known = new Set([...DESK_SYS, ...deskPrograms()].map(i => i[0] || i.key));
-  setSetting('desk_defaults', asArray(b.icons).filter(k => known.has(k)).join(','));
-  setSetting('lobby_widget', b.lobby_widget ? '1' : '0');
-  setSetting('search_enabled', b.search_enabled ? '1' : '0');
   if (typeof b.desk_readme === 'string') {
     const text = b.desk_readme.replace(/\r\n?/g, '\n').slice(0, 20000);
     // Neue Fassung: Alle sehen die readme.txt wieder mit NEU, auch wer sie gelöscht hat
@@ -859,80 +860,77 @@ router.post('/desktop', (req, res) => {
   }
   res.redirect('/admin/desktop?ok=1');
 });
+router.get('/speicher', (req, res) => {
+  const s = Object.fromEntries(Object.keys(DESK_NUMS).map(k => [k, getSetting(k, '')]));
+  const usage = db.prepare("SELECT id, username, display_name, role = 'admin' AS is_admin FROM users WHERE disabled = 0").all()
+    .map(u => ({ ...u, used: quota.usedBytes(u.id) })).filter(u => u.used > 0).sort((a, b) => b.used - a.used).slice(0, 25);
+  res.render('admin/speicher', { title: 'Speicher und Freigaben', s, usage, shared: desk.publicList(), visLabel: desk.VIS_LABEL, disks: require('../services').disks() });
+});
+router.post('/speicher', (req, res) => {
+  const b = req.body;
+  for (const [k, [min, max]] of Object.entries(DESK_NUMS)) {
+    const n = Math.round(Number(b[k]));
+    if (k in b && Number.isFinite(n)) setSetting(k, String(Math.min(max, Math.max(min, n))));
+  }
+  res.redirect('/admin/speicher?ok=1');
+});
 router.post('/desktop/freigabe/:id', (req, res) => {
   desk.moderate(req.params.id, req.body.remove === '1');
-  res.redirect('/admin/desktop?ok=1#freigaben');
+  res.redirect('/admin/speicher?ok=1#freigaben');
 });
 
-// ---------- Einstellungen ----------
-const SETTING_KEYS = ['site_title', 'site_tagline', 'home_md', 'notify_email', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_from', 'analytics_retention_days',
-  'ks_buyin', 'ks_rebuy_below', 'bj_decks', 'bj_turn', 'pk_turn', 'dk_turn', 'uno_turn', 'f7_turn', 'pp_turn', 'cw_words'];
-const SETTING_FLAGS = ['registration_open', 'logon_screen', 'guestbook_enabled', 'guestbook_moderation', 'contact_enabled', 'board_enabled', 'board_members_only', 'smtp_secure', 'lobby_enabled', 'youtube_enabled', 'bj_enabled', 'bj_h17', 'pk_enabled', 'dk_enabled', 'uno_enabled', 'f7_enabled', 'pp_enabled'];
-const NAV_ITEMS = { blog: 'Blog', files: 'Downloads', mods: 'Modlisten', links: 'Links', apps: 'Andere Games', haustier: 'Pixelpfoten', farming: 'Farming Simulator', musik: 'Mediaplayer', zufall: 'Zufallsgenerator', kartenspiele: 'Kartenspiele', quiz: 'Quiz', werwolf: 'Werwolf', minesweeper: 'Minesweeper', kreuzwortraetsel: 'Kreuzworträtsel', sudoku: 'Sudoku', paint: 'Paint', galerie: 'Galerie', board: 'Forum', nutzer: 'Messenger und Mitglieder', guestbook: 'Besucherbuch', contact: 'Kontakt' };
-router.get('/settings', (req, res) => {
-  const s = Object.fromEntries([...SETTING_KEYS, ...SETTING_FLAGS, 'nav_hidden', 'music_upload', 'music_skin'].map(k => [k, getSetting(k, '')]));
-  s.logon_screen = getSetting('logon_screen', '1');
-  s.smtp_pass_set = !!getSetting('smtp_pass');
-  res.render('admin/settings', { title: 'Einstellungen', s, navItems: NAV_ITEMS, mailMsg: req.query.mail || null });
-});
-router.post('/settings', (req, res) => {
-  const b = req.body;
-  for (const k of SETTING_KEYS) if (k in b) setSetting(k, String(b[k]).slice(0, 20000));
-  for (const k of SETTING_FLAGS) setSetting(k, b[k] ? '1' : '0');
-  if (['members', 'upload', 'admin'].includes(b.music_upload)) setSetting('music_upload', b.music_upload);
-  if (require('../usersettings').PLAYER_SKINS.includes(b.music_skin)) setSetting('music_skin', b.music_skin);
-  if (b.smtp_pass) setSetting('smtp_pass', b.smtp_pass);
-  if (b.smtp_pass_clear) setSetting('smtp_pass', '');
-  const shown = asArray(b.nav);
-  setSetting('nav_hidden', Object.keys(NAV_ITEMS).filter(k => !shown.includes(k)).join(','));
-  res.redirect('/admin/settings?ok=1');
-});
+// ---------- Zurücksetzen (Programme → Eigenschaften) ----------
+// Die Einstellungen selbst stehen jetzt in src/routes/admin-areas.js (Programme, System, Aussehen)
+const back = (req, res, fallback) => res.redirect(String(req.body.back || '').startsWith('/admin/') ? req.body.back : fallback);
 // Kasse der Kartenspiele leeren: beim nächsten Hinsetzen gibt es wieder Startgeld
 router.post('/settings/kasse-reset', (req, res) => {
   require('../kasse').reset(null);
-  res.redirect('/admin/settings?ok=1#kasse');
+  back(req, res, '/admin/programme/kartenspiele?ok=1#bestenlisten');
 });
 // Blackjack-Bestenliste leeren. Sitzungen, die gerade an einem Tisch laufen, bleiben stehen.
 router.post('/settings/blackjack-reset', (req, res) => {
   require('../blackjack').resetStats(null);
-  res.redirect('/admin/settings?ok=1#blackjack');
+  back(req, res, '/admin/programme/kartenspiele?ok=1#bestenlisten');
 });
 // Poker-Bestenliste leeren, genauso
 router.post('/settings/poker-reset', (req, res) => {
   require('../poker').resetStats(null);
-  res.redirect('/admin/settings?ok=1#poker');
+  back(req, res, '/admin/programme/kartenspiele?ok=1#bestenlisten');
 });
 // UNO, Flip 7, Pilli Pilli: alle Ergebnisse eines Spiels löschen
 router.post('/settings/kartenspiel-reset/:game', (req, res) => {
   const g = CARD_GAMES.find(([id]) => id === req.params.game);
   if (g) require('../' + g[0]).resetStats(null);
-  res.redirect('/admin/settings?ok=1#' + (g ? g[0] : ''));
+  back(req, res, '/admin/programme/kartenspiele?ok=1#bestenlisten');
 });
 // Alle Durak-Ergebnisse löschen (Bestenliste und Zahlen im Profil)
 router.post('/settings/durak-reset', (req, res) => {
   require('../durak').resetStats(null);
-  res.redirect('/admin/settings?ok=1#durak');
+  back(req, res, '/admin/programme/kartenspiele?ok=1#bestenlisten');
 });
 // Alle Minesweeper-Spiele und damit Bestzeiten und Profil-Zahlen löschen
 router.post('/settings/minesweeper-reset', (req, res) => {
   require('../minesweeper').resetStats(null);
-  res.redirect('/admin/settings?ok=1');
+  back(req, res, '/admin/programme/raetsel?ok=1#minesweeper');
 });
 // Alle Kreuzworträtsel-Stände löschen (Profile, Serien, Bestenlisten); die Rätsel selbst bleiben
 router.post('/settings/kreuzwortraetsel-reset', (req, res) => {
   require('../crossword').resetStats(null);
-  res.redirect('/admin/settings?ok=1#kreuzwortraetsel');
+  back(req, res, '/admin/programme/raetsel?ok=1#kreuzwortraetsel');
 });
 // Alle Sudoku-Stände löschen (Profile, Serien, Bestenlisten); die Sudokus selbst bleiben
 router.post('/settings/sudoku-reset', (req, res) => {
   require('../sudoku').resetStats(null);
-  res.redirect('/admin/settings?ok=1');
+  back(req, res, '/admin/programme/raetsel?ok=1#sudoku');
 });
 router.post('/settings/testmail', async (req, res) => {
   let msg;
   try { msg = (await mail.notify('Test-E-Mail', 'Wenn du das liest, funktioniert der E-Mail-Versand.')) ? 'Test-E-Mail wurde verschickt.' : 'Bitte zuerst Empfänger und SMTP-Server eintragen.'; }
   catch (e) { msg = 'Fehler: ' + e.message; }
-  res.redirect('/admin/settings?mail=' + encodeURIComponent(msg));
+  res.redirect('/admin/email?mail=' + encodeURIComponent(msg));
 });
+
+// Neue Bereiche der Seitenverwaltung 2.0: Übersicht, Programme, Dienste, Aussehen, System
+router.use('/', require('./admin-areas'));
 
 module.exports = router;

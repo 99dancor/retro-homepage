@@ -1,0 +1,81 @@
+<%- include('../partials/head') %>
+<%# Mitglieder → Speicher und Freigaben: Grenzen pro Mitglied, wer wie viel belegt, was Mitglieder freigeben, Platten des Servers %>
+<form method="post" action="/admin/speicher">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox" id="grenzen"><legend>📏 Grenzen pro Mitglied</legend>
+    <div class="row">
+      <label>Speicher für alles zusammen (MB, 0 = ohne Grenze):<input type="number" name="user_quota_mb" value="<%= s.user_quota_mb %>" min="0" max="1048576"></label>
+      <label>Tage im Papierkorb (1–365):<input type="number" name="desk_trash_days" value="<%= s.desk_trash_days %>" min="1" max="365"></label>
+    </div>
+    <div class="row">
+      <label>Zeichen pro Textdokument:<input type="number" name="desk_text_chars" value="<%= s.desk_text_chars %>" min="100" max="100000"></label>
+      <label>Textdokumente:<input type="number" name="desk_text_max" value="<%= s.desk_text_max %>" min="0" max="10000"></label>
+      <label>Ordner:<input type="number" name="desk_folders_max" value="<%= s.desk_folders_max %>" min="0" max="10000"></label>
+      <label>Verknüpfungen und Links:<input type="number" name="desk_links_max" value="<%= s.desk_links_max %>" min="0" max="10000"></label>
+    </div>
+    <small>Zum Speicher zählen Downloads und eigene Uploads, Mediaplayer, Paint-Bilder, Bilder in Beiträgen und Textdokumente. Für dich als Admin gilt keine Grenze. Was im Papierkorb liegt, zählt mit, bis er geleert ist.</small>
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button></div>
+</form>
+
+
+<fieldset class="groupbox" id="speicher"><legend>💽 Wer belegt wie viel</legend>
+  <% if (!usage.length) { %><p><small>Noch hat niemand etwas gespeichert.</small></p><% } else { %>
+  <table class="list">
+    <tr><th>Mitglied</th><th style="text-align:right">Belegt</th><th>Anteil</th></tr>
+    <% const lim = Number(s.user_quota_mb) * 1048576; for (const u of usage) { const pct = lim && !u.is_admin ? Math.min(100, Math.round(u.used / lim * 100)) : null; %>
+      <tr>
+        <td><a href="/admin/users/<%= u.id %>"><%= u.display_name || u.username %></a><%= u.is_admin ? ' (Admin)' : '' %></td>
+        <td style="text-align:right"><%= fmtSize(u.used) %></td>
+        <td><% if (pct !== null) { %><span class="space-bar" style="display:inline-block;width:120px;vertical-align:middle"><i style="width:<%= pct %>%"></i></span> <%= pct %> %<% } else { %><small>ohne Grenze</small><% } %></td>
+      </tr>
+    <% } %>
+  </table>
+  <% } %>
+</fieldset>
+
+<fieldset class="groupbox" id="freigaben"><legend>👥 Was Mitglieder zeigen</legend>
+  <p style="margin-top:0"><small>Freigegebene Ordner sowie Textdokumente und Internetlinks, die nicht auf „Nur ich“ stehen. „Privat stellen“ nimmt die Freigabe zurück; „Entfernen“ legt es zusätzlich in den Papierkorb des Mitglieds.</small></p>
+  <% if (!shared.length) { %><p><small>Gerade zeigt niemand etwas her.</small></p><% } else { %>
+  <table class="list">
+    <tr><th>Was</th><th>Von</th><th>Für</th><th>Geändert</th><th></th></tr>
+    <% for (const it of shared) { %>
+      <tr>
+        <td><%= it.kind === 'folder' ? '📁' : it.kind === 'text' ? '📄' : '🌐' %>
+          <% if (it.kind === 'folder') { %><a href="/ordner/<%= it.share %>" target="_blank"><%= it.name %></a>
+          <% } else if (it.kind === 'text') { %><a href="/notizblock/<%= it.id %>" target="_blank"><%= it.name %></a>
+          <% } else { %><%= it.name %> <small>(<%= it.target %>)</small><% } %></td>
+        <td><%= it.display_name || it.username %></td>
+        <td><%= visLabel[it.kind === 'folder' ? it.share_vis : it.visibility] || '' %></td>
+        <td><%= fmtDate(it.updated_at) %></td>
+        <td style="white-space:nowrap">
+          <form method="post" action="/admin/desktop/freigabe/<%= it.id %>" class="inline">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <button>🔒 Privat stellen</button>
+          </form>
+          <form method="post" action="/admin/desktop/freigabe/<%= it.id %>" class="inline" data-confirm="„<%= it.name %>“ privat stellen und in den Papierkorb von <%= it.display_name || it.username %> legen?">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <input type="hidden" name="remove" value="1">
+            <button>🗑️ Entfernen</button>
+          </form>
+        </td>
+      </tr>
+    <% } %>
+  </table>
+  <% } %>
+</fieldset>
+
+<fieldset class="groupbox" id="platten"><legend>🖴 Platten des Servers</legend>
+  <% if (!disks.length) { %><p><small>Die Seite kann gerade keine Platte abfragen.</small></p><% } else { %>
+  <table class="list">
+    <tr><th>Platte</th><th>Ordner</th><th>Belegt</th><th class="num">Frei</th><th>Im Widget</th></tr>
+    <% for (const d of disks) { const pct = d.total ? Math.round(d.used / d.total * 100) : 0; %>
+    <tr><td><%= d.label %></td><td><small><%= d.dirs.join(', ') %></small></td>
+      <td><span class="disk-bar" role="img" aria-label="<%= pct %> Prozent belegt" style="width:120px"><i style="width:<%= pct %>%"></i></span> <%= pct %> % <small>(<%= fmtSize(d.used) %> von <%= fmtSize(d.total) %>)</small></td>
+      <td class="num"><%= fmtSize(d.free) %></td><td><%= d.on ? '✔' : '–' %></td></tr>
+    <% } %>
+  </table>
+  <% } %>
+  <p><small>Was Besucher davon sehen, stellst du unter <a href="/admin/dienste#widget">Dienste → Widget</a> ein.</small></p>
+</fieldset>
+<%- include('../partials/foot') %>

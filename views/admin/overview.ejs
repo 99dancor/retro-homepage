@@ -1,0 +1,49 @@
+<%- include('../partials/head') %>
+<%# Übersicht: was dich braucht, Dienste mit den letzten 24 Stunden, heute auf der Seite, System. Statistik steht unter System. %>
+<div class="ov-grid">
+  <fieldset class="groupbox ov-need"><legend>📌 Braucht dich</legend>
+    <% if (!need.length) { %><p class="ov-ok">✔ Alles erledigt. Nichts wartet auf dich.</p><% } else { %>
+    <ul class="ov-list">
+      <% for (const n of need) { %><li class="<%= n.level || '' %>"><a href="<%= n.url %>"><span aria-hidden="true"><%= n.icon %></span> <%= n.text %></a></li><% } %>
+    </ul>
+    <% } %>
+  </fieldset>
+  <fieldset class="groupbox ov-today"><legend>📈 Heute</legend>
+    <div class="kpis">
+      <div class="kpi">Besucher<b><%= today.visitors.toLocaleString('de-DE') %></b></div>
+      <div class="kpi">Seitenaufrufe<b><%= today.views.toLocaleString('de-DE') %></b></div>
+      <div class="kpi">Downloads<b><%= today.downloads.toLocaleString('de-DE') %></b></div>
+      <div class="kpi">Gerade online<b><%= today.online %></b></div>
+    </div>
+    <p><a href="/admin/statistik">» Statistik</a> · <%= members %> Mitglieder<% if (newest.length) { %>, zuletzt dazu: <% newest.forEach((u, i) => { %><%= i ? ', ' : '' %><a href="/admin/users/<%= u.id %>"><%= u.display_name || u.username %></a><% }) %><% } %></p>
+  </fieldset>
+</div>
+<fieldset class="groupbox"><legend>🗄️ Dienste</legend>
+  <% if (!services.length) { %>
+    <p>Noch keine Dienste. Unter <a href="/admin/dienste/neu">Dienste → Neuer Dienst</a> legst du Jellyfin, Immich, Nextcloud, Gameserver oder jede andere Adresse an; die Seite schaut dann regelmäßig nach, ob sie läuft.</p>
+  <% } else { %>
+  <table class="list svc-table">
+    <tr><th>Dienst</th><th>Zustand</th><th>Letzte 24 Stunden</th></tr>
+    <% for (const s of services) { %>
+    <tr><td><a href="/admin/dienste/<%= s.id %>"><%- ico(s.icon) %> <%= s.name %></a></td>
+      <td><span class="led <%= s.enabled ? s.state : 'unknown' %>" aria-hidden="true"></span> <small><%= s.text %></small></td>
+      <td><%- include('../partials/up-bars', { bars: s.bars }) %></td></tr>
+    <% } %>
+  </table>
+  <% } %>
+</fieldset>
+<div class="ov-grid">
+  <fieldset class="groupbox"><legend>💽 Speicher</legend>
+    <% if (!disks.length) { %><p class="muted">Keine Platte lesbar.</p><% } %>
+    <% for (const d of disks) { const pct = d.total ? Math.round(d.used / d.total * 100) : 0; %>
+    <div class="disk"><span><%= d.label %></span><span class="disk-bar" role="img" aria-label="<%= pct %> Prozent belegt"><i style="width:<%= pct %>%"<%- pct > 90 ? ' class="full"' : '' %>></i></span><small><%= fmtSize(d.used) %> / <%= fmtSize(d.total) %></small></div>
+    <% } %>
+    <p><a href="/admin/speicher">» Speicher und Freigaben</a></p>
+  </fieldset>
+  <fieldset class="groupbox"><legend>ℹ️ System</legend>
+    <p style="margin-top:0"><% if (update) { %><span class="upd-no">Update <%= update.no %></span> <%= update.title %> <small>(<%= update.date %>)</small><% } %></p>
+    <p>Ereignisse in 24 Stunden: <a href="/admin/ereignisse?level=error">⛔ <%= ev.error %></a> · <a href="/admin/ereignisse?level=warn">⚠️ <%= ev.warn %></a> · <a href="/admin/ereignisse?level=info">ℹ️ <%= ev.info %></a></p>
+    <p><% if (maintOn) { %>🚧 <a href="/admin/settings#wartung">Wartungsmodus ist an</a><% } else { %>Wartungsmodus aus · <a href="/admin/settings#wartung">einschalten</a><% } %></p>
+  </fieldset>
+</div>
+<%- include('../partials/foot') %>

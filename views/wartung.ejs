@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="de" data-design="<%= siteDesign %>">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= title %> – <%= site.title %></title>
+<link rel="stylesheet" href="<%= asset('retro.css') %>">
+<link rel="stylesheet" href="/theme.css">
+<link rel="icon" href="<%= asset('favicon.svg') %>">
+<script type="application/json" id="darstellung-daten"><%- themes.clientData %></script>
+<script src="<%= asset('display.js') %>"></script>
+</head>
+<%# Wartungsmodus (src/server.js): nur diese Seite für alle außer Admins, mit Anmeldung für Admins %>
+<body class="maint-page">
+<div class="window maint-win">
+  <div class="titlebar"><span class="ttl">🚧 <%= site.title %> – Wartungsarbeiten</span></div>
+  <div class="body">
+    <p class="maint-msg"><span aria-hidden="true">🚧</span> <%= text || 'Die Seite wird gerade gewartet.' %></p>
+    <div class="construction"></div>
+    <% if (user) { %>
+    <p>Du bist als <b><%= user.name %></b> angemeldet. Sobald die Wartung vorbei ist, geht es hier weiter.</p>
+    <form method="post" action="/logout" class="actions"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>🚪 Abmelden</button></form>
+    <% } else { %>
+    <details><summary>🔑 Anmelden als Admin</summary>
+      <form method="post" action="/login" class="maint-login">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="next" value="/">
+        <label>Benutzername:<input type="text" name="username" autocomplete="username" required></label>
+        <label>Kennwort:<input type="password" name="password" autocomplete="current-password" required></label>
+        <div class="actions"><button>OK</button></div>
+      </form>
+    </details>
+    <% } %>
+  </div>
+</div>
+</body>
+</html>

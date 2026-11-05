@@ -1,5 +1,6 @@
 <%- include('../partials/head') %>
-<p>Nachrichten aus dem Kontaktformular. E-Mail-Benachrichtigungen richtest du unter <a href="/admin/settings">Einstellungen</a> ein.</p>
+<%- include('../partials/postfach-tabs') %>
+<p>Nachrichten aus dem Kontaktformular. E-Mail-Benachrichtigungen richtest du unter <a href="/admin/email">System → E-Mail</a> ein.</p>
 <table class="list">
   <tr><th></th><th>Von</th><th>Betreff</th><th>Datum</th></tr>
   <% for (const m of messages) { %>

@@ -34,24 +34,64 @@ const HOME_APPS = {
 };
 const HOME_ORDER = Object.keys(HOME_APPS);
 
-// Startseite: oben Begrüßung, links Schnellstart und das Neueste der Seite,
-// rechts das letzte Update und die eigenen Benachrichtigungen (oder Anmelden/Registrieren)
+// Wann etwas war, kurz: „vor 5 Min.“, „heute 18:12“, „gestern“, „02.11.“
+function ago(t) {
+  const tz = process.env.TZ || 'Europe/Berlin', n = now();
+  const day = x => new Date(x * 1000).toLocaleDateString('sv-SE', { timeZone: tz });
+  if (n - t < 3600) return 'vor ' + Math.max(1, Math.round((n - t) / 60)) + ' Min.';
+  if (day(t) === day(n)) return 'heute ' + new Date(t * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+  if (day(t) === day(n - 86400)) return 'gestern';
+  return new Date(t * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: tz });
+}
+// Neuigkeiten: Blog, Forum, Downloads und Besucherbuch in einer Liste, je Art die letzten sechs. „Alles“ zeigt die acht neuesten.
+const FEED = { blog: '📝 Blog', board: '💬 Forum', files: '📁 Downloads', guestbook: '📖 Besucherbuch' };
+function feed(user, locals) {
+  const off = programs.off(locals), out = [];
+  const shown = k => !off[k] && !(locals.navHidden || []).includes(k);
+  if (shown('blog')) {
+    const v = auth.visibilitySql(user, 'post', 'p');
+    for (const p of db.prepare(`SELECT slug, title, summary, created_at FROM posts p WHERE published = 1 AND ${v.sql} ORDER BY created_at DESC LIMIT 6`).all(...v.params)) {
+      out.push({ kind: 'blog', icon: '📝', title: p.title, url: '/blog/' + p.slug, meta: 'Blog' + (p.summary ? ' · ' + p.summary : ''), at: p.created_at });
+    }
+  }
+  if (shown('board') && getSetting('board_enabled') === '1' && (getSetting('board_members_only') !== '1' || user)) {
+    for (const t of db.prepare(`SELECT t.id, t.title, t.last_post_at, (SELECT COUNT(*) FROM board_posts p WHERE p.topic_id = t.id) - 1 AS replies
+                                FROM board_topics t ORDER BY t.last_post_at DESC LIMIT 6`).all()) {
+      out.push({ kind: 'board', icon: '💬', title: t.title, url: `/forum/t/${t.id}?page=last`, meta: 'Forum · ' + (t.replies === 1 ? '1 Antwort' : t.replies + ' Antworten'), at: t.last_post_at });
+    }
+  }
+  if (shown('files')) {
+    const v = auth.visibilitySql(user, 'file', 'f');
+    for (const f of db.prepare(`SELECT id, title, category, game, size, created_at FROM files f WHERE ${v.sql} ORDER BY created_at DESC LIMIT 6`).all(...v.params)) {
+      out.push({ kind: 'files', icon: '📁', title: f.title, url: '/files', meta: ['Downloads', f.category, f.game, require('../util').fmtSize(f.size)].filter(Boolean).join(' · '), at: f.created_at });
+    }
+  }
+  if (shown('guestbook') && getSetting('guestbook_enabled') === '1') {
+    for (const g of db.prepare('SELECT name, message, created_at FROM guestbook WHERE approved = 1 ORDER BY created_at DESC, id DESC LIMIT 6').all()) {
+      const m = g.message.replace(/\s+/g, ' ');
+      out.push({ kind: 'guestbook', icon: '📖', title: '„' + (m.length > 90 ? m.slice(0, 90) + '…' : m) + '“', url: '/guestbook', meta: 'Besucherbuch · ' + (g.name || 'Anonym'), at: g.created_at, quote: true });
+    }
+  }
+  out.sort((a, b) => b.at - a.at);
+  out.forEach((it, i) => { it.top = i < 8; it.when = ago(it.at); });
+  return out;
+}
+
+// Startseite aus Bausteinen (Aussehen → Startseite, src/homeblocks.js): links breit, rechts schmal, je nach Besucher
 router.get('/', (req, res) => {
-  const pv = auth.visibilitySql(req.user, 'post', 'p');
-  const fv = auth.visibilitySql(req.user, 'file', 'f');
-  const boardOpen = getSetting('board_enabled') === '1' && (getSetting('board_members_only') !== '1' || req.user);
+  const blocks = require('../homeblocks').forViewer(req.user), want = new Set([...blocks.main, ...blocks.side]);
+  const services = require('../services');
   const rules = db.prepare("SELECT * FROM pages WHERE slug = 'regeln'").get();
+  const items = want.has('neuigkeiten') ? feed(req.user, res.locals) : [];
   res.render('home', {
-    title: 'Startseite',
+    title: 'Startseite', blocks,
     homeHtml: md(getSetting('home_md')),
-    posts: db.prepare(`SELECT * FROM posts p WHERE published = 1 AND ${pv.sql} ORDER BY created_at DESC LIMIT 5`).all(...pv.params),
-    files: db.prepare(`SELECT * FROM files f WHERE ${fv.sql} ORDER BY created_at DESC LIMIT 5`).all(...fv.params),
-    guestbook: db.prepare('SELECT * FROM guestbook WHERE approved = 1 ORDER BY created_at DESC, id DESC LIMIT 3').all(),
-    topics: boardOpen ? db.prepare(`SELECT t.id, t.title, t.last_post_at, (SELECT COUNT(*) FROM board_posts p WHERE p.topic_id = t.id) - 1 AS replies
-                                    FROM board_topics t ORDER BY t.last_post_at DESC LIMIT 5`).all() : [],
-    notes: req.user ? notify.list(req.user.id, 8) : [],
+    feed: items, feedKinds: Object.entries(FEED).filter(([k]) => items.some(i => i.kind === k)),
+    services: want.has('dienste') ? services.forViewer(req.user, 'home') : [],
+    storage: want.has('speicher') ? services.storage(req.user) : null,
+    guestbook: want.has('besucherbuch') && res.locals.guestbookEnabled ? db.prepare('SELECT * FROM guestbook WHERE approved = 1 ORDER BY created_at DESC, id DESC LIMIT 3').all() : [],
     rulesUrl: rules && auth.canSee(req.user, 'page', rules) ? '/p/regeln' : null,
-    apps: programs.list(res.locals).filter(p => HOME_APPS[p.key])
+    apps: !want.has('schnellstart') ? [] : programs.list(res.locals).filter(p => HOME_APPS[p.key])
       .sort((a, b) => HOME_ORDER.indexOf(a.key) - HOME_ORDER.indexOf(b.key))
       // Weiches Trennzeichen, damit „Kreuzworträtsel“ unter dem Symbol sauber umbricht
       .map(p => ({ ...p, name: p.name.replace('Kreuzworträtsel', 'Kreuzwort\u00adrätsel'), hint: HOME_APPS[p.key] })),
@@ -271,10 +311,10 @@ router.get('/zufall', (req, res) => res.render('zufall', { title: 'Zufallsgenera
 let changelogHtml = null;
 router.get('/changelog', (req, res) => {
   if (changelogHtml === null) {
-    try { changelogHtml = md(fs.readFileSync(changelog.FILE, 'utf8').replace(/^# .*\n/, '')); }
+    try { changelogHtml = changelog.toHtml(md(fs.readFileSync(changelog.FILE, 'utf8').replace(/^# .*\n/, ''))); }
     catch { changelogHtml = '<p>Noch keine Einträge.</p>'; }
   }
-  res.render('changelog', { title: 'Changelog', changelogHtml });
+  res.render('changelog', { title: 'Changelog', changelogHtml, latest: changelog.latest() });
 });
 
 // ---------- Datenschutz (Startmenü) ----------

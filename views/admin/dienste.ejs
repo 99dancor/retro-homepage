@@ -1,0 +1,61 @@
+<%- include('../partials/head') %>
+<%# Dienste: was die Seite regelmäßig abfragt (src/services.js), dazu Widget und belegter Speicher für den Desktop.
+    Adressen und Schlüssel bleiben auf dem Server; Besucher bekommen nur Name, Zustand und Kurzinfo. %>
+<div class="actions" style="margin-top:0">
+  <a class="btn" href="/admin/dienste/neu">➕ Neuer Dienst</a>
+  <small>Jellyfin, Immich, Nextcloud, Minecraft, Steam-Spieleserver (Valheim, CS2 …), Farming Simulator oder jede Adresse und jeder Port.</small>
+</div>
+<% if (!list.length) { %>
+  <p class="muted">Noch keine Dienste angelegt.</p>
+<% } else { %>
+<table class="list svc-table svc-admin">
+  <tr><th>Dienst</th><th>Zustand</th><th class="hide-narrow">24 Stunden</th><th>Wer sieht ihn</th><th class="hide-narrow">Wo</th><th></th></tr>
+  <% list.forEach((s, i) => { %>
+  <tr id="d<%= s.id %>" class="<%= s.enabled ? '' : 'off' %>">
+    <td><a href="/admin/dienste/<%= s.id %>"><%- ico(s.icon) %> <b><%= s.name %></b></a><br><small class="muted"><%= KINDS[s.kind] ? KINDS[s.kind].name : s.kind %><% if (s.config.host) { %> · <%= s.config.host %>:<%= s.config.port %><% } else if (s.config.url) { %> · <%= s.config.url.replace(/^https?:\/\//, '').replace(/\/.*$/, '') %><% } %></small></td>
+    <td><span class="led <%= s.enabled ? s.state : 'unknown' %>" aria-hidden="true"></span> <small><%= s.text %></small></td>
+    <td class="hide-narrow"><%- include('../partials/up-bars', { bars: s.bars }) %><% if (s.up7 != null) { %><small class="up-pct"><%= s.up7.toLocaleString('de-DE') %> % in 7 Tagen</small><% } %></td>
+    <td><%= VIS[s.visibility] %></td>
+    <td class="hide-narrow"><small><%= s.show.map(k => SHOW[k]).join(', ') || '–' %></small></td>
+    <td class="nowrap">
+      <form method="post" action="/admin/dienste/<%= s.id %>/pruefen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="/admin/dienste#d<%= s.id %>"><button class="small" title="Jetzt prüfen">🔄</button></form>
+      <form method="post" action="/admin/dienste/<%= s.id %>/hoch" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" title="Nach oben" aria-label="<%= s.name %> nach oben"<%= i === 0 ? ' disabled' : '' %>>▲</button></form>
+      <form method="post" action="/admin/dienste/<%= s.id %>/runter" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" title="Nach unten" aria-label="<%= s.name %> nach unten"<%= i === list.length - 1 ? ' disabled' : '' %>>▼</button></form>
+    </td>
+  </tr>
+  <% }) %>
+</table>
+<p><small class="muted">🟢 online · 🟡 langsam oder Wartung · 🔴 zweimal hintereinander keine Antwort · ⚪ noch nicht geprüft oder pausiert. Besucher sehen alles unter <a href="/dienste" target="_blank">Dienste</a>.</small></p>
+<% } %>
+
+<form method="post" action="/admin/dienste/widget">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox" id="widget"><legend>🖥️ Widget „Dienste“ und belegter Speicher</legend>
+    <label class="inline"><input type="checkbox" name="svc_widget" value="1" <%= s.svc_widget !== '0' ? 'checked' : '' %>> Widget „Dienste“ auf dem Desktop (wie „Offene Lobbys“; jeder kann es für sich ausblenden)</label><br>
+    <small>Im Widget stehen die Dienste mit „Widget“, neben der Uhr (🗄️) die mit „Taskleiste“. Das stellst du bei jedem Dienst ein.</small><br>
+    <label class="inline"><input type="checkbox" name="svc_storage" value="1" <%= s.svc_storage !== '0' ? 'checked' : '' %>> Belegten Speicher zeigen</label>
+    <label class="inline">für <select name="svc_storage_for">
+      <% for (const [k, v] of [['public', 'Alle'], ['members', 'Mitglieder'], ['admin', 'Nur mich']]) { %><option value="<%= k %>"<%= (s.svc_storage_for || 'members') === k ? ' selected' : '' %>><%= v %></option><% } %>
+    </select></label>
+    <p style="margin:6px 0 2px"><small>Im Widget, auf der Seite <a href="/dienste" target="_blank">Dienste</a> und im Startseiten-Baustein „Belegter Speicher“. Zur Wahl stehen die Platten, die der Server sieht, und Dienste mit „Speicher zeigen“ (Immich, Nextcloud).</small></p>
+    <% if (disks.length) { %>
+    <table class="list">
+      <tr><th class="c">Zeigen</th><th>Name für Besucher</th><th>Ordner auf dieser Platte</th><th>Belegt</th></tr>
+      <% for (const d of disks) { const pct = d.total ? Math.round(d.used / d.total * 100) : 0; %>
+      <tr><td class="c"><input type="checkbox" name="disk_<%= d.key %>" value="1" <%= d.on ? 'checked' : '' %> aria-label="<%= d.label %> zeigen"></td>
+        <td><input type="text" name="label_<%= d.key %>" value="<%= d.label %>" maxlength="40" aria-label="Name für <%= d.dirs.join(', ') %>"></td>
+        <td><small><%= d.dirs.join(', ') %></small></td>
+        <td><span class="disk-bar" style="width:90px" role="img" aria-label="<%= pct %> Prozent belegt"><i style="width:<%= pct %>%"></i></span> <small><%= fmtSize(d.used) %> / <%= fmtSize(d.total) %></small></td></tr>
+      <% } %>
+    </table>
+    <% } %>
+    <% if (storage && storage.length) { %>
+    <p style="margin:6px 0 2px"><small><b>So sieht es gerade aus:</b></small></p>
+    <div class="svc-preview">
+      <% for (const d of storage) { %><div class="disk"><span><%= d.label %></span><% if (d.total) { %><span class="disk-bar" role="img" aria-label="<%= d.pct %> Prozent belegt"><i style="width:<%= d.pct %>%"></i></span><small><%= d.usedText %> / <%= d.totalText %></small><% } else { %><small><%= d.freeText %> frei</small><% } %></div><% } %>
+    </div>
+    <% } %>
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button></div>
+</form>
+<%- include('../partials/foot') %>

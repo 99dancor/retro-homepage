@@ -1,0 +1,13 @@
+<%- include('../partials/head') %>
+<%# Programme: eine Zeile pro Programm statt Häkchen auf vielen Seiten. Eigenschaften führt zu den Einstellungen des Programms. %>
+<p style="margin-top:0"><small><b>Für:</b> Alle = auch Gäste · Mitglieder = Gäste sehen eine Anmeldebitte · Aus = weg aus Startmenü, Desktop und Suche, die Adresse sagt „ausgeschaltet“. <b>Startmenü</b> und <b>Desktop</b> gelten für alle, die nichts Eigenes eingerichtet haben. Du als Admin kommst immer hinein.</small></p>
+<form method="post" action="/admin/programme">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <% for (const [g, label] of Object.entries(groups)) { const r = rows.filter(p => p.group === g); if (!r.length) continue; %>
+  <fieldset class="groupbox"><legend><%= label %></legend>
+    <%- include('../partials/prog-rows', { rows: r, props: true }) %>
+  </fieldset>
+  <% } %>
+  <div class="actions sticky-actions"><button>💾 Speichern</button> <small>Eigene Seiten fürs Startmenü legst du unter <a href="/admin/pages">Eigene Seiten</a> an.</small></div>
+</form>
+<%- include('../partials/foot') %>

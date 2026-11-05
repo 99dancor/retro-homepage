@@ -1,6 +1,6 @@
 <%- include('partials/head') %>
-<%# Startseite (src/routes/public.js): oben die Begrüßung, links Schnellstart und das Neueste der Seite, rechts das letzte
-    Update und Persönliches. Am Handy steht alles untereinander, die Reihenfolge dort steht in public/retro.css („Startseite“). %>
+<%# Startseite (src/routes/public.js) aus Bausteinen (Seitenverwaltung → Aussehen → Startseite, src/homeblocks.js):
+    links breit, rechts schmal; am Handy steht alles untereinander, links zuerst. %>
 <div class="home">
 <header class="home-hero">
   <img class="home-logo" src="<%= asset('favicon.svg') %>" alt="" width="40" height="40">
@@ -8,99 +8,85 @@
     <h1><%= site.title %></h1>
     <% if (site.tagline) { %><p><%= site.tagline %></p><% } %>
   </div>
+  <% if (user) { %>
+  <div class="home-hi"><span>👋 Hallo <%= user.name %></span><a class="btn small home-bell" href="/benachrichtigungen" title="Benachrichtigungen">🔔 <%= unreadNotify ? unreadNotify + ' neu' : 'Nichts Neues' %></a></div>
+  <% } %>
 </header>
 <div class="construction"></div>
 
-<div class="home-main">
+<% function block(key) { %>
+  <% if (key === 'willkommen') { %>
   <section class="home-welcome">
     <div class="content"><%- homeHtml %></div>
     <div class="home-links">
-      <% if (rulesUrl) { %><a class="btn small" href="<%= rulesUrl %>">📜 Regelkodex</a><% } else if (user && user.isAdmin) { %><small class="muted">📜 Für den Link zum Regelkodex lege unter <a href="/admin/pages/new">Eigene Seiten</a> eine Seite mit der Adresse <code>regeln</code> an.</small><% } %>
+      <% if (rulesUrl) { %><a class="btn small" href="<%= rulesUrl %>">📜 Regeln</a><% } else if (user && user.isAdmin) { %><small class="muted">📜 Für den Link zu den Regeln lege unter <a href="/admin/pages/new">Eigene Seiten</a> eine Seite mit der Adresse <code>regeln</code> an.</small><% } %>
       <button type="button" class="small" id="guide-start">🧭 Kurzer Rundgang</button>
     </div>
   </section>
-
-  <% if (apps.length) { %>
+  <% } else if (key === 'neuigkeiten') { %>
+  <section class="home-news">
+    <div class="home-h"><h2>📰 Neuigkeiten</h2></div>
+    <% if (!feed.length) { %><p class="muted">Noch nichts Neues.</p><% } else { %>
+    <div class="tabs home-tabs" role="tablist" aria-label="Neuigkeiten" data-feed-tabs>
+      <button type="button" role="tab" aria-selected="true" data-feed="">Alles</button>
+      <% for (const [k, l] of feedKinds) { %><button type="button" role="tab" aria-selected="false" tabindex="-1" data-feed="<%= k %>"><%= l.replace(/^\S+\s/, '') %></button><% } %>
+    </div>
+    <ul class="home-feed sunken" data-feed-list>
+      <% for (const it of feed) { %>
+      <li data-kind="<%= it.kind %>"<%= it.top ? ' data-top' : '' %><%- it.top ? '' : ' hidden' %>>
+        <span class="fi" aria-hidden="true"><%= it.icon %></span>
+        <span class="ft"><a href="<%= it.url %>" class="<%= it.quote ? 'q' : '' %>"><%= it.title %></a><small><%= it.meta %></small></span>
+        <small class="fw"><%= it.when %></small>
+      </li>
+      <% } %>
+    </ul>
+    <div class="home-more" data-feed-more>
+      <% for (const [k, l] of feedKinds) { %><a href="<%= { blog: '/blog', board: '/forum', files: '/files', guestbook: '/guestbook' }[k] %>" data-more="<%= k %>" hidden>Alles unter <%= l %> »</a><% } %>
+    </div>
+    <% } %>
+  </section>
+  <% } else if (key === 'schnellstart' && apps.length) { %>
   <section class="home-start">
     <div class="home-h"><h2>🚀 Schnellstart</h2></div>
     <nav class="home-apps sunken" aria-label="Schnellstart">
       <% for (const a of apps) { %><a class="home-app" href="<%= a.url %>" title="<%= a.hint %>"><span class="ico" aria-hidden="true"><%- ico(a.icon) %></span><span class="lbl"><%= a.name %></span></a><% } %>
     </nav>
   </section>
-  <% } %>
-
-  <section class="home-posts">
-    <div class="home-h"><h2>📝 Neueste Beiträge</h2><% if (posts.length && !navHidden.includes('blog')) { %><a href="/blog">Alle Beiträge »</a><% } %></div>
-    <% if (!posts.length) { %><p class="muted">Noch keine Beiträge.</p><% } else { %>
-    <div class="home-list sunken">
-      <% for (const p of posts) { %>
-      <div class="home-post">
-        <a href="/blog/<%= p.slug %>"><b><%= p.title %></b></a> <small class="meta"><%= fmtDate(p.created_at) %></small>
-        <% if (p.summary) { %><div class="sum"><%= p.summary %></div><% } %>
-      </div>
+  <% } else if (key === 'dienste' && services.length) { %>
+  <fieldset class="groupbox home-svc"><legend>🗄️ Server-Status</legend>
+    <ul class="home-svc-list">
+      <% for (const s of services) { %>
+      <li data-state="<%= s.state %>"><span class="led <%= s.state %>" aria-hidden="true"></span><span class="ic"><%- ico(s.icon) %></span>
+        <span class="nm"><% if (s.url) { %><a href="<%= s.url %>" target="_blank" rel="noopener"><%= s.name %></a><% } else { %><%= s.name %><% } %></span>
+        <small class="tx"><%= s.text %></small></li>
       <% } %>
-    </div>
-    <% } %>
-  </section>
-
-  <% if (topics.length && !navHidden.includes('board')) { %>
-  <section class="home-forum">
-    <div class="home-h"><h2>💬 Neu im Forum</h2><a href="/forum">Zum Forum »</a></div>
-    <table class="list">
-      <% for (const t of topics) { %>
-      <tr><td><a href="/forum/t/<%= t.id %>?page=last"><%= t.title %></a></td><td class="num"><small><%= t.replies %> <%= t.replies === 1 ? 'Antwort' : 'Antworten' %></small></td><td class="num"><small><%= fmtDate(t.last_post_at, true) %></small></td></tr>
-      <% } %>
-    </table>
-  </section>
-  <% } %>
-
-  <% if (files.length && !navHidden.includes('files')) { %>
-  <section class="home-files">
-    <div class="home-h"><h2>📁 Neue Downloads</h2><a href="/files">Alle Downloads »</a></div>
-    <table class="list">
-      <tr><th>Datei</th><th>Kategorie</th><th class="num">Größe</th></tr>
-      <% for (const f of files) { %>
-      <tr><td><a href="/files/dl/<%= f.id %>"><%= f.title %></a></td><td><%= f.category %><%= f.game ? ' / ' + f.game : '' %></td><td class="num"><%= fmtSize(f.size) %></td></tr>
-      <% } %>
-    </table>
-  </section>
-  <% } %>
-</div>
-
-<aside class="home-side">
-  <% if (update) { const MAX = 8; %>
+    </ul>
+    <div class="actions"><a href="/dienste">Alle Dienste »</a></div>
+  </fieldset>
+  <% } else if (key === 'update' && update) { const MAX = 6; %>
   <%# Kurzfassung des letzten Updates aus CHANGELOG.md (src/changelog.js); der erste Satz jedes Punkts steht im Tooltip %>
   <fieldset class="groupbox home-update"><legend>🆕 Neu auf der Seite</legend>
-    <p class="home-update-head"><% if (update.date) { %><small>Update vom <%= update.date %></small><% } %><b><%= update.title %></b></p>
+    <p class="home-update-head"><% if (update.no != null) { %><span class="upd-no">Update <%= update.no %></span> <% } %><% if (update.date) { %><small><%= update.date %></small><% } %><b><%= update.title %></b></p>
     <% if (update.items.length) { %>
     <ul class="home-tags">
       <% for (const it of update.items.slice(0, MAX)) { %><li class="tag" title="<%= it.text %>"><%= it.label %></li><% } %>
       <% if (update.items.length > MAX) { %><li class="more">und <%= update.items.length - MAX %> weitere</li><% } %>
     </ul>
     <% } %>
-    <div class="actions"><a class="btn small" href="/changelog">📋 Alles im Changelog</a></div>
+    <div class="actions"><a href="/changelog<%= update.no != null ? '#update-' + update.no : '' %>">Was ist neu? »</a></div>
   </fieldset>
-  <% } %>
-
-  <% if (user) { %>
-  <fieldset class="groupbox home-me"><legend>🔔 Für dich</legend>
-    <% if (!notes.length) { %><p class="muted">Nichts Neues. Hier erscheinen Nachrichten, Freundschaftsanfragen, Antworten im Forum und mehr.</p><% } else { %>
-    <div class="notify-page">
-      <% for (const n of notes) { %>
-      <div class="notify-row<%= n.read_at ? '' : ' unread' %>"><a href="/benachrichtigungen/<%= n.id %>"><b><%= n.title %></b><% if (n.count > 1) { %> <span class="tag"><%= n.count %>×</span><% } %><% if (n.body) { %><br><small><%= n.body %></small><% } %></a></div>
-      <% } %>
-    </div>
-    <% } %>
-    <div class="actions"><a class="btn small" href="/benachrichtigungen">Alle anzeigen</a><a class="btn small" href="/konto?reiter=benachrichtigungen#benachrichtigungen">⚙️ Einstellungen</a></div>
-  </fieldset>
-  <% } else { %>
-  <fieldset class="groupbox home-me"><legend>👋 Mitmachen</legend>
-    <p>Mit einem Konto schreibst du im Forum, spielst Blackjack, Poker, Durak, UNO, Flip 7, Pilli Pilli und Minesweeper, löst das tägliche Kreuzworträtsel und Sudoku, malst in Paint, sammelst Freunde und bekommst hier Nachrichten und Benachrichtigungen.</p>
+  <% } else if (key === 'mitmachen' && !user) { %>
+  <fieldset class="groupbox home-me"><legend>🔑 Mitmachen</legend>
+    <p>Mit einem Konto schreibst du im Forum, spielst Karten, Minesweeper, Quiz und Werwolf, löst das tägliche Kreuzworträtsel und Sudoku, malst in Paint, sammelst Freunde und bekommst Nachrichten und Benachrichtigungen.</p>
     <div class="actions"><a class="btn" href="/login">🔑 Anmelden</a><% if (registrationOpen) { %><a class="btn" href="/register">✏️ Registrieren</a><% } %></div>
   </fieldset>
-  <% } %>
-
-  <% if (guestbookEnabled && guestbook.length) { %>
+  <% } else if (key === 'speicher' && storage && storage.length) { %>
+  <fieldset class="groupbox home-disk"><legend>💽 Belegter Speicher</legend>
+    <% for (const d of storage) { %>
+    <div class="disk"><span><%= d.label %></span><% if (d.total) { %><span class="disk-bar" role="img" aria-label="<%= d.pct %> Prozent belegt"><i style="width:<%= d.pct %>%"></i></span><small><%= d.usedText %> / <%= d.totalText %></small><% } else { %><span></span><small><%= d.freeText %> frei</small><% } %></div>
+    <% } %>
+  </fieldset>
+  <% } else if (key === 'besucherbuch' && guestbook.length) { %>
   <fieldset class="groupbox home-gb"><legend>📖 Zuletzt im Besucherbuch</legend>
     <% for (const g of guestbook) { %>
     <div class="panel"><b><%= g.name || 'Anonym' %>:</b> <%= g.message.length > 160 ? g.message.slice(0, 160) + '…' : g.message %></div>
@@ -108,10 +94,13 @@
     <div class="actions"><a class="btn small" href="/guestbook">✏️ Ins Besucherbuch eintragen</a></div>
   </fieldset>
   <% } %>
-</aside>
+<% } %>
+
+<div class="home-main"><% for (const k of blocks.main) block(k); %></div>
+<aside class="home-side"><% for (const k of blocks.side) block(k); %></aside>
 </div>
 <%# Im Fenster auf dem Desktop wandert die Statusleiste in den Fensterrand (public/retro.js) %>
-<div class="statusbar home-status"><span><%= user ? '👤 Angemeldet als ' + user.name : '👤 Du bist als Gast hier' %></span></div>
+<div class="statusbar home-status"><span><%= user ? '👤 Angemeldet als ' + user.name : '👤 Du bist als Gast hier' %></span><% if (update && update.no != null) { %><span class="fixed">Update <%= update.no %></span><% } %></div>
 
 <dialog class="window guide" id="guide">
   <div class="titlebar"><span class="ttl">🧭 Kurzer Rundgang</span></div>
@@ -121,4 +110,5 @@
   </form>
 </dialog>
 <script src="<%= asset('guide.js') %>"></script>
+<script src="<%= asset('home.js') %>"></script>
 <%- include('partials/foot') %>

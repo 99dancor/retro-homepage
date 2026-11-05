@@ -1,0 +1,28 @@
+<%- include('../partials/head') %>
+<%# System → E-Mail: SMTP für Benachrichtigungen an den Admin. Das Passwort wird nie ausgegeben. %>
+<% if (mailMsg) { %><div class="msg">✉️ <%= mailMsg %></div><% } %>
+<form method="post" action="/admin/email">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox"><legend>✉️ E-Mail-Benachrichtigung</legend>
+    <p style="margin-top:0"><small>Bei neuen Nachrichten, Besucherbuch-Einträgen und Registrierungen bekommst du eine E-Mail. Du brauchst dafür einen SMTP-Zugang, z. B. von deinem Mail-Anbieter (GMX, web.de, Gmail mit App-Passwort, Mailbox.org …).</small></p>
+    <div class="row">
+      <label>Benachrichtigung an:<input type="email" name="notify_email" class="w100" value="<%= s.notify_email %>" placeholder="du@example.de"></label>
+      <label>Absender-Adresse:<input type="text" name="smtp_from" class="w100" value="<%= s.smtp_from %>" placeholder="Website &lt;website@example.de&gt;"></label>
+    </div>
+    <div class="row">
+      <label>SMTP-Server:<input type="text" name="smtp_host" class="w100" value="<%= s.smtp_host %>" placeholder="smtp.gmail.com"></label>
+      <label>Port:<input type="number" name="smtp_port" value="<%= s.smtp_port %>"></label>
+      <label class="inline" style="margin-top:22px"><input type="checkbox" name="smtp_secure" value="1" <%= s.smtp_secure === '1' ? 'checked' : '' %>> SSL/TLS direkt (Port 465)</label>
+    </div>
+    <div class="row">
+      <label>Benutzername:<input type="text" name="smtp_user" class="w100" value="<%= s.smtp_user %>" autocomplete="off"></label>
+      <label>Passwort:<input type="password" name="smtp_pass" class="w100" placeholder="<%= s.smtp_pass_set ? '•••••• (gespeichert)' : '' %>" autocomplete="new-password"></label>
+    </div>
+    <% if (s.smtp_pass_set) { %><label class="inline"><input type="checkbox" name="smtp_pass_clear" value="1"> Gespeichertes Passwort löschen</label><% } %>
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button></div>
+</form>
+<form method="post" action="/admin/settings/testmail" class="actions">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button>✉️ Test-E-Mail senden</button> <small>(erst speichern, dann testen)</small>
+</form>
+<%- include('../partials/foot') %>

@@ -16,6 +16,7 @@ const KINDS = {
   modliste: { label: '💡 Vorschläge zu deinen Modlisten', site: true, push: false },
   daily: { label: '📅 Tägliche Aktionen (Besuchsserie, Tagesfrage)', site: true, push: false },
   fshub: { label: '🚜 Farming Simulator Hub (Aufgaben, Server, Vorschläge)', site: true, push: false },
+  dienste: { label: '🗄️ Dienst wieder erreichbar („Sag Bescheid“)', site: true, push: true },
   admin: { label: '⚙️ Admin-Hinweise (Freigaben, Kontakt, Registrierungen)', site: true, push: true, admin: true },
 };
 const KEEP = 100;            // so viele Benachrichtigungen bleiben je Konto höchstens

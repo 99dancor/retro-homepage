@@ -1,0 +1,3 @@
+<%# Balken der letzten Stunden (src/services.js bars): je Stunde der schlechteste Zustand, n = keine Abfrage %>
+<% const lbl = { up: 'online', warn: 'langsam', down: 'offline', n: 'keine Abfrage' }; %>
+<span class="up-bars" role="img" aria-label="Letzte <%= bars.length %> Stunden: <%= bars.filter(b => b === 'down').length %> mit Ausfall"><% for (let i = 0; i < bars.length; i++) { %><i class="b-<%= bars[i] %>" title="vor <%= bars.length - i %> Std.: <%= lbl[bars[i]] %>"></i><% } %></span>

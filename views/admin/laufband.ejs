@@ -1,0 +1,64 @@
+<%- include('../partials/head') %>
+<%# Aussehen → Laufband (src/ticker.js): eigene Meldungen mit Zeitraum und automatische. Besucher blenden es mit × aus. %>
+<fieldset class="groupbox"><legend>👀 So sieht es gerade für dich aus</legend>
+  <% if (s.ticker_on === '0') { %><p class="muted" style="margin:0">Das Laufband ist aus.</p>
+  <% } else if (!preview.length) { %><p class="muted" style="margin:0">Gerade gibt es keine Meldung, also auch kein Laufband.</p>
+  <% } else { %>
+  <div class="tick t-<%= s.ticker_style || 'led' %> tick-preview" aria-hidden="true">
+    <% if (s.ticker_label) { %><span class="lbl"><%= s.ticker_label %></span><% } %>
+    <div class="run"><div class="items"><% preview.forEach((it, i) => { %><% if (i) { %><i>+++</i><% } %><span><%= it.text %></span><% }) %></div></div>
+  </div>
+  <% } %>
+</fieldset>
+<form method="post" action="/admin/laufband">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox"><legend>📢 Laufband</legend>
+    <label class="inline"><input type="checkbox" name="ticker_on" value="1" <%= s.ticker_on !== '0' ? 'checked' : '' %>> Laufband oben über dem Desktop</label>
+    <div class="row">
+      <label>Aussehen:<select name="ticker_style"><% for (const [k, v] of Object.entries(STYLES)) { %><option value="<%= k %>"<%= (s.ticker_style || 'led') === k ? ' selected' : '' %>><%= v %></option><% } %></select></label>
+      <label>Beschriftung vorne (leer = ohne):<input type="text" name="ticker_label" value="<%= s.ticker_label %>" maxlength="30" placeholder="📢 NEU"></label>
+    </div>
+    <p style="margin:6px 0 2px"><b>Automatische Meldungen:</b></p>
+    <% for (const [k, v] of Object.entries(AUTO)) { %><label class="inline"><input type="checkbox" name="auto" value="<%= k %>" <%= auto.includes(k) ? 'checked' : '' %>> <%= v %></label><br><% } %>
+    <small>Dienste kommen nur, wenn bei ihnen „Laufband“ angehakt ist. Jeder Besucher kann das Laufband mit × ausblenden (bis es etwas Neues gibt oder ganz) und unter 🖥️ → Effekte anhalten oder langsamer stellen; das merkt sich nur sein Browser.</small>
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button></div>
+</form>
+
+<fieldset class="groupbox" id="meldungen"><legend>✏️ Eigene Meldungen</legend>
+  <% if (!items.length) { %><p class="muted" style="margin-top:0">Noch keine eigenen Meldungen.</p><% } else { %>
+  <table class="list">
+    <tr><th>Meldung</th><th>Wann</th><th>Für</th><th></th></tr>
+    <% items.forEach((it, i) => { const on = active(it); %>
+    <tr class="<%= on ? '' : 'off' %>">
+      <td><%= it.text %><% if (it.url) { %><br><small class="muted">→ <%= it.url %></small><% } %></td>
+      <td><small><%= period(it.starts_at, it.ends_at) %><%= !it.enabled ? ' · aus' : !on ? ' · gerade nicht' : '' %></small></td>
+      <td><small><%= AUDIENCE[it.audience] %></small></td>
+      <td class="nowrap">
+        <a class="btn small" href="/admin/laufband?edit=<%= it.id %>#neu">✏️</a>
+        <form method="post" action="/admin/laufband/<%= it.id %>/hoch" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" title="Nach oben"<%= i === 0 ? ' disabled' : '' %>>▲</button></form>
+        <form method="post" action="/admin/laufband/<%= it.id %>/runter" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" title="Nach unten"<%= i === items.length - 1 ? ' disabled' : '' %>>▼</button></form>
+        <form method="post" action="/admin/laufband/<%= it.id %>/loeschen" class="inline" data-confirm="Diese Meldung löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" title="Löschen">🗑️</button></form>
+      </td>
+    </tr>
+    <% }) %>
+  </table>
+  <% } %>
+</fieldset>
+<% const e = edit || { audience: 'all', enabled: 1 }; %>
+<form method="post" action="/admin/laufband/meldung" id="neu">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="id" value="<%= edit ? edit.id : '' %>">
+  <fieldset class="groupbox"><legend><%= edit ? '✏️ Meldung ändern' : '➕ Neue Meldung' %></legend>
+    <label>Text (bis 200 Zeichen):<input type="text" name="text" class="w100" value="<%= e.text || '' %>" maxlength="200" required placeholder="🎉 Heute Abend Werwolf-Runde um 20 Uhr!"></label>
+    <label>Link (freiwillig, z. B. <code>/werwolf</code> oder https://…):<input type="text" name="url" class="w100" value="<%= e.url || '' %>" maxlength="500"></label>
+    <div class="row">
+      <label>Ab (leer = sofort):<input type="datetime-local" name="starts_at" value="<%= dtLocal(e.starts_at) %>"></label>
+      <label>Bis (leer = ohne Ende):<input type="datetime-local" name="ends_at" value="<%= dtLocal(e.ends_at) %>"></label>
+      <label>Für:<select name="audience"><% for (const [k, v] of Object.entries(AUDIENCE)) { %><option value="<%= k %>"<%= e.audience === k ? ' selected' : '' %>><%= v %></option><% } %></select></label>
+    </div>
+    <label class="inline"><input type="checkbox" name="enabled" value="0" <%= e.enabled ? '' : 'checked' %>> Erst einmal aus</label>
+  </fieldset>
+  <div class="actions"><button>💾 <%= edit ? 'Ändern' : 'Hinzufügen' %></button><% if (edit) { %> <a class="btn" href="/admin/laufband#meldungen">Abbrechen</a><% } %></div>
+</form>
+<%- include('../partials/foot') %>

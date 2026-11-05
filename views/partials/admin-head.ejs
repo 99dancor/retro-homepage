@@ -1,0 +1,10 @@
+<%# Kopf jedes Bereichs: Titel und „Einstellung suchen“ (Strg+K). Die Liste kommt aus src/adminnav.js, gesucht wird im Browser. %>
+<% const here = adminNav.current(path), crumbs = here.item && here.group.label !== here.item.label ? here.group.label : ''; %>
+<div class="sv-head">
+  <h1><% if (crumbs) { %><small><%= crumbs %> ›</small> <% } %><%= (here.item && path === here.item.url ? here.item.icon : here.item ? here.item.icon : here.group.icon) %> <%= title %></h1>
+  <div class="sv-search">
+    <input type="search" placeholder="🔍 Einstellung suchen… (Strg+K)" aria-label="Einstellung suchen (Strg+K)" autocomplete="off" spellcheck="false" data-sv-search aria-controls="sv-hits" aria-expanded="false">
+    <div class="sv-hits" id="sv-hits" role="listbox" hidden></div>
+  </div>
+</div>
+<script type="application/json" id="sv-index"><%- JSON.stringify(adminNav.SEARCH).replace(/</g, '\\u003c') %></script>

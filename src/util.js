@@ -84,6 +84,26 @@ function fmtDate(ts, withTime = false) {
     (withTime ? ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: process.env.TZ || 'Europe/Berlin' }) : '');
 }
 
+// <input type="datetime-local"> in Ortszeit der Seite (TZ, sonst Berlin), auch wenn der Server selbst in UTC läuft
+const TZ = () => process.env.TZ || 'Europe/Berlin';
+function localInput(ts) {
+  if (!ts) return '';
+  return new Date(ts * 1000).toLocaleString('sv-SE', { timeZone: TZ(), hourCycle: 'h23' }).replace(' ', 'T').slice(0, 16);
+}
+function zoneOffset(ms) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: TZ(), hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
+    .formatToParts(new Date(ms)).map(x => [x.type, Number(x.value)]));
+  return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - Math.floor(ms / 1000) * 1000;
+}
+function fromLocalInput(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(v || '').trim());
+  if (!m) return null;
+  const wall = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  let t = wall - zoneOffset(wall);
+  t = wall - zoneOffset(t);
+  return Math.floor(t / 1000);
+}
+
 function fmtSize(n) {
   if (n < 1024) return n + ' B';
   const u = ['KB', 'MB', 'GB', 'TB'];
@@ -113,4 +133,4 @@ function visibilityFrom(body, owned = false) {
   return Object.hasOwn(VISIBILITY, body.visibility) ? body.visibility : 'public';
 }
 
-module.exports = { md, mdBlocks, imageOptions, slugify, fmtDate, fmtSize, VISIBILITY, FRIENDS_LABEL, safeUrl, asArray, visibilityFrom };
+module.exports = { md, mdBlocks, imageOptions, slugify, fmtDate, fmtSize, localInput, fromLocalInput, VISIBILITY, FRIENDS_LABEL, safeUrl, asArray, visibilityFrom };

@@ -1,0 +1,33 @@
+<%- include('../partials/head') %>
+<%# System → Ereignisanzeige (src/events.js): was auf der Seite passiert ist, nach 90 Tagen fällt es weg %>
+<% const lvIcon = { info: 'ℹ️', warn: '⚠️', error: '⛔' }; %>
+<div class="ev-bar">
+  <span>Letzte 24 Stunden: <b><%= ev.error %></b> Fehler · <b><%= ev.warn %></b> Warnungen · <b><%= ev.info %></b> Informationen</span>
+  <form method="get" action="/admin/ereignisse" class="inline ev-filter">
+    <label>Stufe: <select name="level" data-autosubmit>
+      <option value="">Alle</option>
+      <% for (const [k, v] of Object.entries(levels)) { %><option value="<%= k %>"<%= level === k ? ' selected' : '' %>><%= v %></option><% } %>
+    </select></label>
+    <label>Quelle: <select name="quelle" data-autosubmit>
+      <option value="">Alle</option>
+      <% for (const q of sources) { %><option value="<%= q.source %>"<%= source === q.source ? ' selected' : '' %>><%= q.source %> (<%= q.n %>)</option><% } %>
+    </select></label>
+    <noscript><button>Filtern</button></noscript>
+  </form>
+</div>
+<% if (!list.length) { %><p class="muted">Keine Ereignisse<%= level || source ? ' für diesen Filter' : '' %>.</p><% } else { %>
+<div class="ev-wrap">
+<table class="list ev-list">
+  <tr><th>Stufe</th><th>Datum und Uhrzeit</th><th>Quelle</th><th>Ereignis</th><th>Von</th></tr>
+  <% for (const e of list) { %>
+  <tr class="ev-<%= e.level %>"><td><%= lvIcon[e.level] %> <%= levels[e.level].replace(/^\S+\s/, '') %></td><td style="white-space:nowrap"><%= fmtDate(e.at, true) %></td>
+    <td><a href="/admin/ereignisse?quelle=<%= encodeURIComponent(e.source) %>"><%= e.source %></a></td><td><%= e.message %></td><td><%= e.username || '' %></td></tr>
+  <% } %>
+</table>
+</div>
+<% } %>
+<form method="post" action="/admin/ereignisse/leeren" class="actions" data-confirm="Alle Ereignisse löschen?">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button>🧹 Ereignisanzeige leeren</button>
+  <small>Es stehen keine IP-Adressen drin. Bei Änderungen in der Seitenverwaltung steht dabei, welcher Admin es war. Nach 90 Tagen fällt alles von selbst weg.</small>
+</form>
+<%- include('../partials/foot') %>

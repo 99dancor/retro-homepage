@@ -1,0 +1,31 @@
+<%- include('../partials/head') %>
+<%# Aussehen → Startseite: Text und Bausteine (src/homeblocks.js). ▲▼ speichern erst alles und verschieben dann. %>
+<form method="post" action="/admin/startseite/text">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox" id="text"><legend>👋 Text auf der Startseite</legend>
+    <%- include('../partials/md-editor', { name: 'home_md', value: home_md }) %>
+    <small>Steht im Baustein „Willkommen“. Regeln (eigene Seite „regeln“) und der kurze Rundgang kommen darunter von selbst.</small>
+  </fieldset>
+  <div class="actions"><button>💾 Text speichern</button> <a class="btn" href="/" target="_blank">Startseite ansehen</a></div>
+</form>
+<form method="post" action="/admin/startseite/bausteine">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox" id="bausteine"><legend>🧱 Bausteine</legend>
+    <p style="margin-top:0"><small>Was auf der Startseite steht, in welcher Reihenfolge und Spalte und für wen. Am Handy stehen beide Spalten untereinander, links zuerst.</small></p>
+    <table class="list hb-table">
+      <tr><th class="c">An</th><th>Baustein</th><th>Spalte</th><th>Für</th><th></th></tr>
+      <% blocks.forEach((b, i) => { %>
+      <tr class="<%= b.on ? '' : 'off' %>">
+        <td class="c"><input type="hidden" name="order" value="<%= b.key %>"><input type="checkbox" name="on" value="<%= b.key %>" <%= b.on ? 'checked' : '' %> aria-label="<%= b.label %> zeigen"></td>
+        <td><b><%= b.label %></b><br><small class="muted"><%= b.hint %></small></td>
+        <td><select name="col_<%= b.key %>" aria-label="Spalte für <%= b.label %>"><% for (const [k, v] of Object.entries(COLS)) { %><option value="<%= k %>"<%= b.col === k ? ' selected' : '' %>><%= v %></option><% } %></select></td>
+        <td><select name="for_<%= b.key %>" aria-label="Für wen: <%= b.label %>"><% for (const [k, v] of Object.entries(FOR)) { %><option value="<%= k %>"<%= b.for === k ? ' selected' : '' %>><%= v %></option><% } %></select></td>
+        <td class="nowrap"><button class="small" name="move" value="<%= b.key %>:up" title="Nach oben" aria-label="<%= b.label %> nach oben"<%= i === 0 ? ' disabled' : '' %>>▲</button><button class="small" name="move" value="<%= b.key %>:down" title="Nach unten" aria-label="<%= b.label %> nach unten"<%= i === blocks.length - 1 ? ' disabled' : '' %>>▼</button></td>
+      </tr>
+      <% }) %>
+    </table>
+    <small>Server-Status zeigt die Dienste mit „Startseite“ (<a href="/admin/dienste">Dienste</a>), Belegter Speicher richtet sich nach <a href="/admin/dienste#widget">Dienste → Widget</a>.</small>
+  </fieldset>
+  <div class="actions"><button>💾 Bausteine speichern</button></div>
+</form>
+<%- include('../partials/foot') %>

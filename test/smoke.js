@@ -126,9 +126,14 @@ async function main() {
       assert.equal(r.headers.get('location'), '/admin');
       for (const p of ['/admin', '/admin/posts', '/admin/posts/new', '/admin/media', '/admin/files', '/admin/mods',
         '/admin/links', '/admin/guestbook', '/admin/messages', '/admin/users', '/admin/pages', '/admin/pages/new', '/admin/apps',
-        '/admin/apps/new', '/admin/design', '/admin/settings', '/admin/musik']) {
+        '/admin/apps/new', '/admin/design', '/admin/settings', '/admin/musik', '/admin/statistik', '/admin/programme', '/admin/programme/kartenspiele',
+        '/admin/programme/raetsel', '/admin/programme/mediaplayer', '/admin/programme/forum', '/admin/programme/besucherbuch', '/admin/dienste', '/admin/dienste/neu',
+        '/admin/dienste/neu?art=jellyfin', '/admin/startseite', '/admin/laufband', '/admin/popups', '/admin/ereignisse', '/admin/info', '/admin/anmelden', '/admin/email',
+        '/admin/speicher', '/admin/desktop', '/admin/freigaben']) {
         assert.equal((await admin.req(p)).status, 200, p);
       }
+      // Postfach führt zu dem Teil, in dem etwas wartet
+      assert.equal((await admin.req('/admin/postfach')).status, 302);
     });
 
     await step('Blog-Beitrag anlegen, HTML wird bereinigt', async () => {
@@ -591,7 +596,7 @@ async function main() {
       const gp = (await guest.req('/musik')).text_;
       assert.match(gp, /data-skin="klassisch" data-skin-default="klassisch" data-player=""/, 'Gäste bekommen den Standard der Seite');
       assert.match(gp, /<link rel="stylesheet" href="\/static\/music\.css\?v=\w+">/);
-      assert.match((await admin.req('/admin/settings')).text_, /<select name="music_skin">[\s\S]*value="winamp"/);
+      assert.match((await admin.req('/admin/programme/mediaplayer')).text_, /<select name="music_skin">[\s\S]*value="winamp"/);
       const saved = await api(anna, '/musik/einstellungen', { skin: 'winamp', side: { winamp: 'rail', 'vlc-hell': 'kaputt' }, shut: ['pl', 'quatsch'], eq: { on: true, g: [3, 99, -40, 'x', 0, 0, 0, 0, 0, 0] } });
       assert.equal(saved.status, 200);
       assert.deepEqual(saved.json.player, { skin: 'winamp', side: { winamp: 'rail' }, shut: ['pl'], eq: { on: true, g: [3, 12, -12, 0, 0, 0, 0, 0, 0, 0] } });
@@ -985,11 +990,11 @@ async function main() {
       assert.ok(!(await api(bernd)).items.some(n => /Abo-Test/.test(n.title)), 'eigene Antworten melden nichts');
       await anna.req(topic);
       assert.equal((await api(anna)).unread, 0);
-      // Startseite: rechts die eigenen Benachrichtigungen, für Gäste Anmelden; links Neues aus dem Forum
+      // Startseite: oben die 🔔 (alles gelesen), in den Neuigkeiten das Thema aus dem Forum, für Gäste Mitmachen
       const home = (await anna.req('/')).text_;
-      assert.match(home, /🔔 Für dich[\s\S]*Neue Antwort in „Abo-Test“/);
-      assert.match(home, /💬 Neu im Forum[\s\S]*Abo-Test/);
-      assert.match((await guest.req('/')).text_, /👋 Mitmachen[\s\S]*href="\/login"/);
+      assert.match(home, /class="btn small home-bell"[^>]*>🔔 Nichts Neues/);
+      assert.match(home, /📰 Neuigkeiten[\s\S]*data-kind="board"[\s\S]*Abo-Test/);
+      assert.match((await guest.req('/')).text_, /🔑 Mitmachen[\s\S]*href="\/login"/);
 
       // Einstellungen: Forum aus, dann kommt nichts mehr
       const acc = (await anna.req('/konto')).text_;
@@ -1610,7 +1615,7 @@ async function main() {
       assert.equal((await api(anna, '/api/stats/kreuzwortraetsel', { add: { Gelöst: 100 } }, 'PATCH')).status, 404);
       const prof = (await anna.req('/nutzer/bernd')).text_;
       assert.match(prof, /href="\/kreuzwortraetsel"><b>Kreuzworträtsel<\/b>[\s\S]*?Gelöst<\/td><td class="num">1[\s\S]*?Aktuelle Serie<\/td><td class="num">1 Tag/);
-      assert.match((await admin.req('/admin/settings')).text_, /name="cw_words"/);
+      assert.match((await admin.req('/admin/programme/raetsel')).text_, /name="cw_words"/);
     });
 
     await step('Sudoku: drei Stufen am Tag, Prüfen, Lösen, Bestenliste und Profil', async () => {
@@ -1653,7 +1658,7 @@ async function main() {
       assert.equal((await api(anna, '/api/stats/sudoku', { add: { Gelöst: 100 } }, 'PATCH')).status, 404);
       const prof = (await anna.req('/nutzer/bernd')).text_;
       assert.match(prof, /href="\/sudoku"><b>Sudoku<\/b>[\s\S]*?Gelöst<\/td><td class="num">1[\s\S]*?Bestzeit Leicht<\/td><td class="num">5:00/);
-      assert.match((await admin.req('/admin/settings')).text_, /action="\/admin\/settings\/sudoku-reset"/);
+      assert.match((await admin.req('/admin/programme/raetsel')).text_, /action="\/admin\/settings\/sudoku-reset"/);
     });
 
     await step('Quiz: Raum, Gast mit Namen, Live-Verbindung, Wertung, Profil und Admin', async () => {
@@ -1839,7 +1844,8 @@ async function main() {
     await step('Changelog im Startmenü', async () => {
       const home = (await guest.req('/', { top: true })).text_;
       assert.match(home, /<div class="startmenu"[\s\S]*href="\/changelog"/);
-      assert.doesNotMatch(home.split('<div class="startmenu"')[0], /\/changelog/);
+      // Auf dem Desktop selbst kein Symbol dafür; das Laufband darf aufs neueste Update zeigen
+      assert.doesNotMatch(home.split('<div class="startmenu"')[0].replace(/<div class="tick[\s\S]*?<span class="ctl">/, ''), /\/changelog/);
       const r = await guest.req('/changelog');
       assert.equal(r.status, 200);
       assert.match(r.text_, /Eröffnung/);
@@ -1850,44 +1856,69 @@ async function main() {
       // Kurzfassung: oberster Eintrag, Markdown raus, „z. B.“ beendet keinen Satz, Punkte ohne Stichwort nehmen ihren Anfang
       const sample = cl.parse('# Changelog\n\n## 1.2.2027 – Neues *Spiel* und [mehr](/x)\n\n- **Erstens:** Das geht z. B. so. Danach mehr.\n'
         + '- **Zweitens**: Text\n  weiter\n* Ohne Stichwort einfach los. Rest.\n\n## 1.1.2027 – Alt\n\n- **Alt:** nicht dabei\n');
-      assert.deepEqual(sample, { date: '1.2.2027', title: 'Neues Spiel und mehr', items: [
+      assert.deepEqual(sample, { no: null, date: '1.2.2027', title: 'Neues Spiel und mehr', items: [
         { label: 'Erstens', text: 'Das geht z. B. so.' }, { label: 'Zweitens', text: 'Text weiter' },
         { label: 'Ohne Stichwort einfach los', text: 'Ohne Stichwort einfach los.' }] });
-      assert.deepEqual(cl.parse('## Ohne Datum\n\n- **Punkt:** Text'), { date: '', title: 'Ohne Datum', items: [{ label: 'Punkt', text: 'Text' }] });
+      assert.deepEqual(cl.parse('## Ohne Datum\n\n- **Punkt:** Text'), { no: null, date: '', title: 'Ohne Datum', items: [{ label: 'Punkt', text: 'Text' }] });
+      // Update-Nummer = Pull Request: „## Update 85 · 05.11.2026 – Titel“
+      assert.deepEqual(cl.parse('## Update 85 · 05.11.2026 – Seitenverwaltung\n\n- **Baum:** links'), { no: 85, date: '05.11.2026', title: 'Seitenverwaltung', items: [{ label: 'Baum', text: 'links' }] });
+      const top = fs.readFileSync(path.join(__dirname, '..', 'CHANGELOG.md'), 'utf8').match(/^## .*$/m)[0];
+      assert.match(top, /^## Update \d+ · \d{2}\.\d{2}\.\d{4} – \S/, 'oberster Eintrag mit Nummer');
       assert.equal(cl.parse('Noch nichts'), null);
 
       // Auf der Startseite: der oberste Eintrag aus CHANGELOG.md, höchstens acht Stichworte, Link zum Changelog
       const u = cl.latest();
-      assert.equal(u.date, fs.readFileSync(path.join(__dirname, '..', 'CHANGELOG.md'), 'utf8').match(/^## (\S+)/m)[1]);
+      assert.equal(u.date, fs.readFileSync(path.join(__dirname, '..', 'CHANGELOG.md'), 'utf8').match(/^## Update \d+ · (\S+)/m)[1]);
+      assert.ok(Number.isInteger(u.no), 'Nummer gelesen');
       assert.ok(u.title && u.items.length, 'Titel und Punkte gelesen');
       const html = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&#34;').replace(/'/g, '&#39;');
       const home = (await guest.req('/')).text_;
       const box = home.slice(home.indexOf('🆕 Neu auf der Seite'), home.indexOf('</fieldset>', home.indexOf('🆕 Neu auf der Seite')));
-      assert.ok(box.includes('Update vom ' + u.date), 'Datum');
+      assert.ok(box.includes(`<span class="upd-no">Update ${u.no}</span> <small>${u.date}</small>`), 'Nummer und Datum');
       assert.ok(box.includes('<b>' + html(u.title) + '</b>'), 'Titel');
       assert.ok(box.includes('>' + html(u.items[0].label) + '</li>'), 'erstes Stichwort');
-      assert.equal((box.match(/<li class="tag"/g) || []).length, Math.min(8, u.items.length));
-      if (u.items.length > 8) assert.ok(box.includes(`und ${u.items.length - 8} weitere`));
-      assert.match(box, /href="\/changelog">📋 Alles im Changelog/);
+      assert.equal((box.match(/<li class="tag"/g) || []).length, Math.min(6, u.items.length));
+      if (u.items.length > 6) assert.ok(box.includes(`und ${u.items.length - 6} weitere`));
+      assert.ok(box.includes(`href="/changelog#update-${u.no}">Was ist neu? »`), 'Link aufs Update');
+      // Changelog: Sprungmarke und Plakette je Update
+      const clPage = (await guest.req('/changelog')).text_;
+      assert.ok(clPage.includes(`<h2 id="update-${u.no}"><span class="upd-no">Update ${u.no}</span>`), 'Sprungmarke im Changelog');
       // Kopf mit Titel der Seite, Statusleiste für den Fensterrand
       assert.match(home, /<header class="home-hero">[\s\S]*<h1>Meine Seite<\/h1>/);
       assert.match(home, /class="statusbar home-status"><span>👤 Du bist als Gast hier/);
       assert.match((await members.anna.req('/')).text_, /class="statusbar home-status"><span>👤 Angemeldet als /);
 
+      // Schnellstart ist ein Baustein, den der Admin erst einschaltet (Aussehen → Startseite)
+      assert.doesNotMatch(home, /<nav class="home-apps/);
+      const adminToken = await admin.csrf('/admin/startseite');
+      const blocks = (on, extra = []) => admin.form('/admin/startseite/bausteine', [['_csrf', adminToken],
+        ...['willkommen', 'neuigkeiten', 'schnellstart', 'dienste', 'update', 'mitmachen', 'speicher', 'besucherbuch'].map(k => ['order', k]), ...on.map(k => ['on', k]), ...extra]);
+      await blocks(['willkommen', 'neuigkeiten', 'schnellstart', 'dienste', 'update', 'mitmachen']);
       // Schnellstart: die Programme aus dem Startmenü, Ausgeblendetes fehlt auch hier
       const apps = h => [...h.slice(h.indexOf('<nav class="home-apps'), h.indexOf('</nav>', h.indexOf('<nav class="home-apps'))).matchAll(/class="home-app" href="([^"]+)"/g)].map(m => m[1]);
-      assert.deepEqual(apps(home), ['/kartenspiele', '/haustier/', '/paint', '/musik', '/minesweeper', '/kreuzwortraetsel', '/sudoku', '/quiz', '/werwolf', '/forum']);
+      assert.deepEqual(apps((await guest.req('/')).text_), ['/kartenspiele', '/haustier/', '/paint', '/musik', '/minesweeper', '/kreuzwortraetsel', '/sudoku', '/quiz', '/werwolf', '/forum']);
       const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'), { timeout: 5000 });
       const before = sql.prepare("SELECT value FROM settings WHERE key = 'nav_hidden'").get().value;
       sql.prepare("UPDATE settings SET value = 'paint,board' WHERE key = 'nav_hidden'").run();
       try {
         const hidden = (await guest.req('/')).text_;
         assert.deepEqual(apps(hidden), ['/kartenspiele', '/haustier/', '/musik', '/minesweeper', '/kreuzwortraetsel', '/sudoku', '/quiz', '/werwolf']);
-        assert.doesNotMatch(hidden, /💬 Neu im Forum/);
+        assert.doesNotMatch(hidden, /data-kind="board"/);
       } finally {
         sql.prepare("UPDATE settings SET value = ? WHERE key = 'nav_hidden'").run(before);
         sql.close();
       }
+      // Bausteine: Reihenfolge, Spalte und für wen; ▲ verschiebt nach dem Speichern
+      await blocks(['willkommen', 'update', 'mitmachen'], [['col_update', 'main'], ['for_update', 'members'], ['move', 'update:up']]);
+      const g2 = (await guest.req('/')).text_, a2 = (await members.anna.req('/')).text_;
+      assert.doesNotMatch(g2, /🆕 Neu auf der Seite/, 'nur für Mitglieder');
+      assert.doesNotMatch(g2, /📰 Neuigkeiten/, 'ausgeschaltet');
+      const main = a2.slice(a2.indexOf('<div class="home-main">'), a2.indexOf('<aside class="home-side">'));
+      assert.ok(main.includes('🆕 Neu auf der Seite') && main.indexOf('🆕 Neu auf der Seite') > main.indexOf('home-welcome'), 'links, unter Willkommen');
+      await blocks(['willkommen', 'neuigkeiten', 'dienste', 'update', 'mitmachen']);
+      const db2 = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'), { timeout: 5000 });
+      db2.prepare("DELETE FROM settings WHERE key = 'home_blocks'").run();
+      db2.close();
     });
 
     await step('Datenschutzseite im Startmenü zeigt echten Code und Bilder', async () => {
@@ -2342,24 +2373,24 @@ async function main() {
       assert.equal((await anna.req('/admin/desktop')).status, 403);
       const page = (await admin.req('/admin/desktop')).text_;
       assert.match(page, /name="desk_readme"/);
-      assert.match(page, /Beispiel/, 'öffentlicher Link von anna steht in der Liste');
+      assert.match((await admin.req('/admin/speicher')).text_, /Beispiel/, 'öffentlicher Link von anna steht unter Speicher und Freigaben');
       const t = await admin.csrf('/admin/desktop');
       const v = Number(setting('desk_readme_version'));
       const ICONS = ['eigene-dateien', 'papierkorb', 'readme', 'board', 'kartenspiele', 'musik', 'paint'].map(k => ['icons', k]);
-      assert.equal((await admin.form('/admin/desktop', { _csrf: t, desk_readme: 'Hallo {zeichen} {tage}', readme_bump: '1', icons: 'readme',
-        desk_text_chars: '500', desk_text_max: '10', desk_folders_max: '10', desk_links_max: '10', desk_trash_days: '7', user_quota_mb: '100', lobby_widget: '1', search_enabled: '1' })).status, 302);
+      assert.equal((await admin.form('/admin/desktop', { _csrf: t, desk_readme: 'Hallo {zeichen} {tage}', readme_bump: '1', icons: 'readme', icons_form: '1', widgets_form: '1', lobby_widget: '1', search_enabled: '1' })).status, 302);
+      assert.equal((await admin.form('/admin/speicher', { _csrf: t, desk_text_chars: '500', desk_text_max: '10', desk_folders_max: '10', desk_links_max: '10', desk_trash_days: '7', user_quota_mb: '100' })).status, 302);
       assert.equal(Number(setting('desk_readme_version')), v + 1);
-      assert.equal(setting('desk_defaults'), 'readme');
+      assert.equal(setting('desk_defaults'), 'readme,board,kartenspiele,musik,paint', 'Programme auf dem Desktop bleiben (die stehen unter Programme)');
       const d = JSON.parse((await anna.req('/api/desktop')).text_);
       assert.ok(d.items.find(i => i.ref === 'readme').isNew, 'neue Fassung: wieder NEU');
       assert.match((await anna.req('/notizblock/readme')).text_, /Hallo 500 7/);
       assert.ok(!d.items.some(i => i.ref === 'papierkorb'), 'nur noch readme.txt als Standardsymbol');
       // Grenzen werden geklemmt
-      await admin.form('/admin/desktop', [['_csrf', t], ['desk_text_chars', '5'], ['desk_trash_days', '9999'], ['lobby_widget', '1'], ['search_enabled', '1'], ...ICONS]);
+      await admin.form('/admin/speicher', [['_csrf', t], ['desk_text_chars', '5'], ['desk_trash_days', '9999']]);
       assert.equal(setting('desk_text_chars'), '100');
       assert.equal(setting('desk_trash_days'), '365');
-      await admin.form('/admin/desktop', [['_csrf', t], ['desk_text_chars', '10000'], ['desk_trash_days', '30'], ['user_quota_mb', '2048'],
-        ['desk_readme', require('../src/readme').DEFAULT], ['lobby_widget', '1'], ['search_enabled', '1'], ...ICONS]);
+      await admin.form('/admin/speicher', [['_csrf', t], ['desk_text_chars', '10000'], ['desk_trash_days', '30'], ['user_quota_mb', '2048']]);
+      await admin.form('/admin/desktop', [['_csrf', t], ['icons_form', '1'], ['widgets_form', '1'], ['desk_readme', require('../src/readme').DEFAULT], ['lobby_widget', '1'], ['search_enabled', '1'], ...ICONS]);
       assert.equal(setting('desk_defaults'), 'eigene-dateien,papierkorb,readme,board,kartenspiele,musik,paint');
       // Freigabe zurücknehmen: der Link wird privat
       const id = sql.prepare("SELECT id FROM desk_items WHERE name = 'Beispiel'").get().id;
@@ -2819,8 +2850,353 @@ async function main() {
       sql.close();
     });
 
+    await step('Seitenverwaltung 2.0: Baum, Einstellung suchen, jedes Sprungziel gibt es', async () => {
+      const r = await admin.req('/admin');
+      assert.equal(r.status, 200);
+      assert.match(r.text_, /<nav class="sv-tree"/);
+      assert.match(r.text_, /data-sv-search/);
+      const idx = r.text_.match(/<script type="application\/json" id="sv-index">([\s\S]*?)<\/script>/);
+      assert.ok(idx, 'Suchindex in der Seite');
+      const list = JSON.parse(idx[1]);
+      assert.ok(list.length > 40, 'Seiten und einzelne Schalter');
+      const pages = new Map();
+      for (const e of list) {
+        const [url, hash] = e.url.split('#');
+        if (!pages.has(url)) pages.set(url, await admin.req(url));
+        const p = pages.get(url);
+        assert.ok([200, 302].includes(p.status), `${e.label}: ${url} → ${p.status}`);
+        if (hash && p.status === 200) assert.match(p.text_, new RegExp(`id="${hash}"`), `${e.label}: #${hash} auf ${url}`);
+      }
+      assert.equal((await members.anna.req('/admin/dienste')).status, 403);
+      assert.equal((await guest.req('/admin/laufband')).status, 302);
+    });
+
+    await step('Programme: für alle, nur Mitglieder, aus; Startmenü, Desktop, Eigenschaften', async () => {
+      const t = admin.jar.get('csrf');
+      const post = data => admin.form('/admin/programme', [['_csrf', t], ['rows', 'zufall'], ...Object.entries(data)]);
+      assert.equal((await post({ for_zufall: 'off', nav: 'zufall' })).headers.get('location'), '/admin/programme?ok=1');
+      assert.equal((await guest.req('/zufall')).status, 404);
+      assert.equal((await admin.req('/zufall')).status, 200, 'Admins kommen immer durch');
+      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /href="\/zufall"/);
+      await post({ for_zufall: 'members', nav: 'zufall', desk: 'zufall' });
+      let r = await guest.req('/zufall');
+      assert.equal(r.status, 302);
+      assert.match(r.headers.get('location'), /^\/login\?next=%2Fzufall/);
+      assert.equal((await members.anna.req('/zufall')).status, 200);
+      let page = (await admin.req('/admin/programme')).text_;
+      assert.match(page, /<select name="for_zufall"[\s\S]*?value="members" selected/);
+      assert.match(page, /name="desk" value="zufall" checked/);
+      // Ohne Haken im Startmenü verschwindet es dort, bleibt aber erreichbar
+      await post({ for_zufall: 'all' });
+      assert.equal((await guest.req('/zufall')).status, 200);
+      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /<div class="startmenu"[\s\S]*href="\/zufall"/);
+      await post({ for_zufall: 'all', nav: 'zufall' });
+      page = (await admin.req('/admin/programme')).text_;
+      assert.match(page, /name="desk" value="zufall"\s+aria-label/, 'nicht mehr auf dem Desktop');
+      assert.match((await guest.req('/', { top: true })).text_, /<div class="startmenu"[\s\S]*href="\/zufall"/);
+
+      // Eigenschaften der Kartenspiele: alle Schalter in einem Formular, zurück auf den richtigen Reiter
+      page = (await admin.req('/admin/programme/kartenspiele')).text_;
+      for (const tab of ['allgemein', 'kasse', 'spiele', 'bestenlisten']) assert.match(page, new RegExp(`id="${tab}"`));
+      const buyin = page.match(/name="ks_buyin"[^>]*value="(\d+)"/)[1];
+      const onDesk = /name="desk" value="kartenspiele" checked/.test(page);
+      const ks = [['_csrf', t], ['rows', 'kartenspiele'], ['for_kartenspiele', 'members'], ['nav', 'kartenspiele'], ['tab', 'kasse'],
+        ['ks_buyin', '2500'], ['ks_rebuy_below', '0'], ['bj_decks', '6'], ...(onDesk ? [['desk', 'kartenspiele']] : [])];
+      for (const p of ['bj', 'pk', 'dk', 'uno', 'f7', 'pp']) ks.push([p + '_enabled', '1'], [p + '_turn', '30']);
+      r = await admin.form('/admin/programme/kartenspiele', ks);
+      assert.equal(r.headers.get('location'), '/admin/programme/kartenspiele?ok=1#kasse');
+      page = (await admin.req('/admin/programme/kartenspiele')).text_;
+      assert.match(page, /name="ks_buyin"[^>]*value="2500"/);
+      assert.equal(/name="desk" value="kartenspiele" checked/.test(page), onDesk, 'Desktop-Haken bleibt');
+      ks[5] = ['ks_buyin', buyin];
+      await admin.form('/admin/programme/kartenspiele', ks);
+      assert.match((await admin.req('/admin/programme/kartenspiele')).text_, new RegExp(`name="ks_buyin"[^>]*value="${buyin}"`));
+      assert.equal((await admin.req('/admin/programme/gibtsnicht')).status, 404);
+    });
+
+    await step('Dienste: Website und Port prüfen, Schlüssel bleibt geheim, Sag Bescheid, Widget und Speicher', async () => {
+      const http = require('node:http'), net = require('node:net');
+      const { once } = require('node:events');
+      const { DatabaseSync } = require('node:sqlite');
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
+      const web = http.createServer((q, s) => s.end('ok')).listen(0, '127.0.0.1');
+      await once(web, 'listening');
+      // Freier Port für den TCP-Dienst: kurz öffnen, Nummer merken, wieder schließen
+      const tmp = net.createServer().listen(0, '127.0.0.1');
+      await once(tmp, 'listening');
+      const tcpPort = tmp.address().port;
+      await new Promise(r => tmp.close(r));
+      let game = null;
+      const KEY = 'GEHEIM-jellyfin-schluessel-4711';
+      const t = admin.jar.get('csrf');
+      const json = (b, url, body) => b.req(url, { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json', 'x-csrf-token': b.jar.get('csrf') || '' } });
+      const dienste = async b => JSON.parse((await b.req('/api/dienste')).text_);
+      const save = async (pairs, show) => {
+        const r = await admin.form('/admin/dienste/speichern', [['_csrf', t], ...pairs, ...show.map(s => ['show', s])]);
+        const m = (r.headers.get('location') || '').match(/^\/admin\/dienste\/(\d+)\?ok=1$/);
+        assert.ok(m, 'gespeichert: ' + r.headers.get('location'));
+        return Number(m[1]);
+      };
+      const check = id => admin.form(`/admin/dienste/${id}/pruefen`, { _csrf: t });
+      // Bis der Zustand stimmt (die Prüfung im Hintergrund kann gerade laufen)
+      const until = async (b, name, state) => {
+        for (let i = 0; i < 40; i++) {
+          const s = (await dienste(b)).services.find(x => x.name === name);
+          if (s && s.state === state) return s;
+          await new Promise(r => setTimeout(r, 100));
+        }
+        assert.fail(`${name} wird nicht ${state}`);
+      };
+      try {
+        assert.match((await admin.req('/admin/dienste/neu')).text_, /href="\/admin\/dienste\/neu\?art=jellyfin"/);
+        const bad = await admin.form('/admin/dienste/speichern', { _csrf: t, kind: 'http', url: 'ftp://x' });
+        assert.match(bad.headers.get('location'), /^\/admin\/dienste\/neu\?art=http&fehler=/);
+        const webId = await save([['kind', 'http'], ['name', 'Webseite'], ['url', `http://127.0.0.1:${web.address().port}/`], ['visibility', 'public'], ['every', '60'], ['notify_down', '1']], ['home', 'widget', 'ticker', 'tray']);
+        const gameId = await save([['kind', 'tcp'], ['name', 'Valheim-Port'], ['host', `127.0.0.1:${tcpPort}`], ['visibility', 'members'], ['every', '60']], ['widget', 'tray']);
+        const jfId = await save([['kind', 'jellyfin'], ['name', 'Kino'], ['url', `http://127.0.0.1:${web.address().port}`], ['key', KEY], ['visibility', 'admin']], ['widget']);
+        for (const id of [webId, gameId, jfId]) await check(id);
+        await until(admin, 'Webseite', 'up');
+        await until(admin, 'Valheim-Port', 'down');
+        await until(admin, 'Kino', 'down');
+
+        // Der Schlüssel geht nie an den Browser, auch nicht an den Admin; leer gespeichert bleibt er stehen
+        for (const url of [`/admin/dienste/${jfId}`, '/admin/dienste', '/admin', '/api/dienste', '/dienste']) assert.doesNotMatch((await admin.req(url)).text_, new RegExp(KEY), url);
+        const edit = (await admin.req(`/admin/dienste/${jfId}`)).text_;
+        assert.match(edit, /type="password"[^>]*name="key"|name="key"[^>]*type="password"/);
+        assert.match(edit, /volle Admin-Rechte/);
+        await save([['id', String(jfId)], ['kind', 'jellyfin'], ['name', 'Kino'], ['url', `http://127.0.0.1:${web.address().port}`], ['key', ''], ['visibility', 'admin']], ['widget']);
+        assert.equal(JSON.parse(sql.prepare('SELECT config FROM services WHERE id = ?').get(jfId).config).key, KEY);
+        await save([['id', String(jfId)], ['kind', 'jellyfin'], ['name', 'Kino'], ['url', `http://127.0.0.1:${web.address().port}`], ['key_clear', '1'], ['visibility', 'admin']], ['widget']);
+        assert.equal(JSON.parse(sql.prepare('SELECT config FROM services WHERE id = ?').get(jfId).config).key, '');
+
+        // „Jetzt testen“ prüft, ohne zu speichern
+        let r = JSON.parse((await admin.form('/admin/dienste/test', { _csrf: t, kind: 'http', url: `http://127.0.0.1:${web.address().port}/` })).text_);
+        assert.equal(r.state, 'up');
+        assert.equal(r.label, 'Online');
+        r = JSON.parse((await admin.form('/admin/dienste/test', { _csrf: t, kind: 'tcp', host: '127.0.0.1', port: String(tcpPort) })).text_);
+        assert.equal(r.state, 'down');
+        assert.match(r.text, /Verbindung abgelehnt/);
+
+        // Besucher sehen nur, was für sie freigegeben ist, und keine Adressen
+        const g = await dienste(guest);
+        assert.deepEqual(g.services.map(s => s.name), ['Webseite']);
+        assert.doesNotMatch(JSON.stringify(g), /127\.0\.0\.1|config|key/);
+        assert.deepEqual((await dienste(members.anna)).services.map(s => s.name), ['Webseite', 'Valheim-Port']);
+        assert.match((await guest.req('/')).text_, /🗄️ Server-Status[\s\S]*Webseite/, 'Startseite');
+        assert.doesNotMatch((await guest.req('/')).text_, /Valheim-Port/);
+        assert.match((await members.anna.req('/dienste')).text_, /Valheim-Port[\s\S]*offline/);
+        let desk = (await members.anna.req('/', { top: true })).text_;
+        assert.match(desk, /id="svctray"/);
+        assert.match(desk, /id="svcwidget"/);
+
+        // Sag Bescheid: nur angemeldet, nur sichtbare Dienste
+        assert.equal((await json(guest, `/api/dienste/${gameId}/bescheid`, {})).status, 401);
+        assert.equal((await json(members.anna, `/api/dienste/${jfId}/bescheid`, {})).status, 404);
+        assert.deepEqual(JSON.parse((await json(members.anna, `/api/dienste/${gameId}/bescheid`, {})).text_), { ok: true, watching: true });
+        assert.equal((await dienste(members.anna)).services.find(s => s.id === gameId).watching, true);
+        assert.match((await admin.req(`/admin/dienste/${gameId}`)).text_, /ein Mitglied wartet auf „Sag Bescheid“/);
+
+        // Der Server kommt wieder: Anna bekommt eine Benachrichtigung, die Liste ist danach leer
+        game = net.createServer(s => s.end()).listen(tcpPort, '127.0.0.1');
+        await once(game, 'listening');
+        await check(gameId);
+        await until(members.anna, 'Valheim-Port', 'up');
+        const note = JSON.parse((await members.anna.req('/api/benachrichtigungen')).text_);
+        assert.ok(note.items.some(n => /Valheim-Port ist wieder online/.test(n.title)), 'Benachrichtigung');
+        assert.equal((await dienste(members.anna)).services.find(s => s.id === gameId).watching, false);
+        assert.match((await admin.req('/admin/ereignisse')).text_, /„Valheim-Port“ ist wieder erreichbar/);
+
+        // Widget und belegter Speicher: für wen, Beschriftung, aus
+        const disks = [...(await admin.req('/admin/dienste')).text_.matchAll(/name="disk_(\w+)"/g)].map(m => m[1]);
+        assert.ok(disks.includes('daten'));
+        const widget = (data, more = []) => admin.form('/admin/dienste/widget', [['_csrf', t], ...Object.entries(data), ...more]);
+        await widget({ svc_widget: '1', svc_storage: '1', svc_storage_for: 'public', ['label_' + disks[0]]: 'Unraid-Array' }, disks.map(k => ['disk_' + k, '1']));
+        let st = (await dienste(guest)).storage;
+        assert.equal(st[0].label, 'Unraid-Array');
+        assert.ok(st[0].total > 0 && st[0].pct >= 0 && st[0].pct <= 100);
+        assert.match(st[0].usedText, /B$/);
+        await widget({ svc_widget: '1', svc_storage: '1', svc_storage_for: 'admin' }, disks.map(k => ['disk_' + k, '1']));
+        assert.equal((await dienste(guest)).storage, null);
+        assert.equal((await dienste(members.anna)).storage, null);
+        assert.ok((await dienste(admin)).storage.length);
+        await widget({ svc_widget: '1', svc_storage: '1', svc_storage_for: 'members' }, []);
+        assert.deepEqual((await dienste(members.anna)).storage, [], 'alle Platten abgewählt');
+        await widget({ svc_widget: '0', svc_storage: '0', svc_storage_for: 'members' }, disks.map(k => ['disk_' + k, '1']));
+        assert.equal((await dienste(members.anna)).widget, false);
+        assert.equal((await dienste(members.anna)).storage, null);
+        desk = (await members.anna.req('/', { top: true })).text_;
+        assert.doesNotMatch(desk, /id="svcwidget"/);
+        assert.match(desk, /id="svctray"/, 'Taskleiste hängt nicht am Widget');
+        await widget({ svc_widget: '1', svc_storage: '1', svc_storage_for: 'members' }, disks.map(k => ['disk_' + k, '1']));
+
+        // Reihenfolge und Löschen
+        await admin.form(`/admin/dienste/${gameId}/hoch`, { _csrf: t });
+        assert.deepEqual((await dienste(admin)).services.map(s => s.name).slice(0, 2), ['Valheim-Port', 'Webseite']);
+        for (const id of [webId, gameId, jfId]) assert.equal((await admin.form(`/admin/dienste/${id}/loeschen`, { _csrf: t })).status, 302);
+        assert.deepEqual((await dienste(admin)).services, []);
+        assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM service_watch').get().n, 0);
+        assert.doesNotMatch((await members.anna.req('/', { top: true })).text_, /id="svctray"/);
+      } finally {
+        web.close();
+        if (game) game.close();
+        sql.close();
+      }
+    });
+
+    await step('Laufband: eigene Meldungen mit Zeitraum und Zielgruppe, automatische, ausschalten', async () => {
+      const t = admin.jar.get('csrf');
+      const { DatabaseSync } = require('node:sqlite');
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
+      try {
+        await admin.form('/admin/posts/save', { _csrf: t, title: 'Frisch im Laufband', body_md: 'Neu', published: '1', visibility: 'public' });
+        assert.equal((await admin.form('/admin/laufband', [['_csrf', t], ['ticker_on', '1'], ['ticker_style', 'eil'], ['ticker_label', 'EILMELDUNG'], ['auto', 'posts'], ['auto', 'quatsch']])).status, 302);
+        const add = data => admin.form('/admin/laufband/meldung', { _csrf: t, audience: 'all', ...data });
+        for (const m of [{ text: 'Grillabend am Samstag <b>', url: '/forum' }, { text: 'Für Gäste: jetzt registrieren', audience: 'guests' },
+          { text: 'Für Mitglieder: Neustart um 22 Uhr', audience: 'members' }, { text: 'Längst vorbei', ends_at: '2020-01-01T10:00' },
+          { text: 'Kommt erst noch', starts_at: '2099-01-01T10:00' }, { text: 'Pausiert', enabled: '0' }]) {
+          assert.match((await add(m)).headers.get('location'), /ok=1/);
+        }
+        assert.match((await add({ text: 'Böser Link', url: 'javascript:alert(1)' })).headers.get('location'), /fehler=/);
+        assert.match((await add({ text: '   ' })).headers.get('location'), /fehler=/);
+        const texts = async b => JSON.parse((await b.req('/api/laufband')).text_);
+        const g = await texts(guest);
+        assert.equal(g.style, 'eil');
+        assert.equal(g.label, 'EILMELDUNG');
+        const gt = g.items.map(i => i.text);
+        assert.ok(gt.includes('Grillabend am Samstag <b>'));
+        assert.ok(gt.includes('Für Gäste: jetzt registrieren'));
+        assert.ok(gt.includes('📝 Neuer Beitrag: Frisch im Laufband'));
+        for (const no of ['Für Mitglieder: Neustart um 22 Uhr', 'Längst vorbei', 'Kommt erst noch', 'Pausiert', 'Böser Link']) assert.ok(!gt.includes(no), no);
+        const at = (await texts(members.anna)).items.map(i => i.text);
+        assert.ok(at.includes('Für Mitglieder: Neustart um 22 Uhr'));
+        assert.ok(!at.includes('Für Gäste: jetzt registrieren'));
+        assert.equal(sql.prepare("SELECT ends_at FROM ticker_items WHERE text = 'Längst vorbei'").get().ends_at, new Date('2020-01-01T09:00:00Z').getTime() / 1000, 'Ortszeit der Seite');
+        let desk = (await guest.req('/', { top: true })).text_;
+        assert.match(desk, /<div class="tick t-eil" id="ticker"/);
+        assert.match(desk, /<a href="\/forum">Grillabend am Samstag &lt;b&gt;<\/a>/);
+        assert.match(desk, /laufband\.js/);
+        // Reihenfolge
+        const ids = sql.prepare('SELECT id FROM ticker_items ORDER BY position, id').all().map(r => r.id);
+        await admin.form(`/admin/laufband/${ids[1]}/hoch`, { _csrf: t });
+        assert.equal(sql.prepare('SELECT id FROM ticker_items ORDER BY position, id').get().id, ids[1]);
+        // Ausgeschaltet: kein Laufband, keine Meldungen
+        await admin.form('/admin/laufband', { _csrf: t, ticker_on: '0', ticker_style: 'led', ticker_label: '' });
+        desk = (await guest.req('/', { top: true })).text_;
+        assert.doesNotMatch(desk, /id="ticker"/);
+        assert.doesNotMatch(desk, /laufband\.js/);
+        assert.deepEqual((await texts(guest)).items, []);
+        for (const id of ids) await admin.form(`/admin/laufband/${id}/loeschen`, { _csrf: t });
+        assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM ticker_items').get().n, 0);
+        await admin.form('/admin/laufband', { _csrf: t, ticker_on: '1', ticker_style: 'led', ticker_label: '' });
+        assert.doesNotMatch((await guest.req('/', { top: true })).text_, /id="ticker"/, 'ohne Meldungen kein Laufband');
+      } finally { sql.close(); }
+    });
+
+    await step('Popup-Bilder: hochladen, Regeln, Zähler, Vorschlag aus der Galerie, ausschalten', async () => {
+      const { png } = require('./png');
+      const { DatabaseSync } = require('node:sqlite');
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
+      const t = admin.jar.get('csrf');
+      const anna = members.anna;
+      const pop = async b => JSON.parse((await b.req('/api/popups')).text_);
+      try {
+        await admin.form('/admin/popups/einstellungen', { _csrf: t, popup_on: '1', popup_first: '5', popup_every: '2', popup_max: '4', popup_audience: 'all', popup_suggest: '1' });
+        const upload = (fields, file = true) => {
+          const fd = new FormData();
+          fd.append('_csrf', t);
+          for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+          if (file) fd.append('upload', new Blob([png(4, 4)], { type: 'image/png' }), 'gewinn.png');
+          return admin.req('/admin/popups/neu', { method: 'POST', body: fd });
+        };
+        assert.match((await upload({ title: 'Ohne Bild' }, false)).headers.get('location'), /fehler=/);
+        assert.equal((await admin.req('/admin/popups/neu', { method: 'POST', body: new FormData() })).status, 403, 'ohne Formular-Token');
+        assert.match((await upload({ title: 'Du hast gewonnen!', link: '/forum', weight: '3', audience: 'all' })).headers.get('location'), /ok=1#pool/);
+        const p = sql.prepare("SELECT * FROM popups WHERE title = 'Du hast gewonnen!'").get();
+        assert.match(p.image, /^\/media\/[a-f0-9]{32}\.png$/);
+        let g = await pop(guest);
+        assert.deepEqual([g.first, g.every, g.max, g.mobile, g.cheeky], [5, 2, 4, false, false]);
+        assert.deepEqual(g.items, [{ id: p.id, title: 'Du hast gewonnen!', image: p.image, link: '/forum', weight: 3 }]);
+        assert.match((await guest.req('/', { top: true })).text_, /popups\.js/);
+        // Zähler ohne Personenbezug
+        const count = (b, what) => b.req(`/api/popups/${p.id}/${what}`, { method: 'POST', headers: { 'x-csrf-token': b.jar.get('csrf') || '' } });
+        assert.equal((await count(guest, 'zeige')).status, 200);
+        assert.equal((await count(guest, 'klick')).status, 200);
+        assert.equal((await count(guest, 'quatsch')).status, 404);
+        assert.deepEqual({ ...sql.prepare('SELECT shown, clicks, closed FROM popups WHERE id = ?').get(p.id) }, { shown: 1, clicks: 1, closed: 0 });
+        // Link prüfen, Zielgruppe
+        assert.match((await admin.form(`/admin/popups/${p.id}`, { _csrf: t, title: 'x', link: 'javascript:alert(1)' })).headers.get('location'), /fehler=/);
+        await admin.form(`/admin/popups/${p.id}`, { _csrf: t, title: 'Du hast gewonnen!', link: '/forum', weight: '3', audience: 'members' });
+        assert.equal(await pop(guest).then(x => x.items.length), 0);
+        assert.doesNotMatch((await guest.req('/', { top: true })).text_, /popups\.js/);
+        assert.equal((await pop(anna)).items.length, 1);
+
+        // Vorschlag: eigenes Paint-Bild, öffentlich und freigegeben
+        const fd = new FormData();
+        fd.append('title', 'Mein Popup');
+        fd.append('visibility', 'public');
+        fd.append('image', new Blob([png(6, 6)], { type: 'image/png' }), 'bild.png');
+        fd.append('thumb', new Blob([png(2, 2)], { type: 'image/png' }), 'vorschau.png');
+        const made = await anna.req('/paint/bilder', { method: 'POST', body: fd, headers: { 'x-csrf-token': anna.jar.get('csrf'), accept: 'application/json' } });
+        assert.equal(made.status, 200, made.text_);
+        const art = JSON.parse(made.text_).artwork;
+        const suggest = async b => (await b.form(`/galerie/${art.id}/popup`, { _csrf: b.jar.get('csrf') })).headers.get('location');
+        const approved = sql.prepare('SELECT approved FROM artworks WHERE id = ?').get(art.id).approved;
+        if (!approved) {
+          assert.match(await suggest(anna), /popup=Das%20Bild%20wartet/);
+          sql.prepare('UPDATE artworks SET approved = 1 WHERE id = ?').run(art.id);
+        }
+        assert.match((await anna.req(`/galerie/${art.id}`)).text_, /Als Popup-Bild vorschlagen/);
+        assert.match(await suggest(admin), /popup=Du%20kannst%20nur%20eigene/);
+        assert.match(await suggest(anna), /popup=ok$/);
+        assert.match(await suggest(anna), /popup=Dieses%20Bild%20ist%20schon/);
+        assert.match((await anna.req(`/galerie/${art.id}`)).text_, /Als Popup-Bild vorgeschlagen/);
+        const s = sql.prepare('SELECT * FROM popups WHERE artwork_id = ?').get(art.id);
+        assert.equal(s.status, 'pending');
+        assert.equal((await pop(anna)).items.length, 1, 'erst nach Freigabe');
+        assert.match((await admin.req('/admin/popups')).text_, /Mein Popup[\s\S]*anna/);
+        assert.match((await admin.req('/admin/freigaben')).text_, /Mein Popup/);
+        assert.match((await admin.req('/admin')).text_, /Popup/);
+        await admin.form(`/admin/popups/${s.id}/freigeben`, { _csrf: t });
+        assert.ok((await pop(anna)).items.some(i => i.image === `/paint/bild/${art.id}.png`));
+        // Abgeschaltet: nichts mehr
+        await admin.form('/admin/popups/einstellungen', { _csrf: t, popup_on: '0', popup_first: '5', popup_every: '2', popup_max: '4', popup_audience: 'all', popup_suggest: '1' });
+        assert.deepEqual((await pop(anna)).items, []);
+        assert.doesNotMatch((await anna.req('/', { top: true })).text_, /popups\.js/);
+        for (const id of [p.id, s.id]) await admin.form(`/admin/popups/${id}/loeschen`, { _csrf: t });
+        assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM popups').get().n, 0);
+        await admin.form('/admin/popups/einstellungen', { _csrf: t, popup_on: '1', popup_first: '30', popup_every: '15', popup_max: '3', popup_audience: 'all', popup_suggest: '1' });
+      } finally { sql.close(); }
+    });
+
+    await step('Wartungsmodus: Besucher sehen die Wartungsseite, Admins arbeiten weiter', async () => {
+      const t = admin.jar.get('csrf');
+      assert.equal((await admin.form('/admin/settings', { _csrf: t, maint_form: '1', maint_on: '1', maint_text: 'Neue Festplatte, bin gleich zurück.' })).headers.get('location'), '/admin/settings?ok=1#wartung');
+      for (const [b, url, opts] of [[guest, '/forum'], [guest, '/', { top: true }], [members.anna, '/blog']]) {
+        const r = await b.req(url, opts);
+        assert.equal(r.status, 503, url);
+        assert.equal(r.headers.get('retry-after'), '600');
+        assert.match(r.text_, /Neue Festplatte/);
+        assert.doesNotMatch(r.text_, /class="desktop"/);
+      }
+      let r = await guest.req('/api/dienste');
+      assert.equal(r.status, 503);
+      assert.match(JSON.parse(r.text_).error, /gewartet/);
+      assert.equal((await guest.form('/guestbook', { _csrf: guest.jar.get('csrf'), message: 'hallo' })).status, 503);
+      for (const url of ['/login', '/theme.css', '/static/retro.css']) assert.equal((await guest.req(url)).status, 200, url);
+      assert.equal((await admin.req('/forum')).status, 200, 'Admins arbeiten weiter');
+      assert.match((await admin.req('/admin')).text_, /Der Wartungsmodus ist an/);
+      assert.match((await admin.req('/admin/ereignisse')).text_, /Wartungsmodus eingeschaltet/);
+      await admin.form('/admin/settings', { _csrf: t, maint_form: '1', maint_text: '' });
+      assert.equal((await guest.req('/forum')).status, 200);
+      assert.match((await admin.req('/admin/ereignisse')).text_, /Wartungsmodus ausgeschaltet/);
+      // Ohne maint_form bleibt der Wartungsmodus, wie er ist (Formular „Website“)
+      await admin.form('/admin/settings', { _csrf: t, site_title: 'Rauchtest', site_tagline: '' });
+      assert.equal((await guest.req('/forum')).status, 200);
+      assert.match((await guest.req('/', { top: true })).text_, /<title>[^<]*Rauchtest/);
+    });
+
     await step('Besucherstatistik zählt Aufrufe', async () => {
-      const r = await admin.req('/admin?days=7');
+      const r = await admin.req('/admin/statistik?days=7');
       assert.match(r.text_, /Seitenaufrufe<b>[1-9]/);
     });
   } finally {

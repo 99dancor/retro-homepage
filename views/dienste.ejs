@@ -1,0 +1,30 @@
+<%- include('partials/head') %>
+<%# Dienste (src/routes/status.js): was die Seitenverwaltung für dich freigegeben hat, mit Verlauf der letzten 24 Stunden.
+    „Sag Bescheid“ legt eine Benachrichtigung an, sobald ein ausgefallener Dienst wieder antwortet (public/dienste.js). %>
+<h1>🗄️ Dienste</h1>
+<% if (!list.length) { %>
+<p class="muted">Hier gibt es gerade nichts zu sehen.</p>
+<% } else { %>
+<table class="list svc-table" data-csrf="<%= csrf %>">
+  <tr><th>Dienst</th><th>Zustand</th><th class="hide-narrow">Letzte 24 Stunden</th><th></th></tr>
+  <% for (const s of list) { %>
+  <tr>
+    <td><span class="led <%= s.state %>" title="<%= STATES[s.state] %>"></span><%- ico(s.icon) %> <%= s.url ? '' : s.name %><% if (s.url) { %><a href="<%= s.url %>" target="_blank" rel="noopener"><%= s.name %> ↗</a><% } %></td>
+    <td><%= s.text %></td>
+    <td class="hide-narrow"><%- include('partials/up-bars', { bars: s.bars }) %><% if (s.uptime != null) { %><small class="up-pct"><%= s.uptime.toLocaleString('de-DE') %> % in 7 Tagen</small><% } %></td>
+    <td><% if (user && s.state === 'down') { %><button type="button" class="small" data-watch="<%= s.id %>" aria-pressed="<%= s.watching %>"><%= s.watching ? '🔔 Sage ich dir' : '🔔 Sag Bescheid' %></button><% } %></td>
+  </tr>
+  <% } %>
+</table>
+<p><small class="muted">🟢 erreichbar · 🟡 langsam oder Wartung · 🔴 keine Antwort · jeder Balken ist eine Stunde. Die Seite fragt die Dienste selbst ab; deine Daten gehen dabei nirgendwohin.</small></p>
+<% } %>
+<% if (storage && storage.length) { %>
+<fieldset class="groupbox"><legend>💽 Belegter Speicher</legend>
+  <% for (const d of storage) { %>
+  <div class="disk"><span><%= d.label %></span><% if (d.total) { %><span class="disk-bar" role="img" aria-label="<%= d.pct %> Prozent belegt"><i style="width:<%= d.pct %>%"></i></span><small><%= d.usedText %> von <%= d.totalText %></small><% } else { %><small><%= d.freeText %> frei</small><% } %></div>
+  <% } %>
+</fieldset>
+<% } %>
+<div class="statusbar"><span><%= list.length === 1 ? '1 Dienst' : list.length + ' Dienste' %></span><span><%= list.filter(s => s.state === 'down').length ? '🔴 ' + list.filter(s => s.state === 'down').length + ' offline' : '🟢 alles erreichbar' %></span></div>
+<script src="<%= asset('dienste.js') %>"></script>
+<%- include('partials/foot') %>

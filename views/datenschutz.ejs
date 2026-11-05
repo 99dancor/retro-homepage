@@ -15,7 +15,7 @@
   <li>Was du schreibst, kann der Admin lesen, auch „anonyme“ Forenbeiträge. Nachrichten im Messenger zeigt die Seite ihm nicht an, sie liegen aber unverschlüsselt auf dem Server.</li>
 </ul>
 <p>Springe zu: <a href="#besuch">Besuch</a> · <a href="#cookies">Cookies</a> · <a href="#browser">Im Browser</a> ·
-  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#pixelpfoten">Pixelpfoten</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#kartenspiele">UNO, Flip 7, Pilli Pilli</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#sudoku">Sudoku</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#werwolf">Werwolf</a> · <a href="#farming">Farming Simulator</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
+  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#spiele">Spiele</a> · <a href="#pixelpfoten">Pixelpfoten</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#kartenspiele">UNO, Flip 7, Pilli Pilli</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#sudoku">Sudoku</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#werwolf">Werwolf</a> · <a href="#farming">Farming Simulator</a> · <a href="#dienste">Dienste, Laufband, Popups</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
 </fieldset>
 
 <h2 id="besuch">👣 Wenn du die Seite besuchst</h2>
@@ -66,7 +66,7 @@
 <p>Diese Dinge bleiben auf deinem Gerät und werden nicht an den Server geschickt. Du löschst sie, indem du die Websitedaten im Browser löschst.</p>
 <ul>
   <li>Welche Fenster offen sind und wo sie liegen (bis du den Tab schließt).</li>
-  <li>Deine Darstellung über den 🖥️-Knopf neben der Uhr: Windows 98 oder XP, Farben, Schrift, Hintergrund, Lauftext, eigenes CSS und die Größe der Oberfläche. Ein eigenes Hintergrundbild und die Größe bleiben immer im Browser und werden nicht hochgeladen. Mit Konto kannst du die Darstellung zusätzlich <a href="#darstellung">am Konto speichern</a>.</li>
+  <li>Deine Darstellung über den 🖥️-Knopf neben der Uhr: Windows 98 oder XP, Farben, Schrift, Hintergrund, Laufband und Popup-Bilder, eigenes CSS und die Größe der Oberfläche. Ein eigenes Hintergrundbild und die Größe bleiben immer im Browser und werden nicht hochgeladen. Mit Konto kannst du die Darstellung zusätzlich <a href="#darstellung">am Konto speichern</a>.</li>
   <li>Desktop ohne Konto: wohin du Symbole geschoben hast und wie sie sortiert sind. Mit Konto: ob das Widget „Offene Lobbys“ zugeklappt ist.</li>
   <li>Die gewählte Ansicht im Texteditor.</li>
   <li>Der Anmeldebildschirm merkt sich das zuletzt angemeldete Konto: Benutzername, Anzeigename, Profilbild und ob es ein Admin-Konto ist, aber kein Kennwort. „Nicht mehr merken“ auf dem Anmeldebildschirm löscht es. Dazu für den laufenden Tab, dass nach dem An- oder Abmelden der Bildschirm einmal übersprungen wird.</li>
@@ -78,6 +78,7 @@
   <li>Quiz ohne Konto: der zuletzt gewählte Name, das Bild und die Farbe, damit du sie beim nächsten Mal nicht neu eingeben musst.</li>
   <li>Werwolf: ohne Konto der zuletzt gewählte Name und das Bild, außerdem ob der Erzähler auf diesem Gerät vorlesen soll. Die Stimme erzeugt dein Browser bzw. dein Gerät selbst.</li>
   <li>Modlisten: welche Kategorien einer Liste du zugeklappt hast und, wenn du ohne Konto etwas vorschlägst, den Namen, den du dabei angegeben hast.</li>
+  <li>Laufband oben: ob du es mit × ausgeblendet hast (bis es etwas Neues gibt: dann steht dort ein kurzer Fingerabdruck der Meldungen). Dienste: ohne Konto, ob du das Widget „Dienste“ ausgeblendet hast, und ob es zugeklappt ist; für den Tab, welche Ausfälle du schon als Sprechblase gesehen hast. Popup-Bilder: wann zuletzt eins kam und wie viele es im laufenden Tab waren. Mehr dazu unter <a href="#dienste">Dienste, Laufband und Popup-Bilder</a>.</li>
   <li>Die Lautstärke für Musik und Effekte (🔊 neben der Uhr), im Mediaplayer die gewählte Visualisierung, ob Videos als Bild oder Visualisierung laufen, Zufall und Wiederholen, die Breite von Aufgabenleiste und Wiedergabeliste und die Höhe des Bilds, das Aussehen (Skin, Seitenleiste, zugeklappte Gruppen, Equalizer; mit Konto zusätzlich am Konto, siehe <a href="#desktop">Einstellungen am Konto</a>), und ob du „YouTube laden“ für diesen Browser merken wolltest. Die eigene Wiedergabeliste liegt nur im offenen Fenster und ist nach dem Schließen weg.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
@@ -436,10 +437,29 @@
   <%- code('fsMembers', 'Hof-Zugehörigkeit: verschwindet mit deinem Konto.') %>
 </details>
 
+<h2 id="dienste">🗄️ Dienste, Laufband und Popup-Bilder</h2>
+<ul>
+  <li><b>Dienste:</b> Die Seite fragt andere Server des Betreibers selbst ab (z. B. Jellyfin, Nextcloud oder einen Spieleserver), dein Browser verbindet sich dabei mit keinem davon. Du bekommst nur Name, Zustand und eine Kurzinfo wie „3 von 20 Spielern“ oder „2 schauen gerade“, nie Namen von Spielern oder was jemand schaut. Adressen und Zugangsschlüssel bleiben auf dem Server. Welche Dienste du siehst, legt der Admin fest (alle, Mitglieder oder nur er).</li>
+  <li><b>„Sag Bescheid“:</b> Klickst du bei einem ausgefallenen Dienst darauf, merkt sich die Seite dein Konto und den Dienst. Sobald er wieder läuft, bekommst du eine Benachrichtigung, und der Eintrag ist wieder weg. Nochmal klicken nimmt es sofort zurück.</li>
+  <li><b>Laufband:</b> Die Meldungen schreibt der Admin, dazu kommen automatisch das neueste Update, neue Blogbeiträge, Dienste und (nur für Mitglieder) die Zahl offener Lobbys. Ausblenden und Anhalten merkt sich nur dein Browser.</li>
+  <li id="popups"><b>Popup-Bilder:</b> Ab und zu geht ein kleines Fenster mit einem Bild auf, wie früher die Werbefenster, nur ohne Werbung: Die Bilder stammen vom Admin oder aus der Paint-Galerie der Mitglieder, nichts kommt von fremden Servern. Die Seite zählt pro Bild nur, wie oft es kam, angeklickt oder geschlossen wurde, ohne zu speichern, bei wem. Wann das nächste kommen darf, merkt sich dein Browser. Abschalten kannst du sie im Fenster selbst („Nicht mehr zeigen“) oder unter 🖥️ → Effekte. Schlägst du ein eigenes Paint-Bild vor, steht dein Name beim Vorschlag, bis der Admin ihn annimmt oder ablehnt.</li>
+  <li><b>Ereignisanzeige:</b> Für den Admin protokolliert die Seite, was passiert ist (Dienst ausgefallen, Wartungsmodus an, Einstellungen geändert). Bei Änderungen in der Seitenverwaltung steht dabei, welcher Admin es war; Besucher kommen darin nicht vor, IP-Adressen auch nicht. Nach 90 Tagen fällt alles weg.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('svcViewer', 'Das ist alles, was ein Besucher über einen Dienst erfährt.') %>
+  <%- code('svcWatch', '„Sag Bescheid“: Dienst, Konto und wann du geklickt hast. Mit deinem Konto verschwindet auch das.') %>
+  <%- code('svcLocal', 'Ohne Konto merkt sich der Browser unter <code>dienste-widget</code>, ob du das Widget ausgeblendet hast.') %>
+  <%- code('tickerLocal', 'Unter <code>laufband</code> steht nur, ob und bis wann du das Laufband ausgeblendet hast.') %>
+  <%- code('popupCount', 'Mehr zählt die Seite bei Popup-Bildern nicht: drei Zahlen pro Bild, ohne Bezug zu dir.') %>
+  <%- code('popupLocal', 'Im Browser: wann zuletzt eins kam (<code>popups-zuletzt</code>) und wie viele in diesem Tab (<code>popups-besuch</code>).') %>
+  <%- code('popupSuggest', 'Vorschlagen geht nur mit eigenen, öffentlichen Bildern.') %>
+  <%- code('events', 'Ein Eintrag der Ereignisanzeige: Zeit, Stufe, Quelle, Text und bei Änderungen der Admin.') %>
+</details>
+
 <h2 id="fragen">🗑 Löschen und Fragen</h2>
 <ul>
   <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
-  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Entwürfe, Benachrichtigungen, Push-Geräte, Kasse und Einkäufe der Kartenspiele, Blackjack- und Poker-Sitzungen, Durak-Ergebnisse, Ergebnisse aus UNO, Flip 7 und Pilli Pilli, Minesweeper-Spiele, Kreuzworträtsel- und Sudoku-Stände, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Werwolf-Ergebnisse, Profilbild, Freundschaften, Ignorier-Listen (deine und Einträge anderer über dich), Messenger-Nachrichten (auch die Kopie bei deinen Gesprächspartnern) alle Einträge in deinem und von dir in fremden Profil-Freundebüchern, deine Ordner, Textdokumente, Verknüpfungen und Links vom Desktop und deine Einstellungen am Konto. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Entwürfe, Benachrichtigungen, Push-Geräte, Kasse und Einkäufe der Kartenspiele, Blackjack- und Poker-Sitzungen, Durak-Ergebnisse, Ergebnisse aus UNO, Flip 7 und Pilli Pilli, Minesweeper-Spiele, Kreuzworträtsel- und Sudoku-Stände, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Werwolf-Ergebnisse, Profilbild, Freundschaften, Ignorier-Listen (deine und Einträge anderer über dich), Messenger-Nachrichten (auch die Kopie bei deinen Gesprächspartnern) alle Einträge in deinem und von dir in fremden Profil-Freundebüchern, deine Ordner, Textdokumente, Verknüpfungen und Links vom Desktop und deine Einstellungen am Konto und deine „Sag Bescheid“-Wünsche bei Diensten. Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
   <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
 </ul>
 <p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>

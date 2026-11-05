@@ -64,14 +64,15 @@ app.use((req, res, next) => {
     registrationOpen: getSetting('registration_open') === '1',
     contactEnabled: getSetting('contact_enabled') === '1',
     boardEnabled: getSetting('board_enabled') === '1',
-    cardsEnabled: ['bj', 'pk', 'dk', 'uno', 'f7', 'pp'].some(p => getSetting(p + '_enabled', '1') === '1'),
+    cardsEnabled: getSetting('ks_enabled', '1') === '1' && ['bj', 'pk', 'dk', 'uno', 'f7', 'pp'].some(p => getSetting(p + '_enabled', '1') === '1'),
     paintEnabled: getSetting('paint_enabled', '1') === '1',
     quizEnabled: getSetting('quiz_enabled', '1') === '1',
     werwolfEnabled: getSetting('ww_enabled', '1') === '1',
     galleryEnabled: getSetting('paint_enabled', '1') === '1' && getSetting('paint_gallery', '1') === '1',
     farmingVisible: require('./fshub').canView(req.user),
     navHidden: (getSetting('nav_hidden') || '').split(','),
-    marquee: getSetting('theme_marquee'),
+    // Wartungsmodus (System → Allgemein): Admins sehen die Seite weiter, mit Hinweis
+    maintOn: getSetting('maint_on', '0') === '1',
     // Design ohne eigene Wahl (Seitenverwaltung → Design): 98, xp, xp-oliv oder xp-silber; display.js liest es aus <html data-design>
     siteDesign: getSetting('theme_design', '98'),
     // Anmeldebildschirm bei jedem Laden des Desktops (views/partials/logon.ejs, public/logon.js), abschaltbar in der Seitenverwaltung
@@ -92,6 +93,15 @@ app.use((req, res, next) => {
   res.locals.rulesPage = !!db.prepare(`SELECT 1 FROM pages p WHERE slug = 'regeln' AND ${v.sql}`).get(...v.params);
   next();
 });
+// Wartungsmodus: Wer kein Admin ist, sieht nur die Wartungsseite (mit Anmeldung für Admins). Kommt vor dem Desktop,
+// damit die Seite ohne Fenster und ohne die Abfragen des Desktops auskommt.
+const MAINT_OPEN = /^\/(login|logout|theme\.css|favicon\.ico|manifest\.webmanifest|sw\.js|static\/.*|media\/.*|api\/kennworthinweis)$/;
+app.use((req, res, next) => {
+  if (!res.locals.maintOn || (req.user && req.user.isAdmin) || MAINT_OPEN.test(req.path)) return next();
+  res.status(503).set('Retry-After', '600');
+  if (req.path.startsWith('/api/') || req.method !== 'GET') return res.json({ error: 'Die Seite wird gerade gewartet.' });
+  res.render('wartung', { title: 'Wartungsarbeiten', text: getSetting('maint_text', '') });
+});
 // Desktop: Seiten laufen als Fenster (iframes) auf einem Win98-Desktop. Direkt aufgerufen
 // liefert jede öffentliche Seite den Desktop mit ihr als Fenster, im Fenster selbst den
 // schlanken Inhalt ohne Rahmen. Der Browser verrät per Sec-Fetch-Dest, ob er ein iframe lädt.
@@ -109,14 +119,19 @@ app.use((req, res, next) => {
       title: view.startsWith('admin/') ? 'Seitenverwaltung' + (title ? ' – ' + title : '') : title, src: req.originalUrl,
       // Symbole, Widget und Suche (public/desk.js), dazu die Darstellung am Konto, falls „auf allen Geräten“ gewählt ist
       desk: deskRoutes.deskData(req, res.locals), deskDisplay: req.user ? us.get(req.user.id, 'display') : null,
+      // Laufband oben (src/ticker.js) und Popup-Bilder (src/popups.js, nur ob es welche gibt; die Liste holt public/popups.js)
+      ticker: require('./ticker').forDesk(req.user, res.locals), popupsOn: !!require('./popups').eligible(req.user),
     }, cb);
   };
   next();
 });
 app.use((req, res, next) => (req.is('multipart/form-data') ? next() : auth.csrfCheck(req, res, next)));
 app.use(analytics.middleware);
+// Programme, die die Seitenverwaltung ausgeschaltet oder auf Mitglieder gestellt hat (src/programs.js)
+app.use(require('./programs').gate);
 
 app.use('/api/einstellungen', settingsRoutes.api);
+app.use('/', require('./routes/status'));
 app.use('/api', deskRoutes.api);
 app.use('/api/saves', require('./routes/saves'));
 app.use('/api/entwuerfe', require('./routes/drafts').router);
@@ -172,6 +187,16 @@ if (!db.prepare('SELECT 1 FROM users LIMIT 1').get()) {
   console.log('='.repeat(60));
 }
 
+// Dienste abfragen (src/services.js), alten Lauftext ins Laufband übernehmen, Ereignisanzeige aufräumen
+require('./services').start();
+require('./ticker').migrate();
+const events = require('./events');
+events.cleanup();
+setInterval(events.cleanup, 24 * 3600e3).unref();
+{
+  const u = require('./changelog').latest();
+  events.info('System', `Seite gestartet${u && u.no != null ? ` (Update ${u.no})` : ''}`);
+}
 // Farming Simulator Hub: Feeds des Spieleservers im Hintergrund abholen (src/fsfeeds.js)
 require('./fshub').start();
 // Haustier-Erinnerungen und alte Benachrichtigungen aufräumen

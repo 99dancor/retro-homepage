@@ -88,6 +88,8 @@ router.get('/bibliothek', (req, res) => {
 router.get('/stream/:id', (req, res, next) => {
   const t = db.prepare('SELECT * FROM tracks WHERE id = ?').get(Number(req.params.id));
   if (!t || !t.stored_name || !auth.canSee(req.user, 'track', t)) return res.status(404).end();
+  // ?dl=1 aus den Downloads: als Datei speichern statt abspielen
+  if (req.query.dl) return res.download(path.join(music.MUSIC_DIR, t.stored_name), t.original_name || t.title, err => err && !res.headersSent && res.status(404).end());
   res.sendFile(path.join(music.MUSIC_DIR, t.stored_name), {
     headers: { 'Content-Security-Policy': "default-src 'none'", 'Cache-Control': 'private, max-age=86400' },
   }, err => err && !res.headersSent && res.status(404).end());

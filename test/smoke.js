@@ -147,7 +147,7 @@ async function main() {
     });
 
     await step('Datei hochladen und Sichtbarkeit beachten', async () => {
-      const t = await admin.csrf('/admin/files');
+      const t = await admin.csrf('/admin/files/kategorien');
       const fd = new FormData();
       fd.append('_csrf', t);
       fd.append('category', 'Spielstände');
@@ -295,7 +295,7 @@ async function main() {
 
     await step('Download-Statistik zählt Downloads, Abbrüche und Fortsetzungen', async () => {
       const list = await guest.req('/files');
-      const id = list.text_.match(/\/files\/dl\/(\d+)"><b>Riesen Mod\.zip/)[1];
+      const id = list.text_.match(/\/files\/dl\/(\d+)" download><span class="ex-ic">[^<]*<\/span>Riesen Mod\.zip/)[1];
       const full = await guest.req('/files/dl/' + id);
       assert.equal(full.status, 200);
       assert.equal(full.text_.length, 300000);
@@ -2227,7 +2227,7 @@ async function main() {
       sql.prepare('DELETE FROM friends WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)').run(id('admin'), id('anna'), id('anna'), id('admin'));
       sql.prepare('INSERT INTO friends(user_id, friend_id, accepted, created_at) VALUES (?, ?, 1, 0)').run(id('admin'), id('anna'));
       const t = await admin.csrf('/files/upload');
-      assert.match((await admin.req('/files/upload')).text_, /<option value="friends">Nur meine Freunde<\/option>/);
+      assert.match((await admin.req('/files/upload')).text_, /<option value="friends">⭐ Nur meine Freunde<\/option>/);
       const fd = new FormData();
       fd.append('_csrf', t); fd.append('title', 'Nur für Freunde'); fd.append('visibility', 'friends');
       fd.append('files', new Blob(['geheim']), 'freunde.txt');
@@ -2266,6 +2266,61 @@ async function main() {
       assert.equal((await api('POST', '/api/desktop/endgueltig', { refs: ['datei:' + f.id] })).status, 200);
       assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM files WHERE id = ?').get(f.id).n, 0);
       assert.equal((await guest.req('/eigene-dateien')).status, 302, 'nur mit Konto');
+      sql.close();
+    });
+
+    await step('Downloads als Explorer, Hinzufügen einzeln, Kategorien und gesperrte Endungen', async () => {
+      const { anna, bernd } = members;
+      const { DatabaseSync } = require('node:sqlite');
+      const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
+      sql.prepare("UPDATE users SET can_upload = 1 WHERE username = 'anna'").run();
+      const t = await anna.csrf('/files/upload');
+      const page = (await anna.req('/files/upload')).text_;
+      assert.match(page, /data-cats="[^"]*Spielstände/);
+      assert.match(page, /data-blocked="[^"]*\bexe\b/);
+      const send = (name, fields = {}) => {
+        const fd = new FormData();
+        for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+        fd.append('files', new Blob(['inhalt von ' + name]), name);
+        return anna.req('/files/upload', { method: 'POST', body: fd, headers: { accept: 'application/json', 'x-csrf-token': t } });
+      };
+      // Programme nimmt die Seite von Mitgliedern nicht an, und es bleibt nichts liegen
+      const before = fs.readdirSync(path.join(DATA, 'uploads')).length;
+      const bad = await send('setup.exe', { category: 'Tools', visibility: 'members' });
+      assert.equal(bad.status, 415);
+      assert.match(JSON.parse(bad.text_).error, /nicht angenommen/);
+      assert.equal(fs.readdirSync(path.join(DATA, 'uploads')).length, before);
+      // Einzelne Datei mit Kategorie und Spiel; unbekannte Kategorie wird „Allgemein“
+      const ok = await send('mein spielstand.sav', { category: 'Spielstände', game: 'FS25', visibility: 'members' });
+      assert.equal(ok.status, 200);
+      assert.equal(JSON.parse(ok.text_).category, 'Spielstände');
+      assert.equal(sql.prepare("SELECT game FROM files WHERE original_name = 'mein spielstand.sav'").get().game, 'FS25');
+      assert.equal(JSON.parse((await send('notiz.txt', { category: 'Gibt es nicht' })).text_).category, 'Allgemein');
+      // Explorer: Baum mit Kategorien, Knoten zeigt nur seine Einträge, Suche über alles
+      const all = (await bernd.req('/files')).text_;
+      assert.match(all, /href="\/files\?ort=k%3ASpielst%C3%A4nde" class="ex-node">💾 Spielstände/);
+      assert.match(all, /data-ref="datei:\d+" data-item="[^"]*mein spielstand\.sav/);
+      const cat = (await bernd.req('/files?ort=' + encodeURIComponent('k:Spielstände'))).text_;
+      assert.match(cat, /mein spielstand\.sav/);
+      assert.doesNotMatch(cat, /notiz\.txt/);
+      assert.match((await bernd.req('/files?q=spielstand')).text_, /Suchergebnis[\s\S]*mein spielstand\.sav/);
+      assert.match((await bernd.req('/files?ort=neu')).text_, /notiz\.txt/);
+      // Kategorien verwalten: umbenennen nimmt Dateien mit, löschen legt sie unter Allgemein, gesperrte Endungen einstellbar
+      const tk = await admin.csrf('/admin/files/kategorien');
+      const form = (await admin.req('/admin/files/kategorien')).text_;
+      const names = [...form.matchAll(/name="old" value="([^"]*)"/g)].map(m => m[1]);
+      const fd = new URLSearchParams({ _csrf: tk, blocked: 'exe bat txt' });
+      for (const n of names) {
+        fd.append('old', n); fd.append('name', n === 'Spielstände' ? 'Savegames' : n); fd.append('icon', '📁'); fd.append('ext', '');
+        if (n === 'Bilder') fd.append('del', 'Bilder');
+      }
+      assert.equal((await admin.req('/admin/files/kategorien', { method: 'POST', body: fd })).status, 302);
+      assert.equal(sql.prepare("SELECT category FROM files WHERE original_name = 'mein spielstand.sav'").get().category, 'Savegames');
+      assert.doesNotMatch((await admin.req('/files')).text_, /🖼️ Bilder/);
+      assert.equal((await send('noch eine.txt')).status, 415, 'neue Sperrliste gilt');
+      const tk2 = await admin.csrf('/admin/files/kategorien');
+      const reset = new URLSearchParams({ _csrf: tk2, blocked: 'exe msi bat cmd com scr' });
+      assert.equal((await admin.req('/admin/files/kategorien', { method: 'POST', body: reset })).status, 302);
       sql.close();
     });
 

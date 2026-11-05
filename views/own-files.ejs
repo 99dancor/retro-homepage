@@ -26,7 +26,7 @@
       <button type="button" class="small" data-ex="empty"<%= items.length ? '' : ' disabled' %>>🗑 Papierkorb leeren</button>
     <% } else { %>
       <% if (view === 'folder' || view === 'home') { %><button type="button" class="small" data-ex="new" aria-haspopup="true">✨ Neu ▾</button><% } %>
-      <% if (user.canUpload && view === 'folder') { %><a class="btn small" href="/files/upload?ordner=<%= here %>">📤 Hochladen</a><% } %>
+      <% if (user.canUpload) { %><a class="btn small" href="/files/upload<%= view === 'folder' ? '?ordner=' + here : '' %>">📤 Hinzufügen</a><% } %>
       <button type="button" class="small" data-ex="move" disabled>📁 Verschieben nach…</button>
       <button type="button" class="small" data-ex="delete" disabled>🗑 Löschen</button>
       <button type="button" class="small" data-ex="props"<%= view === 'folder' && folder ? '' : ' disabled' %>>ℹ Eigenschaften</button>

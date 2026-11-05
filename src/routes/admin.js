@@ -137,8 +137,29 @@ router.post('/media/:id/delete', (req, res) => {
 router.get('/files', (req, res) => res.render('admin/files', {
   title: 'Dateien', maxMb: up.MAX_MB, imports: up.listImports(), disk: up.diskSpace(), importMsg: req.query.imported || null,
   files: db.prepare('SELECT f.*, u.username FROM files f LEFT JOIN users u ON u.id = f.uploader_id ORDER BY created_at DESC').all(),
-  categories: db.prepare('SELECT DISTINCT category FROM files ORDER BY category').all().map(r => r.category),
+  categories: require('../filecats').list().map(c => c.name),
 }));
+// Kategorien der Downloads: feste Liste mit Symbol, Endungen (für den Vorschlag beim Hochladen) und „Spiel“
+router.get('/files/kategorien', (req, res) => {
+  const cats = require('../filecats');
+  const counts = Object.fromEntries(db.prepare('SELECT category, COUNT(*) AS n FROM files GROUP BY category').all().map(r => [r.category, r.n]));
+  res.render('admin/file-cats', { title: 'Download-Kategorien', cats: cats.list(), counts, blocked: cats.blockedExt().join(' '), ok: req.query.ok });
+});
+router.post('/files/kategorien', (req, res) => {
+  const cats = require('../filecats'), b = req.body;
+  const names = asArray(b.name), olds = asArray(b.old), icons = asArray(b.icon), exts = asArray(b.ext), games = asArray(b.game).map(String), dels = asArray(b.del).map(String);
+  const next = [];
+  if (b.name !== undefined) names.forEach((n, i) => {
+    const old = String(olds[i] || ''), name = String(n || '').trim();
+    if (old && dels.includes(old)) return cats.remove(old);
+    if (!name) return;
+    if (old && old !== name) cats.rename(old, name);
+    next.push({ name, icon: icons[i], ext: exts[i], game: games.includes(String(i)) });
+  });
+  if (b.name !== undefined) cats.save(next);
+  if (b.blocked !== undefined) setSetting('upload_blocked_ext', cats.extList(b.blocked).join(' '));
+  res.redirect('/admin/files/kategorien?ok=1');
+});
 router.post('/files/upload', up.fileUpload.array('files'), multipartCsrf, (req, res) => {
   const b = req.body;
   const ins = db.prepare(`INSERT INTO files(title, description, category, game, original_name, stored_name, size, mime, visibility, uploader_id, created_at)
@@ -175,7 +196,9 @@ router.post('/files/import', (req, res) => {
 router.get('/files/:id', (req, res, next) => {
   const file = db.prepare('SELECT * FROM files WHERE id = ?').get(Number(req.params.id));
   if (!file) return next();
-  res.render('admin/file-edit', { title: 'Datei bearbeiten', file, acl: auth.getAcl('file', file.id) });
+  const categories = require('../filecats').list().map(c => c.name);
+  if (!categories.includes(file.category)) categories.push(file.category);
+  res.render('admin/file-edit', { title: 'Datei bearbeiten', file, categories, acl: auth.getAcl('file', file.id) });
 });
 router.post('/files/:id', (req, res) => {
   const b = req.body, id = Number(req.params.id);

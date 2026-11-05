@@ -120,18 +120,8 @@ router.get('/blog/:slug', (req, res, next) => {
 
 // ---------- Dateien ----------
 router.get('/files', (req, res) => {
-  const v = auth.visibilitySql(req.user, 'file', 'f');
-  const q = String(req.query.q || '').trim();
-  const cat = String(req.query.cat || '').trim();
-  const params = [...v.params];
-  let where = v.sql;
-  if (q) { where += ' AND (title LIKE ? OR description LIKE ? OR game LIKE ? OR original_name LIKE ?)'; params.push(...Array(4).fill('%' + q + '%')); }
-  if (cat) { where += ' AND category = ?'; params.push(cat); }
-  const files = db.prepare(`SELECT * FROM files f WHERE ${where} ORDER BY category, game, created_at DESC`).all(...params);
-  const cats = db.prepare(`SELECT category, COUNT(*) AS n FROM files f WHERE ${v.sql} GROUP BY category ORDER BY category`).all(...v.params);
-  const grouped = {};
-  for (const f of files) (grouped[f.category] ||= []).push(f);
-  res.render('files', { title: 'Downloads', grouped, cats, q, cat });
+  const view = require('../filesview').build(req.user, String(req.query.ort || req.query.cat && 'k:' + req.query.cat || ''), req.query.q);
+  res.render('files', { ...view, title: view.node === 'alle' ? 'Downloads' : 'Downloads – ' + view.title, nodeTitle: view.title, q: String(req.query.q || ''), disk: req.user && req.user.isAdmin ? up.diskSpace() : null });
 });
 
 router.get('/files/dl/:id', (req, res, next) => {
@@ -149,35 +139,62 @@ router.get('/files/dl/:id', (req, res, next) => {
   });
 });
 
-// Hochladen (Mitglieder mit Upload-Recht). Mit ?ordner=ID aus dem Explorer landen die Dateien gleich in einem eigenen Ordner.
+// Hinzufügen (Mitglieder mit Upload-Recht): Dateien hineinziehen, jede wird einzeln hochgeladen (public/upload.js),
+// Musik und Videos auf Wunsch gleich in den Mediaplayer. Ohne JavaScript geht das Formular wie früher in einem Rutsch.
+// Mit ?ordner=ID aus dem Explorer landen die Dateien gleich in einem eigenen Ordner.
 function uploadView(req, extra) {
-  const desk = require('../desk'), quota = require('../quota');
+  const desk = require('../desk'), quota = require('../quota'), music = require('../music'), cats = require('../filecats');
   const raw = String((req.body && req.body.ordner) ?? req.query.ordner ?? ''), where = desk.own(req.user, raw);
   const folder = raw === '0' ? { id: 0, name: 'Desktop' } : where && where.kind === 'folder' && !desk.trashed(where) ? where : null;
-  return { title: 'Datei hochladen', maxMb: up.MAX_MB, msg: null, err: null, folder, space: quota.view(req.user), ...extra };
+  const list = cats.list();
+  return {
+    title: 'Hinzufügen', maxMb: up.MAX_MB, msg: null, err: null, folder, space: quota.view(req.user), cats: list,
+    preset: cats.pick(req.query.kategorie, list), blocked: req.user.isAdmin ? [] : cats.blockedExt(),
+    music: music.canUpload(req.user) ? { ext: [...new Set([...music.AUDIO_EXT, ...music.VIDEO_EXT])].map(e => e.slice(1)), video: music.VIDEO_EXT.map(e => e.slice(1)), mb: req.user.isAdmin ? 0 : music.MEMBER_FILE_MB } : null,
+    games: db.prepare("SELECT DISTINCT game FROM files WHERE game IS NOT NULL AND game != '' ORDER BY game").all().map(r => r.game),
+    imports: req.user.isAdmin ? up.listImports().length : 0,
+    ...extra,
+  };
 }
 router.get('/files/upload', auth.requireLogin, (req, res, next) => {
   if (!req.user.canUpload) return next();
   res.render('upload', uploadView(req));
 });
+function uploadFiles(req, res, next) {
+  up.fileUpload.array('files')(req, res, err => {
+    if (!err) return next();
+    for (const f of req.files || []) up.removeQuietly(f.path);
+    const msg = err.code === 'LIMIT_FILE_SIZE' ? `Die Datei ist zu groß (höchstens ${up.MAX_MB} MB).` : 'Hochladen fehlgeschlagen.';
+    if (req.accepts(['html', 'json']) === 'json') return res.status(413).json({ error: msg });
+    next(err);
+  });
+}
 router.post('/files/upload', auth.requireLogin, (req, res, next) => (req.user.canUpload ? next() : res.status(403).end()),
-  up.fileUpload.array('files'), auth.csrfCheck, (req, res) => {
-    const quota = require('../quota'), size = (req.files || []).reduce((n, f) => n + f.size, 0);
-    if (!quota.fits(req.user, size)) {
+  uploadFiles, auth.csrfCheck, (req, res) => {
+    const quota = require('../quota'), cats = require('../filecats'), json = req.accepts(['html', 'json']) === 'json';
+    const fail = (status, error) => {
       for (const f of req.files || []) up.removeQuietly(f.path);
-      return res.status(413).render('upload', uploadView(req, { err: quota.fullMessage(req.user) }));
-    }
-    const view = uploadView(req);
+      return json ? res.status(status).json({ error }) : res.status(status).render('upload', uploadView(req, { err: error }));
+    };
+    const files = req.files || [];
+    const bad = files.find(f => cats.isBlocked(req.user, f.originalname));
+    if (bad) return fail(415, `„${bad.originalname}“: Programme und Skripte (.${cats.extOf(bad.originalname)}) werden nicht angenommen.`);
+    if (!quota.fits(req.user, files.reduce((n, f) => n + f.size, 0))) return fail(413, quota.fullMessage(req.user));
+    const view = uploadView(req), b = req.body, list = cats.list();
     // In einen eigenen Ordner hochgeladen ist zuerst „Nur ich“, sonst wie bisher „Angemeldete“
-    const vis = ['public', 'members', 'friends', 'private'].includes(req.body.visibility) ? req.body.visibility : view.folder ? 'private' : 'members';
+    const vis = ['public', 'members', 'friends', 'private'].includes(b.visibility) ? b.visibility : view.folder ? 'private' : 'members';
+    const category = cats.pick(b.category || cats.guess(files[0] && files[0].originalname, list), list);
+    const withGame = (list.find(c => c.name === category) || {}).game;
     const ins = db.prepare(`INSERT INTO files(title, description, category, game, original_name, stored_name, size, mime, visibility, uploader_id, created_at)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     const refs = [];
-    for (const f of req.files || []) {
-      refs.push('datei:' + ins.run((req.body.title || '').trim() || f.originalname, req.body.description || '', (req.body.category || '').trim() || 'Allgemein',
-        (req.body.game || '').trim() || null, f.originalname, f.filename, f.size, f.mimetype, vis, req.user.id, now()).lastInsertRowid);
+    for (const f of files) {
+      const title = (files.length === 1 && String(b.title || '').trim().slice(0, 200)) || f.originalname;
+      refs.push('datei:' + ins.run(title, String(b.description || '').slice(0, 2000), category, (withGame && String(b.game || '').trim().slice(0, 100)) || null,
+        f.originalname, f.filename, f.size, f.mimetype, vis, req.user.id, now()).lastInsertRowid);
     }
     if (view.folder) require('../desk').move(req.user, refs, view.folder.id);
+    if (json) return res.json({ ok: true, refs, category });
     res.render('upload', { ...view, space: quota.view(req.user), msg: `${refs.length} Datei(en) hochgeladen.` });
   });
 

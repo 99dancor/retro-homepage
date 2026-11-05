@@ -1,5 +1,13 @@
 # Changelog
 
+## Update 86 · 05.11.2026 – Downloads und Hinzufügen neu
+
+- **Downloads als Explorer:** Links ein Baum mit Alle Dateien, Neu hinzugefügt (letzte 14 Tage), der Mediathek (Musik, Videos, Playlists aus dem Mediaplayer) und den Kategorien, in der Mitte die Liste, rechts die Details der Auswahl mit Abspielen, Herunterladen und Eigenschaften. Spalten sortieren per Klick, das Suchfeld filtert sofort, Enter sucht in allen Bereichen. Doppelklick spielt Titel im Mediaplayer ab oder lädt Dateien herunter. Titel aus dem Mediaplayer lassen sich jetzt auch als Datei speichern.
+- **Fenster „Hinzufügen“** statt „Datei hochladen“: Dateien hineinziehen oder auswählen, jede wird einzeln hochgeladen, mit Fortschritt und ✖ zum Abbrechen. Pro Datei schlägt das Fenster das Ziel vor: Musik und Videos in den Mediaplayer, alles andere in die passende Kategorie der Downloads (nach der Endung). Das Spiel wird nur bei Spielständen und Mods abgefragt. Auch in den Eigenen Dateien gibt es den Knopf überall.
+- **Kategorien als feste Liste** unter Seitenverwaltung → Inhalte → Downloads → Kategorien: Symbol, Name, Endungen für den Vorschlag und „Spiel“ je Kategorie. Umbenennen nimmt die Dateien mit, Löschen legt sie unter „Allgemein“. Neu dabei: Bilder und Archive.
+- **Keine Programme von Mitgliedern:** .exe, .bat, .msi und andere Programm- und Skriptdateien nehmen die Downloads von Mitgliedern nicht an (du selbst darfst alles). Die Liste stellst du bei den Kategorien ein.
+- Vorbereitung für JDownloader: Im nächsten Update kommen Link-Vorschläge, Download-Regeln und die Anbindung an JDownloader.
+
 ## Update 85 · 05.11.2026 – Seitenverwaltung 2.0, Dienste, Laufband und Popup-Bilder
 
 - **Seitenverwaltung neu sortiert:** Links steht ein Baum mit sieben Bereichen (Übersicht, Inhalte, Mitglieder, Programme, Dienste, Aussehen, System) statt zwanzig Reitern. Oben sucht „Einstellung suchen“ (Strg+K) nach Seiten und einzelnen Schaltern und springt direkt hin. Am Handy wird der Baum zur Auswahlliste.

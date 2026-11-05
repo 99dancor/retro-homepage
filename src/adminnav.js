@@ -73,6 +73,7 @@ const SEARCH = [
   ['Neuer Dienst', 'Jellyfin Immich Nextcloud Minecraft Steam Valheim Gameserver Server Docker Container Status', '/admin/dienste/neu'],
   ['Widget Dienste', 'Desktop Speicher belegt Festplatte Platte', '/admin/dienste#widget'],
   ['Belegten Speicher zeigen', 'Festplatte Platte frei voll Speicherplatz', '/admin/dienste#widget'],
+  ['Download-Kategorien', 'Downloads Kategorie Endungen Spielstände Mods Tools exe gesperrt nicht erlaubt', '/admin/files/kategorien'],
   ['Speicher pro Mitglied', 'Quota Platz MB Grenze', '/admin/speicher'],
   ['Freigegebene Ordner', 'öffentlich Desktop Mitglieder teilen', '/admin/speicher#freigaben'],
   ['readme.txt', 'Desktop Text Begrüßung', '/admin/desktop#readme'],

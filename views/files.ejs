@@ -1,31 +1,92 @@
 <%- include('partials/head') %>
-<h1>📁 Downloads</h1>
-<form method="get" action="/files" class="actions">
-  <input type="search" name="q" value="<%= q %>" placeholder="Suchen…">
-  <select name="cat"><option value="">Alle Kategorien</option>
-    <% for (const c of cats) { %><option value="<%= c.category %>" <%= c.category === cat ? 'selected' : '' %>><%= c.category %> (<%= c.n %>)</option><% } %>
-  </select>
-  <button>Suchen</button>
-  <% if (user && user.canUpload) { %><a class="btn" href="/files/upload">📤 Hochladen</a><% } %>
-</form>
-<% const keys = Object.keys(grouped); if (!keys.length) { %><p class="muted">Keine Dateien gefunden.</p><% } %>
-<% for (const c of keys) { %>
-  <fieldset class="groupbox"><legend>📂 <%= c %></legend>
-  <table class="list">
-    <tr><th>Name</th><th>Spiel</th><th class="num">Größe</th><th>Datum</th><th class="num">⬇</th></tr>
-    <% for (const f of grouped[c]) { %>
-    <tr>
-      <td><a href="/files/dl/<%= f.id %>"><b><%= f.title %></b></a>
-        <% if (f.visibility !== 'public') { %><span class="badge gray"><%= f.visibility === 'friends' ? 'Nur Freunde' : VISIBILITY[f.visibility] %></span><% } %>
-        <% if (f.description) { %><br><small><%= f.description %></small><% } %>
-        <% if (f.title !== f.original_name) { %><br><small>💾 <%= f.original_name %></small><% } %></td>
-      <td><%= f.game || '–' %></td>
-      <td class="num"><%= fmtSize(f.size) %></td>
-      <td><%= fmtDate(f.created_at) %></td>
-      <td class="num"><%= f.downloads %></td>
-    </tr>
-    <% } %>
-  </table>
-  </fieldset>
-<% } %>
+<%# Downloads als Explorer (src/filesview.js): Baum links, Liste in der Mitte, Details rechts. Auswahl, Sortieren und Filtern in public/files.js %>
+<%
+  const fmtLen = s => { s = Math.round(s || 0); if (!s) return ''; const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = String(s % 60).padStart(2, '0'); return h ? h + ':' + String(m).padStart(2, '0') + ':' + x : m + ':' + x; };
+  const nodeUrl = k => '/files' + (k === 'alle' ? '' : '?ort=' + encodeURIComponent(k));
+  const cur = k => node === k ? ' current' : '';
+  const canAdd = user && user.canUpload;
+  const cols = mode === 'media' ? ['Name', 'Interpret', 'Album', 'Länge', 'Größe', 'Hinzugefügt'] : mode === 'playlists' ? ['Name', 'Titel', 'Von', 'Sichtbar für', 'Geändert']
+    : mode === 'mixed' ? ['Name', 'Art', 'Größe', 'Hinzugefügt', 'Von'] : ['Name', 'Spiel', 'Größe', 'Hinzugefügt', 'Von', '⬇'];
+  const kindName = r => r.type === 'file' ? r.cat : r.type === 'audio' ? 'Musik' : r.type === 'video' ? 'Video' : 'Playlist';
+  const showGroups = node === 'alle';
+  let lastGroup = null;
+%>
+<div class="explorer files-ex" id="files-ex" data-node="<%= node %>">
+  <div class="ex-toolbar" role="toolbar">
+    <button type="button" class="small" data-fx="back" title="Zurück">⬅ Zurück</button>
+    <span class="ex-sep"></span>
+    <% if (canAdd) { %><a class="btn small" href="/files/upload"><b>📤 Hinzufügen</b></a><span class="ex-sep"></span><% } %>
+    <button type="button" class="small" data-fx="play" disabled>▶ Im Mediaplayer</button>
+    <button type="button" class="small" data-fx="dl" disabled>⬇ Herunterladen</button>
+    <button type="button" class="small" data-fx="edit" disabled>ℹ Eigenschaften</button>
+    <span class="spacer"></span>
+    <button type="button" class="small ex-tree-toggle" data-fx="tree" aria-expanded="false">📂 Ordner</button>
+    <form method="get" action="/files" class="fx-search" role="search">
+      <% if (node !== 'alle' && node !== 'suche') { %><input type="hidden" name="ort" value="<%= node %>"><% } %>
+      <input type="search" name="q" value="<%= q %>" placeholder="🔍 Suchen…" aria-label="In den Downloads suchen" data-fx="filter">
+    </form>
+  </div>
+  <div class="ex-address"><span>Adresse</span><div class="sunken ex-path">
+    <a href="/files">📁 Downloads</a><% if (['musik', 'videos', 'playlists'].includes(node)) { %> › 🎞️ Mediathek<% } else if (node.startsWith('k:')) { %> › 📦 Dateien<% } %><% if (node !== 'alle') { %> › <%= icon %> <%= nodeTitle %><%= node === 'suche' ? ' „' + q + '“' : '' %><% } %>
+  </div></div>
+  <div class="ex-main fx-main">
+    <nav class="ex-tree sunken" aria-label="Bereiche">
+      <ul class="tree">
+        <li><a href="/files" class="ex-node">📁 <b>Downloads</b></a>
+          <ul>
+            <li><a href="<%= nodeUrl('alle') %>" class="ex-node<%= cur('alle') %>">🗂️ Alle Dateien <small>(<%= tree.all %>)</small></a></li>
+            <li><a href="<%= nodeUrl('neu') %>" class="ex-node<%= cur('neu') %>">🆕 Neu hinzugefügt <small>(<%= tree.fresh %>)</small></a></li>
+            <li class="ex-group">🎞️ Mediathek
+              <ul>
+                <li><a href="<%= nodeUrl('musik') %>" class="ex-node<%= cur('musik') %>">🎵 Musik <small>(<%= tree.music %>)</small></a></li>
+                <li><a href="<%= nodeUrl('videos') %>" class="ex-node<%= cur('videos') %>">🎬 Videos <small>(<%= tree.videos %>)</small></a></li>
+                <% if (tree.loggedIn) { %><li><a href="<%= nodeUrl('playlists') %>" class="ex-node<%= cur('playlists') %>">📋 Playlists <small>(<%= tree.playlists %>)</small></a></li><% } %>
+              </ul></li>
+            <li class="ex-group">📦 Dateien
+              <ul><% for (const c of tree.cats) { %>
+                <li><a href="<%= nodeUrl(c.key) %>" class="ex-node<%= cur(c.key) %>"><%= c.icon %> <%= c.label %> <small>(<%= c.n %>)</small></a></li>
+              <% } %></ul></li>
+          </ul></li>
+        <% if (user) { %><li class="fx-mine"><a href="/eigene-dateien" class="ex-node">🗂️ Eigene Dateien</a></li><% } %>
+      </ul>
+    </nav>
+    <div class="ex-pane fx-pane">
+      <% if (!rows.length) { %>
+        <p class="muted ex-empty"><%= node === 'suche' ? 'Nichts gefunden.' : node === 'playlists' ? 'Noch keine Playlists. Anlegen geht im Mediaplayer.' : 'Hier liegt noch nichts.' %><% if (canAdd && node !== 'suche' && node !== 'playlists') { %><br><a class="btn small" href="/files/upload<%= node.startsWith('k:') ? '?kategorie=' + encodeURIComponent(nodeTitle) : '' %>">📤 Etwas hinzufügen</a><% } %></p>
+      <% } else { %>
+      <table class="list ex-list fx-list" data-list>
+        <thead><tr><% cols.forEach((c, i) => { %><th data-sort="<%= i %>"<%- ['Größe', 'Länge', '⬇', 'Titel'].includes(c) ? ' class="num"' : '' %>><%= c %></th><% }) %></tr></thead>
+        <tbody>
+        <% for (const r of rows) { %>
+          <% if (showGroups && r.group !== lastGroup) { lastGroup = r.group; %><tr class="fx-grp"><td colspan="<%= cols.length %>"><%= r.icon %> <%= r.group %></td></tr><% } %>
+          <tr tabindex="0" data-ref="<%= r.ref %>" data-item="<%= JSON.stringify(r) %>">
+            <td><a class="ex-name" href="<%= r.play || r.dl %>"<%- r.play ? '' : ' download' %>><span class="ex-ic"><%= r.icon %></span><%= r.name %></a><% if (r.vis && r.vis !== 'public' && r.vis !== 'members') { %> <span class="badge gray"><%= r.visLabel %></span><% } %></td>
+            <% if (mode === 'media') { %>
+              <td><%= r.artist || '–' %></td><td><%= r.album || '' %></td><td class="num" data-v="<%= r.duration %>"><%= fmtLen(r.duration) %></td>
+              <td class="num" data-v="<%= r.size %>"><%= fmtSize(r.size) %></td><td data-v="<%= r.date %>"><%= fmtDate(r.date) %></td>
+            <% } else if (mode === 'playlists') { %>
+              <td class="num" data-v="<%= r.count %>"><%= r.count %></td><td><%= r.by || '–' %></td><td><%= r.visLabel %></td><td data-v="<%= r.date %>"><%= fmtDate(r.date) %></td>
+            <% } else if (mode === 'mixed') { %>
+              <td><%= kindName(r) %></td><td class="num" data-v="<%= r.size %>"><%= r.type === 'playlist' ? r.count + ' Titel' : fmtSize(r.size) %></td><td data-v="<%= r.date %>"><%= fmtDate(r.date) %></td><td><%= r.by || '–' %></td>
+            <% } else { %>
+              <td><%= r.game || '–' %></td><td class="num" data-v="<%= r.size %>"><%= fmtSize(r.size) %></td><td data-v="<%= r.date %>"><%= fmtDate(r.date) %></td><td><%= r.by || '–' %></td><td class="num"><%= r.downloads %></td>
+            <% } %>
+          </tr>
+        <% } %>
+        </tbody>
+      </table>
+      <% } %>
+    </div>
+    <aside class="fx-det" aria-live="polite">
+      <div class="fx-card" data-det>
+        <div class="fx-big"><%= icon %></div>
+        <h3><%= nodeTitle %></h3>
+        <p><%= rows.length %> <%= rows.length === 1 ? 'Eintrag' : 'Einträge' %>. Wähle etwas aus, um Details zu sehen.</p>
+        <% if (canAdd) { %><p><a class="btn small" href="/files/upload">📤 Hinzufügen</a></p><% } %>
+      </div>
+    </aside>
+  </div>
+  <div class="statusbar"><span data-status><%= rows.length %> <%= rows.length === 1 ? 'Eintrag' : 'Einträge' %></span><% if (disk) { %><span>Freier Speicher: <%= fmtSize(disk.free) %></span><% } %></div>
+</div>
+<script src="<%= asset('files.js') %>" defer></script>
 <%- include('partials/foot') %>

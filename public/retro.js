@@ -417,7 +417,7 @@
 
   // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Mediaplayer brauchen etwas mehr Platz
   var SIZES = { haustier: [1000, 720], musik: [1080, 700], zufall: [760, 620], kartenspiele: [1080, 760], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], werwolf: [1000, 720], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], sudoku: [720, 640], farming: [1120, 760], konto: [700, 620], paint: [1000, 700], galerie: [900, 640], admin: [1100, 740], 'eigene-dateien': [900, 620],
-    einstellungen: [860, 640], notizblock: [660, 500], suche: [760, 580], ansehen: [800, 600], ordner: [820, 580], info: [440, 360], dienste: [820, 560] };
+    einstellungen: [860, 640], notizblock: [660, 500], suche: [760, 580], ansehen: [800, 600], ordner: [820, 580], info: [440, 360], dienste: [820, 560], files: [1120, 680] };
   // Vergrößerte Fensterinhalte (🖥️ → Größe der Oberfläche mit „Fensterinhalte mitskalieren“) brauchen größere Fenster
   function contentZoom() {
     var root = document.documentElement;
@@ -427,6 +427,7 @@
   var MSGR = { messenger: [270, 600], 'messenger/mit': [540, 480], 'messenger/finden': [760, 580], 'messenger/anfrage': [540, 340] };
   function sizeFor(url) {
     var k = winKey(url).split('/').slice(0, 2).join('/');
+    if (k === 'upload') return [800, 620];
     return MSGR[k] || SIZES[section(url)] || [820, 580];
   }
   function place(el, s, url) {

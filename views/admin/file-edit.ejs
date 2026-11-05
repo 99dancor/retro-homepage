@@ -5,7 +5,7 @@
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <div class="row">
     <label>Titel:<input type="text" name="title" class="w100" value="<%= file.title %>"></label>
-    <label>Kategorie:<input type="text" name="category" class="w100" value="<%= file.category %>"></label>
+    <label>Kategorie:<select name="category" class="w100"><% for (const c of categories) { %><option<%= c === file.category ? ' selected' : '' %>><%= c %></option><% } %></select> <small><a href="/admin/files/kategorien">Kategorien verwalten</a></small></label>
     <label>Spiel:<input type="text" name="game" class="w100" value="<%= file.game || '' %>"></label>
   </div>
   <label>Beschreibung:<textarea name="description" style="min-height:60px"><%= file.description || '' %></textarea></label>

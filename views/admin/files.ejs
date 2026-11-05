@@ -5,7 +5,7 @@
   <span class="sunken" style="display:inline-block;width:160px;height:12px;padding:0;vertical-align:middle"><span style="display:block;height:100%;background:#2a78d6;width:<%= ((1 - disk.free / disk.total) * 100).toFixed(1) %>%"></span></span>
   · <a href="/admin/downloads">📊 Download-Statistik</a></p>
 <% } %>
-<fieldset class="groupbox"><legend>📥 Große Dateien über die Netzwerkfreigabe</legend>
+<fieldset class="groupbox" id="eingang"><legend>📥 Große Dateien über die Netzwerkfreigabe</legend>
   <p>Für Dateien mit mehreren GB ist das schneller und zuverlässiger als der Browser: Kopiere sie im Heimnetz in den Ordner <code>eingang</code> im Download-Ordner (siehe Anleitung) und übernimm sie hier.</p>
   <% if (!imports.length) { %><p class="muted">Der Eingangsordner ist leer.</p><% } else { %>
   <form method="post" action="/admin/files/import">
@@ -18,7 +18,7 @@
       <% } %>
     </table>
     <div class="row">
-      <label>Kategorie:<input type="text" name="category" class="w100" list="cats" placeholder="z. B. Spielstände"></label>
+      <label>Kategorie:<select name="category" class="w100"><% for (const c of categories) { %><option><%= c %></option><% } %></select></label>
       <label>Spiel (optional):<input type="text" name="game" class="w100"></label>
     </div>
     <label>Beschreibung:<textarea name="description" style="min-height:40px"></textarea></label>
@@ -27,21 +27,12 @@
   </form>
   <% } %>
 </fieldset>
-<fieldset class="groupbox"><legend>📤 Dateien hochladen</legend>
-<form method="post" action="/admin/files/upload" enctype="multipart/form-data">
-  <input type="hidden" name="_csrf" value="<%= csrf %>">
-  <label>Datei(en)<%= maxMb ? ' – max. ' + maxMb + ' MB pro Datei' : '' %>:<input type="file" name="files" multiple required></label>
-  <div class="row">
-    <label>Titel (nur bei einer Datei, optional):<input type="text" name="title" class="w100"></label>
-    <label>Kategorie:<input type="text" name="category" class="w100" list="cats" placeholder="z. B. Spielstände"></label>
-    <label>Spiel (optional):<input type="text" name="game" class="w100"></label>
-  </div>
-  <datalist id="cats"><% for (const c of categories) { %><option value="<%= c %>"><% } %><option value="Spielstände"><option value="Mods"><option value="Tools"><option value="Dokumente"></datalist>
-  <label>Beschreibung:<textarea name="description" style="min-height:50px"></textarea></label>
-  <%- include('../partials/visibility', { item: { visibility: 'public' }, acl: [] }) %>
-  <div class="actions"><button>Hochladen</button><span class="muted" data-progress></span></div>
-</form>
-</fieldset>
+<div class="actions" style="margin:6px 0 10px">
+  <a class="btn" href="/files/upload"><b>📤 Hinzufügen</b></a>
+  <a class="btn" href="/admin/files/kategorien">🏷️ Kategorien</a>
+  <a class="btn" href="/files">📁 Downloads ansehen</a>
+  <small class="muted">Im Fenster „Hinzufügen“ ziehst du Dateien hinein und wählst pro Datei Kategorie oder Mediaplayer. Gruppen als Sichtbarkeit stellst du danach bei der Datei ein.</small>
+</div>
 <table class="list">
   <tr><th>Titel</th><th>Kategorie / Spiel</th><th>Sichtbarkeit</th><th class="num">Größe</th><th class="num">⬇</th><th>Von</th><th></th></tr>
   <% for (const f of files) { %>

@@ -20,7 +20,15 @@
 </head>
 <body class="desktop" data-user="<%= user ? user.id : '' %>" data-title="<%= site.title %>" data-csrf="<%= csrf %>">
 <div id="desk">
-  <% if (marquee) { %><marquee scrollamount="4"><%= marquee %></marquee><% } %>
+  <%# Laufband (src/ticker.js, public/laufband.js): Meldungen laufen von rechts nach links, × blendet es aus, 🖥️ → Effekte stellt es ein %>
+  <% if (typeof ticker !== 'undefined' && ticker) { %>
+  <div class="tick t-<%= ticker.style %>" id="ticker" role="region" aria-label="Laufband">
+    <% if (ticker.label) { %><span class="lbl"><%= ticker.label %></span><% } %>
+    <div class="run" aria-live="off"><span class="items"><% ticker.items.forEach((it, i) => { %><% if (i) { %><i aria-hidden="true">+++</i><% } %><% if (it.url) { %><a href="<%= it.url %>"><%= it.text %></a><% } else { %><span><%= it.text %></span><% } %><% }) %></span></div>
+    <span class="ctl"><button type="button" class="tb-btn" data-tk="pause" title="Anhalten" aria-label="Laufband anhalten">❚❚</button><button type="button" class="tb-btn" data-tk="menu" title="Ausblenden …" aria-label="Laufband ausblenden" aria-haspopup="true">×</button></span>
+  </div>
+  <% } %>
+  <% if (maintOn && user && user.isAdmin) { %><a class="maint-flag" href="/admin/settings#wartung" title="Nur Admins sehen die Seite gerade">🚧 Wartungsmodus an</a><% } %>
   <%# Symbole: public/desk.js legt sie aus den Daten unten aufs Raster %>
   <div class="desk-icons" id="deskicons" role="listbox" aria-label="Desktop" aria-multiselectable="true" tabindex="0"></div>
   <% if (user && typeof desk !== 'undefined' && desk.lobbyAllowed) { %>
@@ -29,6 +37,17 @@
     <div class="body" id="lobbybody">
       <div class="lob-list" data-list><p class="lob-empty">Lade …</p></div>
       <div class="lob-foot"><button type="button" class="small" data-lw="new" aria-haspopup="true">➕ Neue Lobby ▾</button><small data-time></small></div>
+    </div>
+  </div>
+  <% } %>
+  <%# Dienste (src/services.js, public/dienste.js): Zustand der Server und belegter Speicher, wie „Offene Lobbys“ verschiebbar %>
+  <% if (typeof desk !== 'undefined' && desk.svcAllowed) { %>
+  <div class="window desk-widget svc-widget" id="svcwidget" hidden>
+    <div class="titlebar"><span class="ttl">🗄️ Dienste <span data-n></span></span><button type="button" class="tb-btn" data-sw="min" title="Minimieren" aria-expanded="true" aria-controls="svcbody">_</button></div>
+    <div class="body" id="svcbody">
+      <div class="svc-list" data-list><p class="lob-empty">Lade …</p></div>
+      <div class="svc-disks" data-disks hidden></div>
+      <div class="lob-foot"><a href="/dienste" data-open>Alle Dienste »</a><small data-time></small></div>
     </div>
   </div>
   <% } %>
@@ -67,6 +86,9 @@
 <script src="<%= asset('winui.js') %>"></script>
 <script src="<%= asset('deskui.js') %>"></script>
 <script src="<%= asset('desk.js') %>"></script>
+<script src="<%= asset('dienste.js') %>"></script>
+<% if (typeof ticker !== 'undefined' && ticker) { %><script src="<%= asset('laufband.js') %>"></script><% } %>
+<% if (typeof popupsOn !== 'undefined' && popupsOn) { %><script src="<%= asset('popups.js') %>"></script><% } %>
 <% if (user) { %><script src="<%= asset('notify.js') %>"></script>
 <script src="<%= asset('messenger-hub.js') %>"></script><% } %>
 </body>

@@ -1,0 +1,74 @@
+<%- include('../partials/head') %>
+<%# Aussehen → Popup-Bilder (src/popups.js): keine Werbung, ein Pool aus Bildern, die ab und zu als Fenster aufgehen.
+    Gezählt wird nur kam / angeklickt / geschlossen, ohne Personenbezug. %>
+<form method="post" action="/admin/popups/einstellungen">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox"><legend>💬 Regeln</legend>
+    <label class="inline"><input type="checkbox" name="popup_on" value="1" <%= cfg.on ? 'checked' : '' %>> Popup-Bilder zeigen</label>
+    <label class="inline">für <select name="popup_audience"><% for (const [k, v] of Object.entries(AUDIENCE)) { %><option value="<%= k %>"<%= cfg.audience === k ? ' selected' : '' %>><%= v %></option><% } %></select></label>
+    <div class="row">
+      <label>Erstes frühestens nach (Sekunden):<input type="number" name="popup_first" value="<%= cfg.first %>" min="5" max="3600" style="width:90px"></label>
+      <label>Danach höchstens alle (Minuten):<input type="number" name="popup_every" value="<%= cfg.every %>" min="1" max="1440" style="width:90px"></label>
+      <label>Höchstens pro Besuch:<input type="number" name="popup_max" value="<%= cfg.max %>" min="1" max="50" style="width:90px"></label>
+    </div>
+    <label class="inline"><input type="checkbox" name="popup_mobile" value="1" <%= cfg.mobile ? 'checked' : '' %>> Auch auf dem Handy</label><br>
+    <label class="inline"><input type="checkbox" name="popup_cheeky" value="1" <%= cfg.cheeky ? 'checked' : '' %>> Frecher Modus: Fenster wackelt, und das × weicht beim ersten Mal aus</label><br>
+    <label class="inline"><input type="checkbox" name="popup_suggest" value="1" <%= cfg.suggest ? 'checked' : '' %>> Mitglieder dürfen eigene Paint-Bilder vorschlagen (in der Galerie; du schaltest sie frei)</label><br>
+    <small>Nie über Spielen, maximierten Fenstern, Vollbild, dem Kinomodus des Mediaplayers oder dem Anmeldebildschirm. Jeder Besucher schaltet sie im Fenster („Nicht mehr zeigen“) oder unter 🖥️ → Effekte ab.</small>
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button> <button type="button" data-popup-test title="Zeigt sofort eins auf deinem Desktop">🎲 Jetzt eins zeigen</button></div>
+</form>
+
+<fieldset class="groupbox" id="pool"><% const nPool = list.filter(p => p.status === 'ok').length; %><legend>🖼️ Pool (<%= nPool === 1 ? 'ein Bild' : nPool + ' Bilder' %>)</legend>
+  <% if (!list.length) { %><p class="muted" style="margin-top:0">Noch leer. Unten ein Bild hochladen oder aus Bildern und Galerie wählen.</p><% } else { %>
+  <table class="list pop-table">
+    <tr><th></th><th>Titel</th><th>Wann und für wen</th><th class="num" title="kam / angeklickt / geschlossen">👁 / 🖱 / ×</th><th></th></tr>
+    <% for (const p of list) { const pend = p.status === 'pending'; %>
+    <tr class="<%= pend ? 'pending' : p.enabled ? '' : 'off' %>">
+      <td><img src="<%= p.image %>" alt="" class="pop-thumb" loading="lazy"></td>
+      <td><b><%= p.title %></b><% if (pend) { %> <i class="n g">Vorschlag</i><% } %><br><small class="muted"><%= p.link ? '→ ' + p.link : 'ohne Link' %> · <%= WEIGHT[p.weight] %><%= p.suggested_name ? ' · von ' + p.suggested_name : '' %></small></td>
+      <td><small><%= period(p.starts_at, p.ends_at) %> · <%= AUDIENCE[p.audience] %><%= p.service_name ? ' · nur wenn ' + p.service_name + ' online' : '' %><%= !p.enabled ? ' · aus' : '' %></small></td>
+      <td class="num"><small><%= p.shown %> / <%= p.clicks %> / <%= p.closed %></small></td>
+      <td class="nowrap">
+        <% if (pend) { %><form method="post" action="/admin/popups/<%= p.id %>/freigeben" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small">✔ Freigeben</button></form><% } %>
+        <a class="btn small" href="/admin/popups?edit=<%= p.id %>#bild">✏️</a>
+        <form method="post" action="/admin/popups/<%= p.id %>/loeschen" class="inline" data-confirm="„<%= p.title %>“ aus dem Pool nehmen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="small" title="Entfernen">🗑️</button></form>
+      </td>
+    </tr>
+    <% } %>
+  </table>
+  <% } %>
+</fieldset>
+
+<% const e = edit || { weight: 2, audience: 'all', enabled: 1 }; %>
+<form method="post" action="<%= edit ? '/admin/popups/' + edit.id : '/admin/popups/neu' %>" id="bild"<%- edit ? '' : ' enctype="multipart/form-data"' %>>
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox"><legend><%= edit ? '✏️ Bild ändern' : '➕ Bild hinzufügen' %></legend>
+    <% if (edit) { %><p style="margin-top:0"><img src="<%= edit.image %>" alt="" class="pop-thumb big"></p><% } else { %>
+    <div class="pop-src">
+      <label class="inline"><input type="radio" name="source" value="upload" checked> Hochladen:</label> <input type="file" name="upload" accept="image/png,image/jpeg,image/gif,image/webp"><br>
+      <label class="inline"><input type="radio" name="source" value="media"> Aus den <a href="/admin/media">Bildern</a>:</label>
+      <select name="media" aria-label="Bild aus Bilder"><option value="">– wählen –</option><% for (const m of media) { %><option value="<%= m.stored_name %>"><%= m.original_name %></option><% } %></select><br>
+      <label class="inline"><input type="radio" name="source" value="paint"> Aus der Galerie:</label>
+      <select name="artwork" aria-label="Bild aus der Galerie"><option value="">– wählen –</option><% for (const a of art) { %><option value="<%= a.id %>"><%= a.title %> (<%= a.username %>)</option><% } %></select>
+    </div>
+    <% } %>
+    <div class="row">
+      <label>Titel im Fenster:<input type="text" name="title" value="<%= e.title || '' %>" maxlength="80" placeholder="Herzlichen Glückwunsch!"></label>
+      <label>Link beim Klick (freiwillig):<input type="text" name="link" value="<%= e.link || '' %>" maxlength="500" placeholder="/paint oder https://…"></label>
+    </div>
+    <div class="row">
+      <label>Wie oft:<select name="weight"><% for (const [k, v] of Object.entries(WEIGHT)) { %><option value="<%= k %>"<%= Number(e.weight) === Number(k) ? ' selected' : '' %>><%= v %></option><% } %></select></label>
+      <label>Für:<select name="audience"><% for (const [k, v] of Object.entries(AUDIENCE)) { %><option value="<%= k %>"<%= e.audience === k ? ' selected' : '' %>><%= v %></option><% } %></select></label>
+      <label>Nur wenn online:<select name="service_id"><option value="">– egal –</option><% for (const s of svcList) { %><option value="<%= s.id %>"<%= e.service_id === s.id ? ' selected' : '' %>><%= s.icon %> <%= s.name %></option><% } %></select></label>
+    </div>
+    <div class="row">
+      <label>Ab (leer = sofort):<input type="datetime-local" name="starts_at" value="<%= dtLocal(e.starts_at) %>"></label>
+      <label>Bis (leer = ohne Ende):<input type="datetime-local" name="ends_at" value="<%= dtLocal(e.ends_at) %>"></label>
+    </div>
+    <label class="inline"><input type="checkbox" name="enabled" value="0" <%= e.enabled ? '' : 'checked' %>> Erst einmal aus</label><br>
+    <small>„Nur wenn online“: z. B. ein Minecraft-Bild, das nur kommt, wenn der Server läuft. Paint-Bilder kommen nur bei Besuchern, die sie sehen dürfen.</small>
+  </fieldset>
+  <div class="actions"><button>💾 <%= edit ? 'Ändern' : 'In den Pool' %></button><% if (edit) { %> <a class="btn" href="/admin/popups#pool">Abbrechen</a><% } %></div>
+</form>
+<%- include('../partials/foot') %>

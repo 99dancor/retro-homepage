@@ -53,7 +53,7 @@
       </select></label>
   </fieldset>
   <fieldset class="groupbox"><legend>✨ Extras</legend>
-    <label>Lauftext (leer = aus):<input type="text" name="theme_marquee" class="w100" value="<%= s.theme_marquee %>"></label>
+    <p style="margin-top:0"><small>Den Lauftext oben gibt es jetzt als <a href="/admin/laufband">📢 Laufband</a> mit mehreren Meldungen und Zeitraum.</small></p>
     <label class="inline"><input type="checkbox" name="theme_show_counter" value="1" <%= s.theme_show_counter === '1' ? 'checked' : '' %>> Besucherzähler anzeigen</label>
     <label>Eigenes CSS (für Profis – wird nach allem anderen geladen):</label>
     <textarea name="theme_custom_css" class="code" style="min-height:140px" placeholder="/* z. B. */&#10;.titlebar { font-family: 'Comic Sans MS'; }&#10;body { cursor: crosshair; }"><%= s.theme_custom_css %></textarea>

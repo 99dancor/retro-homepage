@@ -1,0 +1,6 @@
+<%# Postfach: Nachrichten, Besucherbuch und Freigaben an einem Ort, mit Zahl der wartenden %>
+<nav class="tabs sv-tabs" aria-label="Postfach">
+  <% for (const [u, l, n] of [['/admin/messages', '✉️ Nachrichten', counts.unread], ['/admin/guestbook', '📖 Besucherbuch', counts.pending], ['/admin/freigaben', '✅ Freigaben', counts.paint + counts.popups]]) { const cur = path === u || path.startsWith(u + '/'); %>
+  <a href="<%= u %>" role="tab" aria-selected="<%= cur %>"<%- cur ? ' aria-current="page"' : '' %>><%= l %><% if (n) { %> <i class="n"><%= n %></i><% } %></a>
+  <% } %>
+</nav>

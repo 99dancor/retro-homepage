@@ -136,6 +136,14 @@ const SNIPPETS = {
   recordName: ['src/usersettings.js', 'const recordName = (slug, userId, name)', 1],
   avatarCrop: ['public/avatar-crop.js', "var out = document.createElement('canvas');", 4],
   profileLinks: ['views/profile.ejs', 'rel="noopener noreferrer nofollow"', 1],
+  svcViewer: ['src/services.js', 'function forViewer(user, where = null) {', 7],
+  svcWatch: ['src/db.js', 'CREATE TABLE IF NOT EXISTS service_watch (', 6],
+  svcLocal: ['public/dienste.js', "var on = !!data.svcWidget", 1],
+  tickerLocal: ['public/laufband.js', "var KEY = 'laufband'", 1],
+  popupCount: ['src/popups.js', 'function count(id, what) {', 5],
+  popupLocal: ['public/popups.js', "set('popups-zuletzt', String(Date.now()));", 1],
+  popupSuggest: ['src/popups.js', 'function suggest(user, artworkId) {', 10],
+  events: ['src/db.js', 'CREATE TABLE IF NOT EXISTS events (', 8],
 };
 
 // Liest die Ausschnitte aus den Dateien: { name: [Datei, Zeile, die den Anfang markiert, Anzahl Zeilen] }.

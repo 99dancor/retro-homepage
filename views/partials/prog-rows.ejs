@@ -1,0 +1,16 @@
+<%# Programme als Tabelle: Für wen (Alle, Mitglieder, Aus), im Startmenü, auf dem Desktop, Eigenschaften (src/programs.js).
+    rows = Zeilen, props = Link „Eigenschaften“ zeigen %>
+<table class="list prog-table">
+  <tr><th>Programm</th><th>Für</th><th class="c">Startmenü</th><th class="c">Desktop</th><% if (props) { %><th></th><% } %></tr>
+  <% for (const p of rows) { %>
+  <tr class="<%= p.state === 'off' ? 'off' : '' %>">
+    <td><input type="hidden" name="rows" value="<%= p.key %>"><span class="prog-ico"><%- ico(p.icon) %></span> <b><%= p.name %></b><% if (p.note) { %> <small class="muted">(<%= p.note %>)</small><% } %></td>
+    <td><select name="for_<%= p.key %>" aria-label="Für wen: <%= p.name %>">
+      <% for (const o of p.opts) { %><option value="<%= o %>"<%= p.state === o ? ' selected' : '' %>><%= FOR[o] %></option><% } %>
+    </select></td>
+    <td class="c"><input type="checkbox" name="nav" value="<%= p.key %>" <%= p.inNav ? 'checked' : '' %> aria-label="<%= p.name %> im Startmenü"></td>
+    <td class="c"><input type="checkbox" name="desk" value="<%= p.key %>" <%= p.onDesk ? 'checked' : '' %> aria-label="<%= p.name %> auf dem Desktop"></td>
+    <% if (props) { %><td><% if (p.props) { %><a href="<%= p.props %>">Eigenschaften…</a><% } %></td><% } %>
+  </tr>
+  <% } %>
+</table>

@@ -62,10 +62,19 @@ function deskData(req, locals) {
     me: u ? { id: u.id, name: u.name, canUpload: !!u.canUpload } : null,
     items, arrange: d.arrange, trash: trashN, limits: desk.limits(), version,
     lobbyAllowed: !!u && getSetting('lobby_widget', '1') === '1', lobbyWidget: !!u && getSetting('lobby_widget', '1') === '1' && d.lobbies,
+    // Widget „Dienste“ und 🗄️ neben der Uhr (src/services.js); Gäste blenden das Widget im Browser aus, Mitglieder am Konto
+    ...svcFlags(u, d),
     search: getSetting('search_enabled', '1') === '1' && d.search,
     newLobby: lobbies.apps(locals),
     hidden: d.hidden.filter(k => k !== 'readme' || !(d.readmeSeen < version)),
   };
+}
+
+function svcFlags(u, d) {
+  const services = require('../services');
+  const list = services.forViewer(u);
+  const allowed = getSetting('svc_widget', '1') === '1' && (list.some(s => s.show.includes('widget')) || !!(services.storage(u) || []).length);
+  return { svcAllowed: allowed, svcWidget: allowed && (!u || d.services), svcTray: list.some(s => s.show.includes('tray')) };
 }
 
 api.get('/desktop', (req, res) => res.json(deskData(req, res.locals)));
@@ -93,7 +102,7 @@ api.post('/desktop/freigabe/:id', needLogin, (req, res) => send(res, desk.share(
 api.post('/desktop/einstellungen', needLogin, (req, res) => {
   const b = body(req), d = us.get(req.user.id, 'desk');
   const next = { ...d };
-  for (const k of ['arrange', 'lobbies', 'search']) if (b[k] !== undefined) next[k] = b[k];
+  for (const k of ['arrange', 'lobbies', 'services', 'search']) if (b[k] !== undefined) next[k] = b[k];
   if (b.arrange && b.arrange !== 'frei') next.pos = {};
   if (Array.isArray(b.show)) next.hidden = d.hidden.filter(k => !b.show.includes(k));
   res.json({ settings: us.set(req.user.id, 'desk', next) });

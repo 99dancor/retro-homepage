@@ -1,0 +1,112 @@
+<%- include('../partials/head') %>
+<%# Programme → Eigenschaften: oben für wen, darunter die Einstellungen des Programms. Kartenspiele mit Reitern (public/reiter.js). %>
+<% const chk = k => s[k] === '1' ? 'checked' : ''; %>
+<form method="post" action="/admin/programme/<%= key %>" id="props-form">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <% if (key === 'kartenspiele') { %>
+  <div class="tabs" role="tablist" data-reiter>
+    <% [['allgemein', 'Allgemein'], ['kasse', '💰 Kasse'], ['spiele', '🃏 Spiele'], ['bestenlisten', '🏆 Bestenlisten']].forEach(([k, l], i) => { %><button type="button" role="tab" id="t-<%= k %>" aria-controls="<%= k %>" aria-selected="<%= i === 0 %>"<%- i ? ' tabindex="-1"' : '' %>><%= l %></button><% }) %>
+  </div>
+  <section class="tab-page" id="allgemein" role="tabpanel" aria-labelledby="t-allgemein">
+    <fieldset class="groupbox"><legend>Programm</legend><%- include('../partials/prog-rows', { rows, props: false }) %>
+      <small>Kartenspiele gibt es nur für Mitglieder (Spielgeld). Gäste sehen eine Anmeldebitte. Welche Spiele es gibt, steht unter „Spiele“.</small></fieldset>
+  </section>
+  <section class="tab-page" id="kasse" role="tabpanel" aria-labelledby="t-kasse">
+    <fieldset class="groupbox"><legend>💰 Kasse</legend>
+      <div class="row">
+        <label>Buy-in in € (Startgeld und jeder Nachkauf):<input type="number" name="ks_buyin" value="<%= s.ks_buyin %>" min="1"></label>
+        <label>Nachkaufen erst unter (€):<input type="number" name="ks_rebuy_below" value="<%= s.ks_rebuy_below %>" min="0"></label>
+      </div>
+      <small>Alle Kartenspiele mit Geld (Blackjack, Poker) teilen sich eine Kasse pro Mitglied. Das Startgeld zählt als erster Buy-in; Bilanz = Kontostand − alles Eingekaufte.</small>
+    </fieldset>
+  </section>
+  <section class="tab-page" id="spiele" role="tabpanel" aria-labelledby="t-spiele">
+    <fieldset class="groupbox"><legend>🃏 Spiele</legend>
+      <table class="list">
+        <tr><th>Spiel</th><th class="c">An</th><th>Bedenkzeit pro Zug</th></tr>
+        <% for (const [p, icon, name] of turns) { %>
+        <tr><td><%= icon %> <%= name %></td><td class="c"><input type="checkbox" name="<%= p %>_enabled" value="1" <%= chk(p + '_enabled') %> aria-label="<%= name %> an"></td>
+          <td><input type="number" name="<%= p %>_turn" value="<%= s[p + '_turn'] || 30 %>" min="5" max="300" style="width:70px" aria-label="Bedenkzeit <%= name %> in Sekunden"> Sekunden</td></tr>
+        <% } %>
+      </table>
+      <div class="row">
+        <label>Blackjack: Decks im Schlitten (1–8):<input type="number" name="bj_decks" value="<%= s.bj_decks %>" min="1" max="8"></label>
+      </div>
+      <label class="inline"><input type="checkbox" name="bj_h17" value="1" <%= chk('bj_h17') %>> Blackjack: Dealer zieht auf Soft 17 (sonst steht er auf allen 17)</label><br>
+      <small>Änderungen gelten für neue Runden. Bei Durak gibt es zum Zuwerfen die halbe Zeit. Die Blinds beim Poker wählt der Gastgeber pro Tisch.</small>
+    </fieldset>
+  </section>
+  <section class="tab-page" id="bestenlisten" role="tabpanel" aria-labelledby="t-bestenlisten">
+    <fieldset class="groupbox"><legend>🏆 Bestenlisten und Kasse zurücksetzen</legend>
+      <p style="margin-top:0"><small>Jeder Knopf fragt vorher nach. Laufende Sitzungen an Tischen bleiben stehen.</small></p>
+      <div class="reset-list">
+        <button form="r-kasse" class="danger">💰 Kasse aller Mitglieder</button>
+        <button form="r-blackjack" class="danger">🃏 Blackjack</button>
+        <button form="r-poker" class="danger">♠️ Poker</button>
+        <button form="r-durak" class="danger">🎴 Durak</button>
+        <button form="r-uno" class="danger">🟥 UNO</button>
+        <button form="r-flip7" class="danger">7️⃣ Flip 7</button>
+        <button form="r-pilli" class="danger">🌶️ Pilli Pilli</button>
+      </div>
+    </fieldset>
+  </section>
+  <% } else { %>
+  <fieldset class="groupbox"><legend>Programm</legend><%- include('../partials/prog-rows', { rows, props: false }) %></fieldset>
+  <% } %>
+
+  <% if (key === 'raetsel') { %>
+  <fieldset class="groupbox" id="kreuzwortraetsel"><legend>📰 Kreuzworträtsel</legend>
+    <label>Eigene Wörter (eine Zeile pro Wort: <code>Wort=Hinweis</code>):
+      <textarea name="cw_words" rows="6" class="w100" placeholder="Unraid=Server-Betriebssystem mit Docker&#10;Pinball=Flipper auf Englisch"><%= s.cw_words %></textarea></label>
+    <small>Sie kommen zu den rund 600 eingebauten Wörtern dazu und ersetzen eingebaute mit gleichem Wort (anderer Hinweis). 3 bis 13 Buchstaben, Umlaute werden zu AE, OE, UE, ß zu SS. Gilt ab dem nächsten neuen Rätsel, das von heute bleibt, wie es ist.</small>
+    <div class="actions"><button form="r-kreuzwortraetsel" class="danger">📰 Kreuzworträtsel-Statistik zurücksetzen</button></div>
+  </fieldset>
+  <fieldset class="groupbox" id="sudoku"><legend>🔢 Sudoku</legend>
+    <small>Jeden Tag ein neues Sudoku in drei Stufen, für alle gleich.</small>
+    <div class="actions"><button form="r-sudoku" class="danger">🔢 Sudoku-Statistik zurücksetzen</button></div>
+  </fieldset>
+  <fieldset class="groupbox" id="minesweeper"><legend>💣 Minesweeper</legend>
+    <div class="actions" style="margin-top:0"><button form="r-minesweeper" class="danger">💣 Minesweeper-Bestzeiten zurücksetzen</button></div>
+  </fieldset>
+  <% } else if (key === 'mediaplayer') { %>
+  <fieldset class="groupbox"><legend>🎵 Mediaplayer</legend>
+    <label>Musik und Videos hochladen dürfen:
+      <select name="music_upload">
+        <option value="members" <%= s.music_upload === 'members' ? 'selected' : '' %>>Alle angemeldeten Mitglieder</option>
+        <option value="upload" <%= s.music_upload === 'upload' ? 'selected' : '' %>>Nur Mitglieder mit „Darf selbst Dateien hochladen“</option>
+        <option value="admin" <%= s.music_upload === 'admin' ? 'selected' : '' %>>Nur ich (Admin)</option>
+      </select></label>
+    <label>Aussehen (Skin) für Gäste und alle, die noch keins gewählt haben:
+      <select name="music_skin">
+        <% for (const [k, v] of Object.entries(skins)) { %><option value="<%= k %>" <%= (s.music_skin || 'klassisch') === k ? 'selected' : '' %>><%= v %></option><% } %>
+      </select></label>
+    <label class="inline"><input type="checkbox" name="lobby_enabled" value="1" <%= chk('lobby_enabled') %>> Lobbys zum gemeinsamen Hören</label>
+    <label class="inline"><input type="checkbox" name="youtube_enabled" value="1" <%= chk('youtube_enabled') %>> YouTube-Videos im Player und in Lobbys erlauben</label>
+    <br><small>Eine Datei (Musik oder Video) darf bei Mitgliedern höchstens 200 MB groß sein und zählt zu ihrem Speicher (<a href="/admin/speicher">Speicher und Freigaben</a>). Hochgeladene Musik und Videos verwaltest du unter <a href="/admin/musik">Mediathek</a>.</small>
+  </fieldset>
+  <% } else if (key === 'forum') { %>
+  <p><small>Lesen dürfen alle oder nur Mitglieder (oben „Für“), schreiben immer nur angemeldete Mitglieder. Beiträge bearbeitest oder löschst du direkt im <a href="/forum" target="_blank">Forum</a>.</small></p>
+  <% } else if (key === 'besucherbuch') { %>
+  <fieldset class="groupbox"><legend>📖 Besucherbuch</legend>
+    <label class="inline"><input type="checkbox" name="guestbook_moderation" value="1" <%= chk('guestbook_moderation') %>> Einträge erst nach Freischaltung zeigen</label><br>
+    <small>Wartende Einträge stehen im <a href="/admin/guestbook">Postfach</a>.</small>
+  </fieldset>
+  <% } %>
+  <input type="hidden" name="tab" value="" data-props-tab>
+  <div class="actions"><button>💾 Speichern</button></div>
+</form>
+<%# Zurücksetzen: eigene Formulare außerhalb des Hauptformulars (die Knöpfe oben gehören über form="…" dazu) %>
+<% const back = '/admin/programme/' + key + '?ok=1#' + (key === 'kartenspiele' ? 'bestenlisten' : ''); %>
+<% const resets = key === 'kartenspiele' ? [['kasse', 'kasse-reset', 'Die Kasse aller Mitglieder zurücksetzen? Jeder startet wieder mit dem Startgeld, auch die Einkäufe im Shop sind weg.'],
+  ['blackjack', 'blackjack-reset', 'Die Blackjack-Bestenliste und alle Bilanzen auf null setzen?'], ['poker', 'poker-reset', 'Die Poker-Bestenliste und alle Bilanzen auf null setzen?'],
+  ['durak', 'durak-reset', 'Die Durak-Bestenliste und die Durak-Zahlen aller Mitglieder löschen?'], ['uno', 'kartenspiel-reset/uno', 'Die UNO-Bestenliste und die UNO-Zahlen aller Mitglieder löschen?'],
+  ['flip7', 'kartenspiel-reset/flip7', 'Die Flip-7-Bestenliste und die Flip-7-Zahlen aller Mitglieder löschen?'], ['pilli', 'kartenspiel-reset/pilli', 'Die Pilli-Pilli-Bestenliste und die Zahlen aller Mitglieder löschen?']]
+  : key === 'raetsel' ? [['kreuzwortraetsel', 'kreuzwortraetsel-reset', 'Alle gelösten Kreuzworträtsel, Serien und Bestenlisten aller Mitglieder löschen?'],
+  ['sudoku', 'sudoku-reset', 'Alle gelösten Sudokus, Serien und Bestenlisten aller Mitglieder löschen?'], ['minesweeper', 'minesweeper-reset', 'Alle Minesweeper-Bestzeiten und Statistiken aller Mitglieder löschen?']] : []; %>
+<% for (const [id, action, q] of resets) { %>
+<form method="post" action="/admin/settings/<%= action %>" id="r-<%= id %>" data-confirm="<%= q %>" hidden>
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= key === 'raetsel' ? '/admin/programme/raetsel?ok=1#' + id : back %>">
+</form>
+<% } %>
+<% if (key === 'kartenspiele') { %><script src="<%= asset('reiter.js') %>"></script><% } %>
+<%- include('../partials/foot') %>

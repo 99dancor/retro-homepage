@@ -149,7 +149,16 @@ gallery.get('/', (req, res) => {
 gallery.get('/:id', (req, res) => {
   const a = paint.get(req.params.id);
   if (!paint.canSee(req.user, a)) return res.status(404).render('error', { title: 'Nicht gefunden', message: 'Dieses Bild gibt es nicht (oder du darfst es nicht sehen).' });
-  res.render('gallery-item', { title: a.title, a: paint.row(a, req.user), painters: paint.painters(a.id), size: fmtSize(a.size) });
+  const popups = require('../popups');
+  // Eigene, öffentliche Bilder als Popup-Bild vorschlagen (Seitenverwaltung → Aussehen → Popup-Bilder)
+  const popup = req.user && a.owner_id === req.user.id && popups.config().on && popups.config().suggest
+    ? { done: popups.suggested(a.id), can: a.visibility === 'public' && !!a.approved } : null;
+  res.render('gallery-item', { title: a.title, a: paint.row(a, req.user), painters: paint.painters(a.id), size: fmtSize(a.size), popup, popupMsg: req.query.popup ? String(req.query.popup).slice(0, 200) : null });
+});
+gallery.post('/:id/popup', (req, res) => {
+  if (!req.user) return res.redirect('/login?next=' + encodeURIComponent('/galerie/' + Number(req.params.id)));
+  const r = require('../popups').suggest(req.user, Number(req.params.id));
+  res.redirect(`/galerie/${Number(req.params.id)}?popup=` + encodeURIComponent(r.error || 'ok'));
 });
 
 // Für Admin → Paint

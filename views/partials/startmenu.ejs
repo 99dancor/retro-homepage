@@ -3,7 +3,7 @@
   <%# Einträge aus src/programs.js: [Schlüssel, Adresse, Beschriftung] oder [Gruppe, Beschriftung, [Einträge]] → Untermenü wie bei Windows 98, auch verschachtelt.
       Jeden Eintrag kann man auf den Desktop ziehen, dann entsteht dort eine Verknüpfung (public/desk.js). %>
   <% const entries = programs.menu(user);
-     const off = programs.off({ guestbookEnabled, boardEnabled, cardsEnabled, paintEnabled, quizEnabled, werwolfEnabled, galleryEnabled, contactEnabled, farmingVisible });
+     const off = programs.off(locals);
      const shown = ([key, , b]) => Array.isArray(b) ? b.some(shown) : !(navHidden.includes(key) || off[key]);
      function menu(list) { for (const [key, a, b] of list.filter(shown)) {
        if (Array.isArray(b)) { %>
@@ -21,6 +21,7 @@
     <% if (rulesPage) { %><a href="/p/regeln">📜 Regeln</a><% } %>
     <a href="/changelog">📋 Changelog</a>
     <a href="/datenschutz">🔒 Datenschutz</a>
+    <a href="/info">ℹ️ Info über <%= site.title %></a>
   </div></div>
   <% if (user) { %>
     <div class="sub"><button type="button" class="menu-item sub-toggle" aria-expanded="false">👤 Mein Konto</button><div class="submenu">
@@ -50,6 +51,8 @@
     <%# Messenger neben der Uhr: eigener Status und ungelesene Nachrichten, Logik in public/messenger-hub.js %>
     <% if (user) { %><a class="tray-btn msgr-tray<%= unreadPm ? ' msgr-new' : '' %>" id="msgrtray" href="/messenger" title="Messenger" aria-label="Messenger"><i class="st st-offline"></i><span class="pm-count"<%= unreadPm ? '' : ' hidden' %>><%= unreadPm %></span></a><% } %>
     <% if (user) { %><button type="button" class="tray-btn notify-btn" id="notifybtn" title="Benachrichtigungen" aria-label="Benachrichtigungen" aria-expanded="false" aria-controls="notifypanel">🔔<span class="notify-count"<%= unreadNotify ? '' : ' hidden' %>><%= unreadNotify %></span></button><% } %>
+    <%# Dienste neben der Uhr: roter Punkt, wenn einer ausgefallen ist, Klick zeigt die Liste (public/dienste.js) %>
+    <% if (typeof desk !== 'undefined' && desk.svcTray) { %><button type="button" class="tray-btn svc-tray" id="svctray" title="Dienste" aria-label="Dienste" aria-expanded="false" aria-controls="svcpanel">🗄️<i class="dot" hidden></i></button><% } %>
     <button type="button" class="tray-btn" id="displaybtn" title="Darstellung anpassen" aria-label="Darstellung anpassen" aria-expanded="false" aria-controls="displaypanel">🖥️</button>
     <button type="button" class="tray-btn" id="volumebtn" title="Lautstärke" aria-label="Lautstärke" aria-expanded="false" aria-controls="volumepanel">🔊</button>
     <span id="clock"></span>
@@ -70,6 +73,12 @@
     <div class="notify-list sunken" id="notifylist"><p class="muted">Lade …</p></div>
     <div class="actions"><button type="button" class="small" data-nact="read">✔ Alle gelesen</button><a class="btn small" href="/benachrichtigungen">Alle anzeigen</a><a class="btn small" href="/konto?reiter=benachrichtigungen#benachrichtigungen" title="Einstellungen">⚙️</a></div>
   </div>
+</div>
+<% } %>
+<% if (typeof desk !== 'undefined' && desk.svcTray) { %>
+<div class="window svc-panel" id="svcpanel" role="dialog" aria-label="Dienste" hidden>
+  <div class="titlebar"><span class="ttl">🗄️ Dienste</span></div>
+  <div class="body"><div class="svc-list" data-list></div><div class="lob-foot"><a href="/dienste" data-open>Alle Dienste »</a><small data-time></small></div></div>
 </div>
 <% } %>
 <%# Lautstärke: öffnet sich über den 🔊-Knopf neben der Uhr, Logik in public/sound.js %>

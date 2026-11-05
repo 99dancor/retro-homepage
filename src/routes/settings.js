@@ -36,14 +36,14 @@ router.get('/desktop', auth.requireLogin, (req, res) => {
   }
   res.render('settings', {
     title: 'Desktop', page: 'desktop', d: us.get(req.user.id, 'desk'), icons: defaultIcons(res.locals), limits: desk.limits(), counts,
-    lobbyOn: getSetting('lobby_widget', '1') === '1', searchOn: getSetting('search_enabled', '1') === '1', saved: 'ok' in req.query,
+    lobbyOn: getSetting('lobby_widget', '1') === '1', svcOn: getSetting('svc_widget', '1') === '1', searchOn: getSetting('search_enabled', '1') === '1', saved: 'ok' in req.query,
   });
 });
 router.post('/desktop', auth.requireLogin, (req, res) => {
   const b = req.body, d = us.get(req.user.id, 'desk'), shown = asArray(b.icon);
   const hidden = defaultIcons(res.locals).map(i => i.key).filter(k => !shown.includes(k));
   us.set(req.user.id, 'desk', {
-    ...d, lobbies: b.lobbies === '1', search: b.search === '1', arrange: b.arrange, hidden,
+    ...d, lobbies: b.lobbies === '1', services: b.services === '1', search: b.search === '1', arrange: b.arrange, hidden,
     pos: b.arrange && b.arrange !== 'frei' ? {} : d.pos,
   });
   res.redirect('/einstellungen/desktop?ok');

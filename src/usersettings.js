@@ -1,7 +1,7 @@
 'use strict';
 // Einstellungen eines Mitglieds, die auf allen Geräten gelten: eine Zeile JSON pro Konto in user_settings.
 //   display: Darstellung, wenn „Auf allen meinen Geräten“ gewählt ist (ohne Größe und eigenes Bild, die bleiben pro Gerät)
-//   desk:    Desktop (readme.txt gelesen, Lobby-Widget, Suche, ausgeblendete Standardsymbole und ihre Plätze)
+//   desk:    Desktop (readme.txt gelesen, Widgets „Offene Lobbys“ und „Dienste“, Suche, ausgeblendete Standardsymbole und ihre Plätze)
 //   stats:   wer welche Spielwerte im Profil sieht, ob und wie man in Bestenlisten steht, Vitrine
 //   cards:   eigene Ansicht am Kartentisch (Hintergrund und Tischrand, nur für einen selbst)
 //   icu:     Messenger (ICU/DSN): Töne, Hinweis „ist jetzt online“, automatisch abwesend, beim Anmelden öffnen
@@ -17,7 +17,7 @@ const KEY = /^[\w-]{1,40}$/;
 const DISPLAY = {
   designs: ['98', 'xp'], xp: ['blau', 'oliv', 'silber'], schemes: ['seite', 'nacht', 'kontrast'],
   bgs: ['seite', 'kein', 'bild', 'karo', 'streifen', 'punkte', 'raster', 'wellen'], modes: ['tile', 'cover', 'center'],
-  marquee: ['an', 'still', 'aus'], colors: ['desktop', 'win', 'titleFrom', 'titleTo', 'text', 'link'],
+  marquee: ['an', 'still', 'aus'], speeds: ['langsam', 'normal', 'schnell'], colors: ['desktop', 'win', 'titleFrom', 'titleTo', 'text', 'link'],
 };
 function cleanDisplay(p) {
   if (!p || typeof p !== 'object') return null;
@@ -32,6 +32,8 @@ function cleanDisplay(p) {
     bg: pick(DISPLAY.bgs, p.bg, 'seite'),
     bgMode: pick(DISPLAY.modes, p.bgMode, 'tile'),
     marquee: pick(DISPLAY.marquee, p.marquee, 'an'),
+    tickSpeed: pick(DISPLAY.speeds, p.tickSpeed, 'normal'),
+    popups: bool(p.popups, true),
     widgets: bool(p.widgets, true),
     css: typeof p.css === 'string' ? p.css.slice(0, 20000) : '',
     // Zeitpunkt der Änderung: Das neuere von Konto und Browser gewinnt
@@ -41,7 +43,7 @@ function cleanDisplay(p) {
 
 // hidden: ausgeblendete Standardsymbole (auch die gelöschte readme.txt), pos: deren Plätze auf dem Raster,
 // arrange: frei (wo man sie hinzieht) oder automatisch nach Name bzw. Art
-const DESK = { readmeSeen: 0, lobbies: true, search: true, arrange: 'frei', hidden: [], pos: {} };
+const DESK = { readmeSeen: 0, lobbies: true, services: true, search: true, arrange: 'frei', hidden: [], pos: {} };
 function cleanDesk(p) {
   p = p && typeof p === 'object' ? p : {};
   const pos = {};
@@ -53,6 +55,7 @@ function cleanDesk(p) {
   return {
     readmeSeen: Number.isInteger(p.readmeSeen) && p.readmeSeen >= 0 ? p.readmeSeen : 0,
     lobbies: bool(p.lobbies, true),
+    services: bool(p.services, true),
     search: bool(p.search, true),
     arrange: pick(['frei', 'name', 'typ'], p.arrange, 'frei'),
     hidden: Array.isArray(p.hidden) ? [...new Set(p.hidden.filter(k => typeof k === 'string' && KEY.test(k)))].slice(0, 50) : [],

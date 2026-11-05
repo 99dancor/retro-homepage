@@ -6,7 +6,7 @@
 <div class="actions" style="margin-top:0">
   <b>Zeitraum:</b>
   <% for (const d of [7, 30, 90, 365]) { %>
-    <a class="btn small" href="/admin?days=<%= d %>" <%= d === days ? 'aria-current=true' : '' %>><%= d === days ? '✔ ' : '' %><%= d === 365 ? '1 Jahr' : d + ' Tage' %></a>
+    <a class="btn small" href="/admin/statistik?days=<%= d %>" <%= d === days ? 'aria-current=true' : '' %>><%= d === days ? '✔ ' : '' %><%= d === 365 ? '1 Jahr' : d + ' Tage' %></a>
   <% } %>
 </div>
 
@@ -70,6 +70,12 @@
 <fieldset class="groupbox"><legend>📦 Inhalte</legend>
   <%= totals.posts %> Beiträge · <%= totals.files.n %> Dateien (<%= fmtSize(totals.files.size) %>, <%= totals.files.dl %> Downloads insgesamt) · <%= totals.users %> Nutzer · <%= totals.guestbook %> Besucherbuch-Einträge
 </fieldset>
+<form method="post" action="/admin/statistik" class="groupbox-form" id="aufbewahren">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox"><legend>🗓️ Aufbewahren</legend>
+    <label>Statistik-Daten aufbewahren (Tage, mindestens 7):<input type="number" name="analytics_retention_days" value="<%= retention %>" min="7" max="3650"></label>
+    <button>💾 Speichern</button> <small>Ältere Aufrufe und Downloads löscht die Seite einmal am Tag.</small>
+  </fieldset>
+</form>
 <p><small>Datenschutz: Es werden keine IP-Adressen und keine Cookies zum Zählen gespeichert. Besucher werden über einen täglich wechselnden, anonymen Hash gezählt; Bots werden herausgefiltert.</small></p>
-<script src="<%= asset('admin.js') %>"></script>
 <%- include('../partials/foot') %>

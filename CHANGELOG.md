@@ -1,6 +1,21 @@
 # Changelog
 
-## 04.11.2026 – Anmeldebildschirm
+## Update 85 · 05.11.2026 – Seitenverwaltung 2.0, Dienste, Laufband und Popup-Bilder
+
+- **Seitenverwaltung neu sortiert:** Links steht ein Baum mit sieben Bereichen (Übersicht, Inhalte, Mitglieder, Programme, Dienste, Aussehen, System) statt zwanzig Reitern. Oben sucht „Einstellung suchen“ (Strg+K) nach Seiten und einzelnen Schaltern und springt direkt hin. Am Handy wird der Baum zur Auswahlliste.
+- **Übersicht:** Oben steht, was dich braucht (Dienste offline, ungelesene Nachrichten, Freigaben, volle Platten, Fehler), darunter die Dienste mit Verlauf, die Zahlen von heute, der belegte Speicher und das letzte Update.
+- **Programme:** Eine Tabelle für alle Programme mit „für wen“ (Alle, Mitglieder, Aus), Startmenü und Desktop. Was keine eigene Seite hat, steht unter Eigenschaften: Kartenspiele mit Reitern (Allgemein, Kasse, Spiele, Bestenlisten), Rätsel, Mediaplayer, Forum und Besucherbuch.
+- **Dienste:** Unter Dienste legst du selbst an, was die Seite überwachen soll. Vorlagen gibt es für Jellyfin, Immich, Nextcloud, Minecraft, Steam-Spieleserver (Valheim, CS2, ARK …) und den Farming-Simulator-Server aus dem Hub, dazu Website und TCP-Port für alles andere. „Jetzt testen“ prüft vor dem Speichern. Jeder Dienst hat einen Verlauf über 24 Stunden und 7 Tage und kann dir einen Ausfall melden.
+- **Sicher:** Adressen und Schlüssel bleiben auf dem Server und werden auch dir nur verdeckt angezeigt. Besucher sehen nur Name, Zustand und eine Kurzinfo. Der Jellyfin-Schlüssel ist freiwillig, weil er immer volle Admin-Rechte hat; wer gerade was schaut, siehst nur du und nur, wenn du es einschaltest. Docker wird bewusst nicht abgefragt.
+- **Für Besucher:** Das Fenster „Dienste“, das Widget „Dienste“ auf dem Desktop (wie „Offene Lobbys“) und 🗄️ neben der Uhr mit rotem Punkt bei einem Ausfall. Mitglieder können sich mit „Sag Bescheid“ benachrichtigen lassen, wenn ein Dienst wieder da ist. Was wo erscheint und für wen, stellst du je Dienst ein.
+- **Belegter Speicher:** Das Widget und die Startseite zeigen auf Wunsch, wie voll die Platten sind, die der Server sieht (Daten, Downloads, Mediaplayer, Bilder …), jede mit eigenem Namen. Dazu kommen der Speicher von Immich und der freie Platz von Nextcloud. Ein- und ausschaltbar, auch nur für Mitglieder oder nur für dich.
+- **Startseite aus Bausteinen:** Willkommen, Neuigkeiten (Blog, Forum, Downloads und Besucherbuch mit Reitern), Server-Status, Neu auf der Seite, Mitmachen, Belegter Speicher, Besucherbuch und Schnellstart (aus). Jeder Baustein lässt sich an- und ausschalten, verschieben, in die linke oder rechte Spalte stellen und auf Gäste oder Mitglieder begrenzen.
+- **Laufband** oben über dem Desktop, statt des alten Lauftexts: eigene Meldungen mit Zeitraum und Zielgruppe, dazu automatisch das neueste Update, neue Blogbeiträge, Dienste und offene Lobbys. Drei Stile (LED, Fensterleiste, Eilmeldung). Jeder blendet es mit × aus oder stellt es unter 🖥️ → Effekte ein.
+- **Popup-Bilder:** Ab und zu geht ein kleines Fenster mit einem Bild aus deinem Pool auf, wie früher die Werbefenster, nur ohne Werbung. Bilder kommen als Upload, aus den Bildern oder aus der Galerie; Mitglieder können eigene Paint-Bilder vorschlagen. Du legst fest, wann das erste kommt, wie oft und wie viele pro Besuch; am Handy sind sie aus. Gezählt wird nur, wie oft ein Bild kam oder angeklickt wurde. Abschalten geht im Popup selbst und unter 🖥️ → Effekte.
+- **Updates nummeriert:** Jedes Update trägt die Nummer seines Pull Requests (Update 84 = PR #84). Neu im Startmenü: „Info über …“ mit Version und den letzten Updates.
+- **Wartungsmodus** unter System → Allgemein: Besucher sehen nur eine Wartungsseite mit deinem Text, du arbeitest normal weiter. Die **Ereignisanzeige** unter System zeigt, was auf der Seite passiert ist (Dienste, Änderungen, Fehler).
+
+## Update 84 · 04.11.2026 – Anmeldebildschirm
 
 - **Bei jedem Laden der Seite** kommt jetzt ein Anmeldebildschirm im Stil der Darstellung: bei XP die blaue Willkommensseite über den ganzen Bildschirm, bei 98 ein Anmeldedialog auf leerem Desktop.
 - **Ohne frühere Anmeldung** gibt es die Kacheln Anmelden, Registrieren und Als Gast weiter. **War man auf dem Gerät schon angemeldet**, steht nur das eigene Konto da, darunter Anderer Benutzer…, Neues Konto und Als Gast weiter. Läuft die Anmeldung noch, reicht ein Klick auf die eigene Kachel. „Nicht mehr merken“ entfernt das Konto vom Gerät.
@@ -9,7 +24,7 @@
 - Anmelde- und Registrierfenster aus Spielen und Bereichen öffnen jetzt ebenfalls den Anmeldebildschirm, danach geht es zum Ziel weiter.
 - Abschaltbar in der Seitenverwaltung unter Einstellungen → Besucher & Mitmachen. Eigenes Zeichen und eigene Töne, keine Windows-Logos oder -Klänge.
 
-## 04.11.2026 – Mediaplayer: Skins und neue Seitenleiste
+## Update 83 · 04.11.2026 – Mediaplayer: Skins und neue Seitenleiste
 
 - **Fünf Skins:** Klassisch (wie der Desktop, 98 oder XP), VLC hell, VLC dunkel, Media Player (schwarzes Glas, Reiter oben) und Winamp (grüne Anzeige, Fenster übereinander). Umschalten über „Aussehen“ unten in der Seitenleiste, über „Ansicht“ in der Menüleiste oder über SKIN bei Winamp. Mit Konto gilt der Skin auf allen Geräten, Gäste behalten ihn im Browser. Den Standard für Gäste legst du in der Seitenverwaltung unter Mediaplayer fest.
 - **Seitenleiste neu:** Drei Gruppen (Bibliothek, Playlists, Lobbys) zum Auf- und Zuklappen, oben „Wiedergabe läuft“. Die Leiste lässt sich offen, schmal (nur Symbole, Inhalt im Ausklappmenü) oder ganz zu schalten, getrennt je Skin. Titel lassen sich auf eine Playlist in der Leiste ziehen. Laufende Lobbys stehen direkt in der Leiste mit Anzahl der Zuhörer.
@@ -18,18 +33,18 @@
 - **Equalizer:** 10 Bänder (31 Hz bis 16 kHz) mit Vorlagen wie Bass, Höhen, Pop, Rock und Sprache. Wirkt auf Musik und Videos aus der Bibliothek, nicht auf YouTube. Wird mit dem Konto gespeichert.
 - Theater, Vollbild, Mini-Player und die Handy-Ansicht funktionieren in allen Skins. Die Skins sind nachgebaut, ohne Logos oder Grafiken der Originale.
 
-## 02.11.2026 – FS25 Hub Link 3.10.1: Karte geht wieder
+## Update 82 · 02.11.2026 – FS25 Hub Link 3.10.1: Karte geht wieder
 
 - **Kartenmarkierungen abgeschaltet:** Nach dem Öffnen der Karte im Menü war das ganze Menü weg und das Spiel ließ sich nur noch mit Alt+F4 beenden. Auslöser sind die Markierungen der Mod auf der Karte (seit 3.8). Sie sind jetzt aus, der Schalter in den Optionen ist ausgeblendet, bis es einen sicheren Weg gibt.
 
-## 02.11.2026 – FS25 Hub Link 3.10: Hofsymbol, Reiter „Werte“, Plantagen-Abbild
+## Update 81 · 02.11.2026 – FS25 Hub Link 3.10: Hofsymbol, Reiter „Werte“, Plantagen-Abbild
 
 - **Hofsymbol:** Das Spiel speichert beim Hof nur Name und Farbe, kein eigenes Bild. Links neben dem Hofnamen steht deshalb jetzt ein kleiner Hof in der Farbe deines Hofs (nie zusammen mit dem Strich). Hat eine Mod dem Hof ein eigenes Bild gegeben, nimmt die Mod das.
 - **Optionen:** Der zweite Reiter heißt „Werte“ statt nach dem Hof. Bei den Trackern steht die Seitenwahl ganz unten, nach allen Einträgen.
 - **Bananen-Fungizid nicht verpassen:** Die DLC-Plantagen zeigen Krankheit und Bäume nicht im Spiel an. Die Mod lässt deshalb jede Plantage alle 2 Minuten selbst speichern, ohne den Spielstand zu speichern, und legt in modSettings/FS25_FarmingHubExport/<Spielstand>/ ab: `hubLinkOrchards.xml` (neuester Stand), eine Kopie je Spieltag für 10 Tage, eine Kopie bei jeder Änderung von Krankheits-, Spritz- oder Wachstumswerten und den Verlauf `hubLinkOrchardLog.xml` mit Tag und Uhrzeit. Findet sie dabei einen Krankheitswert, meldet sie die kranken Bäume gleich als Aufgabe.
 - Mehr Diagnose in der Live-Datei: eigene Felder der Plantage, Grundstück und Besitzer an ihrer Position, passende Namen im Spiel.
 
-## 02.11.2026 – FS25 Hub Link 3.9: Hofname und Logo, Tracker-Werte, Preisspitzen
+## Update 80 · 02.11.2026 – FS25 Hub Link 3.9: Hofname und Logo, Tracker-Werte, Preisspitzen
 
 - **Overlay-Kopf:** Statt „Hof 1“ steht der Name des Hofs aus dem Spiel da, links davon das Logo des Hofs, wenn die Mod es findet. Der verrutschte gelbe Strich ist weg; der Name steht bündig mit den Zeilen darunter.
 - **Tracker genauer einstellen:** Unter Optionen → Tracker hat jeder ausgewählte Tracker den Knopf „Werte“. Dort lässt sich jeder einzelne Füllstand oder Wert an- und abwählen, nur für dich.
@@ -37,7 +52,7 @@
 - **Bananen und Kaffee:** Die Live-Datei zeigte, dass die Mod die DLC-Plantagen nicht richtig gelesen hat. Sie erkennt sie jetzt an ihrer Spezialisierung, rechnet sie dem Besitzer des Grundstücks zu und hält Wasch- und Trockenstationen nicht mehr für Plantagen. Wo das Spiel die Bananenkrankheit führt, schreibt sie jetzt genauer in die Live-Datei.
 - **Regen-Warnung:** Die Wettervorhersage kam im Spiel nicht an. Die Mod liest sie jetzt auf mehreren Wegen und schreibt mit, was sie am Wetter sieht.
 
-## 02.11.2026 – FS25 Hub Link 3.8: Helfer, Regen, Karte, Feldbuch
+## Update 79 · 02.11.2026 – FS25 Hub Link 3.8: Helfer, Regen, Karte, Feldbuch
 
 - **Helfer-Meldungen:** Hält ein KI-Helfer an (kein Sprit, blockiert, Feld nicht bereit, Korntank voll, Abladestelle voll …), wird das eine Aufgabe mit der Meldung des Spiels, im Overlay und im Hub. Ein fertiger Auftrag erscheint als leiser Hinweis und verschwindet nach 15 Minuten. Startet der Helfer wieder, ist die Meldung weg. Selbst beendete Aufträge melden nichts.
 - **Regen-Warnung:** Sind Felder oder Plantagen erntereif und kommt in den nächsten 6 Spielstunden Regen, Gewitter, Hagel oder Schnee, gibt es eine Aufgabe mit allen betroffenen Feldern.
@@ -46,7 +61,7 @@
 - **Optionsmenü:** Die Prüfungen sind auf zwei Reiter verteilt (Hof und Mehr), damit nichts mehr unten aus dem Bild läuft. Helfer und Regen lassen sich je Hof abschalten (Website und Optionsmenü).
 - **Mod-Beschreibung:** Im Mod-Menü steht jetzt der Changelog der letzten zwei Versionen.
 
-## 02.11.2026 – FS25 Hub Link 3.7: Tracker, Plantagen, Ballen
+## Update 79 · 02.11.2026 – FS25 Hub Link 3.7: Tracker, Plantagen, Ballen
 
 - **Overlay in der Farbe des Spiels:** Der Hintergrund nimmt jetzt genau die Farbe der Spiel-HUD (dunkler als bisher), die Deckkraft steht auf „wie Spiel“ und lässt sich weiter verstellen.
 - **Tracker:** Im Optionsmenü gibt es den Reiter „Tracker“. Dort wählst du bis zu 8 Dinge deines Hofs aus, deren Werte das Overlay dauerhaft zeigt, ohne dass daraus eine Aufgabe wird: Füllstände von Produktionen (mit Reichweite), Ställen und Silos, Ballenlager, Ballen (mit Gärung), Plantagen und das Wachstum einzelner Felder. Die Auswahl gilt nur für dich.
@@ -54,24 +69,24 @@
 - **Ballen:** Fertig gegorene Silageballen werden zur Aufgabe, fast volle Ballenlager auch. Das Inventar auf der Website zählt die Ballen live aus dem Spiel, auch die im Ballenlager.
 - Plantagen und Silage lassen sich je Hof abschalten (Website und Optionsmenü).
 
-## 31.10.2026 – FS25 Hub Link: gleiche ZIP für alle
+## Update 78 · 31.10.2026 – FS25 Hub Link: gleiche ZIP für alle
 
 - **Mitspieler kommen wieder auf den Server:** Die ZIP der Mod hatte bei jedem Herunterladen eine andere Prüfsumme (die Uhrzeit stand in den Einträgen). Im Mehrspieler muss die eigene Datei aber genau der auf dem Server gleichen, sonst zeigt das Spiel ein rotes Warnzeichen. Jetzt ist jede heruntergeladene ZIP derselben Version Byte für Byte gleich. Einmal neu auf den Server laden, dann passt jede Kopie von der Website.
 
-## 31.10.2026 – FS25 Hub Link 3.5: Overlay aufgeräumt, keine doppelten Fahrzeuge
+## Update 77 · 31.10.2026 – FS25 Hub Link 3.5: Overlay aufgeräumt, keine doppelten Fahrzeuge
 
 - **Keine doppelten Fahrzeuge mehr auf der Karte:** Fuhr jemand ein Gerät seit dem letzten Autosave weg, stand es zweimal da (alter Platz aus vehicles.xml, neuer aus dem Webinterface, mit leicht anderem Namen). Der Hub verbindet beide jetzt auch über den Namen („prolander7500.xml“ ↔ „ProLander 7500“).
 - **Overlay mit runden Ecken**, abschaltbar.
 - **Optionsmenü in Reitern:** Anzeige (nur für dich), Hof (Prüfungen) und Server (Admin), darin geordnete Gruppen wie Eingänge, Ausgänge, Ställe, Silos und Felder.
 - **Hervorhebungsfarbe wählbar:** Orange wie das Spiel, Grün, Blau, Türkis, Rot oder Lila, für Streifen, Knöpfe und Überschriften.
 
-## 31.10.2026 – FS25 Hub Link 3.4: Vorschläge als Aufgaben, Felder im Berater
+## Update 76 · 31.10.2026 – FS25 Hub Link 3.4: Vorschläge als Aufgaben, Felder im Berater
 
 - **Ein Ort für alles Automatische:** Der Kasten „Vorschläge vom Server“ ist weg. Was der Hub selbst erkennt (Hofkalender, Paletten, Werkstatt, Tanken, große Nachfrage), legt er wie die Meldungen aus dem Spiel gleich als Aufgabe an (💡 vom Hub). Fällt der Anlass weg, hakt er sie selbst ab; abgehakt bleibt sie aus, bis sich der Anlass ändert. Diese Aufgaben stehen auch im Overlay im Spiel.
 - **Felder im Produktionsberater:** Die Mod meldet je Hof, welche Felder erntereif sind (je Frucht) und wo gekalkt, gepflügt, gedüngt oder Unkraut bekämpft werden muss, live aus dem Spiel. Abschaltbar je Hof (Website und Optionsmenü). Solange die Mod verbunden ist, lässt der Hub seine eigenen Feld- und Futtervorschläge weg, damit nichts doppelt steht.
 - **Gebäudenamen:** Meldungen aus dem Spiel heißen im Hub auch dann deutsch, wenn der Spielstand den englischen Namen führt (Schweinestall (groß) statt Pigsty (large)).
 
-## 31.10.2026 – FS25 Hub Link 3.3: Live-Daten aus dem Spiel
+## Update 75 · 31.10.2026 – FS25 Hub Link 3.3: Live-Daten aus dem Spiel
 
 - **Geld live:** Kontostand, Kredit und Einnahmen/Ausgaben jedes Hofs kommen alle paar Minuten aus dem laufenden Spiel, nicht erst nach dem Speichern. Der Verlauf im Reiter Finanzen nutzt diese Werte.
 - **Datum, Wetter und Temperatur live:** Spieltag und Wettervorhersage direkt aus dem Spiel, die Übersicht zeigt dazu die Temperatur.
@@ -79,7 +94,7 @@
 - **Aufträge:** Laufende und angebotene Aufträge mit Feld, Frucht, Lohn und Fortschritt stehen auf der Übersicht.
 - Ist die Mod länger als 10 Minuten still, nimmt der Hub wieder den letzten Autosave.
 
-## 31.10.2026 – FS25 Hub Link 3.2 und Anbau planen
+## Update 74 · 31.10.2026 – FS25 Hub Link 3.2 und Anbau planen
 
 - **Overlay mit der Maus:** Sobald der Mauszeiger zu sehen ist (z. B. Doppel-Rechtsklick mit Quick Selector oder Alt+J), lässt sich das Fenster am Kopf verschieben und an der Ecke unten rechts breiter und länger ziehen. „OK“ hakt einen Eintrag ab, „X“ blendet das Overlay aus (Alt+H holt es zurück).
 - **Optionsmenü im Spiel:** Zeilen, Schriftgröße, Deckkraft, Werte und Notizen für die eigene Anzeige; Prüfungen und Schwellen des Hofs mit − und + (gehen auch an die Website); Produktionsberater und Export für Admins.
@@ -87,7 +102,7 @@
 - **Gebäudenamen im Overlay** in der Sprache des Spielers (Schweinestall (groß) statt Pigsty (large)).
 - **Anbau planen:** Nach der Wahl der Frucht stehen bei „säen“ und „ernten“ nur die Monate, in denen das geht. Wer den Saatmonat wählt, bekommt den Erntemonat aus der Wachstumsdauer dazu, und umgekehrt. Die Fruchtauswahl zeigt die Symbole der Früchte.
 
-## 31.10.2026 – FS25 Hub Link: Overlay im Spiel (Mod 3.1)
+## Update 73 · 31.10.2026 – FS25 Hub Link: Overlay im Spiel (Mod 3.1)
 
 - **Neuer Name:** Die Mod heißt jetzt „FS25 Hub Link“, Autor 99dancor. Die Datei bleibt `FS25_FarmingHubExport.zip`, damit Spielstand und Austausch-Ordner gleich bleiben.
 - **Overlay im Spiel:** Rechts am Rand zeigt eine dezente Liste im Stil der Spiel-Anzeigen, was auf dem eigenen Hof ansteht: Meldungen des Produktionsberaters (rot, wenn etwas steht), Aufgaben der Website (blau) und im großen Modus die Notizen. Alt+H klein/groß/aus, Alt+J auswählen, Alt+K abhaken.
@@ -95,7 +110,7 @@
 - **Mehrspieler:** Der Server schickt die Liste an alle Spieler, auch an jeden, der neu beitritt.
 - **Gebäudenamen:** Ställe und Weiden heißen im Hub jetzt deutsch (Schweinestall (groß) statt Pigsty (large)).
 
-## 31.10.2026 – Farming Hub: Produktionsberater und Austausch mit dem Spiel (Mod 3.0)
+## Update 70 · 31.10.2026 – Farming Hub: Produktionsberater und Austausch mit dem Spiel (Mod 3.0)
 
 - **Produktionsberater in der Mod:** Die Mod „Farming Hub Export“ prüft auf dem Server alle 10 Sekunden die Produktionen, Ställe und Silos jedes Hofs. Sie meldet Zutaten, die nur noch wenige Spielstunden reichen (aus Rezept und Zyklen gerechnet), Produktionen, die stehen, volle Ausgänge, blockierte Paletten-Ausgänge, knappes Futter, Wasser und Stroh, volle Milch-, Gülle- und Misttanks und volle Silos.
 - **Aufgaben aus dem Spiel im Hub:** Jede Meldung wird eine Aufgabe des Hofs (🎮 aus dem Spiel). Ist das Problem im Spiel behoben, hakt der Hub sie selbst ab. Wer sie vorher abhakt, sieht sie erst wieder, wenn das Problem einmal weg war. Wer für eine Stelle zuständig war, bekommt sie beim nächsten Mal wieder, bei „Produktion steht“ auch als Push.
@@ -104,7 +119,7 @@
 - **Austausch:** Über zwei kleine Dateien in `modSettings/FS25_FarmingHubExport/<Spielstand>` per FTP, etwa alle 45 Sekunden.
 - **Kein Blinken mehr:** Beim Klick auf einen Reiter oder Link blitzte im Hub-Fenster kurz der graue Fensterhintergrund auf, bevor das dunkle Spielmenü kam. Das Aussehen lädt jetzt sofort, und das Fenster hält beim Seitenwechsel die dunkle Farbe.
 
-## 31.10.2026 – Farming Hub: Spielstände wechseln und Backups
+## Update 69 · 31.10.2026 – Farming Hub: Spielstände wechseln und Backups
 
 - **Eigener Reiter „Spielstände“** in der Seitenverwaltung unter Farming Simulator: was gerade läuft, alle Spielstand-Ordner auf dem FTP, beiseitegelegte Hub-Daten und Backups an einer Stelle.
 - **Ordner merken und wechseln:** Jeder Spielstand-Ordner (/profile/savegame1, savegame2 …) bekommt einen Namen und zeigt, welche Karte darin liegt und wie viele Höfe, Aufgaben und Pläne der Hub dafür hat. „Wechseln“ stellt den FTP um, Höfe, Aufgaben und Pläne tauscht der Hub, sobald er den Spielstand dort gelesen hat. „Spielstände auf dem FTP suchen“ sieht auf Knopfdruck in die Nachbarordner und trägt jeden Spielstand ein, umgestellt wird dabei nichts.
@@ -113,26 +128,26 @@
 - **Automatisch gesichert:** Vor jedem Spielstandwechsel, „neu beginnen“, „hierher holen“ und Wiederherstellen legt der Hub selbst ein Backup an, die letzten zehn bleiben.
 - **Mehr wandert mit:** Ein hochgeladener Export der Mod und die Halbkugel gehören jetzt auch zum Spielstand und wechseln mit.
 
-## 30.10.2026 – Farming Hub: Alpakavlies richtig gerechnet
+## Update 68 · 30.10.2026 – Farming Hub: Alpakavlies richtig gerechnet
 
 - **Alpakavlies:** Das Nachwachsen steht im Spiel in Prozent pro Tag (10 %, also alle 10 Tage ein volles Vlies mit 500 l). Der Hub hat die 10 als Faktor genommen und zehn Mal ein volles Vlies pro Tag gerechnet. Jetzt liefert ein ausgewachsenes Alpaka 50 l am Tag; der Planer rechnet damit die Zahl der Tiere.
 
-## 30.10.2026 – Farming Hub: Auswahl bleibt, Alpakavlies
+## Update 67 · 30.10.2026 – Farming Hub: Auswahl bleibt, Alpakavlies
 
 - **Jeder Bereich merkt sich, wo du warst:** Wer im Planer die Spinnerei, in den Preisen eine Ware, im Wiki ein Tier oder am Hof einen Reiter offen hat, landet beim Zurückkommen über die Leiste links wieder genau dort. Im Planer merkt sich auch jeder Bereich (Karte, eigene, Katalog) sein Gebäude. Gemerkt wird im Browser.
 - **Alpakavlies (Mod 2.7):** Alpakas liefern kein Erzeugnis wie Kühe, ihr Vlies wächst nach und wird geschoren. Die Mod liest jetzt die Vliesmenge je Alter und wie schnell es nachwächst; Wiki und Planer rechnen daraus das Vlies pro Monat.
 
-## 30.10.2026 – Farming Hub: Tier-Erzeugnisse vollständig
+## Update 66 · 30.10.2026 – Farming Hub: Tier-Erzeugnisse vollständig
 
 - **Milch und Eier im Wiki und im Planer:** Kühe, Büffel und Hühner liefern ab einem bestimmten Alter auf einen Schlag. Diesen Sprung hat der Hub als 0 gelesen, jetzt stehen Milch, Büffelmilch und Eier bei den ausgewachsenen Tieren und im Planer.
 
-## 30.10.2026 – Farming Hub: Kalender ab Januar, Anbaumonate repariert
+## Update 65 · 30.10.2026 – Farming Hub: Kalender ab Januar, Anbaumonate repariert
 
 - **Jeder Kalender beginnt mit Januar:** Anbaukalender im Wiki, Hofkalender, Preisverlauf und die Monatsauswahl bei Plänen und Aufgaben laufen von Januar bis Dezember, auch auf der Südhalbkugel.
 - **Richtige Monatsnamen auf Catuaí:** Auf der Südhalbkugel beginnt der Frühling im September. Der ganze Hub nennt die Spielmonate jetzt passend (Datum oben, Hofkalender, Pläne, Preise), nicht mehr wie im Norden.
 - **Saat- und Erntemonate repariert (Mod 2.5):** Die Mod 2.4 hat jede Frucht als „säen und ernten Februar bis Dezember“ gemeldet, weil sie das Spiel falsch gefragt hat. Version 2.5 fragt richtig. Bis der neue Export da ist, erkennt der Hub die falschen Daten und nimmt die üblichen FS25-Monate.
 
-## 30.10.2026 – Farming Hub: Wiki mit Anbaukalender und Tieren
+## Update 64 · 30.10.2026 – Farming Hub: Wiki mit Anbaukalender und Tieren
 
 - **Wiki:** Neuer Bereich in der Leiste links. Der **Anbaukalender** sieht aus wie im Spiel: je Frucht ein grüner Balken für die Saat und ein orangefarbener für die Ernte, heute als gestrichelte Linie. Auf der Südhalbkugel (Catuaí) beginnt er wie im Spiel mit September. Ein Klick auf eine Frucht zeigt Wachstumsstufen, Ertrag und Saatgut je Hektar.
 - **Tiere:** Für jede Tierart die Ställe aus dem Shop mit Preis und Platz, die Futtergruppen mit ihrem Anteil an der Leistung (nacheinander wie bei Kühen oder gemischt wie bei Schweinen), Mischration und für jede Rasse Kaufpreis, Nachwuchs, Futter, Wasser und Stroh pro Monat, was sie liefert und eine Tabelle nach Alter.
@@ -140,16 +155,16 @@
 - **Ställe in der Hofübersicht:** Jeder Stall hat eine eigene Kachel mit Tieren, Produktivität, Stroh, Wasser und den Futtergruppen mit Füllstand und Balken wie im Menü „Tiere“.
 - **Mod 2.4:** Die Mod schreibt die Tierdaten und den Zustand jedes Stalls mit. Der Hub legt die Tierdaten als eigene Datei ab (wiki.xml), die sich in der Seitenverwaltung herunter- und hochladen lässt.
 
-## 30.10.2026 – Farming Hub: Grundstücksnummern auf der Karte
+## Update 63 · 30.10.2026 – Farming Hub: Grundstücksnummern auf der Karte
 
 - **Nummern immer sichtbar:** Jedes Grundstück zeigt seine Nummer in einem kleinen, dezenten Kreis, nicht erst nach dem Anklicken. Die Kreise bleiben beim Zoomen gleich groß und lassen sich wie bisher unter „Grundstücksnummern“ ausblenden.
 
-## 30.10.2026 – Farming Hub: Karte schneller, Grenzen gerade
+## Update 62 · 30.10.2026 – Farming Hub: Karte schneller, Grenzen gerade
 
 - **Gerade Grundstücksgrenzen:** Statt Pixeltreppen sind die Grenzen jetzt glatte Linien mit weniger als der Hälfte der Punkte. Zwei Nachbarn teilen sich genau dieselbe Linie, die doppelten, leicht versetzten Striche sind weg. Das gilt auch für den schon hochgeladenen Export.
 - **Schnelleres Zoomen und Verschieben:** Die Ebenen für Früchte, Wachstum und Pflege sind nur noch so groß wie ihr Inhalt statt jeweils so groß wie die ganze Karte. Die Karte zeichnet beim Mausrad und Ziehen höchstens einmal je Bild neu, und beim Ziehen prüft sie nicht mehr jede Form auf Mausberührung.
 
-## 30.10.2026 – Farming Hub: Planer und Preise aufgeräumt, Anbaumonate aus dem Spiel
+## Update 61 · 30.10.2026 – Farming Hub: Planer und Preise aufgeräumt, Anbaumonate aus dem Spiel
 
 - **Suche:** Produktionsplaner und Preisliste haben ein Suchfeld. Im Planer findet es Gebäude auch über eine Produktion oder Ware („Reismehl“ zeigt alle Gebäude, die Reismehl brauchen oder machen) und springt in den Bereich mit Treffern. Gefiltert wird schon beim Tippen.
 - **Planer übersichtlicher:** Größen eines Gebäudes (Gewächshaus klein/mittel/groß, Biogasanlage 99 kW bis 1 MW) stehen links als ein Eintrag, gewählt wird die Größe rechts. Die Gruppen (Grundspiel, DLCs) lassen sich zuklappen, die Liste scrollt für sich. Rechts stehen die Produktionen als Zeilen, das Rezept mit Rechner daneben, das Lager in Spalten und zum Zuklappen.
@@ -157,11 +172,11 @@
 - **Mod 2.3:** Saat- und Erntemonate fragt die Mod jetzt direkt bei jeder Frucht im Spiel ab. Die Diagnose aus Version 2.2 hat gezeigt, wo das Spiel sie hat.
 - **Hochgeladener Export:** Eine in der Seitenverwaltung hochgeladene farmingHubExport.xml gilt jetzt auch dann, wenn per FTP eine ältere liegt.
 
-## 30.10.2026 – Farming Hub: Mod 2.2 sucht die Wachstumsdaten
+## Update 60 · 30.10.2026 – Farming Hub: Mod 2.2 sucht die Wachstumsdaten
 
 - **Saat- und Erntemonate:** Mod 2.1 hat die Wachstumsdatei der Karte Catuaí nicht gefunden, weil sie im DLC-Archiv steckt. Version 2.2 lädt sie direkt und schreibt mit, was sie probiert hat. Bis das klappt, nimmt der Hub den eingebauten Kalender.
 
-## 30.10.2026 – Farming Hub: Feinschliff nach dem ersten echten Export
+## Update 59 · 30.10.2026 – Farming Hub: Feinschliff nach dem ersten echten Export
 
 - **Deutsch auch auf englischen Servern:** Läuft der Server auf Englisch, heißen Gebäude und Produktionen trotzdem deutsch (Bäckerei statt Bakery, Brot aus Mehl und Brot aus Reismehl statt zweimal Bread). Platzhalter wie „%s (%s)“ tauchen nicht mehr auf.
 - **Katalog aufgeräumt:** Gebäude, die es für jede Region der Grundspielkarten gibt, stehen nur noch einmal drin. Die kleinen Fassungen heißen „(klein)“.
@@ -169,7 +184,7 @@
 - **Kaffeekirschen** zählen als Plantage, Eisenerz, Kupfererz, Fungizid, Alpakas und Schleppschlauch haben deutsche Namen.
 - **Mod 2.1:** Saat- und Erntemonate liest die Mod jetzt aus der Wachstumsdatei der Karte, weil das Spiel sie anders nicht herausgibt. Die neue Version gibt es in der Seitenverwaltung.
 
-## 30.10.2026 – Farming Hub 3.0: alles aus dem Spiel
+## Update 58 · 30.10.2026 – Farming Hub 3.0: alles aus dem Spiel
 
 - **Karte je Fleck:** Grundstücke kommen mit ihrer echten Form aus dem Spiel, die Unterscheidung gestrichelt/durchgezogen ist weg. Früchte, Wachstum, Kalk, Dünger und Pflug zeigt die Karte so, wie sie auf dem Acker liegen: Wer nur einen Streifen kalkt oder zwei Früchte auf einem Grundstück hat, sieht das. Ein Klick aufs Grundstück zeigt Größe, Besitzer, Felder, jede Frucht und jeden Zustand mit Fläche, Pflege, Stationen und Anbauplan. Plantagen wie Kaffee und Bananen blenden sich mit den anderen Früchten aus und ein.
 - **Produktionsplaner neu:** drei Bereiche. „Auf der Karte“ für die Produktionen der Karte (dorthin führt ein Klick aufs Kartensymbol), „Eigene Gebäude“ mit Lagerstand und Platz beim letzten Speichern und welche Produktion läuft, „Katalog“ mit allen Produktionen aus dem Shop samt DLCs, Preis und Rezepten. Nichts wird mehr von Hand eingetragen, so fehlt auch keine Produktion mehr.
@@ -180,49 +195,49 @@
 - **Hintergrund:** Die Übersicht kann ein halb durchsichtiges Bild der laufenden Karte zeigen, hochzuladen in der Seitenverwaltung unter Farming Simulator → Server.
 - **Mod Version 2:** Für Lager, Früchte, Warennamen und Katalog braucht es die neue Version der Mod „Farming Hub Export“ (Seitenverwaltung → Kartendaten aus dem Spiel).
 
-## 29.10.2026 – Farming Hub: Kartendaten direkt aus dem Spiel
+## Update 56 · 29.10.2026 – Farming Hub: Kartendaten direkt aus dem Spiel
 
 - **Mod „Farming Hub Export“:** Eine kleine Mod für den Spieleserver schreibt bei jedem Speichern alles in den Spielstand, was der Hub bisher nicht lesen konnte: die Umrisse aller Felder, die Grenzen aller Grundstücke, die Positionen aller Stationen und die Rezepte der Produktionen. Der Hub holt die Datei per FTP mit den anderen. Download und Anleitung in der Seitenverwaltung unter Farming Simulator → Kartendaten aus dem Spiel.
 - **Kein Klicken mehr:** Felder und Grundstücke haben ihre echte Form, auch auf DLC-Karten und Wiesen ohne Acker. Stationen stehen von selbst an der richtigen Stelle. Der Produktionsplaner bekommt Zyklen, Kosten, Zutaten und Erzeugnisse, wo noch nichts eingetragen ist, und weiß, ob ein Gebäude parallel oder seriell arbeitet.
 - **Auch im Einzelspieler:** In der Konsole „hubExport“ eingeben und die Datei in der Seitenverwaltung hochladen.
 
-## 29.10.2026 – Farming Hub: Stationen auf der Karte
+## Update 55 · 29.10.2026 – Farming Hub: Stationen auf der Karte
 
 - **Wie die Hotspots im Spiel:** Die Karte zeigt Verkaufsstellen, Ladestationen, Produktionen, Tankstellen, Händler und Sonstiges (Bahnhof, Mine, Forschungszentrum …) mit eigenem Symbol. Jede Art lässt sich links unter „Stationen“ ein- und ausblenden, die Symbole bleiben beim Zoomen gleich groß.
 - **Infokarte:** Ein Klick auf eine Station zeigt, was sie annimmt (mit Link zum Preis), große Nachfrage dort und bei Produktionen den Weg in den Produktionsplaner. Der Planer nennt dann auch die Lage.
 - **Einmal setzen:** Welche Stationen es gibt, liest der Hub aus dem Spielstand. Die Position vorplatzierter Stationen steht dort nicht, die setzt ein Admin einmal je Spielstand unter Karte → Stationen setzen: Station wählen, auf die Karte klicken, die nächste ist gleich dran.
 
-## 29.10.2026 – Farming Hub: Kartenbild ausrichten
+## Update 54 · 29.10.2026 – Farming Hub: Kartenbild ausrichten
 
 - **Bild und Felder deckungsgleich:** Liegen die Felder versetzt zum Kartenbild, lässt sich das Bild unter Karte → Feldumrisse und Boden mit drei Reglern ausrichten: Größe, links/rechts, oben/unten. Die Karte folgt sofort, gespeichert wird je Spielstand. Gilt für das Bild vom Server und für ein eigenes.
 
-## 29.10.2026 – Farming Hub: Produktionsplaner, Bodenart, Plantagen
+## Update 53 · 29.10.2026 – Farming Hub: Produktionsplaner, Bodenart, Plantagen
 
 - **Produktionsplaner:** Neuer Reiter links. Alle Produktionsgebäude mit Kaufpreis, ihre Produktionen und ob sie parallel oder seriell laufen. Eine Produktion zeigt ihr Rezept, die Zyklen pro Monat und Jahr und die Kosten. „Produktion rechnen“ sagt, wie viel Output aus eurem Input wird, in wie vielen Zyklen, wie lange das dauert und was es kostet.
 - **Daten nachtragen:** Gebäude und Produktionen kommen aus dem Spielstand, vorplatzierte mit Preis. Rezepte, Zyklen und Kosten stehen nur in den Spieldateien, die tragen Admins im Planer ein. Eigene Gebäude, etwa aus dem Shop, lassen sich anlegen.
 - **Bodenart:** Für jedes Feld und Grundstück lässt sich die Bodenverteilung aus dem Spiel eintragen (Admins, Karte → Feldumrisse und Boden). Die Karte hat dafür die Ansicht „Bodenart“, die Infokarte zeigt die Verteilung und das Ertragspotenzial.
 - **Plantagen:** Kaffee- und Bananenplantagen aus dem Spielstand stehen mit ihren Reihen auf der Karte, und ihre Grundstücke zeigen die Frucht.
 
-## 29.10.2026 – Farming Hub: alle Grundstücke auf der Karte
+## Update 52 · 29.10.2026 – Farming Hub: alle Grundstücke auf der Karte
 
 - **Alle Nummern wie im Spiel:** Die Karte im Spiel nummeriert jedes Grundstück, auch Wiesen, Wald und Plantagen wie die Kaffeefelder der neuen Karte. Der Hub zeigte bisher nur die echten Felder. Jetzt sind alle Grundstücke da: Felder wie bisher, Grundstücke ohne Feld als gestrichelte Kreise in passender Größe, mit Größe, Preis und Besitzer beim Anklicken.
 - **Melden und Planen:** Auch für ein Grundstück ohne Feld lässt sich melden, was darauf steht, und im Hofkalender planen. In der Hofübersicht zählen nur echte Felder.
 - **Umrisse:** Grundstücke ohne Feld lassen sich unter Karte → Feldumrisse von Hand nachzeichnen. Die Erkennung aus dem Kartenbild lässt sie aus, weil Wald und Hofflächen dort selten sauber zu erkennen sind.
 
-## 29.10.2026 – Farming Hub: Feldumrisse zeichnen
+## Update 51 · 29.10.2026 – Farming Hub: Feldumrisse zeichnen
 
 - **Nicht bestellte Felder sind wieder da:** Felder, die noch kein Acker sind, bekamen ein Stück vom Nachbarfeld statt ihres Kreises. Jetzt sind sie wieder Kreise in passender Größe, und leere Felder sieht man mit hellem Rand auf jedem Kartenbild. Felder, die der Server nicht einzeln nennt, kommen aus den Grundstücken.
 - **Felder aus dem Kartenbild erkennen:** Für Karten, deren Feldumrisse der Hub nicht lesen kann (DLC oder Karten aus dem Spiel), sucht er sie im Kartenbild, als Vorschau zum Übernehmen. Nur für Admins, unter Karte → Feldumrisse.
 - **Von Hand nachzeichnen:** Jedes Feld lässt sich auf der Karte korrigieren oder neu zeichnen. „Automatisch“ nimmt den eigenen Umriss wieder weg. Die Umrisse gehören zum Spielstand.
 
-## 29.10.2026 – Farming Hub: neuer Spielstand, alle Felder, Kartenbild
+## Update 50 · 29.10.2026 – Farming Hub: neuer Spielstand, alle Felder, Kartenbild
 
 - **Neuer Spielstand:** Läuft auf dem Server ein anderer Spielstand, legt der Hub Höfe, Mitglieder, Aufgaben, Anbaupläne, Feldmeldungen, Orte und Verläufe des alten beiseite und beginnt leer. Kommt der alte zurück, sind seine Daten wieder da. Notizen, Changelog und Vorschläge bleiben. Mit FTP zeigt der Hub nur die Höfe, die es im Spielstand gibt.
 - **Alle Felder auf der Karte:** Der Hub liest die Umrisse der Felder aus der Karte selbst (map.i3d der Karten-Mod im mods-Ordner, nur diese eine Datei). So haben auch Felder, die noch kein Acker sind, ihre richtige Form und lassen sich anklicken. Klappt das per FTP nicht, lässt sich die map.i3d in der Seitenverwaltung hochladen.
 - **Kartenbild:** Ein neues Bild erscheint sofort, auch nach dem Entfernen und erneuten Hochladen. Eine neue Map-Image-Adresse holt der Hub gleich ab statt erst am nächsten Tag.
 - **Anderer FTP-Ordner:** Wird ein anderer savegame-Ordner eingetragen, vergisst der Hub die Dateien aus dem alten und holt alles neu.
 
-## 29.10.2026 – Farming Hub: sieht aus wie das Spielmenü
+## Update 49 · 29.10.2026 – Farming Hub: sieht aus wie das Spielmenü
 
 - **Neues Aussehen:** Der Hub sieht jetzt aus wie das Menü im Spiel, in XP und 98 gleich: dunkle Flächen, grüne Auswahl, große Knöpfe und Überschriften, eine Schrift, die sich gut lesen lässt. Links eine Leiste mit großen Kacheln über die ganze Höhe, eine Kachel je Hof.
 - **Symbole:** Jedes Erzeugnis hat ein Symbol, im Inventar, bei Produktion, Preisen, Karte und Kalender. In der Seitenverwaltung lassen sich die Originalsymbole aus dem Spiel hochladen, dann ersetzen sie die eigenen.
@@ -231,7 +246,7 @@
 - **Karte:** füllt das Fenster, zoomt mit dem Mausrad und lässt sich verschieben. Die Felder haben ihre echte Form aus dem Spielstand. Links die Ansichten wie im Spiel (Feldfrüchte, Wachstum, Boden, Besitz): Klick blendet einen Eintrag aus, Rechtsklick zeigt nur ihn. Kalk, Dünger und Pflug zeigt die Ansicht Boden genau je Fleck.
 - **Changelog:** Updates des Hubs tragen sich selbst in den Changelog im Hub ein.
 
-## 28.10.2026 – Farming Hub: Felder und Kredite aus dem Spielstand
+## Update 48 · 28.10.2026 – Farming Hub: Felder und Kredite aus dem Spielstand
 
 - **Felder von selbst:** Mit FTP liest der Hub nach jedem Autosave, was auf jedem Feld steht: Frucht, Wachstumsstufe, Bodenzustand, Kalk, Dünger, Pflug, Unkraut und Steine. Karte, Hofkalender und Feld-Infos füllen sich damit allein. Eine Meldung von Hand gilt, bis der nächste Autosave kommt.
 - **Neue Kartenansicht „Pflege“:** zeigt, wo Kalk nötig ist, wo gepflügt oder gedüngt werden muss und wo alles erledigt ist.
@@ -239,7 +254,7 @@
 - **Vorschläge:** Ernten je Frucht, Kalken, Pflügen und Düngen schlägt der Hub für jeden Hof selbst vor. Abschaltbar in der Seitenverwaltung.
 - **Kredite:** Läuft der Mod „Bank Credit“, zeigt der Finanzen-Reiter jeden Kredit mit Restschuld, Zins, Monatsrate und Laufzeit. Die Restschuld geht in die Bilanz ein.
 
-## 28.10.2026 – Farming Simulator Hub
+## Update 46 · 28.10.2026 – Farming Simulator Hub
 
 - **Neu im Startmenü:** 🚜 Farming Simulator, ein Fenster für unseren Server. Links die Leiste mit Übersicht, Karte, Preisen, Mods, den Höfen und ganz unten Changelog und Vorschläge.
 - **Übersicht:** Servername, Spieldatum, Uhrzeit und Wetter, wer gerade spielt und wer heute da war, große Nachfragen, „Heute erledigen“ mit einer Spalte je Hof und Notizen für alle.
@@ -249,25 +264,25 @@
 - **Mods:** was auf dem Server läuft, abgeglichen mit der Modliste. Ändern sich die Mods, steht es im Changelog und die Hofmitglieder bekommen eine Nachricht.
 - **Seitenverwaltung → Farming:** Adressen aus dem Webinterface und der FTP-Zugang (Codes und Passwort bleiben verdeckt), Höfe, Orte, Früchte, Spieldatum und wer was sehen und ändern darf.
 
-## 25.10.2026 – Pixelpfoten: Flecken auch, während du weg bist
+## Update 45 · 25.10.2026 – Pixelpfoten: Flecken auch, während du weg bist
 
 - **Pixelpfoten:** Die Tiere machen ihr Geschäft auch, wenn du offline bist. Beim Zurückkommen wird die Zeit nachgerechnet und die Flecken liegen zufällig verteilt; das Tagebuch sagt, was passiert ist.
 
-## 25.10.2026 – Pixelpfoten: gemütlicher auf dem Desktop
+## Update 44 · 25.10.2026 – Pixelpfoten: gemütlicher auf dem Desktop
 
 - **Pixelpfoten draußen:** Die Strickleiter verschwindet hinter Fenstern, die davor liegen. Die Tiere laufen, fressen und lehnen sich jetzt sichtbar an, schauen dem Mauszeiger nach, tanzen zur Musik im Mediaplayer, raufen in einer Staubwolke und kuscheln.
 - **Malheur:** Ab und zu machen die Tiere ihr Geschäft oder hinterlassen Spuren, auf Taskleiste, Fenstern und Möbeln. Wegwischen mit der Maus; Streukiste und Kauholz helfen, Geschäfte lassen sich abschalten.
 - **Ruhe:** Wer arbeitet, wird in Ruhe gelassen. Im 🐾-Menü gibt es „Eine Stunde Ruhe“, „Heute keine Streiche“ und den Schnappschuss fürs neue Fotoalbum. Wie oft Streiche kommen und wie groß die Tiere draußen sind, steht in den Einstellungen.
 - **Mediaplayer:** meldet den Takt der Musik an Pixelpfoten.
 
-## 24.10.2026 – Pixelpfoten auf dem Desktop
+## Update 43 · 24.10.2026 – Pixelpfoten auf dem Desktop
 
 - **Tiere auf dem Desktop:** Pixelpfoten hat jetzt Rolltore. Offen klettern die Tiere aus dem Fenster, laufen über Fenster und Taskleiste, jagen die Maus, lassen sich werfen und spielen ab und zu einen harmlosen Streich (Glocke, Ton leiser, Startmenü, Fensterknopf). Jeder Streich lässt sich abschalten. 🐾 neben der Uhr ruft sie heim, beim Schließen des Fensters kommen alle zurück.
 - **Einrichten:** Möbel, Betten, Näpfe und Bilder aus dem Shop oder als Belohnung stehen im Zimmer oder auf dem Desktop, auch wenn das Spiel zu ist.
 - **Benachrichtigungen von Pixelpfoten:** gebündelt in einer Nachricht, nachts still, morgens ein kurzer Gruß, wie die Nacht war.
 - **Behoben:** Desktop-Verknüpfungen mit Bild-Symbol (Messenger, Kartenspiele) waren kleiner als die anderen und nach rechts verschoben.
 
-## 24.10.2026 – Bugfixes für Desktop und Messenger
+## Update 42 · 24.10.2026 – Bugfixes für Desktop und Messenger
 
 - **Dialoge:** „Abbrechen“ schließt jetzt jeden Dialog, z. B. „Website verlassen?“ und „Verknüpfung erstellen“. Bisher blieb der Dialog offen und alles dahinter ließ sich nicht mehr anklicken, bis man ihn mit × schloss.
 - **Suche:** Nach der Auswahl eines Treffers ist das Suchfeld in der Taskleiste wieder leer.
@@ -278,7 +293,7 @@
 - **Neue Symbole:** Der Messenger zeigt im Startmenü und auf dem Desktop die ICU-Blume (XP) oder die DSN-Männchen (98), die Kartenspiele eine richtige Spielkarte.
 - **Namen auf dem Desktop:** Ein Wort wird nur noch getrennt, wenn es allein nicht in eine Zeile passt, sonst rutscht es ganz in die nächste Zeile.
 
-## 24.10.2026 – Messenger ICU und DSN, Profile und Konto neu
+## Update 41 · 24.10.2026 – Messenger ICU und DSN, Profile und Konto neu
 
 - **Messenger:** Startmenü → 💬 Messenger öffnet eine Kontaktliste am rechten Rand, im XP-Design als **ICU** (grün, mit Blume wie das alte ICQ), im 98-Design als **DSN Messenger** (blau, mit Männchen wie MSN). Freunde stehen nach Online und Offline sortiert, mit Statusnachricht oder dem, was sie gerade spielen. Doppelklick öffnet ein Gespräch in einem eigenen Fenster. Der Messenger ersetzt die Seiten „Mitglieder“ und „Nachrichten“; alte Links leiten weiter.
 - **Gespräche live:** Nachrichten kommen sofort an, ohne Neuladen. Enter sendet, Umschalt+Enter macht eine neue Zeile. Du siehst „tippt gerade …“, ✔ gesendet und ✔✔ gelesen. 📳 Anstupsen lässt das Fenster des anderen wackeln (einmal pro Minute), 🎲 Einladen schickt einen Tisch oder eine Lobby, in der du gerade sitzt, mit „Beitreten“.
@@ -289,7 +304,7 @@
 - **Konto und Passwort:** Ein Dialog mit Reitern wie bei Windows ersetzt die Kontoeinstellungen und „Profil und Statistik“: Profil (Bild, Name, Statusnachricht, Über mich mit Vorschau), Privatsphäre, Statistik, Benachrichtigungen (mit Messenger-Tönen), Kennwort und Spielstände. OK, Abbrechen und Übernehmen speichern alle Reiter auf einmal. „Profil bearbeiten“ im Messenger und im Profil führt hierher.
 - **Privatsphäre:** Neu einstellbar ist, wer sieht, dass du online bist und was du spielst, wer dich anfragen und wer dich einladen darf, und ob „zuletzt online“ (nur grob) erscheint. Vorgabe ist „nur Freunde“. Wen du ignorierst, der kann dir nicht schreiben, dich nicht anfragen oder einladen und sieht dich offline.
 
-## 24.10.2026 – Kartenspiele: moderner Tisch, Kartenfluss und UNO-Hausregeln
+## Update 40 · 24.10.2026 – Kartenspiele: moderner Tisch, Kartenfluss und UNO-Hausregeln
 
 - **Moderner Tisch:** Karten mit weichem Schatten und klarer Schrift, runde Bilder mit Namensschildern aus dunklem Glas, Abzeichen als Pillen, ein schmaler Bedenkzeit-Balken, der von Grün nach Rot läuft, und Filz mit feinem Gewebe und Licht von oben. Werkzeugleiste, Fach und Fensterrahmen bleiben im Desktop-Look (98 oder XP).
 - **Kartenfluss:** Karten gleiten vom Stapel zu den Plätzen, aus der Hand auf den Tisch und zurück, verdeckte drehen sich beim Aufdecken um. Mitspieler sehen die Bewegung auch. Bei „Bewegung reduzieren“ springt alles wie bisher.
@@ -303,7 +318,7 @@
 - **Kleinigkeiten:** 100er- und 500er-Chips sind kreisrund. Nach einer spendierten Runde kann wieder jeder sein eigenes Getränk abstellen. Beim Poker erscheint „Geben“ sofort, wenn sich der zweite Spieler setzt.
 - **Startseite:** Oben steht eine Kurzfassung des letzten Updates mit Link zum Changelog, dazu ein Schnellstart mit großen Symbolen für die Programme. Beiträge, Forum und Downloads stehen links, Besucherbuch und „Für dich“ rechts, am Handy untereinander.
 
-## 24.10.2026 – Desktop 2.0: eigener Desktop, Windows XP, Systemsteuerung für alle
+## Update 39 · 24.10.2026 – Desktop 2.0: eigener Desktop, Windows XP, Systemsteuerung für alle
 
 - **Eigener Desktop:** Jedes Mitglied richtet seinen Desktop selbst ein. Rechtsklick auf eine freie Stelle → Neu → Ordner, Textdokument, Verknüpfung (zu einer Seite hier, z. B. Forenthema, Modliste, Profil) oder Internetverknüpfung. Programme lassen sich aus dem Startmenü auf den Desktop ziehen. Symbole liegen auf einem Raster, frei verschiebbar oder sortiert nach Name bzw. Art; Rahmen aufziehen markiert mehrere, F2 benennt um, Entf löscht. Gäste können die Symbole verschieben, das merkt sich ihr Browser. Am Handy: lange drücken statt Rechtsklick.
 - **Ordner und Eigene Dateien:** Ordner liegen in der Datenbank. Ein Doppelklick öffnet sie im Explorer (Eigene Dateien) mit Ordnerbaum links. Dort lassen sich auch alle eigenen Uploads, Paint-Bilder, Mediaplayer-Titel, Playlists und Quizze in Ordner ziehen; die Bibliotheken zeigen weiter alles einer Art. Ordner kann man per Link für Freunde, Angemeldete oder alle freigeben, andere sehen darin nur, was sie ohnehin sehen dürfen.
@@ -320,7 +335,7 @@
 - **Profilbilder quadratisch:** Nach der Dateiauswahl wählt man einen quadratischen Ausschnitt (ziehen, Mausrad oder Regler), hochgeladen werden 256 × 256 Pixel. Profilbilder erscheinen überall 1:1.
 - **Links im Profil:** Internetverknüpfungen vom Desktop, die nicht privat sind, stehen im Profil.
 
-## 22.10.2026 – Modlisten neu: Kategorien, Server-Haken und Vorschläge
+## Update 38 · 22.10.2026 – Modlisten neu: Kategorien, Server-Haken und Vorschläge
 
 - **Für alle Mitglieder:** Unter Startmenü → Dokumente → 🧩 Modlisten legt jetzt jedes Mitglied eigene Listen an: Titel, Spiel, kurze Beschreibung und wer sie sehen darf (alle, Angemeldete, nur Freunde oder nur du). Bearbeiten dürfen Besitzer und Admin.
 - **Zeilen statt Textfeld:** Jede Mod ist eine Zeile mit Name, Link, Bemerkung und einem Haken „läuft auf dem Server“. ✕ links entfernt die Zeile (mit Rückgängig), ➕ Mod hängt unten eine an, Enter in der letzten Zeile auch. Mit ⋮⋮ ziehst du Zeilen an eine andere Stelle, auch in eine andere Kategorie. „📋 Aus Text einfügen“ nimmt viele Mods auf einmal.
@@ -330,7 +345,7 @@
 - **Verlauf:** Jede Änderung an den Vorschlägen steht im Verlauf. Geht etwas kaputt, drehst du mit „↶ Davor zurück“ auf den Stand davor.
 - **Umstellung:** Bestehende Listen bleiben erhalten. Die alten Felder Version und optional stehen jetzt in der Bemerkung, die Systemsteuerung zeigt unter Modlisten nur noch die Übersicht aller Listen.
 
-## 21.10.2026 – Kartenspiele aufgeräumt: mehr Tisch, weniger Kästen
+## Update 36 · 21.10.2026 – Kartenspiele aufgeräumt: mehr Tisch, weniger Kästen
 
 - **Eine Leiste:** Über dem Tisch steht nur noch eine Werkzeugleiste: ◀ Tische, Tischname, das Spiel als Klappliste, die Gesichter am Tisch und rechts 🛒 Shop, 🎨 Gestalten, 🔗 Einladen und ☰ Mehr. Der Tisch bekommt fast das ganze Fenster.
 - **Seitenfach:** ☰ Mehr klappt rechts ein Fach mit den Reitern „Am Tisch“ (Spieler mit Chips, Zuschauer, Tisch-Infos), „Verlauf“ und „Ich“ auf. Das letzte Ereignis steht unten in der Statusleiste, ein Klick darauf öffnet den Verlauf.
@@ -342,7 +357,7 @@
 - **Leben am Tisch:** 😀 ▾ schickt eine Reaktion, die über deinem Platz aufsteigt. Ein Klick auf dein Glas stößt an, wer gleich danach klickt, stößt mit an. Tiere am Tisch lassen sich streicheln und schlafen zwischen den Runden. Mit „Runde schmeißen“ bekommt jeder am Tisch ein Getränk von dir.
 - **Handy:** Die Leiste zeigt nur Symbole, das Fach kommt als Blatt von unten, die Züge gehen über die ganze Breite.
 
-## 21.10.2026 – Aufgeräumt: Eigene Dateien, Systemsteuerung im Fenster, neuer Texteditor
+## Update 35 · 21.10.2026 – Aufgeräumt: Eigene Dateien, Systemsteuerung im Fenster, neuer Texteditor
 
 - **Eigene Dateien:** Unter Startmenü → Dokumente → 🗂️ Eigene Dateien steht alles, was du hochgeladen oder gespeichert hast: Downloads, Musik, Videos und YouTube-Links, Playlists, Paint-Bilder, Quizze und Bilder aus Forum und Blog. Dort benennst du sie um, änderst, wer sie sehen darf, und löschst sie. Oben siehst du, wie viel Platz belegt ist.
 - **Nur Freunde:** Dateien, Titel im Mediaplayer und Playlists lassen sich jetzt auch nur für deine Freunde freigeben.
@@ -353,7 +368,7 @@
 - **Minesweeper:** Zieh das Fenster an der Ecke größer oder kleiner, das Spielfeld wächst mit. Die Größe bleibt gespeichert.
 - **Kleinigkeiten:** Namen im Kopf von Forenbeiträgen sind auch nach dem Anklicken gut lesbar. Auf dem Handy öffnet das Antippen von „Spiele und Apps“ nicht mehr gleich „Andere Games“. Auf der Datenschutzseite ist jeder Code aufklappbar. „Musikplayer“ heißt überall Mediaplayer.
 
-## 21.10.2026 – Mediaplayer: Videos, YouTube ohne Lobby, Theater und Mini-Player
+## Update 34 · 21.10.2026 – Mediaplayer: Videos, YouTube ohne Lobby, Theater und Mini-Player
 
 - **Neuer Aufbau:** Der Musik-Player heißt jetzt Mediaplayer und sieht aus wie der Windows Media Player 9. Links die Aufgabenleiste mit „Wiedergabe läuft“, der Medienbibliothek (Musik, Videos, YouTube-Links, Playlists), Lobbys, Hochladen und Visualisierungen. In der Mitte das Bild, rechts die Wiedergabeliste. Alle drei Trennlinien lassen sich ziehen.
 - **Videos:** Lade eigene Videos hoch (MP4 oder WebM, bei Mitgliedern bis 200 MB pro Datei). Sie laufen im Bild, auch in Lobbys für alle gleichzeitig. Oben rechts im Bild schaltest du zwischen Video und Visualisierung um.
@@ -362,32 +377,32 @@
 - **Theater und Mini-Player:** 🎭 Theater lässt das Bild das ganze Fenster füllen, die Steuerung blendet sich aus, bis du die Maus bewegst (Esc beendet es). „▭ Mini“ macht das Fenster zu einer kleinen Leiste mit Vorschau, Zurück, Abspielen, Weiter und Anzeige. ⤢ macht es wieder groß.
 - **Handy:** Oben das Bild, darunter die Reiter Warteschlange, Bibliothek und Lobby, unten die Steuerung mit großem Abspielknopf.
 
-## 21.10.2026 – Musik-Player: flüssiger und verstellbar
+## Update 33 · 21.10.2026 – Musik-Player: flüssiger und verstellbar
 
 - **Balken auf dem Handy:** Die Visualisierung „Balken und Wellen: Balken“ zeichnet jetzt etwa viermal schneller und läuft auch auf dem Handy flüssig.
 - **Klick ins Bild:** Ein Klick ins Bild oder ins YouTube-Video spielt ab oder pausiert, in Lobbys für alle. Doppelklick schaltet weiter auf Vollbild.
 - **Größe selbst einstellen:** Zieh die Leiste rechts neben der Bibliothek oder unter dem Bild, um Breite und Höhe zu ändern. Der Player merkt sich das, Doppelklick auf die Leiste stellt es zurück.
 
-## 20.10.2026 – Entwürfe für Forum und Blog
+## Update 32 · 20.10.2026 – Entwürfe für Forum und Blog
 
 - **Entwurf speichern:** Unter dem Texteditor im Forum (neues Thema, Antwort, Bearbeiten) und im Blog-Editor gibt es „💾 Entwurf speichern“ (oder Strg+S). Titel, Text und Einstellungen wie „Anonym“ werden in deinem Konto abgelegt, ohne dass etwas veröffentlicht wird. Danach sichert das Formular Änderungen nach ein paar Sekunden von selbst.
 - **Entwurf laden:** „📂 Entwürfe laden“ zeigt alle deine Entwürfe. Ein Entwurf für eine andere Stelle, etwa eine Antwort in einem anderen Thema, öffnet dort. Im Forum stehen sie zusätzlich unter „📝 Entwürfe“, im Admin-Bereich unter Blog.
 - **Aufräumen:** Schickst du den Beitrag ab, verschwindet sein Entwurf. Entwürfe sieht nur, wer sie geschrieben hat.
 
-## 20.10.2026 – Kartentisch mit Holzrand, Shop und Glücksbringern
+## Update 31 · 20.10.2026 – Kartentisch mit Holzrand, Shop und Glücksbringern
 
 - **Neuer Tisch:** Alle Kartenspiele liegen jetzt auf einem Tisch mit schmalem Holzrand, runden Ecken, Messing-Einlage und Ranken als Verzierung. Der Gastgeber wählt unter „🎨 Tisch gestalten“ neben Filz und Kartenrücken auch das Holz: Eiche, Walnuss mit Silber, Mahagoni mit Messing oder Ebenholz mit Gold.
 - **Am Platz:** Über deinem Namen sitzt dein Profilbild. Im Holzrand vor dir steht eine Ablage mit deinem Getränk oder Snack, neben dem Bild liegt dein Glücksbringer.
 - **Pixelpfoten am Tisch:** Mit dem Körbchen aus dem Shop sitzt dein Pixelpfoten-Tier (das mit der höchsten Stufe) neben dir am Tisch, mit seinen Accessoires.
 - **Shop:** Unter 🛒 Shop kaufst du mit Spielgeld aus der Kasse Getränke und Snacks (50 bis 1.500 €), Glücksbringer (250 bis 10.000 €) und Holzränder. Kaffee und Eiche sind gratis. Sitzt du an einem Geldtisch, zahlst du dort mit deinen Chips. Gekauftes bleibt; was du im Shop ausgibst, zählt nicht als Verlust in der Bilanz.
 
-## 18.10.2026 – Tägliches Sudoku
+## Update 30 · 18.10.2026 – Tägliches Sudoku
 
 - **Neues Spiel:** Unter Spiele und Apps steht 🔢 **Sudoku**. Jeden Tag um Mitternacht gibt es drei neue Sudokus, Leicht, Mittel und Schwer, für alle dieselben. Jedes hat genau eine Lösung, die sich ohne Raten finden lässt.
 - **Spielen:** Mit Maus und Tastatur oder dem Ziffernfeld (am Handy unter dem Gitter). Notizen, Rückgängig und rot markierte doppelte Ziffern helfen, ohne als Hilfe zu zählen. Prüfen, Tipp und Aufdecken fragen den Server und zählen als Hilfe.
 - **Statistik:** Mit Konto wird dein Stand gespeichert. Gelöste Sudokus, Serie (Tage mit mindestens einem gelösten Sudoku) und Bestzeiten je Stufe stehen im Profil, jede Stufe hat ihre eigene Bestenliste. Im Archiv lassen sich die letzten 30 Tage nachspielen. Ohne Konto bleibt alles im Browser.
 
-## 18.10.2026 – Werwolf
+## Update 29 · 18.10.2026 – Werwolf
 
 - **Neues Spiel:** Unter Spiele und Apps steht 🐺 **Werwolf**. Die Seite ist der Erzähler: sie verteilt die Rollen, sammelt nachts ein, was jeder tut, und zählt die Stimmen.
 - **Lokal spielen:** Ihr sitzt zusammen, jeder öffnet den Raum auf seinem Handy (QR-Code oder vierstelliger Code, ohne Konto). Die Rolle siehst du nur, solange du die Karte gedrückt hältst. Nachts tippen alle gleichzeitig etwas an, auch wer keine Fähigkeit hat, damit am Tisch niemand merkt, wer gerade handelt. Am Tag redet ihr am Tisch und stimmt auf den Handys ab. Das Gerät des Gastgebers liest als Erzähler vor, und der Bildschirm bleibt an.
@@ -395,14 +410,14 @@
 - **Rollen:** Werwolf, Dorfbewohner, Seherin, Hexe, Jäger, Amor und Beschützer. Die Mischung passt sich der Spielerzahl an oder der Gastgeber stellt sie selbst ein, genauso die Zeiten für Nacht, Reden und Abstimmung.
 - **Statistik:** Für Mitglieder stehen Spiele, Siege, Überleben und Siege als Werwolf im Profil. Der Admin findet Einstellungen und offene Dörfer unter Admin → Werwolf.
 
-## 18.10.2026 – Pixelpfoten: Ausflüge und Wettbewerb
+## Update 28 · 18.10.2026 – Pixelpfoten: Ausflüge und Wettbewerb
 
 - **Ausflüge als Minispiel:** „Gassi gehen“ und Ausflüge haben jetzt eine eigene Szene. Dein Tier läuft durch Park, Wald, Strand oder Berge, du lässt es per Tipp oder Leertaste über Pfützen, Baumstämme und Sandburgen springen und sammelst Leckerli, Münzen und Schnüffelstellen mit Fundstücken ein.
 - **Fähigkeiten:** Jedes Tier hat Tempo, Sprungkraft und Spürnase (Stufe 1 bis 10), die mit jedem Lauf besser werden. Jede Tierart hat ein Talent, das sie schneller lernt.
 - **Tageswettbewerb:** Jeden Tag laufen alle Mitglieder dieselbe Strecke um die Wette, die beste Runde zählt. Die ersten drei bekommen am nächsten Tag Münzen und einen Pokal, der Pokale-Zähler steht im Profil.
 - **Für alle Tiere:** Neu im Shop sind Geschirr (Katze, Kaninchen) und Reiseglas (Axolotl). Drachen fliegen ohne Ausrüstung los.
 
-## 18.10.2026 – Pixelpfoten
+## Update 26 · 18.10.2026 – Pixelpfoten
 
 - **Besuche:** Unter 🏘️ Besuchen siehst du die Zimmer anderer Mitglieder und kannst vorbeischauen, allein oder mit einem deiner Tiere. Streichel ihre Tiere, spiel mit ihnen, lass Futter oder einen Gruß im Besuchsbuch da. Für die ersten drei Besuche am Tag gibt es Münzen.
 - **Live zusammen:** Ist der Gastgeber gerade selbst im Spiel, seht ihr die Tiere des anderen live im Zimmer herumlaufen. Was Besucher tun, kommt bei deinen Tieren an, sobald du das Spiel öffnest; du bekommst eine Benachrichtigung.
@@ -412,7 +427,7 @@
 - **Spielzeug zum Anfassen:** Bälle werfen, mit Federangel und Laserpointer locken, Seifenblasen pusten, Laufrad und Tunnel antippen. Statt einen Knopf zu drücken, spielst du jetzt wirklich mit deinen Tieren.
 - **Neue Grafik und Animationen:** Schattierte Tiere, die blinzeln, wedeln und beim Laufen tapsen; Futter- und Wassernapf, Gassi durch die Tür.
 
-## 18.10.2026 – Kartenspiele in einem Fenster
+## Update 25 · 18.10.2026 – Kartenspiele in einem Fenster
 
 - **Ein Programm für alle Kartenspiele:** Im Startmenü steht unter Spiele und Apps nur noch 🂡 **Kartenspiele**. Dort siehst du die offenen Spieltische mit dem gewählten Spiel, Gastgeber und Plätzen und kannst dich hinsetzen oder zusehen.
 - **Spieltisch statt Spiel:** Du eröffnest einen Spieltisch, trefft euch dort, und der Gastgeber wählt oben in der Leiste das Spiel: Blackjack, Poker, Durak, UNO, Flip 7 oder Pilli Pilli. Zwischen zwei Runden lässt sich das Spiel wechseln, ohne dass der Tisch zugeht; wer sitzt, bleibt auf seinem Platz. Mitten in einer Runde wird nicht gewechselt.
@@ -421,7 +436,7 @@
 - **Statistik:** Jedes Spiel behält seine Bestenliste und Statistik (unter 📊 Bestenlisten und Regeln). Im Profil gibt es die Karte „Kartenspiele“ mit Kontostand und Bilanz; bei Blackjack und Poker steht dort jetzt, was du im Spiel gewonnen oder verloren hast.
 - **Für den Admin:** Unter Einstellungen → Kasse stellst du Startgeld und Nachkauf-Grenze für alle Kartenspiele ein (vorher pro Spiel). Die Kasse lässt sich für einzelne Mitglieder oder alle zurücksetzen. Alte Links wie /blackjack führen jetzt zu den Kartenspielen.
 
-## 18.10.2026 – UNO, Flip 7, Pilli Pilli und ein Kartenspiele-Menü
+## Update 24 · 18.10.2026 – UNO, Flip 7, Pilli Pilli und ein Kartenspiele-Menü
 
 - **Kartenspiele:** Im Startmenü gibt es unter Spiele und Apps jetzt das Untermenü 🂡 **Kartenspiele** mit Blackjack, Poker, Durak und den drei neuen Spielen. Die **Galerie** steht jetzt unter Dokumente.
 - **UNO:** Nach den offiziellen Regeln mit 108 Karten für 2 bis 8 Mitglieder. Farbe oder Zahl bedienen, Aussetzen, Richtungswechsel, Zieh zwei, Farbwahl und Zieh vier mit Anzweifeln. Vor der letzten Karte „UNO!“ klicken, sonst kann dich jemand erwischen und du ziehst zwei. Gespielt wird bis 500 Punkte, am Tisch auch kürzer oder nur eine Runde.
@@ -431,7 +446,7 @@
 - **Statistik:** Für jedes Spiel eine Bestenliste und deine letzten Spiele, im Profil neue Karten „UNO“, „Flip 7“ und „Pilli Pilli“.
 - **Für den Admin:** Unter Einstellungen schaltest du jedes Spiel an oder aus und stellst die Bedenkzeit ein. Bestenlisten und Zahlen einzelner Nutzer lassen sich löschen. Was gespeichert wird, steht auf der Datenschutzseite.
 
-## 18.10.2026 – Durak
+## Update 23 · 18.10.2026 – Durak
 
 - **Durak:** Neu im Startmenü unter Spiele und Apps → 🎴 Durak. Das russische Kartenspiel mit 36 Karten und Zuwerfen für 2 bis 6 Mitglieder. Mach einen Tisch auf und lade andere per Link ein, oder setz dich an einen offenen. Andere können zusehen. Gegeben wird, sobald alle am Tisch auf „Bereit“ klicken.
 - **Am Tisch:** Dein Platz ist immer unten, deine Karten liegen darunter, Trümpfe rechts. Klick auf eine Karte legt sie: zum Angreifen, zum Zuwerfen oder zum Schlagen. Was gerade passt, ist hervorgehoben. Verteidigen, Nehmen und Fertig gehen auch mit Tasten. Wer nichts mehr zuwerfen kann, muss nicht auf „Fertig“ klicken.
@@ -439,7 +454,7 @@
 - **Statistik:** Bestenliste mit Spielen, wie oft jemand als Erster raus war und wie oft Durak, dazu deine letzten Spiele. Im Profil gibt es eine neue Karte „Durak“.
 - **Für den Admin:** Unter Einstellungen → Durak schaltest du Durak an oder aus und stellst die Bedenkzeit ein. Bestenliste und Zahlen einzelner Nutzer lassen sich löschen. Was Durak speichert, steht auf der Datenschutzseite.
 
-## 18.10.2026 – Poker und Blackjack-Einsatz bestätigen
+## Update 22 · 18.10.2026 – Poker und Blackjack-Einsatz bestätigen
 
 - **Poker:** Neu im Startmenü unter Spiele und Apps → ♠️ Poker. Texas Hold'em ohne Limit mit Spielgeld an Tischen für 2 bis 6 Mitglieder. Mach einen Tisch auf, wähl die Blinds und lade andere per Link ein, oder setz dich an einen offenen. Andere können zusehen.
 - **Am Tisch:** Dein Platz ist immer unten. Aussteigen, Checken, Mitgehen oder Erhöhen mit Regler, Betrag und Knöpfen für Min, ½ Pot, Pot und All-in; erhöht wird erst mit „Erhöhen auf …“. Deine Karten siehst nur du, die anderen sehen sie erst im Showdown. Unter deinen Karten steht, was du gerade hast. Bei All-in gibt es Nebenpots, bei Gleichstand wird geteilt.
@@ -448,7 +463,7 @@
 - **Blackjack:** Chips legen gibt nicht mehr sofort. Du klickst so viele Chips, wie du setzen willst, und gibst mit **✔ Einsatz bestätigen** (oder Enter) frei. Gegeben wird, wenn alle bestätigt haben, spätestens 15 Sekunden nach der ersten Bestätigung.
 - **Für den Admin:** Unter Einstellungen → Poker schaltest du Poker an oder aus und stellst Buy-in, Nachkauf-Grenze und Bedenkzeit ein. Bestenliste und Bilanz einzelner Nutzer lassen sich zurücksetzen. Was Poker speichert, steht auf der Datenschutzseite.
 
-## 17.10.2026 – Tägliches Kreuzworträtsel
+## Update 21 · 17.10.2026 – Tägliches Kreuzworträtsel
 
 - **Kreuzworträtsel:** Neu im Startmenü unter Spiele und Apps → 📰 Kreuzworträtsel. Jeden Tag um Mitternacht gibt es ein neues Rätsel, für alle Besucher dasselbe. Die Seite setzt es selbst aus rund 600 deutschen Wörtern mit Hinweisen zusammen und nimmt dabei keine Wörter der letzten Tage.
 - **Bedienung:** Kästchen oder Hinweis anklicken und lostippen. Zweiter Klick oder Leertaste wechselt die Richtung, Pfeiltasten, Tab und Rücktaste wie gewohnt. Umlaute werden wie in Rätseln üblich ausgeschrieben (ä → AE). Am Handy geht die Tastatur auf, die Hinweise stehen unter dem Gitter.
@@ -457,7 +472,7 @@
 - **Profil:** Neue Karte „Kreuzworträtsel“ mit gelösten Rätseln, davon ohne Hilfe, aktueller und längster Serie (Tage hintereinander, jeweils am selben Tag gelöst), Bestzeit und Durchschnitt.
 - **Für den Admin:** Unter Einstellungen → Kreuzworträtsel lassen sich eigene Wörter mit Hinweisen ergänzen und alle Stände zurücksetzen, beim Nutzer einzeln seiner.
 
-## 17.10.2026 – Minesweeper
+## Update 20 · 17.10.2026 – Minesweeper
 
 - **Minesweeper:** Neu im Startmenü unter Spiele und Apps → 💣 Minesweeper, so nah wie möglich am Original aus Windows 98: Pixelgrafik mit roten Ziffern-Zählern, Smiley-Knopf (staunt beim Klicken, trägt Sonnenbrille beim Sieg), Fahnen und Fragezeichen, Doppelklick mit beiden Maustasten (oder der mittleren) auf eine Zahl. Der erste Klick trifft nie eine Mine.
 - **Menü wie damals:** Spiel → Neu (F2), Anfänger, Fortgeschrittene, Profis, Benutzerdefiniert…, Marken (?), Farbe, Sound, Bestzeiten…, Beenden und ? → Inhalt (F1), Info. Das Fenster passt seine Größe dem Spielfeld an; zieht man es größer, wachsen die Felder pixelgenau mit.
@@ -466,14 +481,14 @@
 - **Profil:** Neue Karte „Minesweeper“ mit Spielen, Siegen, Bestzeit je Stufe und längster Siegesserie.
 - **Für den Admin:** Unter Einstellungen lassen sich alle Bestzeiten zurücksetzen, beim Nutzer einzeln seine Minesweeper-Zahlen.
 
-## 16.10.2026 – Quiz: gespeicherte Quizze
+## Update 19 · 16.10.2026 – Quiz: gespeicherte Quizze
 
 - **Quizze im Konto:** „💾 Speichern“ legt die Fragen des Raums mit Titel in deinem Konto ab. Speicherst du ein geladenes Quiz erneut, ersetzt das die alte Fassung, mit „Als Kopie“ entsteht ein neues.
 - **Laden aus der Liste:** „📂 Quiz laden“ zeigt jetzt alle Quizze auf dem Server zur Auswahl, deine eigenen und die, die andere Mitglieder geteilt haben, mit Zahl der Fragen und Datum. Eigene lassen sich dort löschen. Die Datei bleibt als „Aus Datei …“ bzw. „Als Datei“ für Gäste und zum Weitergeben.
 - **Teilen:** Ein Häkchen „Für andere Mitglieder sichtbar“ entscheidet, ob andere es sehen. Ohne Häkchen bleibt es privat, damit niemand vorher die Antworten liest.
 - **Profil:** Die Quiz-Karte zählt gespielte Quizze, Siege, beste Platzierung, richtige Antworten, Punkte, wie oft du Spielleiter warst und wie viele Quizze du erstellt hast. Ein Quiz zählt jetzt auch, wenn der Raum mitten im Spiel geschlossen wird.
 
-## 16.10.2026 – Quiz
+## Update 18 · 16.10.2026 – Quiz
 
 - **Quiz:** Neu im Startmenü unter Spiele und Apps → ❓ Quiz. Zuerst wählst du „Quiz erstellen“ (als Spielleiter) oder „Raum beitreten“ (als Spieler).
 - **Beitreten:** über die Liste offener Räume, den vierstelligen Raumcode, den Einladungslink oder den QR-Code im Warteraum. Mitglieder spielen mit Profilbild, Gäste ohne Konto wählen Namen, Emoji und Farbe und stehen mit „(Gast)“ in der Liste. Wer kurz die Verbindung verliert oder neu lädt, kommt mit seinen Punkten zurück.
@@ -485,7 +500,7 @@
 - **Speichern und Laden:** Der Spielleiter speichert die Fragen als Datei und lädt sie beim nächsten Mal wieder, auch ohne Konto.
 - **Für den Admin:** Unter Admin → Quiz schaltest du das Quiz an oder aus, legst fest, wer Räume eröffnen darf und ob Gäste mitspielen, siehst offene Räume und die letzten Ergebnisse. Was das Quiz speichert, steht auf der Datenschutzseite.
 
-## 16.10.2026 – Benachrichtigungen, Forum und neue Startseite
+## Update 17 · 16.10.2026 – Benachrichtigungen, Forum und neue Startseite
 
 - **Benachrichtigungen:** Neben der Uhr gibt es jetzt eine 🔔. Sie zählt mit und zeigt Freundschaftsanfragen, Privatnachrichten, Antworten in abonnierten Forenthemen, geknackte Rekorde, Erinnerungen von Mein Haustier und die tägliche Besuchsserie. Admins bekommen außerdem Hinweise zu Freigaben, Kontaktnachrichten, Registrierungen und neuen Forenthemen. Alle Benachrichtigungen stehen auch unter /benachrichtigungen.
 - **Push aufs Handy und in den Browser:** In den Kontoeinstellungen schaltest du Push für jedes Gerät einzeln ein. Auf dem iPhone geht das, sobald die Seite auf dem Home-Bildschirm liegt.
@@ -495,7 +510,7 @@
 - **Blackjack:** Karten, Chips und Schrift wachsen mit dem Fenster mit.
 - **Startmenü:** Dokumente, Spiele und Apps sowie Mein Konto klappen wie bei Windows 98 zur Seite auf.
 
-## 16.10.2026 – Gemeinsam malen in Paint
+## Update 15 · 16.10.2026 – Gemeinsam malen in Paint
 
 - **Lobbys:** Im neuen Menü „Lobby“ machst du eine Lobby auf, mit leerer Leinwand oder dem Bild, das gerade offen ist. Über Lobbys… siehst du offene Lobbys und gehst hinein, über Einladungslink… kommt man per Link direkt dazu. Bis zu 16 Mitglieder malen gleichzeitig am selben Bild, alle sehen jede Änderung sofort, auch Drehen, Strecken oder Bild löschen.
 - **Live dabei:** Du siehst, wo die anderen gerade mit der Maus sind und was sie malen, noch bevor sie loslassen. Rechts steht, wer in der Lobby ist. Ein Klick auf einen Namen öffnet das Nutzermenü.
@@ -506,7 +521,7 @@
 - **Entwurf:** Jede Minute und beim Schließen speichert die Lobby einen privaten Entwurf bei dem, der sie aufgemacht hat. So geht nichts verloren, wenn alle gehen. Speichert er das Bild, verschwindet der Entwurf.
 - **Für den Admin:** Unter Admin → Paint schaltest du Lobbys an oder aus und siehst und schließt offene Lobbys. Was die Seite zu Lobbys, Entwürfen und Mitmalern speichert, steht auf der Datenschutzseite.
 
-## 16.10.2026 – Paint
+## Update 14 · 16.10.2026 – Paint
 
 - **Paint:** Neu im Startmenü unter 🎨 Paint, so nah am Paint aus Windows 98 wie möglich. Alle 16 Werkzeuge sind da: Freihand- und Rechteckauswahl, Radierer und Farbradierer, Farbfüller, Pipette, Lupe, Stift, Pinsel in 12 Formen, Sprühdose, Text, Linie, Kurve, Rechteck, Vieleck, Ellipse und abgerundetes Rechteck. Gemalt wird Pixel für Pixel ohne Kantenglättung, wie früher.
 - **Farben:** Die 28er-Palette unten, linke Maustaste für die Vordergrundfarbe, rechte für die Hintergrundfarbe. Ein Doppelklick auf ein Farbfeld öffnet „Farben bearbeiten“ mit Farbspektrum und eigenen Farben.
@@ -519,7 +534,7 @@
 - **Für den Admin:** Unter Admin → Paint stellst du ein, ob Gäste malen dürfen, wer speichern darf, wie viel Speicher jedes Mitglied hat, wie groß Bilder sein dürfen und ob öffentliche Bilder erst freigegeben werden müssen. Dort löschst du auch Bilder.
 - Versteckte Angaben in gespeicherten Bildern, etwa Texte oder der Aufnahmeort eines eingefügten Fotos, entfernt die Seite beim Speichern. Was sie zu Bildern speichert, steht auf der Datenschutzseite.
 
-## 16.10.2026 – Blackjack
+## Update 13 · 16.10.2026 – Blackjack
 
 - **Blackjack:** Neu im Startmenü unter 🃏 Blackjack. Mach einen Tisch auf oder setz dich an einen offenen, mit bis zu fünf Mitgliedern gegen den Dealer. Andere können zusehen, und über 🔗 Einladen kommt man per Link direkt an den Tisch.
 - **Spielgeld:** Jeder startet mit 1.000 €. Hast du weniger als 200 €, kaufst du dich zwischen zwei Händen für 1.000 € nach, so oft du willst. Echtes Geld gibt es nicht.
@@ -529,7 +544,7 @@
 - **Nutzermenü:** Ein Klick auf einen Namen am Tisch oder in einer Musik-Lobby öffnet überall dasselbe Menü: Profil ansehen, als Freund hinzufügen oder Anfrage annehmen, Nachricht schreiben. Gastgeber finden dort auch „Vom Tisch nehmen“ bzw. die Player-Rechte.
 - **Besucherbuch:** Das Freundebuch der Seite heißt jetzt Besucherbuch, damit es nicht mit dem Freundebuch in jedem Profil verwechselt wird. Adresse und Einträge bleiben.
 
-## 16.10.2026 – Profile, Freunde und Nachrichten
+## Update 12 · 16.10.2026 – Profile, Freunde und Nachrichten
 
 - **Profil:** Jedes Mitglied hat jetzt ein eigenes Profil mit Profilbild, Anzeigename und „Über mich“. Einstellen kannst du das unter 🔑 Mein Konto. Mit dem Benutzernamen meldest du dich weiter an.
 - **Mitglieder finden:** Neu im Startmenü unter 👥 Mitglieder. Durchsuche alle Mitglieder und öffne ihre Profile.
@@ -541,13 +556,13 @@
 - **Du entscheidest:** Wer dein Profil sieht (alle, nur Mitglieder oder nur Freunde) und wer dir schreiben darf (alle Mitglieder oder nur Freunde). Anonyme Forenbeiträge bleiben anonym und zählen im Profil nicht mit.
 - Versteckte Angaben in Profilbildern, etwa der Aufnahmeort, entfernt die Seite beim Hochladen. Was sie zu Profil, Freunden und Nachrichten speichert, steht auf der Datenschutzseite.
 
-## 16.10.2026 – Wer ist in der Lobby?
+## Update 11 · 16.10.2026 – Wer ist in der Lobby?
 
 - **Zuhörer-Liste:** In einer Musik-Lobby siehst du oben alle, die gerade zuhören. 👑 markiert den Gastgeber, 🎶 alle, die den Player steuern dürfen.
 - **Player-Rechte:** Als Gastgeber (oder Admin) klickst du auf einen Namen und gibst ihm Player-Rechte oder nimmst sie wieder weg, auch wenn sonst nur du steuerst. Wer „Alle dürfen steuern“ in den Einstellungen umstellt, setzt die einzeln vergebenen Rechte zurück.
 - Der Admin kommt mit einem Klick auf einen Namen direkt zum Konto in der Systemsteuerung.
 
-## 16.10.2026 – Zufallsgenerator
+## Update 10 · 16.10.2026 – Zufallsgenerator
 
 - **Zufallsgenerator:** Neu im Startmenü unter 🎲 Zufallsgenerator, mit drei Reitern:
   - **Teams:** Gib an, wie viele Spieler und Teams es gibt, und trag auf Wunsch Namen für Spieler und Teams ein. Die Namen wirbeln im Lostopf durcheinander, fliegen eins nach dem anderen in ihre Teams, und zum Schluss gibt es Konfetti und einen Tusch. Die Teams werden so gleich groß wie möglich.
@@ -555,7 +570,7 @@
   - **Wort:** Zieh Wörter aus deiner eigenen Liste oder aus den eingebauten Begriffen zum Malen, Raten und Erklären.
 - Ausgelost wird in deinem Browser, die Seite speichert davon nichts. Wer Bewegungen reduziert eingestellt hat, sieht das Ergebnis sofort ohne Animation.
 
-## 16.10.2026 – Musik, Lobbys und Ton
+## Update 9 · 16.10.2026 – Musik, Lobbys und Ton
 
 - **Musik-Player:** Neu im Startmenü unter 🎵 Musik. Hör dir die Musik-Sammlung der Seite an, durchsuche sie, spiele alles der Reihe nach, zufällig oder in Dauerschleife. Läuft weiter, wenn du das Fenster minimierst.
 - **Visualisierungen** wie früher im Windows Media Player: Balken, Oszilloskop, Ozeannebel, Feuersturm, Ambiente, Batterie, Stacheln und Musikfarben. Doppelklick aufs Bild macht Vollbild.
@@ -566,7 +581,7 @@
 - **Klänge:** Startmenü, Fenster öffnen, schließen, minimieren und Fehlermeldungen machen jetzt Geräusche wie bei Windows. **Mein Haustier** hat Tierstimmen und Klänge für Füttern, Spielen, Baden, Münzen und mehr.
 - YouTube-Lieder lädt dein Browser erst, wenn du auf „YouTube laden“ klickst. Was dabei passiert, steht auf der Datenschutzseite.
 
-## 15.10.2026 – Dein eigener Desktop
+## Update 8 · 15.10.2026 – Dein eigener Desktop
 
 - **Eigenschaften von Anzeige:** Der 🖥️-Knopf neben der Uhr öffnet jetzt ein richtiges Einstellungsfenster mit drei Reitern, wie bei Windows 98:
   - **Hintergrund:** eigene Farbe, Muster (Karo, Streifen, Punkte, Raster, Wellen) oder ein eigenes Bild von deinem Gerät, nebeneinander, bildschirmfüllend oder zentriert.
@@ -574,24 +589,24 @@
   - **Effekte:** Lauftext laufen lassen, anhalten oder ausblenden, Besucherzähler und Buttons ein- oder ausblenden, eigenes CSS für Profis.
 - Änderungen siehst du sofort. **OK** oder **Übernehmen** speichert, **Abbrechen** stellt alles zurück. Alles bleibt in deinem Browser, auch das eigene Bild wird nicht hochgeladen.
 
-## 15.10.2026 – Datenschutz und Darstellung
+## Update 7 · 15.10.2026 – Datenschutz und Darstellung
 
 - **Datenschutz:** Neu im Startmenü. Dort steht kurz und verständlich, was die Seite über dich speichert, wofür und wie lange. Zu jedem Punkt lässt sich der passende Programmcode aufklappen, dazu Bilder, was der Admin zu sehen bekommt.
 - **Darstellung:** Über den 🖥️-Knopf neben der Uhr kannst du die Schrift vergrößern, dunkle Farben oder hohen Kontrast einschalten und den Lauftext anhalten. Das merkt sich nur dein Browser.
 - Wird ein Konto gelöscht, verlieren auch seine Einträge in der Besucherstatistik die Verbindung zum Konto.
 
-## 15.10.2026 – Mein Haustier
+## Update 6 · 15.10.2026 – Mein Haustier
 
 - **Mein Haustier:** Neues Spiel im Startmenü. Such dir ein Haustier aus (Katze, Hund, Kaninchen, Hamster, Ratte und besondere Tiere für treue Besucher), kümmere dich jeden Tag darum, verdiene Münzen und kauf im Shop Futter, Spielzeug, Accessoires und neue Räume.
 - Ohne Konto wird der Spielstand nur im Browser gespeichert. Mit Konto ist er dauerhaft gesichert und auf allen Geräten da, dazu gibt es ein kleines Willkommensgeschenk im Spiel.
 - **Anonym im Forum schreiben:** Beim neuen Thema und beim Antworten lässt sich „Anonym veröffentlichen“ ankreuzen. Andere Mitglieder sehen dann statt des Namens „Anonym“, nur der Admin sieht, wer es war.
 - Nach dem Registrieren geht es zurück zur Seite, von der man kam.
 
-## 15.10.2026 – Fenster-Reparatur
+## Update 5 · 15.10.2026 – Fenster-Reparatur
 
 - Nach dem letzten Update zeigten manche Browser noch das alte Design und die Fenster ließen sich nicht bewegen. Design- und Skriptdateien tragen jetzt eine Versionsnummer, sodass jeder Browser nach einem Update sofort die neue Fassung lädt.
 
-## 15.10.2026 – Echte Fenster
+## Update 4 · 15.10.2026 – Echte Fenster
 
 - **Fenster auf dem Desktop:** Jede Seite öffnet sich als eigenes Fenster, das man an der Titelleiste verschieben, an der Ecke unten rechts größer ziehen, minimieren, maximieren und schließen kann. So lassen sich z. B. Forum und Blog gleichzeitig offen halten.
 - Geöffnet wird alles über das **Startmenü**; jedes offene Fenster hat einen Knopf in der Taskleiste. Die Reiter oben im Fenster sind weggefallen.
@@ -599,29 +614,29 @@
 - Offene Fenster bleiben beim Neuladen erhalten, und Links von außen (z. B. auf einen Forumsbeitrag) öffnen den Desktop mit genau diesem Fenster.
 - Auf dem Handy füllen Fenster den ganzen Bildschirm, gewechselt wird über die Taskleiste.
 
-## 15.10.2026 – Neuer Editor, Forum und Changelog
+## Update 3 · 15.10.2026 – Neuer Editor, Forum und Changelog
 
 - **Forum:** Angemeldete Mitglieder können Themen starten, antworten, Bilder einfügen und ihre eigenen Beiträge bearbeiten oder löschen. Wichtige Themen lassen sich anpinnen oder schließen.
 - **Neuer Texteditor:** Live-Vorschau neben dem Text. Bilder lassen sich anklicken und links, mittig oder rechts platzieren (Text fließt drumherum), in der Größe ziehen und per Drag & Drop an einen anderen Absatz verschieben.
 - Neue Knöpfe im Editor: Durchgestrichen, nummerierte Liste, Tabelle, Trennlinie, zentrierter Text, aufklappbare Bereiche.
 - **Changelog:** Diese Seite – zu finden im Startmenü.
 
-## 15.10.2026 – Große Downloads und Download-Statistik
+## Update 2 · 15.10.2026 – Große Downloads und Download-Statistik
 
 - Downloads können jetzt mehrere Gigabyte groß sein und liegen auf einer eigenen Festplatte.
 - Abgebrochene Downloads lassen sich fortsetzen, ohne doppelt gezählt zu werden.
 - Ausführliche Download-Statistik im Admin-Bereich: Verlauf, Uhrzeiten, Geräte, Herkunft, fertige und abgebrochene Downloads.
 
-## 15.10.2026 – Spielstände im Konto
+## Update 1 · 15.10.2026 – Spielstände im Konto
 
 - Browser-Spiele speichern Spielstände im eigenen Konto, solange man angemeldet ist. Unter **Mein Konto** sieht man sie und kann sie löschen.
 - Große Spiele laden deutlich schneller, weil ihre Dateien komprimiert ausgeliefert werden.
 
-## 15.10.2026 – Automatische Updates
+## Update 0 · 15.10.2026 – Automatische Updates
 
 - Jede Änderung wird automatisch getestet und als fertiges Paket für den Server gebaut. Updates gehen damit per Klick.
 
-## 14.10.2026 – Eröffnung 🎉
+## Update 0 · 14.10.2026 – Eröffnung 🎉
 
 - Die Homepage im Windows-98-Look geht online: Blog, Downloads, Modlisten, Links, Spiele & Apps, Freundebuch, Kontaktformular und eigene Seiten.
 - Besucherzähler, Lauftext und anpassbares Design.

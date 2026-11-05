@@ -1,0 +1,13 @@
+<%- include('../partials/head') %>
+<%# System → Anmelden: Registrieren und Anmeldebildschirm (views/partials/logon.ejs) %>
+<form method="post" action="/admin/anmelden">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox"><legend>🔐 Anmelden und Registrieren</legend>
+    <label class="inline"><input type="checkbox" name="registration_open" value="1" <%= s.registration_open === '1' ? 'checked' : '' %>> Jeder darf sich registrieren</label><br>
+    <small>Sonst legst du Konten selbst an (<a href="/admin/users">Konten und Gruppen</a>).</small><br>
+    <label class="inline"><input type="checkbox" name="logon_screen" value="1" <%= s.logon_screen === '1' ? 'checked' : '' %>> Anmeldebildschirm bei jedem Laden der Seite (Anmelden, Registrieren oder als Gast weiter)</label><br>
+    <small>Wie bei Windows XP oder 98, je nach Design des Besuchers. Wer angemeldet bleibt, sieht ihn nicht.</small>
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button></div>
+</form>
+<%- include('../partials/foot') %>

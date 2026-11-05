@@ -1,0 +1,29 @@
+<%- include('../partials/head') %>
+<%# System → Info und Updates: Update-Nummer (= Pull Request), letzte Änderungen aus dem Changelog, ein paar Zahlen zum Server %>
+<% const dur = s => s < 3600 ? Math.round(s / 60) + ' Minuten' : s < 172800 ? Math.round(s / 3600) + ' Stunden' : Math.round(s / 86400) + ' Tage'; %>
+<div class="winver">
+  <div class="wv-logo" aria-hidden="true">🖥️</div>
+  <div>
+    <b><%= site.title %></b><br>
+    <% if (update) { %><span class="upd-no">Update <%= update.no %></span> vom <%= update.date %><br><span><%= update.title %></span><% } %>
+    <p class="muted" style="margin:6px 0 0">Jedes Update hat die Nummer seines Pull Requests: Update 84 ist PR #84.</p>
+  </div>
+</div>
+<fieldset class="groupbox"><legend>🆕 Letzte Updates</legend>
+  <ul class="upd-list">
+    <% for (const u of recent) { %>
+    <li><a href="/changelog#update-<%= u.no %>" target="_blank"><span class="upd-no">Update <%= u.no %></span> <%= u.title %></a> <small><%= u.date.split('-').reverse().join('.') %> · <%= u.items.length %> Punkte</small></li>
+    <% } %>
+  </ul>
+  <p><a href="/changelog" target="_blank">📋 Ganzer Changelog</a></p>
+</fieldset>
+<fieldset class="groupbox"><legend>⚙️ Server</legend>
+  <table class="list kv">
+    <tr><th>Läuft seit</th><td><%= dur(sys.uptime) %> (<%= fmtDate(sys.started, true) %>)</td></tr>
+    <tr><th>Node.js</th><td><%= sys.node %></td></tr>
+    <tr><th>Zeitzone</th><td><%= sys.tz %></td></tr>
+    <tr><th>Datenbank</th><td><%= fmtSize(sys.dbSize) %></td></tr>
+  </table>
+  <p><small>Wie viel Platz auf den Platten frei ist, steht unter <a href="/admin/speicher#platten">Speicher und Freigaben</a>.</small></p>
+</fieldset>
+<%- include('../partials/foot') %>

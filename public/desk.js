@@ -201,6 +201,11 @@
       if (data.hidden && data.hidden.length) items.push({ label: 'Ausgeblendete Symbole zeigen', act: 'unhide' });
       if (data.lobbyAllowed) items.push('-', { label: 'Offene Lobbys zeigen', act: 'lobbies', checked: !!data.lobbyWidget });
     }
+    // Widget „Dienste“ (public/dienste.js): auch Gäste können es ausblenden
+    if (data.svcAllowed) {
+      if (!(data.lobbyAllowed && me)) items.push('-');
+      items.push({ label: 'Dienste zeigen', act: 'services', checked: svcOn() });
+    }
     items.push('-', { label: 'Eigenschaften', act: 'props' });
     return items;
   }
@@ -223,6 +228,7 @@
     menuPos = { x: x, y: y };
     W.contextMenu(x, y, e ? iconMenu() : deskMenu(), act);
   }
+  function svcOn() { return !!(window.RetroDienste && window.RetroDienste.widgetOn()); }
   function setting(d) { return me ? W.api('POST', '/api/desktop/einstellungen', d).catch(oops) : Promise.resolve(); }
   function act(a) {
     var es = selected.slice(), one = es[0];
@@ -250,6 +256,11 @@
         data.lobbyWidget = !data.lobbyWidget;
         lobbyState();
         setting({ lobbies: data.lobbyWidget });
+        break;
+      case 'services':
+        var nowOn = !svcOn();
+        try { window.dispatchEvent(new CustomEvent('dienste:widget', { detail: nowOn })); } catch (e) { /* alter Browser */ }
+        setting({ services: nowOn });
         break;
       case 'props':
         if (me) R.open('/einstellungen/desktop', true);

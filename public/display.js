@@ -14,7 +14,7 @@
   var SCHEMES = ['seite', 'nacht', 'kontrast'], DESIGNS = ['seite', '98', 'xp'], XP = ['blau', 'oliv', 'silber'];
   // Die alten Stufen der Schriftgröße werden zu Prozent der Oberfläche
   var OLD_SIZE = { gross: 115, 'sehr-gross': 130 };
-  var MARQUEE = ['an', 'still', 'aus'], MODES = ['tile', 'cover', 'center'];
+  var MARQUEE = ['an', 'still', 'aus'], MODES = ['tile', 'cover', 'center'], SPEEDS = ['langsam', 'normal', 'schnell'];
   var COLORS = { desktop: '--desktop', win: '--win', titleFrom: '--title-from', titleTo: '--title-to', text: '--text', link: '--link' };
   // Muster liegen über der Hintergrundfarbe
   var PATTERNS = {
@@ -25,7 +25,7 @@
     wellen: 'radial-gradient(circle at 50% 100%, transparent 9px, rgba(255,255,255,.14) 10px 12px, transparent 13px) 0 0 / 28px 14px',
   };
   var DEFAULTS = { design: 'seite', xp: 'blau', scale: 100, scaleAll: true, scheme: 'seite', colors: {}, font: '', bg: 'seite', bgMode: 'tile',
-    marquee: 'an', widgets: true, css: '', sync: false, t: 0 };
+    marquee: 'an', tickSpeed: 'normal', popups: true, widgets: true, css: '', sync: false, t: 0 };
   var HEX = /^#[0-9a-f]{6}$/i, IMG = /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/;
 
   var pick = function (list, v, d) { return list.indexOf(v) >= 0 ? v : d; };
@@ -48,6 +48,9 @@
       bgMode: pick(MODES, p.bgMode, 'tile'),
       // "still" stammt aus der ersten Fassung mit nur einem Häkchen
       marquee: pick(MARQUEE, p.marquee, p.still === true ? 'still' : 'an'),
+      // Laufband (public/laufband.js): Tempo; Popup-Bilder (public/popups.js) an oder aus
+      tickSpeed: pick(SPEEDS, p.tickSpeed, 'normal'),
+      popups: p.popups !== false,
       widgets: p.widgets !== false,
       css: typeof p.css === 'string' ? p.css.slice(0, 20000) : '',
       // Auch am Konto speichern (nur für Mitglieder, siehe oben); t: wann zuletzt gespeichert, das Neuere gewinnt
@@ -90,7 +93,8 @@
             : ['background-size:auto', 'background-position:0 0', 'background-repeat:repeat']);
     }
     if (bg.length) out.push('html:root body:not(.embed){' + bg.map(function (d) { return d + ' !important'; }).join(';') + '}');
-    if (p.marquee === 'aus') out.push('marquee{display:none !important}');
+    if (p.marquee === 'aus') out.push('marquee,.tick{display:none !important}');
+    if (!p.popups) out.push('.pop{display:none !important}');
     if (!p.widgets) out.push('.desk-widget{display:none !important}');
     if (p.css) out.push(p.css.replace(/<\/?style/gi, ''));
     return out.join('\n');
@@ -155,7 +159,20 @@
     apply(p, img);
     return true;
   }
-  window.RetroDisplay = { apply: apply, setWallpaper: setWallpaper };
+  // Einzelne Werte von außen ändern (× am Laufband, „Nicht mehr zeigen“ an Popup-Bildern), wie mit OK im Fenster
+  function patch(changes) {
+    var p = load();
+    for (var k in changes) p[k] = changes[k];
+    p = clean(p);
+    p.t = Date.now();
+    if (!save(p, loadImage())) return false;
+    apply(p);
+    if (p.sync) {
+      try { window.dispatchEvent(new CustomEvent('darstellung:gespeichert', { detail: { sync: true, display: forAccount(p) } })); } catch (e) { /* alter Browser */ }
+    }
+    return true;
+  }
+  window.RetroDisplay = { apply: apply, setWallpaper: setWallpaper, get: load, patch: patch };
   // Andere Fenster (iframes) übernehmen eine gespeicherte Änderung sofort
   window.addEventListener('storage', function (e) { if (e.key === KEY || e.key === IMG_KEY || e.key === null) apply(); });
 
@@ -196,6 +213,8 @@
       panel.querySelectorAll('[data-scheme]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.scheme === cur.scheme && !Object.keys(cur.colors).length); });
       if (f.sync) f.sync.checked = cur.sync;
       f.marquee.value = cur.marquee; f.widgets.checked = cur.widgets;
+      if (f.tickSpeed) f.tickSpeed.value = cur.tickSpeed;
+      if (f.popups) f.popups.checked = cur.popups;
       if (document.activeElement !== f.css) f.css.value = cur.css;
       info.textContent = curImg ? 'Eigenes Bild gewählt' : '';
     }
@@ -266,9 +285,9 @@
       if (n === 'bg' && e.target.value === 'bild' && !curImg) { f.bild.click(); fill(); return; }
       // Beim Wechsel auf XP fallen 98-Schemen und eigene Farben weg, die man dort nicht mehr sieht und nicht mehr wählen kann
       if (n === 'design') update(function (p) { p.design = e.target.value; if (designOf(p).xp) { p.scheme = p.scheme === 'kontrast' ? 'kontrast' : 'seite'; p.colors = {}; } });
-      else if (['bg', 'bgMode', 'font', 'marquee'].indexOf(n) >= 0) update(function (p) { p[n] = e.target.value; });
+      else if (['bg', 'bgMode', 'font', 'marquee', 'tickSpeed'].indexOf(n) >= 0) update(function (p) { p[n] = e.target.value; });
       else if (n === 'scale') update(function (p) { p.scale = Number(e.target.value); });
-      else if (n === 'widgets' || n === 'scaleAll' || n === 'sync') update(function (p) { p[n] = e.target.checked; });
+      else if (n === 'widgets' || n === 'popups' || n === 'scaleAll' || n === 'sync') update(function (p) { p[n] = e.target.checked; });
     });
 
     // Eigenes Bild: verkleinert und als data:-Adresse im Browser abgelegt, nie hochgeladen

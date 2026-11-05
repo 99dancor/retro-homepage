@@ -12,7 +12,7 @@
     <div class="cpl-grid">
       <button type="button" class="cpl-item" data-panel="displaybtn"><span>🖥️</span><b>Anzeige</b><small>Windows 98 oder XP, Farben, Hintergrund, Größe der Oberfläche</small></button>
       <% if (user) { %>
-        <a class="cpl-item" href="/einstellungen/desktop"><span>🗂️</span><b>Desktop und Taskleiste</b><small>readme.txt, Standardsymbole, Lobby-Widget, Suche</small></a>
+        <a class="cpl-item" href="/einstellungen/desktop"><span>🗂️</span><b>Desktop und Taskleiste</b><small>readme.txt, Standardsymbole, Widgets, Suche</small></a>
         <a class="cpl-item" href="/einstellungen/speicher"><span>💽</span><b>Speicherplatz</b><small>Belegt und frei, Papierkorb</small></a>
       <% } %>
       <% if (user) { %>
@@ -26,7 +26,7 @@
     <h3 class="cpl-h">Verwaltung</h3>
     <div class="cpl-grid">
       <a class="cpl-item" href="/admin"><span>⚙️</span><b>Seitenverwaltung</b><small>Inhalte, Mitglieder, Design und Einstellungen der Seite</small></a>
-      <a class="cpl-item" href="/admin/desktop"><span>🖥️</span><b>Desktop für alle</b><small>readme.txt, Standardsymbole, Grenzen, Speicher</small></a>
+      <a class="cpl-item" href="/admin/desktop"><span>🖥️</span><b>Desktop für alle</b><small>readme.txt, Standardsymbole, Widgets</small></a>
     </div>
     <% } %>
 
@@ -46,6 +46,7 @@
       </fieldset>
       <fieldset class="groupbox"><legend>Widgets und Taskleiste</legend>
         <% if (lobbyOn) { %><label class="inline"><input type="checkbox" name="lobbies" value="1"<%= d.lobbies ? ' checked' : '' %>> „Offene Lobbys“ auf dem Desktop zeigen</label><br><% } else { %><input type="hidden" name="lobbies" value="<%= d.lobbies ? '1' : '' %>"><% } %>
+        <% if (svcOn) { %><label class="inline"><input type="checkbox" name="services" value="1"<%= d.services ? ' checked' : '' %>> „Dienste“ auf dem Desktop zeigen (Server und Speicher)</label><br><% } else { %><input type="hidden" name="services" value="<%= d.services ? '1' : '' %>"><% } %>
         <% if (searchOn) { %><label class="inline"><input type="checkbox" name="search" value="1"<%= d.search ? ' checked' : '' %>> Suchfeld in der Taskleiste (Strg+K)</label><% } else { %><input type="hidden" name="search" value="<%= d.search ? '1' : '' %>"><% } %>
         <p><small>Besucherzähler und Buttons blendest du unter 🖥️ Anzeige → Effekte aus.</small></p>
       </fieldset>

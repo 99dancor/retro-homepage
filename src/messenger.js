@@ -201,7 +201,10 @@ function canInvite(sender, target) {
   return allowed(sender, target, target.invite_from);
 }
 
+// Wie viele Mitglieder gerade einen Desktop offen haben (für die Übersicht der Seitenverwaltung, ohne Namen)
+const onlineCount = () => conns.size;
+
 module.exports = {
-  STATUS, MAX_MSG, connect, setIdle, setStatus, send, connected, rawStatus, statusFor, lastSeenFor, activities, activityFor, allowed,
+  STATUS, MAX_MSG, onlineCount, connect, setIdle, setStatus, send, connected, rawStatus, statusFor, lastSeenFor, activities, activityFor, allowed,
   card, contacts, message, deliver, read, myLobbies, canInvite, me,
 };

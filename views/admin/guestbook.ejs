@@ -1,5 +1,6 @@
 <%- include('../partials/head') %>
-<p>Einträge freischalten, verstecken oder löschen. Ob neue Einträge erst freigeschaltet werden müssen, stellst du unter <a href="/admin/settings">Einstellungen</a> ein.</p>
+<%- include('../partials/postfach-tabs') %>
+<p>Einträge freischalten, verstecken oder löschen. Ob neue Einträge erst freigeschaltet werden müssen, stellst du unter <a href="/admin/programme/besucherbuch">Programme → Besucherbuch</a> ein.</p>
 <table class="list">
   <tr><th>Von</th><th>Nachricht</th><th>Datum</th><th>Status</th><th></th></tr>
   <% for (const e of entries) { %>

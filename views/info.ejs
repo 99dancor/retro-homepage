@@ -1,0 +1,16 @@
+<%- include('partials/head') %>
+<%# „Info über …“ (Start → Info) wie das Fenster „Info über Windows“: welches Update läuft, seit wann, für wen %>
+<div class="winver">
+  <img src="<%= asset('favicon.svg') %>" alt="" width="56" height="56">
+  <div>
+    <p class="winver-title"><b><%= site.title %></b></p>
+    <% if (update) { %><p><%= update.no != null ? 'Update ' + update.no : 'Neuestes Update' %><% if (update.date) { %> vom <%= update.date %><% } %><br><small><%= update.title %></small></p><% } %>
+    <p><small>Online seit <%= since ? fmtDate(Math.floor(Date.parse(since + 'T12:00:00Z') / 1000)) : 'Anfang an' %> · <%= updates %> Updates · <%= members %> <%= members === 1 ? 'Mitglied' : 'Mitglieder' %></small></p>
+    <hr>
+    <p>Dieses Produkt ist lizenziert für:<br><b><%= user ? user.name : 'Gast' %></b></p>
+    <p><small>Läuft seit <%= fmtDate(Math.floor(started / 1000), true) %><% if (disk) { %> · Platz für Downloads: <%= fmtSize(disk.free) %> frei von <%= fmtSize(disk.total) %><% } %></small></p>
+    <hr>
+    <div class="actions"><% if (update && update.no != null) { %><a class="btn" href="/changelog#update-<%= update.no %>">📋 Was ist neu?</a><% } %><button type="button" data-win-close>OK</button></div>
+  </div>
+</div>
+<%- include('partials/foot') %>

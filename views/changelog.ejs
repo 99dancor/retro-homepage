@@ -1,5 +1,8 @@
 <%- include('partials/head') %>
-<h1>📜 Changelog</h1>
-<p>Was sich an dieser Website geändert hat – das Neueste steht oben.</p>
-<div class="panel content changelog"><%- changelogHtml %></div>
+<h1>📋 Changelog</h1>
+<p>Was sich an dieser Website geändert hat, das Neueste steht oben. Jedes Update trägt eine Nummer<% if (latest && latest.no != null) { %>, gerade läuft <b>Update <%= latest.no %></b><% } %>.</p>
+<%# Suche in den Einträgen: public/changelog.js blendet Updates aus, in denen das Wort nicht vorkommt %>
+<div class="cl-search" hidden><label>🔍 <input type="search" id="cl-q" placeholder="Im Changelog suchen, z. B. Poker oder 83" aria-label="Im Changelog suchen" autocomplete="off"></label> <small id="cl-n" aria-live="polite"></small></div>
+<div class="panel content changelog" id="changelog"><%- changelogHtml %></div>
+<script src="<%= asset('changelog.js') %>"></script>
 <%- include('partials/foot') %>

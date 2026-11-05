@@ -1,0 +1,36 @@
+<%- include('../partials/head') %>
+<%- include('../partials/postfach-tabs') %>
+<%# Freigaben: öffentliche Paint-Bilder, die auf Freigabe warten, und Vorschläge für Popup-Bilder %>
+<fieldset class="groupbox" id="paint"><legend>🎨 Paint-Bilder für die Galerie</legend>
+  <% if (!paintList.length) { %><p class="muted">Nichts wartet. Ob öffentliche Bilder erst freigegeben werden müssen, stellst du unter <a href="/admin/paint">Paint und Galerie</a> ein.</p><% } else { %>
+  <div class="fg-grid">
+    <% for (const a of paintList) { %>
+    <figure class="fg-item">
+      <a href="/galerie/<%= a.id %>" target="_blank"><img src="/paint/bild/<%= a.id %>/vorschau.png" alt="<%= a.title %>" loading="lazy"></a>
+      <figcaption><b><%= a.title %></b><br><small>von <%= a.display_name || a.username %> · <%= fmtDate(a.updated_at) %></small></figcaption>
+      <div class="actions">
+        <form method="post" action="/admin/freigaben/paint/<%= a.id %>/ok" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>✔ Freigeben</button></form>
+        <form method="post" action="/admin/freigaben/paint/<%= a.id %>/weg" class="inline" data-confirm="„<%= a.title %>“ löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑️ Löschen</button></form>
+      </div>
+    </figure>
+    <% } %>
+  </div>
+  <% } %>
+</fieldset>
+<fieldset class="groupbox" id="popups"><legend>💬 Vorschläge für Popup-Bilder</legend>
+  <% if (!popupList.length) { %><p class="muted">Keine Vorschläge. Mitglieder schlagen eigene, öffentliche Paint-Bilder in der Galerie vor (<a href="/admin/popups">Popup-Bilder</a>).</p><% } else { %>
+  <div class="fg-grid">
+    <% for (const p of popupList) { %>
+    <figure class="fg-item">
+      <img src="<%= p.image %>" alt="<%= p.title %>" loading="lazy">
+      <figcaption><b><%= p.title %></b><br><small>Vorschlag von <%= p.suggested_name || 'jemandem' %> · <%= fmtDate(p.created_at) %></small></figcaption>
+      <div class="actions">
+        <form method="post" action="/admin/popups/<%= p.id %>/freigeben" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="/admin/freigaben?ok=1#popups"><button>✔ In den Pool</button></form>
+        <form method="post" action="/admin/popups/<%= p.id %>/loeschen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="/admin/freigaben?ok=1#popups"><button>✖ Ablehnen</button></form>
+      </div>
+    </figure>
+    <% } %>
+  </div>
+  <% } %>
+</fieldset>
+<%- include('../partials/foot') %>

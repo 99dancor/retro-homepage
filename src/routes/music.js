@@ -11,6 +11,7 @@ const quota = require('../quota');
 const lobby = require('../lobby');
 const youtube = require('../youtube');
 const us = require('../usersettings');
+const radio = require('../radio');
 
 const router = express.Router();
 const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
@@ -82,6 +83,7 @@ router.get('/bibliothek', (req, res) => {
     canUpload,
     quota: canUpload && !u.isAdmin ? { used: quota.usedBytes(u.id), total: quota.limitBytes(u), fileMb: music.MEMBER_FILE_MB } : null,
     tracks, playlists,
+    radio: radio.list(u),
   });
 });
 
@@ -105,6 +107,33 @@ router.post('/titel/:id/gespielt', auth.rateLimit('plays', 120, 600), (req, res)
     db.prepare('UPDATE tracks SET plays = plays + 1, duration = COALESCE(duration, ?) WHERE id = ?').run(d > 0 && d < 24 * 3600 ? Math.round(d * 10) / 10 : null, t.id);
   }
   res.json({ ok: true });
+});
+
+// ---------- Internetradio (src/radio.js) ----------
+// Sender eintragen darf, wer Musik hochladen darf; abspielen jeder, der den Sender sehen kann
+function ownStation(req, res, next) {
+  const s = radio.get(req.params.id);
+  if (!s || !req.user || !(req.user.isAdmin || s.owner_id === req.user.id)) return fail(res, 404, 'Diesen Sender gibt es nicht.');
+  req.station = s;
+  next();
+}
+router.get('/radio/:id/stream', (req, res) => {
+  const s = radio.get(req.params.id);
+  if (!radio.canSee(req.user, s)) return res.status(404).end();
+  radio.stream(s, req, res).catch(() => { if (!res.headersSent) res.status(502).end(); });
+});
+router.post('/radio', needLogin, auth.rateLimit('radio', 30, 600), async (req, res) => {
+  if (!music.canUpload(req.user)) return fail(res, 403, 'Du darfst keine Sender eintragen.');
+  try { res.json({ id: await radio.add(req.user, req.body || {}), radio: radio.list(req.user) }); }
+  catch (e) { fail(res, 400, e.message); }
+});
+router.post('/radio/:id', needLogin, auth.rateLimit('radio', 30, 600), ownStation, async (req, res) => {
+  try { await radio.update(req.user, req.station, req.body || {}); res.json({ radio: radio.list(req.user) }); }
+  catch (e) { fail(res, 400, e.message); }
+});
+router.post('/radio/:id/loeschen', needLogin, ownStation, (req, res) => {
+  radio.remove(req.station);
+  res.json({ radio: radio.list(req.user) });
 });
 
 // ---------- Hochladen ----------

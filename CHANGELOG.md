@@ -1,5 +1,14 @@
 # Changelog
 
+## Update 88 · 05.11.2026 – Internetradio, Privat-Videos und kleine Anpassungen
+
+- **Internetradio im Mediaplayer:** Neue Gruppe „Radio“ in der Seitenleiste. Mit ＋ fügst du einen Sender hinzu: Namen eingeben, Stream-Link einfügen, fertig. Playlist-Links (.pls, .m3u) werden von selbst aufgelöst, Webseiten statt Streams erkennt die Seite und sagt Bescheid. Sender lassen sich öffentlich, nur für Mitglieder oder nur für dich freigeben. Der Ton läuft über den eigenen Server, so klappen auch http-Sender, Equalizer und Visualisierung, und der Sender sieht nicht, wer zuhört. Eintragen darf, wer Musik hochladen darf; Adressen im Heimnetz (z. B. ein eigener Icecast) nur du.
+- **Privat ist jetzt für Videos gemacht:** In den Downloads hat Privat eigene Ordner (Videos, Bilder und Dateien, Musik, Alles). Videos erscheinen als Kacheln mit Vorschaubild aus dem Video und der Länge, mit der Maus darüber läuft eine stumme Vorschau. Sortieren nach Neueste, Name oder Länge. Im Mediaplayer öffnet „Privat“ gleich die Videos als Kacheln.
+- **Mediaplayer-Symbol passt sich dem Skin an,** wie beim Messenger: Klassisch eine CD, VLC ein Leitkegel (hell oder dunkel), Media Player eine blaue Glaskugel, Winamp ein Blitz. Gilt im Startmenü, in der Taskleiste, auf dem Desktop und im Lobby-Widget.
+- **Design schon beim Anmelden wechseln:** Unten links im Anmeldebildschirm schaltet „Zu Windows XP/98 wechseln“ das Design um, gespeichert wie unter Anzeige → Darstellung.
+- **Dienste-Widget auch am Handy:** Es liegt unten über die ganze Breite, „Offene Lobbys“ sitzt darüber.
+- **Behoben:** „OK“ im Fenster „Nicht gefunden“ schließt jetzt das Fenster, statt nichts zu tun.
+
 ## Update 87 · 05.11.2026 – Link-Vorschläge mit JDownloader
 
 - **Link vorschlagen:** Im Fenster „Hinzufügen“ gibt es den Reiter „Link vorschlagen“ (auch für Mitglieder ohne Upload-Recht). Links einfügen, einer pro Zeile; das Fenster erkennt YouTube-Videos, YouTube-Playlists und Dateien und schlägt die Art vor: Musik, Video, Playlist, Datei oder Privat. Dazu eine Notiz an den Admin und wer es sehen darf. Vom Handy geht es direkt aus der YouTube-App über „Teilen“, wenn die Seite zum Startbildschirm hinzugefügt ist.

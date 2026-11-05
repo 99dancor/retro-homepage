@@ -16,7 +16,7 @@ const TREE = [
   { key: 'programme', icon: '🎮', label: 'Programme', url: '/admin/programme', kids: [
     ['🂡', 'Kartenspiele', '/admin/programme/kartenspiele'], ['❓', 'Quiz', '/admin/quiz'], ['🐺', 'Werwolf', '/admin/werwolf'],
     ['🧩', 'Rätsel', '/admin/programme/raetsel'], ['🚜', 'Farming Hub', '/admin/farming'], ['🎨', 'Paint und Galerie', '/admin/paint'],
-    ['🎵', 'Mediaplayer', '/admin/programme/mediaplayer'], ['💬', 'Forum', '/admin/programme/forum'], ['📖', 'Besucherbuch', '/admin/programme/besucherbuch'],
+    ['📀', 'Mediaplayer', '/admin/programme/mediaplayer'], ['💬', 'Forum', '/admin/programme/forum'], ['📖', 'Besucherbuch', '/admin/programme/besucherbuch'],
     ['🕹️', 'Eigene Apps', '/admin/apps'],
   ] },
   { key: 'dienste', icon: '🗄️', label: 'Dienste', url: '/admin/dienste', badge: 'down' },

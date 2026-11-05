@@ -29,7 +29,7 @@
     </form>
   </div>
   <div class="ex-address"><span>Adresse</span><div class="sunken ex-path">
-    <a href="/files">📁 Downloads</a><% if (['musik', 'videos', 'playlists'].includes(node)) { %> › 🎞️ Mediathek<% } else if (node.startsWith('k:')) { %> › 📦 Dateien<% } %><% if (node !== 'alle') { %> › <%= icon %> <%= nodeTitle %><%= node === 'suche' ? ' „' + q + '“' : '' %><% } %>
+    <a href="/files">📁 Downloads</a><% if (['musik', 'videos', 'playlists'].includes(node)) { %> › 🎞️ Mediathek<% } else if (node.startsWith('k:')) { %> › 📦 Dateien<% } else if (node.startsWith('privat')) { %> › 🔞 Privat<% } %><% if (node !== 'alle') { %> › <%= icon %> <%= nodeTitle %><%= node === 'suche' ? ' „' + q + '“' : '' %><% } %>
   </div></div>
   <div class="ex-main fx-main">
     <nav class="ex-tree sunken" aria-label="Bereiche">
@@ -44,7 +44,13 @@
                 <li><a href="<%= nodeUrl('videos') %>" class="ex-node<%= cur('videos') %>">🎬 Videos <small>(<%= tree.videos %>)</small></a></li>
                 <% if (tree.loggedIn) { %><li><a href="<%= nodeUrl('playlists') %>" class="ex-node<%= cur('playlists') %>">📋 Playlists <small>(<%= tree.playlists %>)</small></a></li><% } %>
               </ul></li>
-            <% if (tree.privat !== null) { %><li><a href="<%= nodeUrl('privat') %>" class="ex-node<%= cur('privat') %>">🔞 Privat <small>(<%= tree.privat %>)</small></a></li><% } %>
+            <% if (tree.privat !== null) { const pp = tree.privatParts; %><li class="ex-group">🔞 Privat <small>(<%= tree.privat %>)</small>
+              <ul>
+                <li><a href="<%= nodeUrl('privat') %>" class="ex-node<%= cur('privat') %>">🎬 Videos <small>(<%= pp.videos %>)</small></a></li>
+                <% if (pp.dateien) { %><li><a href="<%= nodeUrl('privat-dateien') %>" class="ex-node<%= cur('privat-dateien') %>">🖼️ Bilder und Dateien <small>(<%= pp.dateien %>)</small></a></li><% } %>
+                <% if (pp.musik) { %><li><a href="<%= nodeUrl('privat-musik') %>" class="ex-node<%= cur('privat-musik') %>">🎵 Musik <small>(<%= pp.musik %>)</small></a></li><% } %>
+                <li><a href="<%= nodeUrl('privat-alles') %>" class="ex-node<%= cur('privat-alles') %>">🗂️ Alles <small>(<%= tree.privat %>)</small></a></li>
+              </ul></li><% } %>
             <li class="ex-group">📦 Dateien
               <ul><% for (const c of tree.cats) { %>
                 <li><a href="<%= nodeUrl(c.key) %>" class="ex-node<%= cur(c.key) %>"><%= c.icon %> <%= c.label %> <small>(<%= c.n %>)</small></a></li>
@@ -56,7 +62,19 @@
     </nav>
     <div class="ex-pane fx-pane">
       <% if (!rows.length) { %>
-        <p class="muted ex-empty"><%= node === 'suche' ? 'Nichts gefunden.' : node === 'playlists' ? 'Noch keine Playlists. Anlegen geht im Mediaplayer.' : 'Hier liegt noch nichts.' %><% if (canAdd && node !== 'suche' && node !== 'playlists') { %><br><a class="btn small" href="/files/upload<%= node.startsWith('k:') ? '?kategorie=' + encodeURIComponent(nodeTitle) : '' %>">📤 Etwas hinzufügen</a><% } %></p>
+        <p class="muted ex-empty"><%= node === 'suche' ? 'Nichts gefunden.' : node === 'privat' ? 'Noch keine privaten Videos.' : node === 'playlists' ? 'Noch keine Playlists. Anlegen geht im Mediaplayer.' : 'Hier liegt noch nichts.' %><% if (canAdd && node !== 'suche' && node !== 'playlists') { %><br><a class="btn small" href="/files/upload<%= node.startsWith('k:') ? '?kategorie=' + encodeURIComponent(nodeTitle) : '' %>">📤 Etwas hinzufügen</a><% } %></p>
+      <% } else if (mode === 'tiles') { %>
+      <%# Videos als Kacheln: Vorschaubild ist ein Bild aus dem Video selbst (public/files.js lädt es erst, wenn die Kachel sichtbar wird) %>
+      <div class="fx-tools-tiles"><label>Sortieren: <select data-fx="tsort"><option value="neu">Neueste zuerst</option><option value="name">Name</option><option value="lang">Länge</option><option value="kurz">Kürzeste zuerst</option></select></label></div>
+      <div class="fx-tiles" data-list>
+        <% for (const r of rows) { %>
+          <div class="fx-tile" tabindex="0" data-ref="<%= r.ref %>" data-item="<%= JSON.stringify(r) %>" data-name="<%= r.name.toLowerCase() %>" data-date="<%= r.date %>" data-len="<%= Math.round(r.duration || 0) %>">
+            <a class="fx-thumb" href="<%= r.open %>" aria-label="<%= r.name %> abspielen"><% if (r.thumb) { %><video muted playsinline preload="none" data-src="<%= r.thumb %>#t=<%= Math.max(1, Math.round((r.duration || 20) * 0.2)) %>"></video><% } else { %><span class="fx-nothumb" aria-hidden="true">🎬</span><% } %><span class="fx-play" aria-hidden="true">▶</span><% if (r.duration) { %><span class="fx-len"><%= fmtLen(r.duration) %></span><% } %></a>
+            <div class="fx-tname" title="<%= r.name %>"><%= r.name %></div>
+            <small class="muted"><%= fmtDate(r.date) %><%= r.size ? ' · ' + fmtSize(r.size) : '' %></small>
+          </div>
+        <% } %>
+      </div>
       <% } else { %>
       <table class="list ex-list fx-list" data-list>
         <thead><tr><% cols.forEach((c, i) => { %><th data-sort="<%= i %>"<%- ['Größe', 'Länge', '⬇', 'Titel'].includes(c) ? ' class="num"' : '' %>><%= c %></th><% }) %></tr></thead>

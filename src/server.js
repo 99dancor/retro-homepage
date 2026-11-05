@@ -75,6 +75,9 @@ app.use((req, res, next) => {
     maintOn: getSetting('maint_on', '0') === '1',
     // Design ohne eigene Wahl (Seitenverwaltung → Design): 98, xp, xp-oliv oder xp-silber; display.js liest es aus <html data-design>
     siteDesign: getSetting('theme_design', '98'),
+    // Skin des Mediaplayers für sein Symbol (<html data-mp-skin>, retro.css .sym-player): eigene Wahl am Konto, sonst die
+    // Vorgabe der Seite. Gäste haben ihre Wahl im Browser, display.js übernimmt sie dann.
+    playerSkin: (req.user && require('./usersettings').get(req.user.id, 'player').skin) || getSetting('music_skin', 'klassisch'),
     // Anmeldebildschirm bei jedem Laden des Desktops (views/partials/logon.ejs, public/logon.js), abschaltbar in der Seitenverwaltung
     logonScreen: getSetting('logon_screen', '1') === '1',
     programs: require('./programs'),

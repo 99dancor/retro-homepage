@@ -4,7 +4,7 @@
   'use strict';
   var root = document.getElementById('files-ex');
   if (!root) return;
-  var rows = [].slice.call(root.querySelectorAll('tr[data-ref]'));
+  var rows = [].slice.call(root.querySelectorAll('tr[data-ref], .fx-tile[data-ref]'));
   var det = root.querySelector('[data-det]'), detStart = det ? det.innerHTML : '';
   var statusEl = root.querySelector('[data-status]'), statusText = statusEl ? statusEl.textContent : '';
   var sel = null;
@@ -68,22 +68,26 @@
     else if (what === 'edit' && r.edit) openUrl(r.edit);
   }
 
+  // Öffnen: Titel im Mediaplayer, Videodateien (Kacheln) im Betrachter, sonst herunterladen
+  function how(el) { var r = item(el) || {}; return r.play ? 'play' : el.classList.contains('fx-tile') && r.view ? 'view' : 'dl'; }
+
   // Mit der Maus wählt ein Klick aus und ein Doppelklick öffnet; auf dem Handy öffnet schon das Antippen
   var touch = false;
   root.addEventListener('pointerdown', function (e) { touch = e.pointerType !== 'mouse'; }, true);
   rows.forEach(function (el) {
     el.addEventListener('click', function (e) {
       var a = e.target.closest('a');
-      if (touch && a) { e.preventDefault(); select(el); act(item(el).play ? 'play' : 'dl'); return; }
+      if (touch && a) { e.preventDefault(); select(el); act(how(el)); return; }
       if (a) e.preventDefault();
       select(el);
     });
-    el.addEventListener('dblclick', function () { select(el); act(item(el).play ? 'play' : 'dl'); });
+    el.addEventListener('dblclick', function () { select(el); act(how(el)); });
     el.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); act(item(el).play ? 'play' : 'dl'); }
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (e.key === 'Enter') { e.preventDefault(); act(how(el)); }
+      if (/^Arrow(Down|Up|Left|Right)$/.test(e.key)) {
+        if (/Left|Right/.test(e.key) && !el.classList.contains('fx-tile')) return;
         e.preventDefault();
-        var vis = rows.filter(function (r) { return !r.hidden; }), i = vis.indexOf(el) + (e.key === 'ArrowDown' ? 1 : -1);
+        var vis = [].slice.call(root.querySelectorAll('[data-ref]')).filter(function (r) { return !r.hidden; }), i = vis.indexOf(el) + (/Down|Right/.test(e.key) ? 1 : -1);
         if (vis[i]) { vis[i].focus(); select(vis[i]); }
       }
     });
@@ -116,6 +120,33 @@
       th.setAttribute('aria-sort', d > 0 ? 'ascending' : 'descending');
     });
   });
+
+  // Kacheln (Privat → Videos): Vorschaubild erst laden, wenn die Kachel ins Bild kommt; mit der Maus darüber läuft das Video stumm an
+  var tiles = root.querySelector('.fx-tiles');
+  if (tiles) {
+    var load = function (v) { if (!v.src && v.dataset.src) { v.preload = 'metadata'; v.src = v.dataset.src; } };
+    var vids = [].slice.call(tiles.querySelectorAll('video[data-src]'));
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (es) { es.forEach(function (x) { if (x.isIntersecting) { load(x.target); io.unobserve(x.target); } }); }, { root: tiles.closest('.fx-pane'), rootMargin: '200px' });
+      vids.forEach(function (v) { io.observe(v); });
+    } else vids.forEach(load);
+    tiles.addEventListener('mouseover', function (e) {
+      var t = e.target.closest('.fx-thumb'), v = t && t.querySelector('video');
+      if (!v || v.dataset.hover) return;
+      v.dataset.hover = '1'; load(v); v.play().catch(function () {});
+      t.addEventListener('mouseleave', function out() { t.removeEventListener('mouseleave', out); delete v.dataset.hover; v.pause(); }, { once: true });
+    });
+    var ts = root.querySelector('[data-fx=tsort]');
+    if (ts) ts.addEventListener('change', function () {
+      var k = ts.value;
+      rows.slice().sort(function (a, b) {
+        if (k === 'name') return a.dataset.name.localeCompare(b.dataset.name, 'de');
+        if (k === 'lang') return b.dataset.len - a.dataset.len;
+        if (k === 'kurz') return a.dataset.len - b.dataset.len;
+        return b.dataset.date - a.dataset.date;
+      }).forEach(function (r) { tiles.appendChild(r); });
+    });
+  }
 
   // Sofort filtern beim Tippen; Enter schickt die Suche über alle Bereiche ab
   var filter = root.querySelector('[data-fx=filter]');

@@ -104,6 +104,19 @@ button.mp-track:disabled { cursor: default; }
 .mp-kind { background: #3a6fc7; color: #fff; padding: 0 4px; font-size: 10px; white-space: nowrap; border-radius: 2px; }
 .mp-kind.video { background: #5a2d82; }
 .mp-kind.yt { background: #c00; }
+.mp-kind.radio { background: #d47500; }
+/* Privat: Videos als Kacheln (public/music.js renderTiles) */
+.mp-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; padding: 8px; }
+.mp-tile { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mp-tthumb { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; padding: 0; min-height: 0; background: #000; overflow: hidden; border: 0; cursor: pointer; }
+.mp-tthumb video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.mp-tplay { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 14px; line-height: 32px; text-align: center; }
+.mp-tthumb:hover .mp-tplay { background: rgba(0,0,0,.8); }
+.mp-tlen { position: absolute; right: 4px; bottom: 4px; padding: 0 4px; background: rgba(0,0,0,.75); color: #fff; font-size: 11px; line-height: 15px; }
+.mp-tile.playing .mp-tthumb { outline: 2px solid var(--mp-sel, #3a6fc7); outline-offset: 1px; }
+.mp-tname { font-size: 12px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-tacts { display: flex; gap: 2px; }
+@media (max-width: 640px) { .mp-tiles { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; padding: 6px; } }
 .mp-empty { padding: 12px; margin: 0; }
 /* Wiedergabeliste */
 .mp-queue { display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; }

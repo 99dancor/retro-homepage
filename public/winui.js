@@ -6,7 +6,7 @@
   var doc = document;
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   // Symbol als HTML: Messenger und Kartenspiele sind Bilder (retro.css .sym-…, Gegenstück zu ico in src/programs.js)
-  var SYM = { '🌼': 'msgr', '🂡': 'karten' };
+  var SYM = { '🌼': 'msgr', '🂡': 'karten', '📀': 'player' };
   function ico(icon) { return SYM[icon] ? '<i class="sym sym-' + SYM[icon] + '" aria-hidden="true">' + icon + '</i>' : esc(icon); }
   function csrf() {
     var el = doc.querySelector('[data-csrf]');

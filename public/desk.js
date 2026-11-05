@@ -37,6 +37,7 @@
     var path = String(e.url || '').split(/[?#]/)[0];
     if (path === '/messenger') return '🌼';
     if (path === '/kartenspiele') return '🂡';
+    if (path === '/musik') return '📀';
     return e.icon || '📄';
   }
   function render() {

@@ -9,14 +9,16 @@ const cats = require('./filecats');
 const NEW_DAYS = 14;
 const VIS_LABEL = { public: '🌐 Öffentlich', members: '👥 Angemeldete', friends: '⭐ Nur Freunde', private: '🔒 Nur ich und der Admin', groups: '👪 Gruppen' };
 
+// Geladene Link-Vorschläge: „vorgeschlagen von …“ in den Details (rq_*)
+const REQ = 'LEFT JOIN users rq ON rq.id = {a}.requested_by';
 function visibleFiles(user) {
   const v = auth.visibilitySql(user, 'file', 'f');
-  return db.prepare(`SELECT f.*, u.username, u.display_name FROM files f LEFT JOIN users u ON u.id = f.uploader_id
+  return db.prepare(`SELECT f.*, u.username, u.display_name, rq.username AS rq_user, rq.display_name AS rq_name FROM files f LEFT JOIN users u ON u.id = f.uploader_id ${REQ.replace('{a}', 'f')}
                      WHERE ${v.sql} ORDER BY f.created_at DESC`).all(...v.params);
 }
 function visibleTracks(user) {
   const v = auth.visibilitySql(user, 'track', 't');
-  return db.prepare(`SELECT t.*, u.username, u.display_name FROM tracks t LEFT JOIN users u ON u.id = t.uploader_id
+  return db.prepare(`SELECT t.*, u.username, u.display_name, rq.username AS rq_user, rq.display_name AS rq_name FROM tracks t LEFT JOIN users u ON u.id = t.uploader_id ${REQ.replace('{a}', 't')}
                      WHERE ${v.sql} AND t.kind IN ('audio', 'video') AND t.stored_name IS NOT NULL AND t.stored_name != ''
                      ORDER BY t.artist COLLATE NOCASE, t.title COLLATE NOCASE`).all(...v.params);
 }
@@ -28,6 +30,8 @@ function visiblePlaylists(user) {
 }
 
 const by = r => (r.username ? r.display_name || r.username : null);
+// Herkunft: hochgeladen oder über einen Link geladen (vorgeschlagen von …)
+const origin = r => (r.source_url ? { source: r.source_url, requestedBy: r.rq_user ? r.rq_name || r.rq_user : '' } : {});
 
 function fileRow(f, user, list) {
   const mine = !!user && f.uploader_id === user.id;
@@ -36,7 +40,7 @@ function fileRow(f, user, list) {
     group: f.category, cat: f.category, game: f.game || '', desc: f.description || '', size: f.size, date: f.created_at, by: by(f), byUser: f.username || '',
     vis: f.visibility, visLabel: VIS_LABEL[f.visibility] || '', downloads: f.downloads,
     dl: '/files/dl/' + f.id, view: '/ansehen/datei/' + f.id,
-    edit: user && user.isAdmin ? '/admin/files/' + f.id : mine ? '/eigene-dateien?bib=datei' : '',
+    edit: user && user.isAdmin ? '/admin/files/' + f.id : mine ? '/eigene-dateien?bib=datei' : '', privat: !!f.privat, ...origin(f),
   };
 }
 function trackRow(t, user) {
@@ -46,7 +50,7 @@ function trackRow(t, user) {
     group: video ? 'Videos' : 'Musik', artist: t.artist || '', album: t.album || '', duration: t.duration || 0,
     size: t.size, date: t.created_at, by: by(t), byUser: t.username || '', vis: t.visibility, visLabel: VIS_LABEL[t.visibility] || '', plays: t.plays,
     dl: '/musik/stream/' + t.id + '?dl=1', play: '/musik?titel=' + t.id,
-    edit: user && user.isAdmin ? '/admin/musik/' + t.id : mine ? '/eigene-dateien?bib=titel' : '',
+    edit: user && user.isAdmin ? '/admin/musik/' + t.id : mine ? '/eigene-dateien?bib=titel' : '', privat: !!t.privat, ...origin(t),
   };
 }
 function playlistRow(p, user) {
@@ -57,11 +61,14 @@ function playlistRow(p, user) {
   };
 }
 
-// Knoten im Baum: alle, neu, musik, videos, playlists oder k:<Kategorie>
+// Knoten im Baum: alle, neu, musik, videos, playlists, privat (nur mit Recht) oder k:<Kategorie>
+// Der Bereich Privat steht nur unter seinem eigenen Knoten, nie in Alle, Neu, Mediathek oder der Suche.
 function build(user, node, q = '') {
   const list = cats.list();
-  const files = visibleFiles(user).map(f => fileRow(f, user, list));
-  const tracks = visibleTracks(user).map(t => trackRow(t, user));
+  const allFiles = visibleFiles(user).map(f => fileRow(f, user, list));
+  const allTracks = visibleTracks(user).map(t => trackRow(t, user));
+  const files = allFiles.filter(r => !r.privat), tracks = allTracks.filter(r => !r.privat);
+  const privat = user && user.canPrivate ? [...allTracks, ...allFiles].filter(r => r.privat).sort((a, b) => b.date - a.date) : [];
   const playlists = visiblePlaylists(user).map(p => playlistRow(p, user));
   const music = tracks.filter(t => t.type === 'audio'), videos = tracks.filter(t => t.type === 'video');
   const since = now() - NEW_DAYS * 86400;
@@ -79,6 +86,7 @@ function build(user, node, q = '') {
   else if (node === 'musik') { rows = music; title = 'Musik'; icon = '🎵'; mode = 'media'; }
   else if (node === 'videos') { rows = videos; title = 'Videos'; icon = '🎬'; mode = 'media'; }
   else if (node === 'playlists') { rows = playlists; title = 'Playlists'; icon = '📋'; mode = 'playlists'; }
+  else if (node === 'privat' && user && user.canPrivate) { rows = privat; title = 'Privat'; icon = '🔞'; mode = 'mixed'; }
   else if (node && node.startsWith('k:') && catNodes.some(c => c.key === node)) {
     const c = catNodes.find(x => x.key === node);
     rows = byCat[c.label] || []; title = c.label; icon = c.icon; mode = 'files';
@@ -86,7 +94,8 @@ function build(user, node, q = '') {
 
   return {
     node, title, icon, mode, rows,
-    tree: { all: files.length, fresh: fresh.length, music: music.length, videos: videos.length, playlists: playlists.length, cats: catNodes, loggedIn: !!user },
+    tree: { all: files.length, fresh: fresh.length, music: music.length, videos: videos.length, playlists: playlists.length, cats: catNodes, loggedIn: !!user,
+      privat: user && user.canPrivate ? privat.length : null },
   };
 }
 

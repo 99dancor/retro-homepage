@@ -1,0 +1,48 @@
+<%- include('../partials/head') %>
+<%- include('../partials/files-tabs', { ftCur: 'vorschlaege' }) %>
+<%# Link-Vorschläge (src/routes/admin-linkreq.js): offen, laufend, erledigt; oben selbst einen Link hinzufügen %>
+<% if (!jdReady) { %><div class="msg">ℹ JDownloader ist noch nicht verbunden. Vorschläge werden gesammelt; prüfen und laden geht, sobald du ihn unter <a href="/admin/files/regeln#verbindung">Regeln und Verbindung</a> eingerichtet hast.</div><% } %>
+<details class="groupbox lr-add"<%= list.length ? '' : ' open' %>>
+  <summary><b>➕ Selbst einen Link hinzufügen</b> <small class="muted">(die Regeln gelten auch für dich)</small></summary>
+  <form method="post" action="/admin/files/vorschlaege/hinzufuegen">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Link(s), einer pro Zeile:<textarea name="urls" class="w100 lr-urls" rows="2" required spellcheck="false" placeholder="https://www.youtube.com/playlist?list=…"></textarea></label>
+    <div class="row" style="gap:10px;align-items:end">
+      <label style="flex:1;min-width:140px">Art:<select name="kind" class="w100"><option value="">automatisch erkennen</option><% for (const [k, v] of Object.entries(kinds)) { %><option value="<%= k %>"><%= v.icon %> <%= v.label %></option><% } %></select></label>
+      <label style="flex:1;min-width:140px">Playlist als:<select name="mode" class="w100"><option value="audio">🎵 Nur Ton</option><option value="video">🎬 Videos</option></select></label>
+      <label style="flex:1;min-width:160px">Name (Playlist, optional):<input type="text" name="title" class="w100" maxlength="120"></label>
+      <label style="flex:1;min-width:160px">Sichtbar für:<select name="visibility" class="w100"><option value="members">👥 Angemeldete</option><option value="public">🌐 Alle (öffentlich)</option><option value="friends">⭐ Meine Freunde</option><option value="private">🔒 Nur ich</option></select></label>
+    </div>
+    <div class="actions"><label class="lr-chk" style="display:inline-flex"><input type="checkbox" name="start" value="1" checked> Nach dem Prüfen gleich laden</label> <button type="submit"><b>Hinzufügen</b></button></div>
+  </form>
+</details>
+<div class="lr-filter" role="tablist">
+  <% for (const [k, l] of Object.entries(FILTERS)) { %><a class="btn small" href="?f=<%= k %>"<%- f === k ? ' aria-current="page" style="font-weight:bold"' : '' %>><%= l %> (<%= lrCounts[k] %>)</a><% } %>
+</div>
+<% if (!list.length) { %><p class="muted"><%= f === 'offen' ? 'Keine offenen Vorschläge.' : f === 'laufend' ? 'Gerade lädt nichts.' : 'Noch nichts erledigt.' %></p><% } else { %>
+<table class="list lr-table">
+  <thead><tr><th></th><th>Link</th><th>Von</th><th class="num">Größe</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  <% for (const r of list) { %>
+  <tr>
+    <td title="<%= r.kindLabel %>" style="font-size:18px"><%= r.kindIcon %></td>
+    <td><a href="/admin/files/vorschlaege/<%= r.id %>"><b><%= r.title || r.host || 'Link' %></b></a> <small class="muted"><%= r.kindLabel %><%= r.kind === 'playlist' ? (r.mode === 'video' ? ', Videos' : ', nur Ton') : '' %></small>
+      <div class="lr-url muted"><%= r.url %></div><% if (r.note) { %><div><small>💬 „<%= r.note %>“</small></div><% } %></td>
+    <td><%= r.username ? (r.display_name || r.username) : '–' %><br><small class="muted"><%= fmtDate(r.created_at, true) %></small></td>
+    <td class="num"><%= r.bytes_total ? fmtSize(r.bytes_total) : '–' %></td>
+    <td><%= r.statusIcon %> <%= r.statusLabel %><% if (r.active && r.bytes_total) { %><br><span class="up-bar" style="width:90px"><i style="width:<%= r.pct %>%"></i></span> <small><%= r.pct %> %</small><% } %><% if (r.reason) { %><br><small class="lr-why"><%= r.reason %></small><% } %></td>
+    <td style="white-space:nowrap">
+      <% if (r.status === 'checked' && !r.usable) { %><small class="lr-why">nichts passt zu den Regeln</small><br>
+      <% } else if (r.status === 'checked') { %>
+        <form method="post" action="/admin/files/vorschlaege/<%= r.id %>/genehmigen" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="liste"><button type="submit" class="small"><b>✔ Genehmigen</b></button></form>
+      <% } else if (r.status === 'new' && jdReady) { %>
+        <form method="post" action="/admin/files/vorschlaege/<%= r.id %>/pruefen" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="liste"><button type="submit" class="small">🔍 Prüfen</button></form>
+      <% } %>
+      <a class="btn small" href="/admin/files/vorschlaege/<%= r.id %>"><%= r.open ? 'Ansehen' : 'Details' %></a>
+    </td>
+  </tr>
+  <% } %>
+  </tbody>
+</table>
+<% } %>
+<%- include('../partials/foot') %>

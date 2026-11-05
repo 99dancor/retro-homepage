@@ -37,7 +37,7 @@ router.get('/nutzer/:name', (req, res) => {
   if (visible) {
     const view = us.profileView(u.id, me, p.gameStats(u.id, me), preview);
     const boardOpen = getSetting('board_enabled') === '1' && (getSetting('board_members_only') !== '1' || me);
-    const tv = auth.visibilitySql(me, 'track', 't');
+    const tv = auth.visibilitySql(me, 'track', 't', { noPrivat: true });
     const both = me && !preview && me.id !== u.id;
     Object.assign(data, {
       friends: p.friendsOf(u.id),

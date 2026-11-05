@@ -1,6 +1,6 @@
 <%# Seitenverwaltung 2.0: Baum wie in der Computerverwaltung (src/adminnav.js). Die Gruppe der offenen Seite ist aufgeklappt,
     die anderen klappt [+] auf (public/admin.js merkt sich das). Am Handy wird der Baum zur Auswahlliste. %>
-<% const nav = adminNav.current(path), badge = k => k === 'inbox' ? counts.inbox : k === 'down' ? counts.down : k === 'popups' ? counts.popups : 0; %>
+<% const nav = adminNav.current(path), badge = k => k === 'inbox' ? counts.inbox : k === 'down' ? counts.down : k === 'popups' ? counts.popups : k === 'links' ? counts.links : 0; %>
 <nav class="sv-tree" aria-label="Seitenverwaltung">
   <ul role="tree">
     <li role="treeitem" aria-expanded="true"><span class="sv-root">⚙️ <b><%= site.title %></b></span>

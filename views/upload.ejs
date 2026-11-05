@@ -5,9 +5,13 @@
   const visOpts = [['members', '👥 Alle angemeldeten Nutzer'], ['public', '🌐 Alle (öffentlich)'], ['friends', '⭐ Nur meine Freunde'], ['private', '🔒 Nur ich und der Admin']];
 %>
 <div class="tabs up-tabs" role="tablist">
-  <button type="button" aria-selected="true">📤 Datei hochladen</button>
+  <% if (user.canUpload) { %><% if (tab === 'datei') { %><button type="button" role="tab" aria-selected="true">📤 Datei hochladen</button><% } else { %><a class="btn" role="tab" href="/files/upload<%= folder ? '?ordner=' + folder.id : '' %>">📤 Datei hochladen</a><% } %><% } %>
+  <% if (canSuggest) { %><% if (tab === 'link') { %><button type="button" role="tab" aria-selected="true">🔗 Link vorschlagen</button><% } else { %><a class="btn" role="tab" href="/files/upload?tab=link">🔗 Link vorschlagen</a><% } %><% } %>
   <% if (user.isAdmin) { %><a class="btn" role="tab" href="/admin/files#eingang">📥 Netzwerkordner<%= imports ? ' (' + imports + ')' : '' %></a><% } %>
 </div>
+<% if (tab === 'link') { %>
+<%- include('partials/link-form') %>
+<% } else { %>
 <div class="up-page">
 <% if (msg) { %><div class="msg">✔ <%= msg %> <a href="/files">Zu den Downloads</a><% if (folder) { %> · <a href="/eigene-dateien?ordner=<%= folder.id %>">Zum Ordner „<%= folder.name %>“</a><% } %></div><% } %>
 <% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
@@ -42,4 +46,5 @@
 </form>
 </div>
 <script src="<%= asset('upload.js') %>" defer></script>
+<% } %>
 <%- include('partials/foot') %>

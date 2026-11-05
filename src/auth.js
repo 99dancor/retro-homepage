@@ -37,12 +37,13 @@ function loadUser(req, res, next) {
   req.user = null;
   const sid = req.cookies.sid;
   if (sid) {
-    const u = db.prepare(`SELECT u.id, u.username, u.display_name, u.avatar, u.role, u.disabled, u.can_upload FROM sessions s JOIN users u ON u.id = s.user_id
+    const u = db.prepare(`SELECT u.id, u.username, u.display_name, u.avatar, u.role, u.disabled, u.can_upload, u.can_private, u.jd_trusted FROM sessions s JOIN users u ON u.id = s.user_id
                           WHERE s.id = ? AND s.expires > ?`).get(sid, now());
     if (u && !u.disabled) {
       u.groups = db.prepare('SELECT group_id FROM user_groups WHERE user_id = ?').all(u.id).map(r => r.group_id);
       u.isAdmin = u.role === 'admin';
       u.canUpload = u.isAdmin || !!u.can_upload;
+      u.canPrivate = u.isAdmin || !!u.can_private;
       u.name = u.display_name || u.username;
       req.user = u;
     }
@@ -91,6 +92,7 @@ function isFriend(a, b) {
 }
 function canSee(user, type, item) {
   if (!item) return false;
+  if (item.privat && PRIVAT_TYPES.includes(type) && !(user && user.canPrivate)) return false;
   if (user && user.isAdmin) return true;
   if (user && item.uploader_id && item.uploader_id === user.id) return true;
   if (user && OWNER[type] && item[OWNER[type]] === user.id) return true;
@@ -109,9 +111,17 @@ function canSee(user, type, item) {
 }
 
 // SQL-Fragment für Listen, das nur sichtbare Einträge liefert.
-function visibilitySql(user, type, alias) {
-  if (user && user.isAdmin) return { sql: '1=1', params: [] };
-  if (!user) return { sql: `${alias}.visibility = 'public'`, params: [] };
+// Bereich „Privat“ (Link-Vorschläge der Art privat): nur Konten mit can_private sehen ihn; Listen wie Startseite, Suche
+// und Profil lassen ihn mit { noPrivat: true } für alle weg.
+const PRIVAT_TYPES = ['file', 'track', 'playlist'];
+function privatSql(user, type, alias, opts) {
+  if (!PRIVAT_TYPES.includes(type)) return '';
+  return opts.noPrivat || !(user && user.canPrivate) ? ` AND ${alias}.privat = 0` : '';
+}
+function visibilitySql(user, type, alias, opts = {}) {
+  const pv = privatSql(user, type, alias, opts);
+  if (user && user.isAdmin) return { sql: '1=1' + pv, params: [] };
+  if (!user) return { sql: `${alias}.visibility = 'public'` + pv, params: [] };
   const owner = OWNER[type], me = Number(user.id);
   const own = owner ? `${alias}.${owner} = ${me} OR ` : '';
   const friends = owner ? ` OR (${alias}.visibility = 'friends' AND EXISTS (SELECT 1 FROM friends fr WHERE fr.accepted = 1 AND
@@ -119,7 +129,7 @@ function visibilitySql(user, type, alias) {
   return {
     sql: `(${own}${alias}.visibility IN ('public','members')${friends} OR (${alias}.visibility = 'groups' AND EXISTS (
             SELECT 1 FROM acl a JOIN user_groups ug ON ug.group_id = a.group_id
-            WHERE a.item_type = ? AND a.item_id = ${alias}.id AND ug.user_id = ?)))`,
+            WHERE a.item_type = ? AND a.item_id = ${alias}.id AND ug.user_id = ?)))${pv}`,
     params: [type, user.id],
   };
 }

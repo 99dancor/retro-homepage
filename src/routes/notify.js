@@ -77,6 +77,8 @@ router.get('/manifest.webmanifest', (req, res) => {
     name: getSetting('site_title'), short_name: getSetting('site_title'), start_url: '/', scope: '/', display: 'standalone',
     background_color: '#008080', theme_color: '#000080',
     icons: [{ src: '/static/icon.png', sizes: '256x256', type: 'image/png' }, { src: '/static/icon.svg', sizes: 'any', type: 'image/svg+xml' }],
+    // Teilen vom Handy (z. B. YouTube-App → Teilen): öffnet „Link vorschlagen“ mit dem Link (src/routes/linkreq.js)
+    share_target: { action: '/files/teilen', method: 'GET', params: { title: 'title', text: 'text', url: 'url' } },
   });
 });
 

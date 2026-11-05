@@ -15,6 +15,8 @@ const APPS_DIR = path.join(DATA_DIR, 'apps');
 const MUSIC_DIR = path.join(DATA_DIR, 'musik');
 const AVATAR_DIR = path.join(DATA_DIR, 'avatare');
 const PAINT_DIR = path.join(DATA_DIR, 'paint');
+// Der Ordner, den JDownloader beschreibt (im Container eingehängt, siehe README → JDownloader)
+const JD_DIR = path.resolve(process.env.JD_DIR || path.join(DATA_DIR, 'jd'));
 for (const d of [UPLOAD_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR, AVATAR_DIR, PAINT_DIR]) fs.mkdirSync(d, { recursive: true });
 fs.mkdirSync(IMPORT_DIR, { recursive: true });
 try { fs.chmodSync(IMPORT_DIR, 0o777); } catch { /* Netzwerkfreigabe darf hineinkopieren */ }
@@ -920,6 +922,57 @@ addColumn('friends', 'note', 'TEXT');                                // kurzer S
 addColumn('private_messages', 'kind', "TEXT NOT NULL DEFAULT 'text'"); // text | nudge (Anstupsen) | invite (Einladung)
 addColumn('private_messages', 'meta', 'TEXT');                       // Einladung: JSON mit Ziel
 addColumn('users', 'password_hint', 'TEXT');                          // Kennworthinweis (Anmeldebildschirm)
+// Link-Vorschläge und JDownloader (src/linkreq.js, src/jdownloader.js): Mitglieder schlagen Links vor, der Admin prüft
+// und genehmigt, JDownloader lädt nur die erlaubten Dateien, die Seite sortiert sie ein.
+db.exec(`
+CREATE TABLE IF NOT EXISTS link_requests (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,  -- wer vorgeschlagen hat (leer = Konto gelöscht)
+  url TEXT NOT NULL,                       -- ein Link pro Vorschlag
+  kind TEXT NOT NULL DEFAULT 'musik',      -- musik | video | playlist | datei | privat
+  mode TEXT NOT NULL DEFAULT 'audio',      -- Playlist: audio (nur Ton) | video
+  title TEXT,                              -- Wunschname (Playlist) oder erkannter Titel
+  note TEXT,                               -- Notiz an den Admin
+  visibility TEXT NOT NULL DEFAULT 'members',
+  status TEXT NOT NULL DEFAULT 'new',      -- new | checking | checked | queued | loading | sorting | done | rejected | failed | withdrawn
+  reason TEXT,                             -- Ablehnungsgrund oder Fehler
+  auto INTEGER NOT NULL DEFAULT 0,         -- nach dem Prüfen von selbst starten (Admin-Link, vertrauenswürdiges Konto)
+  bytes_total INTEGER NOT NULL DEFAULT 0,
+  bytes_done INTEGER NOT NULL DEFAULT 0,
+  speed INTEGER NOT NULL DEFAULT 0,
+  eta INTEGER NOT NULL DEFAULT 0,
+  result TEXT,                             -- JSON: { playlist, tracks: [ids], files: [ids], skipped }
+  decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS link_requests_status ON link_requests(status);
+CREATE TABLE IF NOT EXISTS link_items (
+  id INTEGER PRIMARY KEY,
+  request_id INTEGER NOT NULL REFERENCES link_requests(id) ON DELETE CASCADE,
+  pos INTEGER NOT NULL,                    -- Reihenfolge wie in der Quelle (Playlist)
+  jd_link INTEGER,                         -- UUID des Links im Linksammler
+  name TEXT NOT NULL,
+  url TEXT,
+  size INTEGER NOT NULL DEFAULT 0,
+  variant TEXT,                            -- gewählte Variante (z. B. „M4A 128 kbit/s“)
+  variant_id TEXT,
+  chosen INTEGER NOT NULL DEFAULT 0,       -- 1 = wird geladen
+  note TEXT,                               -- warum nicht (Regel, schon vorhanden, nicht abrufbar)
+  existing_track INTEGER                   -- gibt es schon: kommt trotzdem in die Playlist
+);
+CREATE INDEX IF NOT EXISTS link_items_request ON link_items(request_id);
+`);
+addColumn('users', 'can_private', 'INTEGER NOT NULL DEFAULT 0');      // darf den Bereich „Privat“ sehen (vergibt nur der Admin)
+addColumn('users', 'jd_trusted', 'INTEGER NOT NULL DEFAULT 0');       // Link-Vorschläge ohne Prüfung genehmigen (innerhalb der Regeln)
+for (const t of ['files', 'tracks']) {
+  addColumn(t, 'source_url', 'TEXT');                                 // Herkunft: geladener Link
+  addColumn(t, 'source_id', 'TEXT');                                  // z. B. youtube:<id>, damit nichts doppelt geladen wird
+  addColumn(t, 'requested_by', 'INTEGER REFERENCES users(id) ON DELETE SET NULL');
+  addColumn(t, 'privat', 'INTEGER NOT NULL DEFAULT 0');               // Bereich „Privat“: nur für Konten mit can_private
+}
+addColumn('playlists', 'source_url', 'TEXT');
+addColumn('playlists', 'privat', 'INTEGER NOT NULL DEFAULT 0');
 // Seit den Kategorien gibt es keine Felder Version und optional mehr: beides wandert in die Bemerkung
 db.exec(`UPDATE mod_items SET notes = trim(
     CASE WHEN required = 0 THEN 'optional' ELSE '' END ||
@@ -1160,4 +1213,4 @@ function tx(fn) {
   catch (e) { db.exec('ROLLBACK'); throw e; }
 }
 
-module.exports = { db, now, getSetting, setSetting, tx, DATA_DIR, UPLOAD_DIR, IMPORT_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR, AVATAR_DIR, PAINT_DIR };
+module.exports = { db, now, getSetting, setSetting, tx, DATA_DIR, UPLOAD_DIR, IMPORT_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR, AVATAR_DIR, PAINT_DIR, JD_DIR };

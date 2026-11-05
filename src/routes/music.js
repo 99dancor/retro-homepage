@@ -54,7 +54,8 @@ function trackRow(t, user) {
     mine: !!user && t.uploader_id === user.id,
     canEdit: !!user && (user.isAdmin || t.uploader_id === user.id),
     // In Lobbys hören nur angemeldete Mitglieder: dafür muss der Titel für alle Mitglieder sichtbar sein
-    shareable: t.visibility === 'public' || t.visibility === 'members',
+    shareable: !t.privat && (t.visibility === 'public' || t.visibility === 'members'),
+    privat: !!t.privat,
   };
 }
 
@@ -243,7 +244,7 @@ router.get('/lobby/:id/events', lobbyGate, loadLobby, (req, res) => {
 // Lieder hinzufügen: eigene Titel und Playlists (für alle Mitglieder sichtbar) oder YouTube-Videos
 async function itemsFor(req) {
   const b = req.body, u = req.user;
-  const tv = auth.visibilitySql(u, 'track', 't');
+  const tv = auth.visibilitySql(u, 'track', 't', { noPrivat: true });   // Privates nie in Lobbys
   const visible = id => db.prepare(`SELECT t.* FROM tracks t WHERE t.id = ? AND ${tv.sql}`).get(Number(id), ...tv.params);
   // Gespeicherte YouTube-Links spielen in der Lobby wie eingefügte Links, Videos wie Musik über den eigenen Server
   const local = t => (t.kind === 'youtube'

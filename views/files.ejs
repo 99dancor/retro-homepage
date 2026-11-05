@@ -15,7 +15,9 @@
   <div class="ex-toolbar" role="toolbar">
     <button type="button" class="small" data-fx="back" title="Zurück">⬅ Zurück</button>
     <span class="ex-sep"></span>
-    <% if (canAdd) { %><a class="btn small" href="/files/upload"><b>📤 Hinzufügen</b></a><span class="ex-sep"></span><% } %>
+    <% if (canAdd) { %><a class="btn small" href="/files/upload"><b>📤 Hinzufügen</b></a><% } %>
+    <% if (canSuggest) { %><a class="btn small" href="/files/upload?tab=link">🔗 Link vorschlagen</a><% } %>
+    <% if (canAdd || canSuggest) { %><span class="ex-sep"></span><% } %>
     <button type="button" class="small" data-fx="play" disabled>▶ Im Mediaplayer</button>
     <button type="button" class="small" data-fx="dl" disabled>⬇ Herunterladen</button>
     <button type="button" class="small" data-fx="edit" disabled>ℹ Eigenschaften</button>
@@ -42,12 +44,14 @@
                 <li><a href="<%= nodeUrl('videos') %>" class="ex-node<%= cur('videos') %>">🎬 Videos <small>(<%= tree.videos %>)</small></a></li>
                 <% if (tree.loggedIn) { %><li><a href="<%= nodeUrl('playlists') %>" class="ex-node<%= cur('playlists') %>">📋 Playlists <small>(<%= tree.playlists %>)</small></a></li><% } %>
               </ul></li>
+            <% if (tree.privat !== null) { %><li><a href="<%= nodeUrl('privat') %>" class="ex-node<%= cur('privat') %>">🔞 Privat <small>(<%= tree.privat %>)</small></a></li><% } %>
             <li class="ex-group">📦 Dateien
               <ul><% for (const c of tree.cats) { %>
                 <li><a href="<%= nodeUrl(c.key) %>" class="ex-node<%= cur(c.key) %>"><%= c.icon %> <%= c.label %> <small>(<%= c.n %>)</small></a></li>
               <% } %></ul></li>
           </ul></li>
         <% if (user) { %><li class="fx-mine"><a href="/eigene-dateien" class="ex-node">🗂️ Eigene Dateien</a></li><% } %>
+        <% if (canSuggest) { %><li><a href="/files/vorschlaege" class="ex-node">🔗 Meine Vorschläge<% if (mySuggestions) { %> <small>(<%= mySuggestions %>)</small><% } %></a></li><% } %>
       </ul>
     </nav>
     <div class="ex-pane fx-pane">

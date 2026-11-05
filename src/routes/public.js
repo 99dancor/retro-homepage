@@ -61,7 +61,7 @@ function feed(user, locals) {
     }
   }
   if (shown('files')) {
-    const v = auth.visibilitySql(user, 'file', 'f');
+    const v = auth.visibilitySql(user, 'file', 'f', { noPrivat: true });
     for (const f of db.prepare(`SELECT id, title, category, game, size, created_at FROM files f WHERE ${v.sql} ORDER BY created_at DESC LIMIT 6`).all(...v.params)) {
       out.push({ kind: 'files', icon: '📁', title: f.title, url: '/files', meta: ['Downloads', f.category, f.game, require('../util').fmtSize(f.size)].filter(Boolean).join(' · '), at: f.created_at });
     }
@@ -121,7 +121,10 @@ router.get('/blog/:slug', (req, res, next) => {
 // ---------- Dateien ----------
 router.get('/files', (req, res) => {
   const view = require('../filesview').build(req.user, String(req.query.ort || req.query.cat && 'k:' + req.query.cat || ''), req.query.q);
-  res.render('files', { ...view, title: view.node === 'alle' ? 'Downloads' : 'Downloads – ' + view.title, nodeTitle: view.title, q: String(req.query.q || ''), disk: req.user && req.user.isAdmin ? up.diskSpace() : null });
+  const lr = require('../linkreq'), canSuggest = lr.canSuggest(req.user);
+  const mySuggestions = canSuggest ? db.prepare("SELECT COUNT(*) AS n FROM link_requests WHERE user_id = ? AND status NOT IN ('done','rejected','withdrawn','failed')").get(req.user.id).n : 0;
+  res.render('files', { ...view, title: view.node === 'alle' ? 'Downloads' : 'Downloads – ' + view.title, nodeTitle: view.title, q: String(req.query.q || ''),
+    disk: req.user && req.user.isAdmin ? up.diskSpace() : null, canSuggest, mySuggestions });
 });
 
 router.get('/files/dl/:id', (req, res, next) => {
@@ -153,12 +156,24 @@ function uploadView(req, extra) {
     music: music.canUpload(req.user) ? { ext: [...new Set([...music.AUDIO_EXT, ...music.VIDEO_EXT])].map(e => e.slice(1)), video: music.VIDEO_EXT.map(e => e.slice(1)), mb: req.user.isAdmin ? 0 : music.MEMBER_FILE_MB } : null,
     games: db.prepare("SELECT DISTINCT game FROM files WHERE game IS NOT NULL AND game != '' ORDER BY game").all().map(r => r.game),
     imports: req.user.isAdmin ? up.listImports().length : 0,
+    ...linkView(req),
     ...extra,
   };
 }
+// Reiter „Link vorschlagen“ (src/linkreq.js): auch für Mitglieder ohne Upload-Recht, wenn die Regeln es erlauben
+function linkView(req) {
+  const lr = require('../linkreq'), canSuggest = lr.canSuggest(req.user), r = lr.rules();
+  const open = canSuggest ? db.prepare("SELECT COUNT(*) AS n FROM link_requests WHERE user_id = ? AND status IN ('new','checking','checked')").get(req.user.id).n : 0;
+  const tab = !req.user.canUpload || req.query.tab === 'link' ? 'link' : 'datei';
+  return {
+    tab, canSuggest, linkKinds: lr.allowedKinds(req.user).map(k => ({ key: k, ...lr.KINDS[k] })), linkOpen: open, linkMax: req.user.isAdmin ? null : r.maxOpen,
+    linkUrl: String(req.query.url || '').slice(0, 2000), linkErr: String(req.query.err || '').slice(0, 300), jdReady: require('../jdownloader').configured(),
+  };
+}
 router.get('/files/upload', auth.requireLogin, (req, res, next) => {
-  if (!req.user.canUpload) return next();
-  res.render('upload', uploadView(req));
+  const v = uploadView(req);
+  if (!req.user.canUpload && !v.canSuggest) return next();
+  res.render('upload', v);
 });
 function uploadFiles(req, res, next) {
   up.fileUpload.array('files')(req, res, err => {

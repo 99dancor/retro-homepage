@@ -84,7 +84,7 @@ function search(user, locals, query, perGroup = 3) {
     .all(...gv.params, like, like, lim).map(p => ({ icon: '📄', name: p.title, sub: snippet(p.body_md, q), url: '/p/' + p.slug })));
 
   if (!locals.navHidden.includes('files')) {
-    const fv = auth.visibilitySql(user, 'file', 'f');
+    const fv = auth.visibilitySql(user, 'file', 'f', { noPrivat: true });
     put('downloads', db.prepare(`SELECT * FROM files f WHERE ${fv.sql} AND (fold(title)${L} OR fold(description)${L} OR fold(original_name)${L} OR fold(game)${L})
                                  ORDER BY created_at DESC LIMIT ?`).all(...fv.params, like, like, like, like, lim)
       .map(f => ({ icon: desk.fileIcon(f.mime, f.original_name), name: f.title, sub: [f.category, f.game].filter(Boolean).join(' · '), url: '/ansehen/datei/' + f.id })));

@@ -33,6 +33,7 @@ router.use((req, res, next) => {
     popups: require('../popups').pendingCount(),
     down: require('../services').downCount(),
   };
+  c.links = db.prepare("SELECT COUNT(*) AS n FROM link_requests WHERE status IN ('new','checking','checked')").get().n;
   c.inbox = c.unread + c.pending + c.paint + c.popups;
   res.locals.counts = c;
   res.locals.adminNav = require('../adminnav');
@@ -134,6 +135,8 @@ router.post('/media/:id/delete', (req, res) => {
 });
 
 // ---------- Dateien ----------
+// Link-Vorschläge, Warteschlange und Regeln für JDownloader: src/routes/admin-linkreq.js
+router.use('/files', require('./admin-linkreq'));
 router.get('/files', (req, res) => res.render('admin/files', {
   title: 'Dateien', maxMb: up.MAX_MB, imports: up.listImports(), disk: up.diskSpace(), importMsg: req.query.imported || null,
   files: db.prepare('SELECT f.*, u.username FROM files f LEFT JOIN users u ON u.id = f.uploader_id ORDER BY created_at DESC').all(),
@@ -712,8 +715,8 @@ router.post('/users/:id', (req, res) => {
   const isSelf = id === req.user.id;
   if (b.password && !auth.validPassword(b.password)) return res.redirect(`/admin/users/${id}?err=` + encodeURIComponent('Passwort muss mindestens 8 Zeichen haben.'));
   tx(() => {
-    db.prepare('UPDATE users SET role = ?, disabled = ?, can_upload = ? WHERE id = ?').run(
-      isSelf ? 'admin' : (b.role === 'admin' ? 'admin' : 'user'), isSelf ? 0 : (b.disabled ? 1 : 0), b.can_upload ? 1 : 0, id);
+    db.prepare('UPDATE users SET role = ?, disabled = ?, can_upload = ?, can_private = ?, jd_trusted = ? WHERE id = ?').run(
+      isSelf ? 'admin' : (b.role === 'admin' ? 'admin' : 'user'), isSelf ? 0 : (b.disabled ? 1 : 0), b.can_upload ? 1 : 0, b.can_private ? 1 : 0, b.jd_trusted ? 1 : 0, id);
     if (b.password) {
       db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(auth.hashPassword(b.password), id);
       if (!isSelf) db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);

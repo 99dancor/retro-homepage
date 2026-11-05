@@ -1,0 +1,73 @@
+<%- include('../partials/head') %>
+<%- include('../partials/files-tabs', { ftCur: 'regeln' }) %>
+<%# Download-Regeln und Verbindung zu JDownloader (src/routes/admin-linkreq.js, src/linkreq.js) %>
+<% const fmtName = { m4a: 'M4A (AAC)', opus: 'Opus', mp3: 'MP3', mp4: 'MP4 (H.264)', webm: 'WebM' }; %>
+<form method="post" action="/admin/files/regeln">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox"><legend>🎵 Musik (auch Playlists „nur Ton“)</legend>
+    <label>Wunschreihenfolge, das erste vorhandene Format wird geladen:
+      <input type="text" name="musik_order" class="w100" value="<%= rules.musik.order.join(' > ') %>" placeholder="m4a > opus > mp3"></label>
+    <small class="muted">Möglich: <%= lists.audio.map(f => fmtName[f]).join(', ') %>. Immer die beste Tonspur, nie ein Video.</small>
+    <label>Erlaubte Endungen:<input type="text" name="musik_ext" class="w100" value="<%= rules.musik.ext %>"></label>
+  </fieldset>
+  <fieldset class="groupbox"><legend>🎬 Video (auch Playlists „Videos“)</legend>
+    <div class="row" style="gap:10px">
+      <label style="flex:2;min-width:180px">Wunschreihenfolge:<input type="text" name="video_order" class="w100" value="<%= rules.video.order.join(' > ') %>" placeholder="mp4 > webm"></label>
+      <label style="flex:1;min-width:120px">Höchstens:<select name="video_res" class="w100"><% for (const r of lists.res) { %><option value="<%= r %>"<%= r === rules.video.maxRes ? ' selected' : '' %>><%= r %>p</option><% } %></select></label>
+    </div>
+    <small class="muted">MP4 und WebM spielt jeder Browser ab. MKV landet nie im Mediaplayer.</small>
+    <label>Erlaubte Endungen:<input type="text" name="video_ext" class="w100" value="<%= rules.video.ext %>"></label>
+  </fieldset>
+  <fieldset class="groupbox"><legend>📦 Dateien</legend>
+    <div class="row" style="gap:10px">
+      <label style="flex:3;min-width:200px">Erlaubte Endungen:<input type="text" name="datei_ext" class="w100" value="<%= rules.datei.ext %>"></label>
+      <label style="flex:1;min-width:120px">Höchstens pro Datei (GB):<input type="number" name="datei_gb" class="w100" min="0.1" step="0.1" value="<%= rules.datei.maxGb %>"></label>
+    </div>
+    <small class="muted">Archive (ZIP, RAR) kommen als Datei in die Downloads; die Seite entpackt nichts. In JDownloader „Archive automatisch entpacken“ am besten ausschalten.</small>
+  </fieldset>
+  <fieldset class="groupbox"><legend>🔞 Privat</legend>
+    <div class="row" style="gap:10px">
+      <label style="flex:3;min-width:200px">Erlaubte Endungen:<input type="text" name="privat_ext" class="w100" value="<%= rules.privat.ext %>"></label>
+      <label style="flex:1;min-width:120px">Video höchstens:<select name="privat_res" class="w100"><% for (const r of lists.res) { %><option value="<%= r %>"<%= r === rules.privat.maxRes ? ' selected' : '' %>><%= r %>p</option><% } %></select></label>
+    </div>
+    <small class="muted">Nur Konten mit dem Recht „Privat“ (unter Konten und Gruppen) sehen diesen Bereich und dürfen dafür vorschlagen. Er taucht nirgends sonst auf: nicht auf der Startseite, in der Suche, im Laufband, in Musik-Lobbys oder im Profil.</small>
+  </fieldset>
+  <fieldset class="groupbox"><legend>⚖️ Grenzen und Freigabe</legend>
+    <div class="row" style="gap:10px">
+      <label style="flex:1;min-width:150px">Wer darf vorschlagen?<select name="who" class="w100">
+        <option value="members"<%= rules.who === 'members' ? ' selected' : '' %>>Alle angemeldeten Mitglieder</option>
+        <option value="upload"<%= rules.who === 'upload' ? ' selected' : '' %>>Nur mit Upload-Recht</option>
+        <option value="off"<%= rules.who === 'off' ? ' selected' : '' %>>Niemand (nur ich)</option></select></label>
+      <label style="flex:1;min-width:150px">Offene Vorschläge pro Mitglied:<input type="number" name="max_open" class="w100" min="1" max="100" value="<%= rules.maxOpen %>"></label>
+    </div>
+    <div class="row" style="gap:10px">
+      <label style="flex:1;min-width:150px">Höchstens pro Vorschlag (GB):<input type="number" name="max_req_gb" class="w100" min="0.1" step="0.1" value="<%= rules.maxReqGb %>"></label>
+      <label style="flex:1;min-width:150px">Danach mindestens frei (GB):<input type="number" name="min_free_gb" class="w100" min="0" step="1" value="<%= rules.minFreeGb %>"></label>
+      <label style="flex:1;min-width:150px">Vertrauenswürdige ohne Freigabe bis (GB):<input type="number" name="trusted_gb" class="w100" min="0" step="0.1" value="<%= rules.trustedMaxGb %>"></label>
+    </div>
+    <label class="lr-chk"><input type="checkbox" name="auto_check" value="1"<%= rules.autoCheck ? ' checked' : '' %>> Neue Vorschläge gleich prüfen (JDownloader schaut nur nach, was dahinter steckt, und lädt nichts)</label>
+    <small class="muted">Immer gesperrt, egal welche Regel: Programme und Skripte (exe, msi, bat, ps1, js, jar, apk, iso …) und die Sperrliste unter Kategorien. Nach dem Laden prüft die Seite jede Datei noch einmal auf den echten Dateityp; was nicht passt, kommt in die Quarantäne.</small>
+  </fieldset>
+  <div class="actions"><button type="submit"><b>Regeln speichern</b></button></div>
+</form>
+
+<form method="post" action="/admin/files/regeln/verbindung" id="verbindung">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox"><legend>🔌 Verbindung zu JDownloader</legend>
+    <p class="muted"><small>Die Seite spricht mit der lokalen Schnittstelle von JDownloader („Deprecated API“, Port 3128). Sie hat keine Anmeldung: Verbinde nur über ein gemeinsames Docker-Netz, nie über den Nginx Proxy Manager oder eine Portfreigabe. Die Anleitung steht in der README unter „JDownloader“.</small></p>
+    <div class="row" style="gap:10px">
+      <label style="flex:2;min-width:200px">Adresse:<input type="text" name="jd_url" class="w100" value="<%= jdUrl %>" placeholder="http://jdownloader2:3128" spellcheck="false"></label>
+      <label style="flex:1;min-width:160px">Ausgabeordner in JDownloader:<input type="text" name="jd_out" class="w100" value="<%= jdOut %>" placeholder="/output" spellcheck="false"></label>
+    </div>
+    <small class="muted">Derselbe Ordner muss in der Homepage unter <code><%= process.env.JD_DIR || '/data/jd' %></code> eingehängt sein; von dort holt sie fertige Dateien ab.</small>
+    <div class="actions"><button type="submit" name="test" value="1"><b>💾 Speichern und testen</b></button> <button type="submit">Nur speichern</button></div>
+    <% if (test) { %>
+    <div class="msg<%= test.ok && !test.warn.length ? '' : ' err' %>" style="margin-top:8px">
+      <% if (test.ok) { %>✔ Verbunden<%= test.version ? ' (JDownloader ' + (typeof test.version === 'object' ? JSON.stringify(test.version) : test.version) + ')' : '' %><%= test.state ? ', Zustand ' + test.state : '' %>.<% } else { %>⚠ <%= test.error %><% } %>
+      <% if (test.dir) { %><br><%= test.dirOk ? '✔' : '⚠' %> Ordner <code><%= test.dir %></code> <%= test.dirOk ? 'ist beschreibbar.' : 'fehlt oder ist nicht beschreibbar. Hänge den Ausgabeordner von JDownloader dort ein (siehe Anleitung).' %><% } %>
+      <% for (const w of test.warn) { %><br>⚠ <%= w %><% } %>
+    </div>
+    <% } %>
+  </fieldset>
+</form>
+<%- include('../partials/foot') %>

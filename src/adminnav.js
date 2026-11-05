@@ -6,7 +6,7 @@ const TREE = [
   { key: 'uebersicht', icon: '📊', label: 'Übersicht', url: '/admin' },
   { key: 'inhalte', icon: '📝', label: 'Inhalte', kids: [
     ['📝', 'Blog', '/admin/posts'], ['📄', 'Eigene Seiten', '/admin/pages'], ['🖼️', 'Bilder', '/admin/media'],
-    ['📁', 'Downloads', '/admin/files', ['/admin/downloads']], ['🔗', 'Links', '/admin/links'], ['🧩', 'Modlisten', '/admin/mods'],
+    ['📁', 'Downloads', '/admin/files', ['/admin/downloads'], 'links'], ['🔗', 'Links', '/admin/links'], ['🧩', 'Modlisten', '/admin/mods'],
     ['🎞️', 'Mediathek', '/admin/musik'],
   ] },
   { key: 'mitglieder', icon: '👥', label: 'Mitglieder', badge: 'inbox', kids: [
@@ -73,6 +73,10 @@ const SEARCH = [
   ['Neuer Dienst', 'Jellyfin Immich Nextcloud Minecraft Steam Valheim Gameserver Server Docker Container Status', '/admin/dienste/neu'],
   ['Widget Dienste', 'Desktop Speicher belegt Festplatte Platte', '/admin/dienste#widget'],
   ['Belegten Speicher zeigen', 'Festplatte Platte frei voll Speicherplatz', '/admin/dienste#widget'],
+  ['Link-Vorschläge', 'JDownloader Vorschlag genehmigen ablehnen prüfen YouTube Playlist', '/admin/files/vorschlaege'],
+  ['Warteschlange JDownloader', 'Downloads laufen Pause Fortschritt abbrechen', '/admin/files/warteschlange'],
+  ['Download-Regeln', 'JDownloader Format Qualität 1080p MP4 M4A Opus Endungen Größe Privat vertrauenswürdig', '/admin/files/regeln'],
+  ['JDownloader verbinden', 'Verbindung Adresse Port 3128 Docker API testen Ordner', '/admin/files/regeln#verbindung'],
   ['Download-Kategorien', 'Downloads Kategorie Endungen Spielstände Mods Tools exe gesperrt nicht erlaubt', '/admin/files/kategorien'],
   ['Speicher pro Mitglied', 'Quota Platz MB Grenze', '/admin/speicher'],
   ['Freigegebene Ordner', 'öffentlich Desktop Mitglieder teilen', '/admin/speicher#freigaben'],

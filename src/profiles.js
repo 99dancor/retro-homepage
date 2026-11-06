@@ -454,5 +454,5 @@ module.exports = {
   friendship, friendAction, FRIEND_MSG, friendsOf, requestsTo, requestsFrom, canViewProfile, canMessage,
   MAX_PM, unreadCount, thread, markRead, sendMessage, hideConversation,
   STARTS, recordStats, countStart, ownStats, gameStats,
-  AVATAR_MAX, saveAvatar, removeAvatar, imageSize, stripJpeg, stripPng, stripWebp,
+  AVATAR_MAX, saveAvatar, removeAvatar, imageSize, stripJpeg, stripPng, stripWebp, exifOrientation,
 };

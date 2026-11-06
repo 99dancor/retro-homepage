@@ -15,9 +15,10 @@ const APPS_DIR = path.join(DATA_DIR, 'apps');
 const MUSIC_DIR = path.join(DATA_DIR, 'musik');
 const AVATAR_DIR = path.join(DATA_DIR, 'avatare');
 const PAINT_DIR = path.join(DATA_DIR, 'paint');
+const GAL_DIR = path.join(UPLOAD_DIR, 'galerie');   // Galerie-Fotos: gleiche Platte wie die Downloads
 // Der Ordner, den JDownloader beschreibt (im Container eingehängt, siehe README → JDownloader)
 const JD_DIR = path.resolve(process.env.JD_DIR || path.join(DATA_DIR, 'jd'));
-for (const d of [UPLOAD_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR, AVATAR_DIR, PAINT_DIR]) fs.mkdirSync(d, { recursive: true });
+for (const d of [UPLOAD_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR, AVATAR_DIR, PAINT_DIR, GAL_DIR]) fs.mkdirSync(d, { recursive: true });
 fs.mkdirSync(IMPORT_DIR, { recursive: true });
 try { fs.chmodSync(IMPORT_DIR, 0o777); } catch { /* Netzwerkfreigabe darf hineinkopieren */ }
 
@@ -915,6 +916,48 @@ db.exec(`CREATE TABLE IF NOT EXISTS radio_stations (
   plays INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
 )`);
+// Galerie: eigene Fotos in Alben. Die Dateien liegen in uploads/galerie, also auf derselben Platte wie die Downloads.
+db.exec(`CREATE TABLE IF NOT EXISTS gal_albums (
+  id INTEGER PRIMARY KEY,
+  owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  cover_id INTEGER,                         -- Titelbild (leer = das neueste Bild)
+  visibility TEXT NOT NULL DEFAULT 'members', -- public | members | friends | private, gilt für alle Bilder im Album
+  shared INTEGER NOT NULL DEFAULT 0,        -- 1 = alle, die das Album sehen, dürfen Bilder hinzufügen
+  comments INTEGER NOT NULL DEFAULT 1,      -- Kommentare an den Bildern erlaubt
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)`);
+db.exec(`CREATE TABLE IF NOT EXISTS gal_photos (
+  id INTEGER PRIMARY KEY,
+  owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  album_id INTEGER REFERENCES gal_albums(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,                      -- Dateiname ohne Endung, änderbar
+  stored_name TEXT NOT NULL,                -- Zufallsname; Datei <name>.<ext>, Vorschau <name>-v.jpg, mittlere Größe <name>-m.jpg
+  ext TEXT NOT NULL,                        -- jpg | png | gif | webp
+  has_thumb INTEGER NOT NULL DEFAULT 0,
+  has_medium INTEGER NOT NULL DEFAULT 0,
+  size INTEGER NOT NULL,                    -- Bytes aller Dateien zusammen (zählt auf den Speicher)
+  width INTEGER NOT NULL DEFAULT 0,
+  height INTEGER NOT NULL DEFAULT 0,
+  taken_at INTEGER,                         -- Aufnahmedatum aus der Kamera (nur wenn beim Hochladen gewünscht)
+  rot INTEGER NOT NULL DEFAULT 0,           -- gedreht um 0, 90, 180 oder 270 Grad
+  visibility TEXT NOT NULL DEFAULT 'members', -- nur für Bilder ohne Album
+  hash TEXT,                                -- um doppelt hochgeladene Bilder zu erkennen
+  created_at INTEGER NOT NULL
+)`);
+db.exec(`CREATE TABLE IF NOT EXISTS gal_comments (
+  id INTEGER PRIMARY KEY,
+  photo_id INTEGER NOT NULL REFERENCES gal_photos(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+)`);
+db.exec(`CREATE INDEX IF NOT EXISTS gal_photos_album ON gal_photos(album_id, created_at);
+CREATE INDEX IF NOT EXISTS gal_photos_owner ON gal_photos(owner_id, created_at);
+CREATE INDEX IF NOT EXISTS gal_photos_hash ON gal_photos(owner_id, hash);
+CREATE INDEX IF NOT EXISTS gal_comments_photo ON gal_comments(photo_id, created_at);`);
 addColumn('artworks', 'draft', 'INTEGER NOT NULL DEFAULT 0');    // 1 = Entwurf, den eine Paint-Lobby von selbst sichert
 addColumn('modlists', 'owner_id', 'INTEGER REFERENCES users(id) ON DELETE SET NULL');   // leer = Liste des Admins
 addColumn('modlists', 'suggestions', "TEXT NOT NULL DEFAULT 'all'");  // Vorschläge: all | members | off
@@ -1224,4 +1267,4 @@ function tx(fn) {
   catch (e) { db.exec('ROLLBACK'); throw e; }
 }
 
-module.exports = { db, now, getSetting, setSetting, tx, DATA_DIR, UPLOAD_DIR, IMPORT_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR, AVATAR_DIR, PAINT_DIR, JD_DIR };
+module.exports = { db, now, getSetting, setSetting, tx, DATA_DIR, UPLOAD_DIR, IMPORT_DIR, MEDIA_DIR, APPS_DIR, MUSIC_DIR, AVATAR_DIR, PAINT_DIR, GAL_DIR, JD_DIR };

@@ -1,16 +1,30 @@
 <%- include('partials/head') %>
-<%# Galerie: Bilder aus Paint, die öffentlich (Gäste) oder für Mitglieder freigegeben sind %>
-<h1>🖼️ <%= owner ? 'Bilder von ' + displayName(owner) : 'Galerie' %></h1>
-<p><% if (owner) { %><a href="<%= profileUrl(owner.username) %>">« Zum Profil</a> · <a href="/galerie">Alle Bilder</a> · <% } %>
-  Gemalt mit <a href="/paint">🎨 Paint</a>. <% if (!user) { %><small class="muted">Angemeldete Mitglieder sehen hier auch Bilder, die nur für Mitglieder sind.</small><% } %></p>
-<% if (!artworks.length) { %>
-  <p class="muted">Noch keine Bilder. Mal eins in Paint und speichere es als „öffentlich“<%= user ? ' oder „alle Mitglieder“' : '' %>.</p>
-<% } else { %>
-  <div class="gal-grid">
-  <% for (const a of artworks) { %>
-    <a class="gal-item" href="/galerie/<%= a.id %>"><img src="/paint/bild/<%= a.id %>/vorschau.png?v=<%= a.updated %>" alt="<%= a.title %>" loading="lazy">
-      <b><%= a.title %></b><small><%= owner && owner.username === a.byUser ? '' : 'von ' + a.by + ' · ' %><%= a.with ? 'mit ' + a.with + ' · ' : '' %><%= a.date %><%= a.visibility === 'members' ? ' · 👥' : a.visibility === 'private' ? ' · 🔒' : '' %><%= a.pending ? ' · wartet auf Freigabe' : '' %></small></a>
-  <% } %>
+<%# Galerie als Explorer: Baum links, Miniaturen in der Mitte, Aufgaben wie bei XP rechts. Alles Weitere baut public/gallery.js
+    aus /galerie/api/ansicht; Hochladen, Alben und Bildbetrachter ebenfalls dort. Server: src/routes/gallery.js %>
+<div class="explorer gx" id="gx" data-csrf="<%= csrf %>" data-start="<%= JSON.stringify(start) %>" data-maxmb="<%= maxMb %>">
+  <div class="ex-toolbar" role="toolbar">
+    <button type="button" class="small" data-gx="back" title="Zurück" disabled>⬅ Zurück</button>
+    <span class="ex-sep"></span>
+    <button type="button" class="small" data-gx="upload" hidden><b>📤 Hinzufügen</b></button>
+    <button type="button" class="small" data-gx="newalbum" hidden>📁 Neues Album</button>
+    <span class="ex-sep" data-gx-sep hidden></span>
+    <button type="button" class="small" data-gx="show" disabled>▶ Diashow</button>
+    <button type="button" class="small" data-gx="dl" disabled>⬇ Herunterladen</button>
+    <span class="spacer"></span>
+    <button type="button" class="small ex-tree-toggle" data-gx="tree" aria-expanded="false">📂 Ordner</button>
+    <form class="fx-search gx-search" role="search" data-gx-search>
+      <input type="search" name="q" placeholder="🔍 Bilder suchen…" aria-label="Bilder suchen" value="<%= start.q %>">
+    </form>
   </div>
-<% } %>
+  <div class="ex-address"><span>Adresse</span><div class="sunken ex-path" data-gx-path>🖼️ Galerie</div></div>
+  <div class="ex-main gx-main">
+    <nav class="ex-tree sunken" aria-label="Bereiche" data-gx-tree></nav>
+    <div class="ex-pane gx-pane" data-gx-pane tabindex="-1"><p class="muted ex-empty">Lädt …</p></div>
+    <aside class="gx-tasks" aria-label="Aufgaben" data-gx-tasks></aside>
+  </div>
+  <div class="statusbar"><span data-gx-status>Lädt …</span><span data-gx-quota></span></div>
+  <div class="gx-dropzone" data-gx-drop hidden><div>📥 Bilder hier loslassen</div></div>
+</div>
+<script src="<%= asset('winui.js') %>" defer></script>
+<script src="<%= asset('gallery.js') %>" defer></script>
 <%- include('partials/foot') %>

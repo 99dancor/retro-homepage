@@ -1,5 +1,13 @@
 # Changelog
 
+## Update 89 · 06.11.2026 – Galerie mit eigenen Fotos und Alben
+
+- **Die Galerie ist jetzt ein Explorer** wie die Downloads: links Alle Bilder, Neu hinzugefügt, Alben, Paint-Bilder, Von Mitgliedern und Meine Bilder, in der Mitte Miniaturen, rechts die Aufgaben wie bei XP (Bildaufgaben, Albumaufgaben, Details). Mehrere Bilder wählst du mit Strg oder Umschalt aus, ein Rechtsklick zeigt alles, was mit einem Bild geht, und Bilder lassen sich im Baum auf ein Album ziehen.
+- **Eigene Fotos hochladen:** Alle Mitglieder können Bilder hochladen (zählt auf ihren Speicher). Hineinziehen oder einen ganzen Ordner wählen, Album aussuchen oder gleich ein neues anlegen, jedes Bild hat seinen eigenen Fortschrittsbalken. Ortsangaben (GPS), Kamera und Seriennummer entfernt der Server immer, das Aufnahmedatum bleibt nur, wenn du es willst. iPhone-Fotos (HEIC) werden zu JPG. Doppelt hochgeladene Bilder überspringt die Seite.
+- **Alben** mit Name, Beschreibung, Titelbild und Sichtbarkeit (Öffentlich, Mitglieder, Nur Freunde, Nur ich). Ein gemeinsames Album erlaubt allen, die es sehen, eigene Bilder hinzuzufügen. Ganze Alben lädst du als ZIP herunter.
+- **Bildbetrachter** wie die Windows Bild- und Faxanzeige: blättern (auch per Wischen), Diashow, zoomen, drehen, Infos, Kommentare, herunterladen und „Als Desktophintergrund“. Kommentare lassen sich pro Album ausschalten, der Besitzer des Bildes bekommt eine Benachrichtigung.
+- **Gleiche Platte wie die Downloads:** Die Fotos liegen in /data/uploads/galerie, also da, wo in Unraid die Download-Dateien eingehängt sind. Paint-Bilder bleiben, wo sie sind, und erscheinen in der Galerie als eigener Bereich. Die Galerie läuft auch, wenn Paint ausgeschaltet ist.
+
 ## Update 88 · 05.11.2026 – Internetradio, Privat-Videos und kleine Anpassungen
 
 - **Internetradio im Mediaplayer:** Neue Gruppe „Radio“ in der Seitenleiste. Mit ＋ fügst du einen Sender hinzu: Namen eingeben, Stream-Link einfügen, fertig. Playlist-Links (.pls, .m3u) werden von selbst aufgelöst, Webseiten statt Streams erkennt die Seite und sagt Bescheid. Sender lassen sich öffentlich, nur für Mitglieder oder nur für dich freigeben. Der Ton läuft über den eigenen Server, so klappen auch http-Sender, Equalizer und Visualisierung, und der Sender sieht nicht, wer zuhört. Eintragen darf, wer Musik hochladen darf; Adressen im Heimnetz (z. B. ein eigener Icecast) nur du.

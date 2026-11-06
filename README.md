@@ -66,7 +66,8 @@ mit mehreren GB kannst du sie auf die Festplatten im Array legen:
 3. Container bearbeiten → **Download-Dateien** auf `/mnt/user/homepage-dateien` setzen
    (Compose: die auskommentierte Zeile bei `volumes` aktivieren) → **Apply**.
 
-Datenbank, Bilder und Einstellungen bleiben auf der SSD, nur die Download-Dateien wandern aufs Array.
+Datenbank, Bilder und Einstellungen bleiben auf der SSD, nur die Download-Dateien und die Fotos der Galerie
+(Unterordner `galerie`) wandern aufs Array.
 Eine Platte außerhalb des Arrays (Plugin „Unassigned Devices“) geht genauso, z. B. `/mnt/disks/NAME/homepage`.
 
 **Dateien mit vielen GB hochladen:** Statt über den Browser einfach im Heimnetz in den Ordner

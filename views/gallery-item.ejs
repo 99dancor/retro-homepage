@@ -6,7 +6,7 @@
 <div class="actions">
   <a class="btn" href="/paint?bild=<%= a.id %>">🎨 In Paint öffnen</a>
   <a class="btn" href="/paint/bild/<%= a.id %>.png?download=1">⬇ Herunterladen (PNG)</a>
-  <a href="/galerie">« Zur Galerie</a>
+  <a href="/galerie?ort=paint">« Zur Galerie</a>
 </div>
 <% if (popupMsg) { %><div class="msg<%= popupMsg === 'ok' ? '' : ' err' %>"><%= popupMsg === 'ok' ? '💬 Danke! Dein Bild ist vorgeschlagen. Sobald es freigeschaltet ist, geht es ab und zu als Popup-Fenster auf.' : '⚠ ' + popupMsg %></div><% } %>
 <% if (popup) { %>

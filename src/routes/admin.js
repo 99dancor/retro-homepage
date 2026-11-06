@@ -749,8 +749,9 @@ router.post('/users/:id/delete', (req, res) => {
   // Statistik hat keinen Fremdschlüssel: Verbindung lösen, sonst erbte ein neues Konto mit derselben Nummer die Einträge
   // Freunde, Privatnachrichten und Spielstatistiken verschwinden über ihre Fremdschlüssel mit, das Profilbild hier
   const old = db.prepare('SELECT avatar FROM users WHERE id = ?').get(id);
-  // Bilder aus Paint verschwinden mit dem Konto (Fremdschlüssel), ihre Dateien hier
+  // Bilder aus Paint und Galerie verschwinden mit dem Konto (Fremdschlüssel), ihre Dateien hier
   const pictures = id !== req.user.id ? paint.filesOf(id) : [];
+  const photos = id !== req.user.id ? require('../gallery').filesOf(id) : [];
   if (id !== req.user.id) tx(() => {
     db.prepare('UPDATE pageviews SET user_id = NULL WHERE user_id = ?').run(id);
     db.prepare('UPDATE downloads SET user_id = NULL WHERE user_id = ?').run(id);
@@ -762,6 +763,7 @@ router.post('/users/:id/delete', (req, res) => {
   });
   if (old && id !== req.user.id) profiles.removeAvatar(old.avatar);
   paint.removeFiles(pictures);
+  require('../gallery').removeFiles(photos);
   res.redirect('/admin/users');
 });
 router.post('/groups/create', (req, res) => {

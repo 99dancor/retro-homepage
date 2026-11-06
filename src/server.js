@@ -68,7 +68,7 @@ app.use((req, res, next) => {
     paintEnabled: getSetting('paint_enabled', '1') === '1',
     quizEnabled: getSetting('quiz_enabled', '1') === '1',
     werwolfEnabled: getSetting('ww_enabled', '1') === '1',
-    galleryEnabled: getSetting('paint_enabled', '1') === '1' && getSetting('paint_gallery', '1') === '1',
+    galleryEnabled: getSetting('paint_gallery', '1') === '1',
     farmingVisible: require('./fshub').canView(req.user),
     navHidden: (getSetting('nav_hidden') || '').split(','),
     // Wartungsmodus (System → Allgemein): Admins sehen die Seite weiter, mit Hinweis
@@ -161,6 +161,7 @@ app.use('/kreuzwortraetsel', require('./routes/crossword'));
 app.use('/sudoku', require('./routes/sudoku'));
 const paintRoutes = require('./routes/paint');
 app.use('/paint', paintRoutes.router);
+app.use('/galerie', require('./routes/gallery'));
 app.use('/galerie', paintRoutes.gallery);
 app.use('/einstellungen', settingsRoutes.router);
 app.use('/', deskRoutes.router);

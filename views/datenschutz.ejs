@@ -393,6 +393,11 @@
 
 <h2 id="paint">🎨 Paint und Galerie</h2>
 <ul>
+  <li id="galerie"><b>Fotos in der Galerie</b> (nur mit Konto): Gespeichert werden das Bild, eine kleine Vorschau und bei großen Fotos eine mittlere Größe für den Betrachter, dazu Name, Album, Größe in Pixeln, dein Konto, die Sichtbarkeit, wann du es hochgeladen hast, ob du es gedreht hast, und eine Prüfsumme, damit dasselbe Bild nicht zweimal landet. Die Dateien liegen unter einem Zufallsnamen in <code>data/uploads/galerie</code> und zählen auf deinen Speicher.</li>
+  <li><b>Versteckte Angaben:</b> Beim Hochladen entfernt der Server den EXIF-Block (Aufnahmeort/GPS, Kamera, Seriennummer, Programme), XMP, IPTC und Kommentare aus der Datei; bei JPEG bleibt nur die Drehung. HEIC-Bilder vom iPhone wandelt er in JPG ohne Metadaten um. Das <b>Aufnahmedatum</b> liest er vorher aus und speichert es in der Datenbank, aber nur, wenn beim Hochladen der Haken „Aufnahmedatum behalten“ gesetzt ist. Die Vorschaubilder malt dein Browser selbst, sie enthalten nur Pixel.</li>
+  <li><b>Wer Fotos sieht:</b> Bilder in einem Album sind so sichtbar wie das Album (Öffentlich, Mitglieder, nur Freunde des Albumbesitzers, nur ich), Bilder ohne Album nach deiner Einstellung. Du, der Albumbesitzer und der Admin sehen sie immer. In einem <b>gemeinsamen Album</b> dürfen alle, die es sehen, eigene Bilder hinzufügen; die bleiben ihre Bilder, und der Albumbesitzer bekommt eine Benachrichtigung.</li>
+  <li><b>Kommentare</b> an Fotos speichern Text, dein Konto und die Zeit. Der Besitzer des Bildes bekommt eine Benachrichtigung (abschaltbar unter Konto und Passwort → Benachrichtigungen). Löschen können ihn du, der Besitzer des Bildes und der Admin. Der Albumbesitzer kann Kommentare für sein Album ausschalten.</li>
+  <li>Du löschst Fotos und Alben in der Galerie selbst. Löschst du dein Konto, verschwinden deine Fotos, Alben und Kommentare mit; Bilder anderer in deinen gemeinsamen Alben bleiben bei ihnen (ohne Album).</li>
   <li>Malen und als Datei auf deinem PC speichern geht ohne Konto. Dabei geht nichts an den Server, auch eingefügte Bilder nicht.</li>
   <li>Mit Konto kannst du Bilder <b>auf der Seite speichern</b>. Gespeichert werden das Bild und eine kleine Vorschau als PNG, dazu Titel, Größe, dein Konto, die Sichtbarkeit und wann du es gespeichert und zuletzt geändert hast. Eingefügte Fotos sind danach Teil des Bildes. Versteckte Angaben wie der Aufnahmeort kommen nicht mit: Paint speichert nur die Pixel, und der Server entfernt beim Speichern alles andere aus der Datei.</li>
   <li><b>Wer es sieht</b>, bestimmst du beim Speichern: nur du, alle angemeldeten Mitglieder oder alle (dann auch in der Galerie und auf deinem Profil für Gäste). Der Admin sieht alle Bilder. Stellt er die Freigabe ein, erscheinen öffentliche Bilder erst, wenn er sie freigegeben hat.</li>
@@ -406,6 +411,11 @@
   <%- code('artworkDraft', 'Diese Spalte markiert Entwürfe, die eine Lobby von selbst sichert.') %>
   <%- code('artworkPainters', 'Hier steht, wer an einem Bild mitgemalt hat.') %>
   <%- code('artworkSee', 'So entscheidet der Server, wer ein Bild sehen darf.') %>
+  <%- code('galPhotos', 'Diese Spalten speichert die Seite zu jedem Foto in der Galerie.') %>
+  <%- code('galAlbums', 'Und diese zu jedem Album.') %>
+  <%- code('galComments', 'Kommentare an Fotos.') %>
+  <%- code('galStrip', 'Hier liest der Server das Aufnahmedatum (nur mit Haken) und entfernt danach alle versteckten Angaben aus der Datei.') %>
+  <%- code('galSee', 'So entscheidet der Server, wer ein Foto sehen darf.') %>
   <%- code('paintCursor', 'Mauszeiger und die Vorschau eines Strichs reicht der Server nur an die anderen in der Lobby weiter.') %>
   <%- code('paintChat', 'Die Unterhaltung: höchstens 300 Zeichen pro Nachricht, nur die letzten 50 bleiben im Arbeitsspeicher.') %>
 </details>

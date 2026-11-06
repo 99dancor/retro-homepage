@@ -134,19 +134,10 @@ router.post('/bild/:id/loeschen', needLogin, own, (req, res) => {
   res.json({ ok: true });
 });
 
-// ---------- Galerie ----------
+// ---------- Galerie: Seite eines Paint-Bildes (die Galerie selbst: src/routes/gallery.js) ----------
 gallery.use((req, res, next) => (paint.galleryOn() ? next() : res.status(404).render('error', { title: 'Nicht gefunden', message: 'Die Galerie ist ausgeschaltet.' })));
-gallery.get('/', (req, res) => {
-  const u = req.user;
-  let owner = null, list;
-  if (req.query.von) {
-    owner = db.prepare('SELECT id, username, display_name, disabled FROM users WHERE username = ?').get(String(req.query.von));
-    if (!owner || (owner.disabled && !(u && u.isAdmin))) return res.status(404).render('error', { title: 'Nicht gefunden', message: 'Dieses Mitglied gibt es nicht.' });
-    list = paint.byUser(owner.id, u);
-  } else list = paint.gallery(u);
-  res.render('gallery', { title: owner ? 'Bilder von ' + (owner.display_name || owner.username) : 'Galerie', owner, artworks: list.map(a => paint.row(a, u)) });
-});
-gallery.get('/:id', (req, res) => {
+gallery.get('/:id', (req, res, next) => {
+  if (!/^\d+$/.test(req.params.id)) return next();
   const a = paint.get(req.params.id);
   if (!paint.canSee(req.user, a)) return res.status(404).render('error', { title: 'Nicht gefunden', message: 'Dieses Bild gibt es nicht (oder du darfst es nicht sehen).' });
   const popups = require('../popups');

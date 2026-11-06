@@ -14,7 +14,7 @@ const net = require('node:net');
 const dgram = require('node:dgram');
 const http = require('node:http');
 const https = require('node:https');
-const { db, now, getSetting, DATA_DIR, UPLOAD_DIR, MUSIC_DIR, MEDIA_DIR, PAINT_DIR, APPS_DIR } = require('./db');
+const { db, now, getSetting, DATA_DIR, UPLOAD_DIR, MUSIC_DIR, MEDIA_DIR, PAINT_DIR, GAL_DIR, APPS_DIR } = require('./db');
 const events = require('./events');
 
 const TIMEOUT = 6000;
@@ -504,7 +504,7 @@ const downCount = () => db.prepare("SELECT COUNT(*) AS n FROM services WHERE ena
 // ---------- Belegter Speicher ----------
 // Platten, die der Container sieht (statfs): Daten, Downloads usw. Liegen zwei Ordner auf derselben Platte, zählt sie einmal.
 const DIRS = [['daten', DATA_DIR, 'Server'], ['downloads', UPLOAD_DIR, 'Downloads'], ['musik', MUSIC_DIR, 'Mediaplayer'], ['bilder', MEDIA_DIR, 'Bilder'],
-  ['paint', PAINT_DIR, 'Paint'], ['apps', APPS_DIR, 'Apps']];
+  ['paint', PAINT_DIR, 'Paint'], ['galerie', GAL_DIR, 'Galerie'], ['apps', APPS_DIR, 'Apps']];
 function diskConfig() {
   try { return JSON.parse(getSetting('svc_disks', '') || '{}') || {}; } catch { return {}; }
 }

@@ -5,6 +5,7 @@
 const { db, getSetting } = require('./db');
 const auth = require('./auth');
 const paint = require('./paint');
+const gal = require('./gallery');
 const programs = require('./programs');
 const desk = require('./desk');
 const { displayName, profileUrl } = require('./profiles');
@@ -35,7 +36,7 @@ function search(user, locals, query, perGroup = 3) {
   const L = ' LIKE ? ESCAPE \'\\\'';
   const lim = perGroup + 1;  // eins mehr, dann weiß die Liste, dass es weitere gibt
   const out = {};
-  const put = (g, rows) => { if (rows.length) out[g] = rows; };
+  const put = (g, rows) => { if (rows.length) out[g] = (out[g] || []).concat(rows); };
 
   put('programme', programs.list(locals).filter(p => fold(p.name).includes(q) || (q.length > 3 && fold(p.key).includes(q))).slice(0, lim)
     .map(p => ({ icon: p.icon, name: p.name, sub: p.group || 'Programm', url: p.url })));
@@ -93,6 +94,11 @@ function search(user, locals, query, perGroup = 3) {
     const mv = auth.visibilitySql(user, 'modlist', 'm');
     put('mods', db.prepare(`SELECT slug, title, game FROM modlists m WHERE ${mv.sql} AND (fold(title)${L} OR fold(game)${L}) ORDER BY updated_at DESC LIMIT ?`)
       .all(...mv.params, like, like, lim).map(m => ({ icon: '🧩', name: m.title, sub: m.game, url: '/mods/' + m.slug })));
+  }
+  if (gal.on() && !locals.navHidden.includes('galerie')) {
+    // Fotos: Titel oder Album passt
+    put('galerie', gal.photos(user, `(fold(p.title)${L} OR fold(COALESCE(al.title, ''))${L})`, [like, like], { limit: lim })
+      .map(p => ({ icon: '🖼️', name: p.title, sub: (p.al_title ? '📁 ' + p.al_title + ' · ' : '') + 'von ' + displayName(p), url: '/galerie?bild=' + p.id, thumb: p.has_thumb ? gal.thumbUrl(p) : `/galerie/datei/${p.id}.${p.ext}` })));
   }
   if (paint.galleryOn() && !locals.navHidden.includes('galerie')) {
     const av = paint.visibleSql(user);

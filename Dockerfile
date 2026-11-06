@@ -3,7 +3,8 @@ FROM node:22-alpine
 LABEL org.opencontainers.image.title="Retro-Homepage" \
       org.opencontainers.image.description="Selbst gehostete Homepage im Windows-98-Look mit Admin-Bereich"
 
-RUN apk add --no-cache tzdata
+# ImageMagick: HEIC-Fotos vom iPhone in der Galerie zu JPG umwandeln (und Vorschaubilder, falls der Browser keine schickt)
+RUN apk add --no-cache tzdata imagemagick imagemagick-heic imagemagick-jpeg imagemagick-webp
 WORKDIR /app
 ENV NODE_ENV=production \
     DATA_DIR=/data \

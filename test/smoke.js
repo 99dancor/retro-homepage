@@ -651,6 +651,83 @@ async function main() {
       } finally { srv.close(); }
     });
 
+    await step('Galerie: Album, Fotos hochladen (ohne GPS), Sichtbarkeit, gemeinsames Album, Kommentare, ZIP', async () => {
+      const { anna, bernd } = members;
+      // Kleinstes JPEG mit EXIF-Block (Aufnahmedatum und GPS), wie ein Handy es schreibt
+      const pixel = Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8wABgAQEAX/2gAIAQEAAD8A0s8g/9k=', 'base64');
+      const be16 = n => { const x = Buffer.alloc(2); x.writeUInt16BE(n); return x; }, be32 = n => { const x = Buffer.alloc(4); x.writeUInt32BE(n); return x; };
+      const entry = (tag, type, count, v) => Buffer.concat([be16(tag), be16(type), be32(count), v]);
+      const tiff = Buffer.concat([Buffer.from('MM\0\x2a', 'latin1'), be32(8), be16(2), entry(0x8769, 4, 1, be32(38)), entry(0x8825, 4, 1, be32(56)), be32(0),
+        be16(1), entry(0x9003, 2, 20, be32(74)), be32(0), be16(1), entry(0x0001, 2, 2, Buffer.from('N\0\0\0', 'latin1')), be32(0), Buffer.from('2026:08:14 19:30:05\0', 'latin1')]);
+      const body = Buffer.concat([Buffer.from('Exif\0\0', 'latin1'), tiff]);
+      const photo = (extra = Buffer.alloc(0)) => Buffer.concat([pixel.subarray(0, 2), Buffer.from([0xff, 0xe1]), be16(body.length + 2), body, pixel.subarray(2, -2), extra, pixel.subarray(-2)]);
+      const upload = async (b, file, fields = {}) => {
+        const fd = new FormData();
+        for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+        fd.append('file', new Blob([file], { type: 'image/jpeg' }), 'Abendlicht am Hafen.jpg');
+        const r = await b.req('/galerie/hochladen', { method: 'POST', body: fd, headers: { 'x-csrf-token': b.jar.get('csrf') || '' } });
+        return { status: r.status, json: JSON.parse(r.text_ || 'null') };
+      };
+      const view = async (b, ort) => JSON.parse((await b.req('/galerie/api/ansicht?ort=' + encodeURIComponent(ort))).text_);
+      await anna.req('/galerie'); await bernd.req('/galerie');
+      assert.match((await guest.req('/galerie')).text_, /id="gx"/);
+      // Album anlegen (nur Mitglieder), Bild hineinlegen
+      let r = await api(anna, '/galerie/alben', { title: 'Urlaub <b>2026</b>', visibility: 'members', shared: true });
+      assert.equal(r.status, 200, JSON.stringify(r.json));
+      const al = r.json.album;
+      assert.equal((await api(guest, '/galerie/alben', { title: 'x' })).status, 401);
+      r = await upload(anna, photo(), { album: String(al.id) });
+      assert.equal(r.status, 200, JSON.stringify(r.json));
+      const p = r.json.photo;
+      assert.equal(p.title, 'Abendlicht am Hafen');
+      assert.ok(p.taken, 'Aufnahmedatum gelesen');
+      assert.equal(p.vis, 'members');
+      // Die gespeicherte Datei hat keinen EXIF-Block mehr (GPS weg)
+      const file = await anna.req(p.full);
+      assert.equal(file.status, 200);
+      assert.equal(file.headers.get('content-type'), 'image/jpeg');
+      assert.ok(!file.text_.includes('Exif'), 'EXIF entfernt');
+      assert.equal((await upload(anna, photo())).json.dup === undefined, true, 'ohne Album ist es ein anderes Ziel');
+      assert.equal((await upload(anna, photo(), { album: String(al.id) })).json.dup, true, 'gleiches Bild im gleichen Album wird übersprungen');
+      assert.equal((await upload(anna, Buffer.from('<svg/>'), {})).status, 400);
+      // Sichtbarkeit: Gast sieht nichts, Bernd sieht das Mitglieder-Album und darf hinzufügen (gemeinsam)
+      assert.equal((await guest.req(p.full)).status, 404);
+      assert.ok(!(await view(guest, 'alle')).items.some(i => i.id === p.id));
+      const bv = await view(bernd, 'a:' + al.id);
+      assert.equal(bv.album.title, 'Urlaub <b>2026</b>');
+      assert.ok(bv.album.canAdd && !bv.album.canEdit);
+      assert.ok(bv.items[0] && !bv.items[0].canEdit);
+      r = await upload(bernd, photo(Buffer.from([0xff, 0xfe, 0, 4, 1, 2])), { album: String(al.id) });
+      assert.equal(r.status, 200, JSON.stringify(r.json));
+      assert.equal((await api(bernd, '/galerie/foto/' + p.id, { title: 'Gehackt' })).status, 403, 'fremdes Bild nicht ändern');
+      assert.equal((await api(bernd, '/galerie/album/' + al.id, { title: 'Meins' })).status, 404, 'fremdes Album nicht ändern');
+      // Kommentar von Bernd: Anna bekommt eine Benachrichtigung
+      r = await api(bernd, '/galerie/foto/' + p.id + '/kommentare', { body: 'Schönes Licht!' });
+      assert.equal(r.status, 200, JSON.stringify(r.json));
+      const notes = JSON.parse((await anna.req('/api/benachrichtigungen')).text_).items;
+      assert.ok(notes.some(n => /bernd hat dein Bild „Abendlicht am Hafen“ kommentiert/.test(n.title)), 'Benachrichtigung zum Kommentar');
+      assert.ok(notes.some(n => /bernd hat Bilder in dein Album/.test(n.title)), 'Benachrichtigung zum gemeinsamen Album');
+      // Kommentare aus: dann geht keiner mehr; öffentlich: Gäste sehen es
+      await api(anna, '/galerie/album/' + al.id, { comments: false, visibility: 'public' });
+      assert.equal((await api(bernd, '/galerie/foto/' + p.id + '/kommentare', { body: 'Noch einer' })).status, 403);
+      assert.equal((await guest.req(p.full)).status, 200);
+      // Drehen, ZIP mit beiden Bildern, Suche
+      assert.equal((await api(anna, '/galerie/foto/' + p.id, { rotate: 1 })).json.photo.rot, 90);
+      const zip = await guest.req('/galerie/album/' + al.id + '/zip');
+      assert.equal(zip.status, 200);
+      assert.equal(zip.headers.get('content-type'), 'application/zip');
+      assert.match((await anna.req('/suche?q=Abendlicht')).text_, /galerie\?bild=/);
+      // Speicher zählt mit; Löschen räumt auf
+      assert.ok((await view(anna, 'mein')).quota === null || (await view(anna, 'mein')).quota.used > 0);
+      r = await api(anna, '/galerie/album/' + al.id + '/loeschen', { withPhotos: true });
+      assert.equal(r.json.removed, 1, 'nur Annas eigenes Bild aus dem Album');
+      const left = await view(bernd, 'ohne');
+      assert.equal(left.items.length, 1, 'Bernds Bild bleibt bei ihm, ohne Album');
+      assert.equal(left.items[0].vis, 'public', 'mit der Sichtbarkeit des Albums');
+      assert.equal((await api(bernd, '/galerie/fotos', { action: 'delete', ids: left.items.map(i => i.id) })).json.done, 1);
+      await api(anna, '/galerie/fotos', { action: 'delete', ids: (await view(anna, 'mein')).items.filter(i => i.k === 'f').map(i => i.id) });
+    });
+
     await step('Mediaplayer: Videos hochladen, YouTube-Links ohne Konto abspielen und mit Konto speichern', async () => {
       const { anna, bernd } = members;
       const fd = new FormData();
@@ -2073,9 +2150,9 @@ async function main() {
       assert.equal((await json(paula, `/paint/bild/${art.id}`, { visibility: 'members' })).status, 200);
       assert.equal((await pit.req(`/paint/bild/${art.id}.png`)).status, 200, 'für Mitglieder');
       assert.equal((await guest.req(`/paint/bild/${art.id}.png`)).status, 404);
-      const pitGallery = (await pit.req('/galerie')).text_;
-      assert.match(pitGallery, /Sonne &lt;b&gt;/);
-      assert.doesNotMatch((await guest.req('/galerie')).text_, /Sonne/);
+      const galTitles = async b => JSON.parse((await b.req('/galerie/api/ansicht?ort=paint')).text_).items.map(i => i.title).join('|');
+      assert.match(await galTitles(pit), /Sonne <b>/);
+      assert.doesNotMatch(await galTitles(guest), /Sonne/);
 
       // Freigabe eingeschaltet: öffentlich erst, wenn der Admin es freigibt
       t = await admin.csrf('/admin/paint');
@@ -2087,7 +2164,7 @@ async function main() {
       assert.match((await admin.req('/admin/paint')).text_, /wartet auf Freigabe[\s\S]*Freigeben/);
       assert.equal((await admin.form(`/admin/paint/${art.id}/freigeben`, { _csrf: t })).status, 302);
       assert.equal((await guest.req(`/paint/bild/${art.id}.png`)).status, 200);
-      assert.match((await guest.req('/galerie')).text_, /Sonne &lt;b&gt;/);
+      assert.match(await galTitles(guest), /Sonne <b>/);
       const item = await guest.req(`/galerie/${art.id}`);
       assert.match(item.text_, /href="\/paint\?bild=\d+"/);
       assert.match(item.text_, /href="\/nutzer\/paula"/);

@@ -13,6 +13,7 @@ const KINDS = {
   highscore: { label: '🏆 Geknackte Rekorde', site: true, push: true },
   pet: { label: '🐾 Deine Pixelpfoten brauchen dich', site: true, push: true },
   besuch: { label: '🏘️ Besuch bei deinen Pixelpfoten', site: true, push: false },
+  galerie: { label: '🖼️ Galerie (Kommentare zu deinen Bildern, neue Bilder in deinen Alben)', site: true, push: false },
   modliste: { label: '💡 Vorschläge zu deinen Modlisten', site: true, push: false },
   daily: { label: '📅 Tägliche Aktionen (Besuchsserie, Tagesfrage)', site: true, push: false },
   fshub: { label: '🚜 Farming Simulator Hub (Aufgaben, Server, Vorschläge)', site: true, push: false },

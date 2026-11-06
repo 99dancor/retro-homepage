@@ -120,6 +120,16 @@ html.theme-xp #logon .lg-welcome98 { display: none !important; }
   #logon .lg-mid { padding: 10px; }
 }
 
+/* ---------- Design-Schalter unten links ---------- */
+#logon .lg-theme { position: absolute; left: 12px; bottom: 10px; z-index: 2; display: flex; align-items: center; gap: 6px; font-size: 12px; }
+#logon .lg-theme .lg-sym { font-size: 14px; }
+#logon.welcome .lg-theme { display: none; }
+html.theme-xp #logon .lg-theme { left: 24px; bottom: 22px; background: none; border: 0; box-shadow: none; color: #fff; font: 14px Tahoma, var(--font); padding: 0; min-height: 0; }
+html.theme-xp #logon .lg-theme .lg-sym { display: flex; width: 26px; height: 26px; align-items: center; justify-content: center; border: 1px solid #fff; border-radius: 4px;
+  background: linear-gradient(#5a8cf0, #1f55c9); font-size: 14px; }
+html.theme-xp #logon .lg-theme:hover span:last-child { text-decoration: underline; }
+@media (max-width: 760px) { html.theme-xp #logon .lg-theme { left: 12px; bottom: 7px; font-size: 12px; } html.theme-xp #logon .lg-theme .lg-sym { width: 22px; height: 22px; } }
+
 /* ---------- Abmelden ---------- */
 .lg-offdim { position: fixed; inset: 0; z-index: 99998; background: repeating-conic-gradient(rgba(0,0,0,0) 0 25%, rgba(0,0,0,.55) 0 50%) 0 0 / 2px 2px; }
 .lg-off { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 16px; }

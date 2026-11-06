@@ -17,7 +17,7 @@
   var btn = function (act) { return root.querySelector('[data-act=' + act + ']'); };
   var Sound = window.RetroSound || { musik: function () { return 0.8; }, get: function () { return { musik: 0.8 }; }, set: function () {}, onChange: function () {} };
 
-  var lib = { tracks: [], playlists: [], me: null, canUpload: false, quota: null }, byId = {};
+  var lib = { tracks: [], playlists: [], radio: [], me: null, canUpload: false, quota: null }, byId = {};
   var view = 'all', filter = '';
   var PREF_KEY = 'musik-player';
   var prefs = { vis: 'balken', shuffle: false, repeat: 'aus', picture: 'video' };
@@ -77,10 +77,11 @@
   // Art eines Eintrags: Titel aus der Bibliothek (kind), Lobby-Eintrag (type) oder YouTube-Video ohne Konto
   function isYt(it) { return !!it && (it.type === 'yt' || it.kind === 'youtube'); }
   function isVideo(it) { return !!it && (it.kind === 'video' || it.video === true); }
+  function isRadio(it) { return !!it && it.radio === true; }
   function kindBadge(it) {
-    return isYt(it) ? '<small class="mp-kind yt">YouTube</small>' : isVideo(it) ? '<small class="mp-kind video">Video</small>' : '<small class="mp-kind">Audio</small>';
+    return isRadio(it) ? '<small class="mp-kind radio">Radio</small>' : isYt(it) ? '<small class="mp-kind yt">YouTube</small>' : isVideo(it) ? '<small class="mp-kind video">Video</small>' : '<small class="mp-kind">Audio</small>';
   }
-  function kindIcon(it) { return isYt(it) ? '▶️' : isVideo(it) ? '🎬' : '🎵'; }
+  function kindIcon(it) { return isRadio(it) ? '📻' : isYt(it) ? '▶️' : isVideo(it) ? '🎬' : '🎵'; }
   function fmtSize(n) { return n < 1048576 ? Math.round(n / 1024) + ' KB' : (n / 1048576).toFixed(n < 10485760 ? 1 : 0).replace('.', ',') + ' MB'; }
 
   // ---------- Dialog ----------
@@ -274,11 +275,23 @@
     root.classList.toggle('phone', narrow.matches && !root.classList.contains('mini') && !root.classList.contains('theater'));
     if (!isPhone()) root.classList.remove('drawer');
     root.dataset.skin = skin();
+    showSkin(skin());
     var sm = sideMode();
     ['open', 'rail', 'closed'].forEach(function (m) { root.classList.toggle('side-' + m, sm === m); });
     root.classList.toggle('big', /^vlc/.test(skin()) && !!prefs.big);
   }
   function isPhone() { return root.classList.contains('phone'); }
+  // Das Symbol des Mediaplayers (retro.css .sym-player) folgt dem Skin: hier, auf dem Desktop und in allen offenen Fenstern
+  function showSkin(s) {
+    var docs = [document];
+    try {
+      if (window.parent !== window && window.parent.document) {
+        docs.push(window.parent.document);
+        window.parent.document.querySelectorAll('iframe').forEach(function (f) { try { if (f.contentDocument) docs.push(f.contentDocument); } catch (e) { /* fremd */ } });
+      }
+    } catch (e) { /* fremd */ }
+    docs.forEach(function (d) { if (d.documentElement.getAttribute('data-mp-skin') !== s) d.documentElement.setAttribute('data-mp-skin', s); });
+  }
   var clamp = function (v, lo, hi) { return Math.max(lo, Math.min(hi, v)); };
   function applySizes() {
     root.style.setProperty('--mp-side', prefs.sideW ? prefs.sideW + 'px' : '');
@@ -340,7 +353,7 @@
   // ---------- Bibliothek ----------
   function load() {
     return req('GET', '/musik/bibliothek').then(function (j) {
-      lib = j; byId = {};
+      lib = j; byId = {}; lib.radio = lib.radio || [];
       lib.tracks.forEach(function (t) { byId[t.id] = t; });
       if (/^pl:/.test(view) && !playlist(view)) view = 'all';
       render();
@@ -360,7 +373,7 @@
     if (/^pl:/.test(key)) { var p = playlist(key); return p ? p.tracks.map(function (id) { return byId[id]; }).filter(Boolean) : []; }
     return all;
   }
-  function isLibView(key) { return !/^(now|lobbys)$/.test(key); }
+  function isLibView(key) { return !/^(now|lobbys|radio)$/.test(key); }
   function filtered(tracks) {
     if (kindF) tracks = tracks.filter(function (t) { return (t.kind || 'audio') === kindF; });
     if (!filter) return tracks;
@@ -383,10 +396,10 @@
   // ---------- Seitenleiste ----------
   // Gruppen Bibliothek, Playlists und Lobbys, einzeln zuklappbar; drei Breiten: offen, schmal (nur Symbole) und zu.
   // Auf dem Handy liegt sie als Schublade hinter ☰.
-  var VIEW_NAME = { all: 'Alles', sammlung: 'Sammlung', mitglieder: 'Von Mitgliedern hochgeladen', meine: 'Meine Titel', privat: 'Privat' };
+  var VIEW_NAME = { all: 'Alles', sammlung: 'Sammlung', mitglieder: 'Von Mitgliedern hochgeladen', meine: 'Meine Titel', privat: 'Privat', radio: 'Radio' };
   function navBtn(o) {
     return '<button type="button" class="mp-nav' + (o.cls ? ' ' + o.cls : '') + (o.on ? ' active' : '') + '"' + (o.go ? ' data-go="' + esc(o.go) + '"' : '') +
-      (o.act ? ' data-act="' + o.act + '"' : '') + (o.lobby ? ' data-lobby="' + esc(o.lobby) + '"' : '') + (o.drop ? ' data-drop="' + esc(o.drop) + '"' : '') +
+      (o.act ? ' data-act="' + o.act + '"' : '') + (o.lobby ? ' data-lobby="' + esc(o.lobby) + '"' : '') + (o.radio ? ' data-radio="' + o.radio + '"' : '') + (o.drop ? ' data-drop="' + esc(o.drop) + '"' : '') +
       ' title="' + esc(o.title || o.label) + '">' + (o.live ? '<span class="mp-live"></span>' : '<span class="ic">' + o.ic + '</span>') + '<span class="t">' + esc(o.label) +
       (o.who ? ' <span class="who">' + esc(o.who) + '</span>' : '') + '</span>' + (o.n !== undefined ? '<small class="n">' + o.n + '</small>' : '') + '</button>';
   }
@@ -398,6 +411,13 @@
     if (lib.tracks.some(function (t) { return t.privat; })) libItems.push({ ic: '🔞', label: 'Privat', go: 'privat', n: viewTracks('privat').length });
     libItems.forEach(function (o) { o.on = view === o.go; });
     out.push({ id: 'lib', ic: '📚', label: 'Bibliothek', items: libItems });
+    // Internetradio: Sender aus der Bibliothek, eintragen darf, wer hochladen darf
+    if (lib.radio.length || lib.canUpload) {
+      out.push({ id: 'radio', ic: '📻', label: 'Radio', add: lib.canUpload ? 'radio-add' : '', addTitle: 'Sender hinzufügen', badge: lib.radio.length,
+        items: [{ ic: '📻', label: 'Alle Sender', go: 'radio', n: lib.radio.length, on: view === 'radio' }].concat(lib.radio.slice(0, 12).map(function (s) {
+          return { ic: '▸', label: s.name, act: 'radio-play', radio: s.id, on: !!current && current.sid === s.id, cls: 'mp-sub1', title: s.name + ' abspielen' };
+        })) });
+    }
     if (me) {
       var mine = lib.playlists.filter(function (p) { return p.mine; }), other = lib.playlists.filter(function (p) { return !p.mine; });
       out.push({ id: 'pl', ic: '📃', label: 'Playlists', add: 'new-playlist', addTitle: 'Neue Playlist', badge: lib.playlists.length,
@@ -454,6 +474,9 @@
   function show(key) {
     if (key === 'lobbys' && !lib.me) key = 'all';
     if (key === 'now' && isPhone() && !lob) key = 'all';
+    // Privat ist vor allem Videos: dort startet die Ansicht mit dem Filter Videos und zeigt Kacheln
+    if (key === 'privat' && view !== 'privat' && viewTracks('privat').some(isVideo)) kindF = 'video';
+    else if (view === 'privat' && key !== 'privat' && kindF === 'video') kindF = '';
     view = key; filter = '';
     if (key !== 'now' && skin().indexOf('vlc') === 0 && prefs.big) { prefs.big = false; savePrefs(); }
     root.classList.remove('drawer');
@@ -479,7 +502,7 @@
       (CAN_LOBBY && lib.me ? '<button type="button" data-go="lobbys" class="' + (lobView ? 'on' : '') + '">Lobbys</button>' : '') +
       (lib.canUpload ? '<button type="button" data-act="upload">Hochladen</button>' : '') + '</div><button type="button" class="mp-wskin" data-act="skin-pop" title="Aussehen">🎨</button>';
     var p = /^pl:/.test(view) ? playlist(view) : null;
-    var path = view === 'now' ? ['Wiedergabe läuft'] : lobView ? ['Lobbys'] : p ? ['Playlists', p.title] : ['Bibliothek', VIEW_NAME[view] || ''];
+    var path = view === 'now' ? ['Wiedergabe läuft'] : lobView ? ['Lobbys'] : view === 'radio' ? ['Radio'] : p ? ['Playlists', p.title] : ['Bibliothek', VIEW_NAME[view] || ''];
     if (kindF) path.push({ audio: 'Musik', video: 'Videos', youtube: 'YouTube' }[kindF]);
     $('mp-crumb').innerHTML = (view !== 'now' ? '<button type="button" class="small" data-act="side-toggle" title="Navigationsbereich ein- oder ausblenden">☰</button>' : '') +
       '<span class="path">Musik<i>▸</i>' + path.map(esc).join('<i>▸</i>') + '</span>';
@@ -497,6 +520,7 @@
   function renderHead() {
     if (view === 'now') { head.innerHTML = infoHead(); return; }
     if (view === 'lobbys') { head.innerHTML = lobbyListHead(); return; }
+    if (view === 'radio') { radioHead(); return; }
     var tracks = filtered(viewTracks(view)), p = /^pl:/.test(view) ? playlist(view) : null;
     var h = '<div class="mp-title">' + sideBtn() + '<b>' + (p ? '📃 ' + esc(p.title) : esc(VIEW_NAME[view] || '')) + '</b> <small>' + tracks.length + ' Titel' +
       (totalTime(tracks) ? ' · ' + fmt(totalTime(tracks)) : '') + (p ? ' · ' + VIS_LABEL[p.visibility] + (p.mine ? '' : ' · von ' + esc(p.owner)) : '') + '</small></div>';
@@ -515,6 +539,8 @@
   function renderList() {
     if (view === 'now') { list.innerHTML = ''; return; }
     if (view === 'lobbys') { renderLobbies(); return; }
+    if (view === 'radio') { renderRadio(); return; }
+    if (view === 'privat' && kindF === 'video' && listTracks().length) { renderTiles(listTracks()); return; }
     var p = /^pl:/.test(view) ? playlist(view) : null, own = p && p.mine;
     var tracks = listTracks();
     if (!tracks.length) {
@@ -550,9 +576,10 @@
   list.addEventListener('click', function (e) {
     var b = e.target.closest('[data-act]');
     if (!b) return;
-    var tr = e.target.closest('tr[data-id], tr[data-lobby]');
+    var tr = e.target.closest('tr[data-id], tr[data-lobby], tr[data-radio]');
     if (!tr) return;
     var act = b.dataset.act;
+    if (tr.dataset.radio) { radioAct(act, Number(tr.dataset.radio)); return; }
     if (tr.dataset.lobby) { if (act === 'join') joinLobby(tr.dataset.lobby); return; }
     var id = Number(tr.dataset.id), t = byId[id], tracks = listTracks();
     if (act === 'play-track') { if (lob) lobbyAdd({ tracks: [id] }); else playList(tracks, Number(tr.dataset.i)); }
@@ -632,6 +659,10 @@
     if (isYt(current)) {
       media.pause(); media.removeAttribute('src'); media.load();
       ytPlayLocal(current);
+    } else if (isRadio(current)) {
+      ytStop();
+      media.src = '/musik/radio/' + current.sid + '/stream';
+      media.play().catch(function () { /* wartet auf Klick */ });
     } else {
       ytStop();
       media.src = '/musik/stream/' + current.id;
@@ -658,7 +689,7 @@
     var t = playingItem(), q = lob ? (lob.state ? lob.state.index : -1) : cur;
     var txt = t ? (q + 1) + '. ' + (t.artist ? t.artist + ' - ' : '') + t.title + (t.duration ? ' (' + fmt(t.duration) + ')' : '') + '  ***  ' : 'Mediaplayer  ***  ';
     if (waTitle.textContent !== txt) waTitle.textContent = txt;
-    $('mp-wa-kind').textContent = !t ? '---' : isYt(t) ? 'YOUTUBE' : isVideo(t) ? 'VIDEO' : 'AUDIO';
+    $('mp-wa-kind').textContent = !t ? '---' : isRadio(t) ? 'RADIO' : isYt(t) ? 'YOUTUBE' : isVideo(t) ? 'VIDEO' : 'AUDIO';
     $('mp-wa-src').textContent = lob ? 'LOBBY' : 'EIGENE';
     $('mp-wa-ml').classList.toggle('on', sideMode() !== 'closed');
     root.querySelectorAll('[data-act=eq]').forEach(function (b) { b.classList.toggle('on', !!player.eq.on); });
@@ -781,11 +812,12 @@
   });
   media.addEventListener('error', function () {
     if (!media.getAttribute('src') || !media.error) return;
+    if (isRadio(current)) { status('⚠ Der Sender „' + current.title + '“ ist gerade nicht erreichbar.'); return; }
     status('⚠ Dieser Titel lässt sich nicht abspielen.');
     if (!lob) setTimeout(skipBroken, 1500);
   });
   function countPlay() {
-    if (counted || !current || lob || !current.id) return;
+    if (counted || !current || lob || !current.id || isRadio(current)) return;
     counted = true;
     var d = isYt(current) ? yt.duration : media.duration;
     post('/musik/titel/' + current.id + '/gespielt', { duration: d || 0 }).catch(function () {});
@@ -978,6 +1010,8 @@
     if (a === 'menu') openMenu(b);
     else if (a === 'skin-pop') openSkins(b);
     else if (a === 'skin') setSkin(b.dataset.skin);
+    else if (a === 'radio-add') addStation();
+    else if (a === 'radio-play') { if (isPhone()) root.classList.remove('drawer'); radioAct('play', Number(b.dataset.radio)); }
     else if (a === 'vis-pick') setVis(b.dataset.vis);
     else if (a === 'side-rail') setSide('rail');
     else if (a === 'side-open') setSide('open');
@@ -1311,6 +1345,103 @@
   function deletePlaylist(p) {
     confirmBox('Playlist löschen', '„' + esc(p.title) + '“ löschen? Die Titel selbst bleiben erhalten.', 'Löschen').then(function (ok) {
       if (ok) post('/musik/playlists/' + p.id + '/loeschen').then(function () { view = 'all'; return load(); }).catch(oops);
+    });
+  }
+
+  // ---------- Privat: Videos als Kacheln ----------
+  // Vorschaubild ist ein Bild aus dem Video (Medienfragment #t=…), geladen erst, wenn die Kachel sichtbar wird
+  var tileIo = null;
+  function renderTiles(tracks) {
+    var playingId = lob ? null : current && current.id;
+    list.innerHTML = '<div class="mp-tiles">' + tracks.map(function (t, i) {
+      var at = Math.max(1, Math.round((t.duration || 20) * 0.2));
+      return '<div class="mp-tile' + (t.id === playingId ? ' playing' : '') + '" data-id="' + t.id + '" data-i="' + i + '">' +
+        '<button type="button" class="mp-tthumb" data-act="tile-play" title="Abspielen"><video muted playsinline preload="none" data-src="/musik/stream/' + t.id + '#t=' + at + '"></video>' +
+        '<span class="mp-tplay" aria-hidden="true">' + (t.id === playingId && isPlaying() ? '🔊' : '▶') + '</span>' + (t.duration ? '<span class="mp-tlen">' + fmt(t.duration) + '</span>' : '') + '</button>' +
+        '<div class="mp-tname" title="' + esc(t.title) + '">' + esc(t.title) + '</div>' +
+        '<div class="mp-tacts">' + (!lob ? '<button type="button" class="small" data-act="tile-queue" title="An die Wiedergabeliste hängen">➕</button>' : '') +
+        (lib.me ? '<button type="button" class="small" data-act="tile-pl" title="Zu einer Playlist hinzufügen">📃</button>' : '') +
+        (t.canEdit ? '<button type="button" class="small" data-act="tile-edit" title="Bearbeiten">✎</button>' : '') + '</div></div>';
+    }).join('') + '</div>';
+    var vids = [].slice.call(list.querySelectorAll('video[data-src]'));
+    function loadV(v) { if (!v.src) { v.preload = 'metadata'; v.src = v.dataset.src; } }
+    if (tileIo) tileIo.disconnect();
+    if ('IntersectionObserver' in window) {
+      tileIo = new IntersectionObserver(function (es) { es.forEach(function (x) { if (x.isIntersecting) { loadV(x.target); tileIo.unobserve(x.target); } }); }, { rootMargin: '200px' });
+      vids.forEach(function (v) { tileIo.observe(v); });
+    } else vids.forEach(loadV);
+  }
+  list.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act^=tile-]'), tile = b && b.closest('.mp-tile');
+    if (!tile) return;
+    var id = Number(tile.dataset.id), a = b.dataset.act;
+    if (a === 'tile-play') { if (lob) lobbyAdd({ tracks: [id] }); else playList(listTracks(), Number(tile.dataset.i)); }
+    else if (a === 'tile-queue') enqueue([byId[id]]);
+    else if (a === 'tile-pl') toPlaylist(id);
+    else if (a === 'tile-edit') editTrack(byId[id]);
+  });
+
+  // ---------- Internetradio ----------
+  // Sender sind Name und Stream-Adresse (src/radio.js); der Ton kommt über den Server, damit Equalizer und Visualisierung greifen
+  var RADIO_VIS = { public: 'Öffentlich', members: 'Nur angemeldete Nutzer', private: 'Nur ich (und der Admin)' };
+  function station(id) { return lib.radio.filter(function (s) { return s.id === id; })[0] || null; }
+  function radioItem(s) { return { radio: true, id: 'radio:' + s.id, sid: s.id, title: s.name, artist: s.host || '', album: 'Radio', duration: 0 }; }
+  function radioHead() {
+    head.innerHTML = '<div class="mp-title">' + sideBtn() + '<b>📻 Radio</b> <small>' + lib.radio.length + ' Sender · live, ohne Spulen</small></div>' +
+      '<div class="mp-tools">' + (lib.canUpload ? '<button type="button" class="small" data-act="radio-add">➕ Sender hinzufügen …</button>' : '') +
+      (lib.radio.length ? '' : '<span class="mp-hint">Noch keine Sender.' + (lib.canUpload ? ' Füge den Link eines Internetradios ein, z. B. eine .mp3-, .aac-, .pls- oder .m3u-Adresse.' : '') + '</span>') + '</div>' +
+      (lob ? '<p class="mp-hint">🎧 Radio läuft nur in der eigenen Wiedergabe, nicht in einer Lobby.</p>' : '');
+  }
+  function renderRadio() {
+    if (!lib.radio.length) { list.innerHTML = '<p class="mp-empty">Hier gibt es noch keine Sender.</p>'; return; }
+    var playing = !lob && isRadio(current) ? current.sid : null;
+    list.innerHTML = '<table class="list mp-table mp-radio"><thead><tr><th class="num">#</th><th>Sender</th><th>Adresse</th><th class="num">Gehört</th><th>Von</th><th></th></tr></thead><tbody>' +
+      lib.radio.map(function (s, i) {
+        var now = s.id === playing, acts = '';
+        if (s.canEdit) acts = '<button type="button" class="small" data-act="radio-edit" title="Bearbeiten">✎</button><button type="button" class="small danger" data-act="radio-delete" title="Löschen">🗑</button>';
+        return '<tr data-radio="' + s.id + '" class="' + (now ? 'playing' : '') + '"><td class="num">' + (now ? (isPlaying() ? '🔊' : '⏸') : i + 1) + '</td>' +
+          '<td><span class="mp-ico" title="Radio">📻</span> <button type="button" class="mp-track" data-act="play">' + esc(s.name) + '</button>' +
+          (s.visibility !== 'public' ? ' <small title="' + RADIO_VIS[s.visibility] + '">' + (s.visibility === 'private' ? '🔒' : '👥') + '</small>' : '') + '</td>' +
+          '<td><small>' + esc(s.host) + '</small></td><td class="num">' + (s.plays || 0) + '</td><td class="mp-by">' + userLink(s.by, s.byUser) + '</td><td class="mp-acts">' + acts + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+  function radioAct(act, id) {
+    var s = station(id);
+    if (!s) return;
+    if (act === 'play') {
+      if (lob) { status('Radio läuft nur in der eigenen Wiedergabe. Verlasse dafür die Lobby.'); return; }
+      // Ein Sender ersetzt die Wiedergabeliste nicht: er kommt nach vorn und läuft, bis man etwas anderes wählt
+      var i = queue.findIndex(function (q) { return isRadio(q) && q.sid === id; });
+      if (i < 0) { queue.splice(cur + 1, 0, qItem(radioItem(s))); i = cur + 1; }
+      playAt(i);
+    } else if (act === 'radio-edit') stationDialog(s);
+    else if (act === 'radio-delete') {
+      confirmBox('Sender löschen', '„' + esc(s.name) + '“ aus dem Radio löschen?', 'Löschen').then(function (ok) {
+        if (!ok) return;
+        if (isRadio(current) && current.sid === id) stopOwn();
+        post('/musik/radio/' + id + '/loeschen').then(function (j) { lib.radio = j.radio; status('Gelöscht.'); render(); }).catch(oops);
+      });
+    }
+  }
+  function addStation() { if (lib.canUpload) stationDialog(null); }
+  function stationDialog(s) {
+    var vis = s ? s.visibility : lib.me && lib.me.admin ? 'public' : 'members';
+    dialog(s ? '✎ Sender bearbeiten' : '📻 Sender hinzufügen',
+      '<label>Name:<input type="text" name="name" class="w100" maxlength="80" value="' + esc(s ? s.name : '') + '" placeholder="z. B. Lieblingssender"></label>' +
+      '<label>Stream-Link:<input type="url" name="url" class="w100" maxlength="500" placeholder="' + (s ? 'bisheriger Link: ' + esc(s.host) : 'https://… (.mp3, .aac, .pls, .m3u)') + '"></label>' +
+      '<p><small>Den Link findest du meist auf der Seite des Senders unter „Webradio“, „Stream“ oder „Winamp/VLC“. Playlist-Dateien (.pls, .m3u) werden aufgelöst.' +
+      (s ? ' Leer lassen, um den bisherigen Link zu behalten.' : '') + '</small></p>' +
+      '<label>Wer darf zuhören?<select name="visibility">' + Object.keys(RADIO_VIS).map(function (k) { return '<option value="' + k + '"' + (k === vis ? ' selected' : '') + '>' + RADIO_VIS[k] + '</option>'; }).join('') + '</select></label>',
+      [{ label: s ? 'Speichern' : 'Hinzufügen', value: 'ok' }, { label: 'Abbrechen', value: 'cancel' }]).then(function (r) {
+      if (r !== 'ok') return;
+      var body = { name: field('name'), url: field('url'), visibility: field('visibility') };
+      if (!s && !String(body.url || '').trim()) { status('⚠ Bitte einen Stream-Link einfügen.'); return; }
+      status('Prüfe den Sender …');
+      post(s ? '/musik/radio/' + s.id : '/musik/radio', body).then(function (j) {
+        lib.radio = j.radio; status(s ? 'Gespeichert.' : 'Sender „' + body.name + '“ hinzugefügt.');
+        if (!s) view = 'radio';
+        render();
+      }).catch(oops);
     });
   }
 

@@ -252,6 +252,24 @@
     box.querySelector('[data-off=logout]').focus();
   }
 
+  // Schalter unten links: wechselt zwischen Windows 98 und XP, wie „Design“ unter Anzeige → Darstellung
+  function designSwitch() {
+    var b = el.querySelector('[data-lg-theme]'), D = window.RetroDisplay;
+    if (!b || !D) { if (b) b.hidden = true; return; }
+    function label() {
+      var xp = root.classList.contains('theme-xp');
+      b.querySelector('[data-lg-theme-text]').textContent = xp ? 'Zu Windows 98 wechseln' : 'Zu Windows XP wechseln';
+      b.title = 'Design der Seite für dieses Gerät';
+    }
+    b.addEventListener('click', function () {
+      var xp = !root.classList.contains('theme-xp');
+      D.patch(xp ? { design: 'xp', scheme: 'seite', colors: {} } : { design: '98', scheme: 'seite', colors: {} });
+      sound('menue');
+      label();
+    });
+    label();
+  }
+
   function init() {
     el = document.getElementById('logon');
     if (!el) return;
@@ -261,6 +279,7 @@
     try { me = el.dataset.me ? JSON.parse(el.dataset.me) : null; } catch (e) { me = null; }
     if (me) remember(me);
     el.querySelector('[data-host]').textContent = location.host;
+    designSwitch();
 
     tiles.addEventListener('click', function (e) {
       var t = e.target.closest('.lg-tile');

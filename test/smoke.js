@@ -68,6 +68,10 @@ async function main() {
     const guest = browser();
     const admin = browser();
 
+    await step('Fehlerseite: OK schließt das Fenster', async () => {
+      assert.match((await guest.req('/gibt-es-nicht')).text_, /<a class="btn" href="\/" data-win-close>OK<\/a>/);
+    });
+
     await step('Öffentliche Seiten laden', async () => {
       for (const p of ['/', '/blog', '/files', '/mods', '/links', '/guestbook', '/contact', '/apps', '/forum', '/changelog', '/datenschutz', '/login', '/theme.css', '/static/retro.css', '/static/editor.js', '/musik', '/musik/bibliothek', '/static/sound.js', '/static/music.js', '/static/visualizer.js', '/paint', '/galerie', '/static/paint-core.js']) {
         const r = await guest.req(p);
@@ -604,6 +608,47 @@ async function main() {
       await api(anna, '/musik/einstellungen', { skin: 'vlc-dunkel' });
       assert.match((await anna.req('/musik')).text_, /data-skin="vlc-dunkel"/);
       assert.equal((await api(guest, '/musik/einstellungen', { skin: 'winamp' })).status, 401);
+      // Das Symbol des Mediaplayers folgt dem Skin: am Desktop und in jedem Fenster steht er an <html>
+      assert.match((await anna.req('/', { top: true })).text_, /<html lang="de" data-design="\w+" data-mp-skin="vlc-dunkel">/);
+      assert.match((await guest.req('/', { top: true })).text_, /data-mp-skin="klassisch" data-mp-guest>/);
+      assert.match((await anna.req('/', { top: true })).text_, /sym-player/, 'Startmenü zeigt das Bild-Symbol');
+    });
+
+    await step('Mediaplayer: Internetradio eintragen, abspielen über den Server, Rechte', async () => {
+      const { anna, bernd } = members;
+      // Kleiner Sender zum Testen: liefert Ton und eine .pls-Datei, die auf ihn zeigt
+      const http = require('node:http');
+      const srv = http.createServer((q, r) => {
+        if (q.url === '/radio.pls') { r.writeHead(200, { 'content-type': 'audio/x-scpls' }); r.end(`[playlist]\nFile1=http://127.0.0.1:${srv.address().port}/live\n`); return; }
+        if (q.url === '/seite') { r.writeHead(200, { 'content-type': 'text/html' }); r.end('<p>keine Musik</p>'); return; }
+        r.writeHead(200, { 'content-type': 'audio/mpeg' }); r.end(Buffer.alloc(2048, 0xff));
+      });
+      await new Promise(ok => srv.listen(0, '127.0.0.1', ok));
+      const base = 'http://127.0.0.1:' + srv.address().port;
+      try {
+        await admin.req('/musik');
+        let r = await api(admin, '/musik/radio', { name: 'Testfunk', url: base + '/radio.pls', visibility: 'public' });
+        assert.equal(r.status, 200, JSON.stringify(r.json));
+        const st = r.json.radio.find(x => x.name === 'Testfunk');
+        assert.ok(st && st.canEdit);
+        assert.equal((await api(admin, '/musik/radio', { name: 'Webseite', url: base + '/seite' })).status, 400, 'eine Webseite ist kein Sender');
+        assert.equal((await api(admin, '/musik/radio', { name: 'Kaputt', url: 'ftp://x' })).status, 400);
+        // Mitglieder dürfen nicht ins eigene Netz
+        await anna.req('/musik');
+        r = await api(anna, '/musik/radio', { name: 'Heimnetz', url: base + '/live' });
+        assert.equal(r.status, 400); assert.match(r.json.error, /eigenen Netz/);
+        // Gäste hören öffentliche Sender, der Ton kommt vom eigenen Server
+        assert.ok((await lib(guest)).radio.some(x => x.name === 'Testfunk'));
+        const s1 = await guest.req('/musik/radio/' + st.id + '/stream');
+        assert.equal(s1.status, 200); assert.equal(s1.headers.get('content-type'), 'audio/mpeg');
+        // Nur für Angemeldete: Gäste sehen ihn nicht und hören nichts
+        await bernd.req('/musik');
+        assert.equal((await api(bernd, '/musik/radio/' + st.id, { name: 'Fremd' })).status, 404, 'nur Besitzer und Admin');
+        await api(admin, '/musik/radio/' + st.id, { name: 'Testfunk', visibility: 'members' });
+        assert.ok(!(await lib(guest)).radio.length);
+        assert.equal((await guest.req('/musik/radio/' + st.id + '/stream')).status, 404);
+        assert.equal((await api(admin, '/musik/radio/' + st.id + '/loeschen', {})).status, 200);
+      } finally { srv.close(); }
     });
 
     await step('Mediaplayer: Videos hochladen, YouTube-Links ohne Konto abspielen und mit Konto speichern', async () => {
@@ -2530,7 +2575,7 @@ async function main() {
       assert.equal(sql.prepare('SELECT visibility FROM desk_items WHERE id = ?').get(id).visibility, 'private');
       // Grunddesign der Seite
       await admin.form('/admin/design', { _csrf: t, theme_design: 'xp-silber' });
-      assert.match((await guest.req('/', { top: true })).text_, /<html lang="de" data-design="xp-silber">/);
+      assert.match((await guest.req('/', { top: true })).text_, /<html lang="de" data-design="xp-silber"[ >]/);
       await admin.form('/admin/design', { _csrf: t, theme_design: '98' });
       // Profilbild: Querformat lehnt der Server ab, quadratisch geht
       const zlib = require('node:zlib');

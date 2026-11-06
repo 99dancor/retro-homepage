@@ -904,6 +904,17 @@ addColumn('users', 'pm_from', "TEXT NOT NULL DEFAULT 'all'");
 addColumn('users', 'gb_from', "TEXT NOT NULL DEFAULT 'all'");
 addColumn('tracks', 'kind', "TEXT NOT NULL DEFAULT 'audio'");
 addColumn('tracks', 'youtube_id', 'TEXT');
+// Internetradio im Mediaplayer (src/radio.js): Sender mit Stream-Adresse, abgespielt über den Server
+db.exec(`CREATE TABLE IF NOT EXISTS radio_stations (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,                        -- aufgelöste Stream-Adresse (aus .pls/.m3u der erste Eintrag)
+  page TEXT,                                -- eingefügte Adresse, falls sie eine Playlist-Datei war
+  visibility TEXT NOT NULL DEFAULT 'members', -- public | members | private
+  owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  plays INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+)`);
 addColumn('artworks', 'draft', 'INTEGER NOT NULL DEFAULT 0');    // 1 = Entwurf, den eine Paint-Lobby von selbst sichert
 addColumn('modlists', 'owner_id', 'INTEGER REFERENCES users(id) ON DELETE SET NULL');   // leer = Liste des Admins
 addColumn('modlists', 'suggestions', "TEXT NOT NULL DEFAULT 'all'");  // Vorschläge: all | members | off

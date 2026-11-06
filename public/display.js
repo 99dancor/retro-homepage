@@ -9,6 +9,10 @@
   var KEY = 'darstellung', IMG_KEY = 'darstellung-bild';
   var root = document.documentElement;
   var data = { presets: {}, fonts: {} };
+  // Symbol des Mediaplayers: Gäste haben ihren Skin im Browser (public/music.js, localStorage "musik-player")
+  if (root.hasAttribute('data-mp-guest')) {
+    try { var mp = JSON.parse(localStorage.getItem('musik-player')); if (mp && mp.player && mp.player.skin) root.setAttribute('data-mp-skin', mp.player.skin); } catch (e) { /* Vorgabe */ }
+  }
   try { data = JSON.parse(document.getElementById('darstellung-daten').textContent); } catch (e) { /* ohne Vorlagen */ }
 
   var SCHEMES = ['seite', 'nacht', 'kontrast'], DESIGNS = ['seite', '98', 'xp'], XP = ['blau', 'oliv', 'silber'];

@@ -30,7 +30,7 @@ function collect(user) {
   if (on('lobby_enabled')) tryList(() => {
     const ml = require('./lobby');
     for (const l of ml.list(user)) {
-      out.push({ app: 'musik', icon: '🎵', what: 'Mediaplayer', name: l.name, host: l.host, players: l.listeners, max: null,
+      out.push({ app: 'musik', icon: '📀', what: 'Mediaplayer', name: l.name, host: l.host, players: l.listeners, max: null,
         status: l.now ? '▶ ' + l.now : 'Pause', url: '/musik?lobby=' + encodeURIComponent(l.id), ids: clientsOf(ml.get(l.id)) });
     }
   });
@@ -67,7 +67,7 @@ function apps(locals) {
   return [
     locals.cardsEnabled && ['kartenspiele', '🂡', 'Spieltisch', '/kartenspiele'],
     locals.paintEnabled && paint.lobbiesOn() && ['paint', '🎨', 'Paint-Lobby', '/paint?lobby=neu'],
-    on('lobby_enabled') && ['musik', '🎵', 'Musik-Lobby', '/musik'],
+    on('lobby_enabled') && ['musik', '📀', 'Musik-Lobby', '/musik'],
     locals.werwolfEnabled && ['werwolf', '🐺', 'Werwolf', '/werwolf'],
     locals.quizEnabled && ['quiz', '❓', 'Quiz', '/quiz'],
   ].filter(a => a && !locals.navHidden.includes(a[0])).map(([app, icon, name, url]) => ({ app, icon, name, url }));

@@ -91,7 +91,7 @@
     if (document.querySelector('.msg.err, .error-page')) sound('fehler');
     document.addEventListener('click', function (e) {
       var a = e.target.closest && e.target.closest('a[href]');
-      if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || a.hasAttribute('download')) return;
+      if (!a || a.hasAttribute('data-win-close') || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || a.hasAttribute('download')) return;
       var u = new URL(a.href, location.href);
       // „Ansehen“ in der Seitenverwaltung (target=_blank) öffnet ein Fenster auf dem Desktop statt eines neuen Tabs
       if (a.target && !(a.target === '_blank' && u.origin === location.origin && isPage(u))) return;
@@ -110,7 +110,7 @@
     });
     // OK-Knopf wie in „Info über …“: schließt das Fenster
     document.addEventListener('click', function (e) {
-      if (e.target.closest && e.target.closest('[data-win-close]')) desk.close(window);
+      if (e.target.closest && e.target.closest('[data-win-close]')) { e.preventDefault(); desk.close(window); }
     });
     return;
   }
@@ -121,7 +121,7 @@
   var deskEl = document.getElementById('desk'), tasks = document.getElementById('tasks');
   var siteTitle = body.dataset.title, me = body.dataset.user;
   var ICONS = { '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
-    contact: '✉️', changelog: '📋', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', konto: '🔑', messenger: '🌼', musik: '🎵', zufall: '🎲', kartenspiele: '🂡', blackjack: '🃏', poker: '♠️', durak: '🎴', uno: '🟥', flip7: '7️⃣', pilli: '🌶️', quiz: '❓', werwolf: '🐺', minesweeper: '💣', kreuzwortraetsel: '📰', sudoku: '🔢', farming: '🚜',
+    contact: '✉️', changelog: '📋', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', konto: '🔑', messenger: '🌼', musik: '📀', zufall: '🎲', kartenspiele: '🂡', blackjack: '🃏', poker: '♠️', durak: '🎴', uno: '🟥', flip7: '7️⃣', pilli: '🌶️', quiz: '❓', werwolf: '🐺', minesweeper: '💣', kreuzwortraetsel: '📰', sudoku: '🔢', farming: '🚜',
     nutzer: '👤', paint: '🎨', galerie: '🖼️', admin: '⚙️', 'eigene-dateien': '🗂️', einstellungen: '🛠️', notizblock: '🗒️', suche: '🔍',
     ordner: '📁', ansehen: '🖼️', benachrichtigungen: '🔔', info: 'ℹ️', dienste: '🗄️' };
   var mobile = window.matchMedia('(max-width: 760px)');
@@ -201,8 +201,8 @@
     var icon = ICONS[section(w.url)] || '💾';
     w.el.querySelector('.ttl').textContent = w.title;
     w.el.querySelector('iframe').title = w.title;
-    // Messenger (Blume bei ICU, Männchen bei DSN) und Kartenspiele haben Bilder als Symbol, siehe .sym-… in retro.css
-    var pic = { messenger: 'msgr', kartenspiele: 'karten' }[section(w.url)];
+    // Messenger (Blume bei ICU, Männchen bei DSN), Mediaplayer (Zeichen des Skins) und Kartenspiele haben Bilder als Symbol, siehe .sym-… in retro.css
+    var pic = { messenger: 'msgr', kartenspiele: 'karten', musik: 'player' }[section(w.url)];
     if (pic) {
       w.el.querySelector('.icon').innerHTML = '<i class="sym sym-' + pic + '" aria-hidden="true"></i>';
       w.task.innerHTML = '<i class="sym sym-' + pic + '" aria-hidden="true"></i> ';

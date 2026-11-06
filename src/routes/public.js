@@ -123,7 +123,7 @@ router.get('/files', (req, res) => {
   const view = require('../filesview').build(req.user, String(req.query.ort || req.query.cat && 'k:' + req.query.cat || ''), req.query.q);
   const lr = require('../linkreq'), canSuggest = lr.canSuggest(req.user);
   const mySuggestions = canSuggest ? db.prepare("SELECT COUNT(*) AS n FROM link_requests WHERE user_id = ? AND status NOT IN ('done','rejected','withdrawn','failed')").get(req.user.id).n : 0;
-  res.render('files', { ...view, title: view.node === 'alle' ? 'Downloads' : 'Downloads – ' + view.title, nodeTitle: view.title, q: String(req.query.q || ''),
+  res.render('files', { ...view, title: view.node === 'alle' ? 'Downloads' : 'Downloads – ' + (view.node.startsWith('privat') ? 'Privat – ' : '') + view.title, nodeTitle: view.title, q: String(req.query.q || ''),
     disk: req.user && req.user.isAdmin ? up.diskSpace() : null, canSuggest, mySuggestions });
 });
 

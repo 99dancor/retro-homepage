@@ -36,7 +36,7 @@ const origin = r => (r.source_url ? { source: r.source_url, requestedBy: r.rq_us
 function fileRow(f, user, list) {
   const mine = !!user && f.uploader_id === user.id;
   return {
-    ref: 'datei:' + f.id, type: 'file', icon: cats.iconOf(f.category, list), name: f.title, file: f.original_name !== f.title ? f.original_name : '',
+    ref: 'datei:' + f.id, type: 'file', mime: f.mime || '', icon: cats.iconOf(f.category, list), name: f.title, file: f.original_name !== f.title ? f.original_name : '',
     group: f.category, cat: f.category, game: f.game || '', desc: f.description || '', size: f.size, date: f.created_at, by: by(f), byUser: f.username || '',
     vis: f.visibility, visLabel: VIS_LABEL[f.visibility] || '', downloads: f.downloads,
     dl: '/files/dl/' + f.id, view: '/ansehen/datei/' + f.id,
@@ -59,6 +59,15 @@ function playlistRow(p, user) {
     by: by(p), byUser: p.username || '', vis: p.visibility, visLabel: VIS_LABEL[p.visibility] || '', play: '/musik?playlist=' + p.id,
     edit: user && p.user_id === user.id ? '/eigene-dateien?bib=playlist' : '',
   };
+}
+
+// Videos im Bereich Privat: Titel des Mediaplayers oder hochgeladene Videodateien. Das Vorschaubild kommt aus dem Video selbst
+// (Titel über /musik/stream, Dateien über /ansehen/…/inhalt, das zählt nicht als Download); unbekannte Formate ohne Bild.
+const VIDEO_EXT = /\.(mp4|m4v|webm|mov|mkv|ogv|avi|wmv)$/i;
+const isVideo = r => r.type === 'video' || (r.type === 'file' && (VIDEO_EXT.test(r.file || r.name) || /^video\//.test(r.mime || '')));
+function tileSrc(r) {
+  if (r.type === 'video') return '/musik/stream/' + r.ref.split(':')[1];
+  return /^video\/(mp4|webm|ogg)$/.test(r.mime || '') ? r.view + '/inhalt' : '';
 }
 
 // Knoten im Baum: alle, neu, musik, videos, playlists, privat (nur mit Recht) oder k:<Kategorie>
@@ -86,7 +95,14 @@ function build(user, node, q = '') {
   else if (node === 'musik') { rows = music; title = 'Musik'; icon = '🎵'; mode = 'media'; }
   else if (node === 'videos') { rows = videos; title = 'Videos'; icon = '🎬'; mode = 'media'; }
   else if (node === 'playlists') { rows = playlists; title = 'Playlists'; icon = '📋'; mode = 'playlists'; }
-  else if (node === 'privat' && user && user.canPrivate) { rows = privat; title = 'Privat'; icon = '🔞'; mode = 'mixed'; }
+  // Privat ist vor allem Videos: der Knoten zeigt sie als Kacheln mit Vorschaubild und Länge, der Rest liegt darunter
+  else if (/^privat(-|$)/.test(node) && user && user.canPrivate) {
+    const pv = privat.filter(isVideo), pm = privat.filter(r => r.type === 'audio'), pf = privat.filter(r => r.type === 'file' && !isVideo(r));
+    if (node === 'privat-musik') { rows = pm; title = 'Musik'; icon = '🎵'; mode = 'media'; }
+    else if (node === 'privat-dateien') { rows = pf; title = 'Bilder und Dateien'; icon = '🖼️'; mode = 'files'; }
+    else if (node === 'privat-alles') { rows = privat; title = 'Alles'; icon = '🗂️'; mode = 'mixed'; }
+    else { node = 'privat'; rows = pv.map(r => ({ ...r, thumb: tileSrc(r), open: r.play || r.view || r.dl })); title = 'Videos'; icon = '🎬'; mode = 'tiles'; }
+  }
   else if (node && node.startsWith('k:') && catNodes.some(c => c.key === node)) {
     const c = catNodes.find(x => x.key === node);
     rows = byCat[c.label] || []; title = c.label; icon = c.icon; mode = 'files';
@@ -95,7 +111,9 @@ function build(user, node, q = '') {
   return {
     node, title, icon, mode, rows,
     tree: { all: files.length, fresh: fresh.length, music: music.length, videos: videos.length, playlists: playlists.length, cats: catNodes, loggedIn: !!user,
-      privat: user && user.canPrivate ? privat.length : null },
+      privat: user && user.canPrivate ? privat.length : null,
+      privatParts: user && user.canPrivate ? { videos: privat.filter(isVideo).length, musik: privat.filter(r => r.type === 'audio').length,
+        dateien: privat.filter(r => r.type === 'file' && !isVideo(r)).length } : null },
   };
 }
 

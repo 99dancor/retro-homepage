@@ -106,9 +106,13 @@
 
   // ---------- Widget ----------
   // Steht „Offene Lobbys“ oben rechts, rückt das Widget darunter, solange man es nicht selbst verschoben hat
+  var phone = window.matchMedia('(max-width: 760px)');
   function place() {
-    if (!widget || widget.hidden || widget.classList.contains('moved')) return;
     var lw = document.getElementById('lobbywidget');
+    // Handy: beide unten über die ganze Breite, die Lobbys sitzen auf den Diensten
+    if (lw) lw.style.bottom = phone.matches && widget && !widget.hidden ? (widget.offsetHeight + 14) + 'px' : '';
+    if (phone.matches) { if (widget) widget.style.top = ''; return; }
+    if (!widget || widget.hidden || widget.classList.contains('moved')) return;
     widget.style.top = lw && !lw.hidden && !lw.classList.contains('moved') ? (lw.offsetTop + lw.offsetHeight + 8) + 'px' : '';
   }
   function state() {

@@ -1218,7 +1218,7 @@ const DEFAULT_SETTINGS = {
   fs_auto_pallets: '6',         // Vorschlag Paletten abholen ab so vielen an einem Ort
   fs_auto_food: '1',            // Vorschlag Futter, wenn ein Stall (FTP) leer ist
   fs_auto_fields: '1',          // Vorschläge aus fields.xml (FTP): ernten, kalken, pflügen, düngen
-  fs_auto_peaks: '1',           // Preisspitzen: Aufgabe im besten Monat, Ankündigung einen Monat vorher
+  fs_auto_peaks: '1',           // Höchstpreis-Monat: Benachrichtigung einen Monat vorher und im Monat selbst, Aufgabe im Monat
   fs_shapes: '1',               // echte Feldformen aus densityMap_ground.gdm (FTP), sonst Kreise
   // Seitenverwaltung 2.0
   prog_access: '{}',            // Programme ohne eigene Schalter: { schlüssel: 'members' | 'off' }, fehlt = für alle (src/programs.js)

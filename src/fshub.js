@@ -100,14 +100,23 @@ function withLive(name, base, g) {
 // sonst die Korrektur aus der Seitenverwaltung, sonst eine Schätzung aus den großen Nachfragen (die nennen ihren Spieltag).
 const clock = { dayTime: null, at: 0, running: false };
 function dayState() { try { return JSON.parse(getSetting('fs_day', 'null')); } catch { return null; } }
+// Nach einem Ausfall nimmt der Hub den Tag beim nächsten Mal wieder aus dem Spielstand (Neustart = letzter Autosave)
+function markResync() { const ds = dayState(); if (ds && ds.day && !ds.resync) { ds.resync = true; setSetting('fs_day', JSON.stringify(ds)); } }
 function setDay(day, source) {
   const st = feeds.get('stats');
   setSetting('fs_day', JSON.stringify({ day: Math.max(1, Math.round(day)), last: st ? st.dayTime : null, source, at: now() }));
   invalidate();
 }
+// Tage pro Monat: live/environment.xml, sonst Export der Mod, sonst savegame-Feed. Ist der Server aus, liefert GPORTAL einen
+// leeren Spielstand ohne plannedDaysPerPeriod; dann gilt der zuletzt bekannte Wert (fs_dpp) statt 1 – sonst springt der Monat.
 function daysPerPeriod() {
-  const sg = feed('savegame'), env = ftpFile('environment.xml');
-  return Math.max(1, Math.round((env && env.daysPerPeriod) || (sg && sg.daysPerPeriod) || 1));
+  const sg = feed('savegame'), env = ftpFile('environment.xml'), ex = fsexport.current();
+  const v = Math.round((env && env.daysPerPeriod) || (ex && ex.dpp) || (sg && sg.daysPerPeriod) || 0);
+  if (v >= 1) {
+    if (String(v) !== getSetting('fs_dpp', '')) setSetting('fs_dpp', String(v));
+    return v;
+  }
+  return Math.max(1, Math.round(Number(getSetting('fs_dpp', '')) || 1));
 }
 function estimateDay() {
   const ec = feed('economy');
@@ -377,7 +386,7 @@ function model() {
   const stale = !ok.ok_at || (now() - ok.ok_at) > Math.max(120, feeds.interval('stats') * 4);
   cached = {
     configured: feeds.configured('stats'), stats: st, savegame: sg, economy: ec, size,
-    online: !!st && !stale, paused: !!st && !stale && !clock.running && clock.at > 0, statsAt: ok.ok_at, statsError: ok.error,
+    online: isUp(st) && !stale, paused: isUp(st) && !stale && !clock.running && clock.at > 0, statsAt: ok.ok_at, statsError: ok.error,
     dayTime, clock: { ...clock }, time: hhmm(dayTime), timeScale: sg ? sg.timeScale : null,
     day, date, dateSource: (dayState() || {}).source || (day ? 'estimate' : null), weather: weatherNow(day, dayTime),
     money: farmsX && farmsX.live ? farmsX.reduce((a, f) => a + (f.money || 0), 0) : sg && sg.money !== null ? sg.money : (farmsX ? farmsX.reduce((a, f) => a + (f.money || 0), 0) : null),
@@ -409,7 +418,8 @@ feeds.on((key, prev) => {
     // Spieltag aus environment.xml, sonst aus dem Export der Mod
     const env = ftpFile('environment.xml') || fsexport.current();
     const before = prev && prev.files && (prev.files['environment.xml'] || prev.files['farmingHubExport.xml']);
-    if (env && env.day && (!before || before.day !== env.day || !dayState())) setDay(env.day, 'ftp');
+    const ds = dayState();
+    if (env && env.day && (!before || before.day !== env.day || !ds || ds.resync)) setDay(env.day, 'ftp');
   }
   record();
   try { syncAuto(true); } catch (e) { console.error('Farming Hub, Vorschläge:', e); }
@@ -418,6 +428,7 @@ feeds.onError((key, st) => {
   if (key !== 'stats' || st.fails < 3) return;
   if (getSetting('fs_online', '0') === '1') {
     setSetting('fs_online', '0');
+    markResync();
     closeSessions();
     announce('fs-offline', '🚜 Server nicht erreichbar', `${(feeds.get('stats') || {}).name || 'Der Server'} antwortet seit ein paar Minuten nicht.`);
   }
@@ -433,23 +444,31 @@ function checkSave() {
   db.prepare("INSERT INTO fs_changelog(kind, title, body, created_at) VALUES ('server', ?, ?, ?)").run(`Neuer Spielstand: ${sw.to}`,
     `Vorher ${sw.from}. ${sw.restored ? 'Höfe, Aufgaben und Pläne von früher sind wieder da.' : 'Höfe, Aufgaben und Pläne des alten Spielstands sind beiseitegelegt, hier beginnt alles leer.'}`, now());
 }
+// Läuft der Server wirklich? Ein gestoppter GPORTAL-Server liefert noch eine Stats-Datei, aber ohne Karte und mit dayTime 0.
+function isUp(st) { return !!(st && st.map && st.dayTime !== null && st.dayTime > 0); }
 function onStats(prev, st) {
   if (!st) return;
   const t = Date.now();
-  clock.running = !!(prev && prev.dayTime !== null && st.dayTime !== null && st.dayTime !== prev.dayTime);
+  clock.running = !!(prev && isUp(prev) && isUp(st) && st.dayTime !== prev.dayTime);
   clock.dayTime = st.dayTime;
+  clock.prevAt = clock.at;
   clock.at = t;
-  // Spieltag: über Mitternacht weiterzählen, sonst Startwert setzen
+  // Spieltag: über Mitternacht weiterzählen, sonst Startwert setzen. Gezählt wird nur ein echter Sprung kurz vor → kurz nach
+  // Mitternacht zwischen zwei Abrufen eines laufenden Servers. Ist der Server aus, meldet der Stats-Feed dayTime 0 oder gar
+  // keine Karte; nach einem Neustart springt die Uhr auf den Autosave zurück. Beides ist kein neuer Tag (Fehler bis 3.10).
   const ds = dayState();
+  const up = isUp(st);
   if (ds && ds.day) {
-    if (ds.last !== null && st.dayTime !== null && st.dayTime + 3600000 < ds.last) ds.day++;
-    ds.last = st.dayTime;
+    const H = 3600000;
+    const fresh = prev && up && isUp(prev) && t - (clock.prevAt || 0) < 15 * 60000;
+    if (fresh && !ds.resync && ds.last !== null && st.dayTime !== null && ds.last >= 18 * H && st.dayTime <= 6 * H) ds.day++;
+    if (up) ds.last = st.dayTime; else ds.resync = true;
     setSetting('fs_day', JSON.stringify(ds));
   } else {
     const est = estimateDay();
     if (est) setDay(est, 'estimate');
   }
-  if (getSetting('fs_online', '0') !== '1') {
+  if (up && getSetting('fs_online', '0') !== '1') {
     const was = getSetting('fs_online', null);
     setSetting('fs_online', '1');
     if (was === '0') announce('fs-online', '🚜 Server wieder da', `${st.name || 'Der Server'} ist wieder erreichbar.`);
@@ -737,11 +756,11 @@ function suggestions(farmId) {
     if (!s) continue;
     out.push({ key: `demand:${d.fill}:${d.day}`, sig: '1', icon: '📈', title: `Große Nachfrage ${N.fill(d.fill)} +${Math.round((d.mult - 1) * 100)} %${d.running ? ' (läuft)' : d.day ? ' ab ' + (fmtDay(d.day) || 'Tag ' + d.day) : ''}`, why: `Ihr habt ${Math.round(s.amount).toLocaleString('de-DE')} l` });
   }
-  // Preisspitzen: im besten Monat verkaufen (Ankündigung einen Monat vorher in announcePeaks)
+  // Höchstpreis: im besten Monat verkaufen (Benachrichtigung einen Monat vorher und im Monat selbst in announcePeaks)
   if (getSetting('fs_auto_peaks', '1') === '1' && m.date) {
     for (const p of peaks(m, f).filter(x => x.now)) {
-      out.push({ key: `peak:${f.id}:${p.fill}:${m.date.year}:${p.month}`, sig: '1', icon: '💰', title: `Preisspitze ${p.name}: jetzt verkaufen (+${p.over} % über Jahresschnitt)`,
-        why: `${Math.round(p.price).toLocaleString('de-DE')} € je 1 000 l im ${N.MONTHS[p.month]} · ${p.why}` });
+      out.push({ key: `peak:${f.id}:${p.fill}:${m.date.year}:${p.month}`, sig: '1', icon: '💰', title: `Höchstpreis ${p.name}: jetzt verkaufen`,
+        why: `${Math.round(p.price).toLocaleString('de-DE')} € je 1 000 l im ${N.MONTHS[p.month]}, bester Monat im Jahr (+${p.over} % über Schnitt) · ${p.why}` });
     }
   }
   if (getSetting('fs_auto_food', '1') === '1' && !(mod && cfg.stall)) {
@@ -772,8 +791,9 @@ function suggestions(farmId) {
 let lastAuto = 0;
 // Erzeugnisse eines Hofs mit Preisspitze jetzt (now) oder im nächsten Monat (next). Zählen nur Waren, die der Hof lagert,
 // geladen hat, herstellt oder auf eigenen Feldern anbaut, die eine Station kauft und die keine Betriebsmittel sind
-// (Saatgut, Dünger, Kalk, Diesel …). Spitze: höchstens 2 % unter dem besten Monat und mindestens 8 % über dem Jahresschnitt.
-const PEAK_NEAR = 0.98, PEAK_OVER = 1.08, PEAK_MAX = 5;
+// (Saatgut, Dünger, Kalk, Diesel …). Spitze = der Monat mit dem höchsten Preis der Preisliste (Dancor 07.11.2026: nicht schon ab
+// „x % über Schnitt“); bei gleich hohen Monaten zählen alle. Ganz flache Preise (überall gleich) haben keine Spitze.
+const PEAK_MAX = 5;
 function peaks(m, f) {
   const ec = m.economy;
   if (!ec || m.month === null || m.month === undefined) return [];
@@ -792,9 +812,9 @@ function peaks(m, f) {
     if (SUPPLIES.has(fill) || NOT_GOODS.test(fill) || !sold.has(fill)) continue;
     const vals = (ec.prices[fill] || []).map(v => v || 0);
     if (vals.length < 12) continue;
-    const max = Math.max(...vals), avg = vals.reduce((a, v) => a + v, 0) / 12;
-    if (!max || max < avg * PEAK_OVER) continue;
-    const isPeak = i => vals[i] >= max * PEAK_NEAR;
+    const max = Math.max(...vals), min = Math.min(...vals), avg = vals.reduce((a, v) => a + v, 0) / 12;
+    if (!max || max - min < 0.5) continue;
+    const isPeak = i => vals[i] >= max - 0.005;
     const base = { fill, name: N.fill(fill), why: text, have: amount.get(fill) || 0 };
     if (isPeak(cur)) out.push({ ...base, now: true, month: cur, price: vals[cur], over: Math.round((vals[cur] / avg - 1) * 100) });
     else if (isPeak(next)) out.push({ ...base, now: false, month: next, price: vals[next], over: Math.round((vals[next] / avg - 1) * 100) });
@@ -803,19 +823,23 @@ function peaks(m, f) {
   out.sort((a, b) => b.have * b.price - a.have * a.price || b.over - a.over);
   return [...out.filter(p => p.now).slice(0, PEAK_MAX), ...out.filter(p => !p.now).slice(0, PEAK_MAX)];
 }
-// Ankündigung an die Mitglieder eines Hofs, einmal je Ware und Monat
+// Benachrichtigung an die Mitglieder eines Hofs: einen Monat vorher („nächsten Monat Höchstpreis“) und im Monat selbst
+// („jetzt verkaufen“), jeweils einmal je Ware, Spieljahr und Monat
 function announcePeaks(m = model()) {
   if (getSetting('fs_auto_peaks', '1') !== '1' || !m.date) return 0;
   let n = 0;
   for (const f of m.farms) {
-    const list = peaks(m, f).filter(p => !p.now);
+    const list = peaks(m, f);
     if (!list.length) continue;
     const members = db.prepare('SELECT user_id FROM fs_members WHERE farm_id = ?').all(f.id);
     for (const p of list) {
-      for (const r of members) {
-        if (notify.send(r.user_id, 'fshub', { key: `fs-peak:${f.id}:${p.fill}:${m.date.year}:${p.month}`, once: true, title: `📈 Preisspitze im ${N.MONTHS[p.month]}: ${p.name}`,
-          body: `+${p.over} % über dem Jahresschnitt (${Math.round(p.price).toLocaleString('de-DE')} € je 1 000 l). ${p.why}, besser bis dahin lagern.`, url: `/farming/preise?w=${encodeURIComponent(p.fill)}` })) n++;
-      }
+      // Spitze im Januar, angekündigt im Dezember: gehört schon zum nächsten Spieljahr
+      const year = m.date.year + (!p.now && p.month < m.month ? 1 : 0);
+      const price = `${Math.round(p.price).toLocaleString('de-DE')} € je 1 000 l, +${p.over} % über dem Jahresschnitt`;
+      const msg = p.now
+        ? { key: `fs-peak-now:${f.id}:${p.fill}:${year}:${p.month}`, title: `💰 Jetzt Höchstpreis: ${p.name}`, body: `Bester Monat im Jahr (${price}). ${p.why}, jetzt verkaufen.` }
+        : { key: `fs-peak:${f.id}:${p.fill}:${year}:${p.month}`, title: `📈 Nächsten Monat Höchstpreis: ${p.name}`, body: `Im ${N.MONTHS[p.month]} ist der beste Preis im Jahr (${price}). ${p.why}, besser bis dahin lagern.` };
+      for (const r of members) if (notify.send(r.user_id, 'fshub', { ...msg, once: true, url: `/farming/preise?w=${encodeURIComponent(p.fill)}` })) n++;
     }
   }
   return n;
@@ -1241,7 +1265,7 @@ function start() {
 module.exports = {
   mapName, backgrounds, backgroundFile, saveBackground, removeBackground, slug,
   peaks, announcePeaks, STATUS, stations: fsst, fscrops, wiki: fswiki, exportData: () => fsexport.current(), parcelAt: (x, z) => fsexport.parcelAt(fsexport.current(), x, z), REPEAT, MAX, SUPPLIES, DEFAULT_COLORS, enabled, canView, canEditFarm, farmOf, model, invalidate, farm, feed, ftpFile,
-  currentDay, setDay, estimateDay, calendarYear, dateOf, dayOfMonth, fmtDay, hhmm, daysPerPeriod, today, accountFor, history, record,
+  currentDay, setDay, estimateDay, isUp, _onStats: onStats, calendarYear, dateOf, dayOfMonth, fmtDay, hhmm, daysPerPeriod, today, accountFor, history, record,
   join, leave, setMember, saveFarm, notes, addNote, note, canChangeNote, editNote, removeNote,
   tasks, openTasks, task, addTask, editTask, completeTask, reopenTask, removeTask, isDue, dueLabel, repeatLabel,
   suggestions, syncAuto, hideSuggestion, takeSuggestion, crops, crop, plans, plan, addPlan, removePlan, planCells, calendar,

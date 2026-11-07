@@ -572,18 +572,18 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   // Jede Kopie gleich (das Spiel vergleicht im Mehrspieler die Prüfsumme der ZIP mit der auf dem Server)
   const t0 = Date.now(); while (Date.now() - t0 < 2100) { /* zweiter Bau zu einer anderen Uhrzeit */ }
   assert.ok(first.equals(E.modZip()), 'gleiche Bytes bei jedem Herunterladen');
-  assert.deepEqual(zip.getEntries().map(x => x.entryName).sort(), ['FarmingHubExport.lua', 'FarmingHubLive.lua', 'HubLinkAlerts.lua', 'HubLinkDiag.lua', 'HubLinkEvents.lua', 'HubLinkHud.lua', 'HubLinkWatch.lua', 'icon_farmingHubExport.dds', 'modDesc.xml']);
+  assert.deepEqual(zip.getEntries().map(x => x.entryName).sort(), ['FarmingHubExport.lua', 'FarmingHubLive.lua', 'HubLinkAlerts.lua', 'HubLinkEvents.lua', 'HubLinkFieldInfo.lua', 'HubLinkHud.lua', 'HubLinkWatch.lua', 'icon_farmingHubExport.dds', 'modDesc.xml']);
   const dds = zip.getEntry('icon_farmingHubExport.dds').getData();
   assert.equal(dds.toString('latin1', 0, 4), 'DDS ');
   assert.equal(dds.length, 128 + 256 * 256 * 4);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubLive.lua"\/>/);
   const desc = zip.getEntry('modDesc.xml').getData().toString();
-  assert.match(desc, /<version>3\.10\.1\.0<\/version>/);
+  assert.match(desc, /<version>3\.11\.0\.0<\/version>/);
   // Beschreibung: Changelog der letzten zwei Versionen, die neueste zuerst
   const de = desc.match(/<de><!\[CDATA\[([\s\S]*?)\]\]><\/de>/)[1];
-  assert.deepEqual([...de.matchAll(/^Neu in (\d+\.\d+):/gm)].map(m => m[1]), ['3.10', '3.9']);
-  assert.deepEqual([...desc.matchAll(/^Changes in (\d+\.\d+):/gm)].map(m => m[1]), ['3.10', '3.9']);
+  assert.deepEqual([...de.matchAll(/^Neu in (\d+\.\d+):/gm)].map(m => m[1]), ['3.11', '3.10']);
+  assert.deepEqual([...desc.matchAll(/^Changes in (\d+\.\d+):/gm)].map(m => m[1]), ['3.11', '3.10']);
   assert.throws(() => E.read('<placeables/>'), /FS25 Hub Link/);
 });
 
@@ -1053,21 +1053,52 @@ test('Mod 3.8: Helfer, Regen, Feldbuch mit Fruchtfolge', () => {
   setSetting('fs_field_last', '');
 });
 
-test('Preisspitzen: nur verkaufbare Erzeugnisse, jetzt und nächsten Monat', () => {
+test('Höchstpreise: nur verkaufbare Erzeugnisse, nur der beste Monat, jetzt und einen Monat vorher', () => {
   const hub = require('../src/fshub');
   const flat = v => Array(12).fill(v);
-  const wheat = flat(200); wheat[3] = 260;            // Spitze jetzt (Monat 3)
-  const canola = flat(400); canola[4] = 480;          // Spitze nächsten Monat
+  const wheat = flat(200); wheat[3] = 260;            // Höchstpreis jetzt (Monat 3)
+  const canola = flat(400); canola[4] = 480;          // Höchstpreis nächsten Monat
   const seeds = flat(100); seeds[3] = 200;            // Betriebsmittel: nie
-  const oat = flat(300); oat[3] = 305;                // zu flach
-  const m = { month: 3, date: { year: 1 }, economy: { prices: { WHEAT: wheat, CANOLA: canola, SEEDS: seeds, OAT: oat, BARLEY: wheat }, demands: [] },
-    stations: [{ sells: ['WHEAT', 'CANOLA', 'SEEDS', 'OAT'] }], farms: [] };
-  const f = { id: 1, stock: [{ fill: 'WHEAT', amount: 5000 }, { fill: 'SEEDS', amount: 900, supply: false }, { fill: 'OAT', amount: 100 }, { fill: 'BARLEY', amount: 100 }],
-    cargo: [{ fill: 'CANOLA', amount: 2000 }] };
+  const oat = flat(300); oat[3] = 305;                // knapp, aber der beste Monat: zählt
+  const rye = flat(200); rye[3] = 330; rye[7] = 340;  // jetzt hoch, aber nicht der Höchstpreis: zählt nicht (früher +x %-Regel)
+  const sorg = flat(250);                             // überall gleich: keine Spitze
+  const m = { month: 3, date: { year: 1 }, economy: { prices: { WHEAT: wheat, CANOLA: canola, SEEDS: seeds, OAT: oat, BARLEY: wheat, RYE: rye, SORGHUM: sorg }, demands: [] },
+    stations: [{ sells: ['WHEAT', 'CANOLA', 'SEEDS', 'OAT', 'RYE', 'SORGHUM'] }], farms: [] };
+  const f = { id: 1, stock: [{ fill: 'WHEAT', amount: 5000 }, { fill: 'SEEDS', amount: 900, supply: false }, { fill: 'OAT', amount: 100 }, { fill: 'BARLEY', amount: 100 },
+    { fill: 'RYE', amount: 100 }, { fill: 'SORGHUM', amount: 100 }], cargo: [{ fill: 'CANOLA', amount: 2000 }] };
   const p = hub.peaks(m, f);
-  assert.deepEqual(p.map(x => [x.fill, x.now, x.month]), [['WHEAT', true, 3], ['CANOLA', false, 4]], 'BARLEY kauft keiner, SEEDS ist Betriebsmittel, OAT zu flach');
+  assert.deepEqual(p.map(x => [x.fill, x.now, x.month]), [['WHEAT', true, 3], ['OAT', true, 3], ['CANOLA', false, 4]], 'BARLEY kauft keiner, SEEDS ist Betriebsmittel, RYE nicht am Höchstpreis, SORGHUM flach');
+  // Dezember: Höchstpreis im Januar gehört zum nächsten Spieljahr
+  const jan = flat(200); jan[0] = 300;
+  const dec = hub.peaks({ month: 11, date: { year: 2 }, economy: { prices: { WHEAT: jan }, demands: [] }, stations: [{ sells: ['WHEAT'] }] }, { id: 1, stock: [{ fill: 'WHEAT', amount: 10 }], cargo: [] });
+  assert.deepEqual(dec.map(x => [x.now, x.month]), [[false, 0]]);
   assert.equal(p[0].over, Math.round((260 / ((200 * 11 + 260) / 12) - 1) * 100));
-  assert.match(p[1].why, /2\.000 l geladen/);
+  assert.match(p[2].why, /2\.000 l geladen/);
+});
+
+test('Datum im Spiel: Ausfall und Neustart zählen keinen Tag, Tage pro Monat bleiben', () => {
+  const hub = require('../src/fshub');
+  const { getSetting, setSetting } = require('../src/db');
+  const H = 3600000, up = t => ({ map: 'Catuaí', dayTime: t, players: [], mods: [] }), down = { map: '', dayTime: 0, players: [], mods: [] };
+  const day = () => JSON.parse(getSetting('fs_day', 'null')).day;
+  assert.equal(hub.isUp(down), false);
+  hub.setDay(40, 'ftp');
+  hub._onStats(null, up(23 * H));
+  hub._onStats(up(23 * H), up(23.5 * H));
+  hub._onStats(up(23.5 * H), up(0.5 * H));
+  assert.equal(day(), 41, 'echter Sprung über Mitternacht');
+  hub._onStats(up(0.5 * H), down);
+  hub._onStats(down, up(22 * H));
+  hub._onStats(up(22 * H), up(23.9 * H));
+  hub._onStats(up(23.9 * H), up(0.2 * H));
+  assert.equal(day(), 41, 'nach dem Ausfall zählt der Hub erst wieder, wenn der Spielstand den Tag sagt');
+  assert.equal(JSON.parse(getSetting('fs_day', 'null')).resync, true);
+  hub.setDay(41, 'ftp');
+  assert.equal(JSON.parse(getSetting('fs_day', 'null')).resync, undefined);
+  // Server aus: savegame-Feed ohne plannedDaysPerPeriod → letzter bekannter Wert statt 1
+  setSetting('fs_dpp', '3');
+  const F = require('../src/fsfeeds');
+  assert.equal(F.readSavegame('<careerSavegame><settings/></careerSavegame>').daysPerPeriod, null);
 });
 
 test('Anbau planen: Wachstumsdauer, Erntemonat aus Saatmonat und umgekehrt', () => {

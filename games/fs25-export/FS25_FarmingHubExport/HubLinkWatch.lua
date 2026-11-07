@@ -472,10 +472,10 @@ function FarmingHubLive:readOrchards()
             table.insert(objs, { p = p, o = o })
         end
     end
-    -- ab 3.10: Abbild aus dem Speichern der Plantagen, mit Verlauf (HubLinkDiag.lua)
-    if FarmingHubLive.orchardSnapshot ~= nil then
-        U.try("Plantage Abbild", function()
-            self:orchardSnapshot(objs)
+    -- ab 3.11: Feldzustand an den Baumreihen wie im Feld-Infokasten des Spiels (HubLinkFieldInfo.lua)
+    if FarmingHubLive.orchardProbe ~= nil then
+        U.try("Plantage Feldzustand", function()
+            self:orchardProbe(objs)
         end)
     end
     self.orchardCache = list
@@ -979,7 +979,7 @@ function FarmingHubLive:writeWatchData(xml, r)
             xml:setString(k .. "#sickFrom", o.sickFrom)
         end
         -- Diagnose, bis klar ist, wo das DLC die Krankheit führt
-        for _, part in ipairs({ "states", "specs", "spec", "deep", "methods", "fruit", "sick", "fields", "funcs", "pos", "save" }) do
+        for _, part in ipairs({ "states", "specs", "spec", "deep", "methods", "fruit", "sick", "fields", "funcs", "pos", "field" }) do
             if o.diag ~= nil and o.diag[part] ~= nil and o.diag[part] ~= "" then
                 xml:setString(k .. ".debug#" .. part, o.diag[part])
             end

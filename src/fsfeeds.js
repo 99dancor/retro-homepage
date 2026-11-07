@@ -94,7 +94,7 @@ function readSavegame(xml) {
   const st = (...p) => X.text(s, 'settings', ...p);
   return {
     title: st('savegameName') || '', mapTitle: st('mapTitle') || '', mapId: st('mapId') || '', saveDate: st('saveDate') || '', created: st('creationDate') || '',
-    timeScale: num(st('timeScale'), 1), daysPerPeriod: num(st('plannedDaysPerPeriod'), 1), difficulty: st('economicDifficulty') || '',
+    timeScale: num(st('timeScale'), 1), daysPerPeriod: num(st('plannedDaysPerPeriod')), difficulty: st('economicDifficulty') || '',
     growthMode: num(st('growthMode')), autoSave: num(st('autoSaveInterval')), fuelUsage: num(st('fuelUsage')),
     money: num(X.text(s, 'statistics', 'money')), playTime: num(X.text(s, 'statistics', 'playTime')),
   };
@@ -416,7 +416,7 @@ function readFtpFile(name, xml) {
 
 function summarize(key, d) {
   if (key === 'stats') return `${d.name || 'Server'} · ${d.map} · ${d.players.length}/${d.capacity} Spieler · ${d.mods.length} Mods · ${d.farmlands.length} Grundstücke · ${d.fields.length} Felder · ${d.vehicles.length} Fahrzeuge`;
-  if (key === 'savegame') return `Zeitfaktor ×${d.timeScale} · ${d.daysPerPeriod} ${d.daysPerPeriod === 1 ? 'Tag' : 'Tage'} pro Monat · Geld ${Math.round(d.money || 0).toLocaleString('de-DE')} €`;
+  if (key === 'savegame') return `Zeitfaktor ×${d.timeScale} · ${d.daysPerPeriod ? `${d.daysPerPeriod} ${d.daysPerPeriod === 1 ? 'Tag' : 'Tage'} pro Monat` : 'Tage pro Monat fehlen (Server aus?)'} · Geld ${Math.round(d.money || 0).toLocaleString('de-DE')} €`;
   if (key === 'vehicles') {
     const farms = {};
     for (const v of d) farms[v.farmId] = (farms[v.farmId] || 0) + 1;

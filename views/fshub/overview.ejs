@@ -13,7 +13,7 @@
     <small><%= !m.online ? 'Server nicht erreichbar' : m.clock.running ? 'läuft' : m.clock.at ? 'steht' : 'wird geprüft' %><%= m.timeScale ? ' · Zeitfaktor ×' + de(m.timeScale, m.timeScale % 1 ? 1 : 0) : '' %></small></div>
   <div class="kpi"><span class="ic" aria-hidden="true"><svg><use href="#i-cal"/></svg></span><small>Datum im Spiel</small>
     <b><%= m.date ? (m.date.dpp > 1 ? m.date.dom + '. ' : '') + m.date.monthName : '–' %></b>
-    <small><%= m.date ? 'Jahr ' + m.date.year + ' · Spieltag ' + m.date.day + (m.dateSource === 'estimate' ? ' · geschätzt' : m.dateSource === 'admin' ? ' · korrigiert' : '') : 'unbekannt' %></small></div>
+    <small><%= m.date ? 'Jahr ' + m.date.year + ' · Spieltag ' + m.date.day + (!m.online ? ' · Stand letzter Kontakt' : m.dateSource === 'estimate' ? ' · geschätzt' : m.dateSource === 'admin' ? ' · korrigiert' : '') : 'unbekannt' %></small></div>
   <div class="kpi"><span class="ic" aria-hidden="true"><svg><use href="#i-sun"/></svg></span><small>Wetter</small>
     <b><%= m.weather ? m.weather.label + (m.weather.temp !== null ? ' · ' + de(m.weather.temp, 0) + ' °C' : '') : '–' %></b>
     <small><%= m.weather ? (m.weather.forecast.length > 1 ? 'danach ' + m.weather.forecast.slice(1, 3).map(w => w.label).join(', ') : m.weather.live ? 'live aus dem Spiel' : 'laut letztem Autosave') : m.ftp ? 'nicht im Spielstand' : 'nur mit FTP-Zugang' %></small></div>
@@ -48,7 +48,7 @@
       <% if (m.missions) { const mine = m.missions.filter(x => x.running), offered = m.missions.filter(x => x.offered); %>
         <div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-field"/></svg><span class="t"><a href="#auftraege">Aufträge</a>: <%= mine.length %> laufen, <%= offered.length %> angeboten</span></div>
       <% } %>
-      <% if (sg) { %><div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-gear"/></svg><span class="t"><%= [sg.difficulty && 'Wirtschaft ' + ({ EASY: 'leicht', NORMAL: 'normal', HARD: 'schwer' }[sg.difficulty] || sg.difficulty), sg.daysPerPeriod + (sg.daysPerPeriod === 1 ? ' Tag' : ' Tage') + ' pro Monat', sg.autoSave ? 'Autosave alle ' + de(sg.autoSave) + ' min' : ''].filter(Boolean).join(' · ') %></span></div><% } %>
+      <% if (sg) { %><div class="fs-row"><svg class="ri" aria-hidden="true"><use href="#i-gear"/></svg><span class="t"><%= [sg.difficulty && 'Wirtschaft ' + ({ EASY: 'leicht', NORMAL: 'normal', HARD: 'schwer' }[sg.difficulty] || sg.difficulty), sg.daysPerPeriod ? sg.daysPerPeriod + (sg.daysPerPeriod === 1 ? ' Tag' : ' Tage') + ' pro Monat' : '', sg.autoSave ? 'Autosave alle ' + de(sg.autoSave) + ' min' : ''].filter(Boolean).join(' · ') %></span></div><% } %>
       <% for (const d of m.demands) { %>
         <div class="fs-row"><%- icon(d.fill, N.fill(d.fill), 's') %><span class="t">Große Nachfrage<%= d.running ? ' (läuft)' : d.day ? ' ab ' + (fmtDay(d.day) || 'Tag ' + d.day) + ', ' + d.hour + ' Uhr' : '' %>: <a href="/farming/preise?w=<%= d.fill %>"><b><%= N.fill(d.fill) %> +<%= Math.round((d.mult - 1) * 100) %> %</b></a></span></div>
       <% } %>

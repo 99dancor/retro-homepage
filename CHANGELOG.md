@@ -1,5 +1,11 @@
 # Changelog
 
+## Update 90 · 07.11.2026 – Farming Hub: Datum, Höchstpreise und Hub Link 3.11
+
+- **Datum im Spiel stimmt auch, wenn der Server aus ist:** Bisher konnte der Hub bei einem Ausfall einen Tag zu viel zählen (die Uhr eines gestoppten Servers steht auf 0, nach dem Neustart springt sie auf den Autosave zurück) und mit 1 Tag pro Monat rechnen, weil der Spielstand-Feed dann leer ist. Jetzt zählt er nur echte Sprünge über Mitternacht, merkt sich die Tage pro Monat und nimmt nach einem Ausfall den Tag wieder aus dem Spielstand. Solange der Server aus ist, steht dabei „Stand letzter Kontakt“.
+- **Höchstpreise statt Preisspitzen:** Die Benachrichtigung kommt nur noch für den Monat mit dem höchsten Preis laut Preisliste, nicht mehr schon ab einem Aufschlag auf den Jahresschnitt. Einen Monat vorher heißt es „Nächsten Monat Höchstpreis“, im Monat selbst „Jetzt Höchstpreis, verkaufen“ (dazu wie bisher eine Aufgabe).
+- **FS25 Hub Link 3.11:** Bananen und Kaffee werden jetzt wie im Feld-Infokasten des Spiels gemessen. Die Mod prüft entlang jeder Baumreihe, ob das Spiel dort „Fungizid nötig“ zeigen würde, und meldet dann „Plantage spritzen“. Reif und verdorrt kommen aus demselben Zustand. Die Plantagen-Abbilder aus 3.10 entfallen.
+
 ## Update 89 · 06.11.2026 – Galerie mit eigenen Fotos und Alben
 
 - **Die Galerie ist jetzt ein Explorer** wie die Downloads: links Alle Bilder, Neu hinzugefügt, Alben, Paint-Bilder, Von Mitgliedern und Meine Bilder, in der Mitte Miniaturen, rechts die Aufgaben wie bei XP (Bildaufgaben, Albumaufgaben, Details). Mehrere Bilder wählst du mit Strg oder Umschalt aus, ein Rechtsklick zeigt alles, was mit einem Bild geht, und Bilder lassen sich im Baum auf ein Album ziehen.

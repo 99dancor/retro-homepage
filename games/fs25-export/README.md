@@ -141,11 +141,12 @@ mit `spec_productionPoint` zählen nie. Besitzer 0 → Besitzer des Grundstücks
 **Wetter:** `forecastList()` liest `forecastItems` (Typ über `typeName`, `weatherType`, `objectIndex`) oder
 `weather.forecast:dataForTime`, dazu `getRainFallScale` für „regnet gerade“. `<environment><weatherDebug>` zeigt, was da ist.
 
-**Preisspitzen (Website, `peaks`/`announcePeaks` in `src/fshub.js`):** Spitze = höchstens 2 % unter dem besten Monat und
-mindestens 8 % über dem Jahresschnitt. Jetzt → Vorschlag (Aufgabe `peak:…`), nächster Monat → Benachrichtigung einmal je
-Hof, Ware und Monat. Nur Waren, die eine Station kauft, ohne `SUPPLIES`. Schalter `fs_auto_peaks`.
+**Höchstpreise (Website, `peaks`/`announcePeaks` in `src/fshub.js`):** Spitze = der Monat mit dem höchsten Preis der
+Preisliste (seit 07.11.2026; vorher „2 % unter dem besten Monat und 8 % über Schnitt“). Benachrichtigung einen Monat vorher
+und im Monat selbst, jeweils einmal je Hof, Ware, Spieljahr und Monat; im Monat dazu eine Aufgabe `peak:…`. Nur Waren, die
+eine Station kauft, ohne `SUPPLIES`; ganz flache Preise haben keine Spitze. Schalter `fs_auto_peaks`.
 
-## Ab 3.10: Hofsymbol, Plantagen-Abbild (`HubLinkDiag.lua`)
+## Ab 3.10: Hofsymbol, Plantagen-Abbild (bis 3.10.1, in 3.11 entfernt)
 
 - **Hofsymbol:** FS25 speichert am Hof nur `name` und `color` (Index in `Farm.COLORS`). Der Overlay-Kopf zeichnet links vom Namen einen kleinen Hof aus Rechtecken in dieser Farbe. Bringt eine Mod ein eigenes Bild mit (`iconFilename` o. ä.), wird das gezeichnet. Nie zusätzlich ein Strich.
 - **Optionen:** zweiter Reiter „Werte“ (`hubLink_tabValues`), Seitenwahl der Tracker als eigene Gruppe ganz unten.
@@ -156,3 +157,17 @@ Hof, Ware und Monat. Nur Waren, die eine Station kauft, ohne `SUPPLIES`. Schalte
   - `hubLinkOrchardLog.xml` Verlauf dieser Änderungen mit Spieltag, Uhrzeit und Werteverteilung (die letzten 60).
   Liefert das Spiel den Text (`saveXMLFileToMemory`), zählt ein Krankheitswert über 0 auch als „krank“ (`sickFrom="save:tag#attr"`).
 - Live-Datei: je Plantage `debug#fields`, `#funcs`, `#pos` (Position, Grundstück, Besitzer), `#save` (Werteverteilung aus dem Abbild), dazu `orchards#missionKeys` und `farms#farmClass`.
+
+**Ergebnis 07.11.2026:** Die Abbilder von Spieltag 58–67 (Catuaí, savegame4) enthalten je Plantage nur `newFence/segment`
+(Baumreihen), `age`, `price`, `farmId`. Keine Krankheit, kein Wachstum. Additional Field Info (yumi-modding) rechnet nichts
+selbst, es hängt sich nur an `PlayerHUDUpdater.fieldAddFarmland(self, data, box)`; „Fungizid nötig“ setzt der Feld-Infokasten
+des Spiels/DLC. Der Zustand liegt also im Boden wie bei Feldern.
+
+## Ab 3.11: Plantagen über den Feldzustand (`HubLinkFieldInfo.lua`)
+
+- **Baumreihen:** `saveToXMLFile` der Plantage in ein `XMLFile` im Speicher (nie gespeichert), daraus `newFence.segment#start/#end`. Alle 10 Minuten neu.
+- **Messen:** je Reihe bei ¼, ½, ¾ `FieldState.new():update(x, z)` (höchstens `PROBE_MAX` = 900 Punkte über alle Plantagen, alle 2 Minuten).
+- **Krank:** an der Mitte jeder Reihe alle `PlayerHUDUpdater.field…`-Funktionen mit einem stillen Kasten (`addLine` sammelt) und einem `self`, das auf `PlayerHUDUpdater` zeigt. Eine Zeile mit „fungi“ (ohne „nicht/not“) = krank → `sickFrom="hud"`. Schreibt der Kasten auf dem Server gar nichts, zählt ein Wert des Feldzustands mit disease/fung/infect/… über 0 (`sickFrom="state.<name>"`).
+- **Reif/verdorrt:** aus `fruitTypeIndex`/`growthState` des Feldzustands und `minHarvestingGrowthState`/`witheredState` der Frucht, wenn die Plantage selbst nichts misst (`measure="fieldState"`).
+- **Diagnose Server:** `<Spielstand>/hubLinkFieldInfo.xml` je Plantage: Verteilung aller Zahlen/Schalter des Feldzustands (`values`), Zeilen des Infokastens (`hudLines`), dazu `#fungiTexts` (Spieltexte mit „fungi“) und `#hudFunctions`. Live-Datei: `debug#field`.
+- **Diagnose Spieler:** Jede `PlayerHUDUpdater.field…`-Funktion ist umhüllt (Original läuft unverändert, `addLine` nur mitgeschrieben). `modSettings/FS25_FarmingHubExport/hubLinkHudLines.xml`: jede gesehene Zeile mit Funktion und Zähler; bei einer „Fungi“-Zeile zusätzlich Position und alle Werte des Feldzustands (`fungi(i).state`).

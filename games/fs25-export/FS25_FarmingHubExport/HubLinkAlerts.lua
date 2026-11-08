@@ -311,11 +311,15 @@ function FarmingHubLive:checkRain(found)
     end
     if self.readOrchards ~= nil then
         for _, o in ipairs(self:readOrchards()) do
-            if farmOk(o.farm) and self:farm(o.farm).rain ~= false and (o.ripe or 0) >= 10 then
-                local g = farmOf(o.farm)
-                table.insert(g.places, o.name ~= "" and o.name or (o.fruitTitle or "?"))
-                if g.x == nil then
-                    g.x, g.z = o.x, o.z
+            -- ab 3.12 je Hof, dem Land unter den Reihen gehört
+            local shares = FarmingHubLive.orchardShares ~= nil and FarmingHubLive.orchardShares(o) or { { farm = o.farm, ripe = o.ripe } }
+            for _, f in ipairs(shares) do
+                if farmOk(f.farm) and self:farm(f.farm).rain ~= false and (f.ripe or 0) >= 10 then
+                    local g = farmOf(f.farm)
+                    table.insert(g.places, o.name ~= "" and o.name or (o.fruitTitle or "?"))
+                    if g.x == nil then
+                        g.x, g.z = o.x, o.z
+                    end
                 end
             end
         end

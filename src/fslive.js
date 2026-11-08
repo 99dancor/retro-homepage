@@ -126,6 +126,12 @@ function read(xml) {
   return { version: num(s.a.version, 1), mod: s.a.mod || '', seq: num(s.a.seq, 0), ack: num(s.a.ack, 0), saveDir: s.a.saveDir || '', mapTitle: s.a.mapTitle || '',
     time: s.a.time || '', day: num(s.a.day), minute: num(s.a.minute), settings: settingsOf(st), tasks, done, game: readGame(s) };
 }
+// Kalendertag aus Periode, Tag in der Periode und Jahr (so wie das Spiel es anzeigt), sonst currentDay
+function calDayOf(a, dpp) {
+  const p = X.num(a.period), dip = X.num(a.dayInPeriod), y = X.num(a.year);
+  if (dpp >= 1 && p >= 1 && p <= 12 && dip >= 1 && y >= 1) return (y - 1) * 12 * dpp + (p - 1) * dpp + dip;
+  return X.num(a.currentDay);
+}
 // Live-Daten (ab Mod 3.3): dieselben Formen wie farms.xml, environment.xml und fields.xml in src/fsfeeds.js, dazu die Aufträge.
 // Fehlt ein Teil (ältere Mod), ist er null.
 function readGame(s) {
@@ -143,6 +149,8 @@ function readGame(s) {
   const en = X.kid(s, 'environment');
   const environment = en ? {
     day: num(en.a.day), dayTime: num(en.a.dayTime), daysPerPeriod: num(en.a.daysPerPeriod), temp: num(en.a.temp),
+    // Ab Mod 3.12: Kalender wie im Spiel (Periode 1–12, Tag in der Periode, Jahr), dazu currentDay
+    calDay: calDayOf(en.a, num(en.a.daysPerPeriod)),
     weather: X.kids(X.kid(en, 'weather'), 'instance').map(w => ({ type: w.a.typeName || '', day: num(w.a.startDay), time: num(w.a.startDayTime, 0), duration: num(w.a.duration, 0) }))
       .filter(w => w.type),
   } : null;
@@ -195,6 +203,8 @@ const HELPER = {
   notPrepared: 'nicht vorbereitet', wrongFill: 'falsche Ladung', noPallets: 'keine Paletten geladen', stationGone: 'Station weg', vehicleGone: 'Fahrzeug weg',
   noVine: 'keine Reihen gefunden', unknown: '',
 };
+// Plantagen ab Mod 3.12: Grundstücke des Hofs, auf denen es zu tun gibt („89, 91“)
+const lands = t => (/^\d+(, \d+)*$/.test(t.sub || '') ? ` · ${t.sub.includes(',') ? 'Grundstücke' : 'Grundstück'} ${t.sub}` : '');
 function titleOf(t, names) {
   if (t.uid === 'fields') {
     const where = (String(t.name).includes(',') ? 'Felder ' : 'Feld ') + t.name;
@@ -213,9 +223,9 @@ function titleOf(t, names) {
     case 'silo': return `${place}: ${good || 'Lager'} fast voll (${pct(t.pct)})`;
     case 'objects': return `${place}: Lager fast voll (${pct(t.pct)})`;
     case 'balesReady': return `Silage fertig gegoren: ${Math.round(t.level || 0)} Ballen`;
-    case 'orchardHarvest': return `${place}: ${good || 'Früchte'} ernten (${pct(t.pct)})`;
-    case 'orchardCut': return `${place}: zurückschneiden (${pct(t.pct)})`;
-    case 'orchardSpray': return `${place}: mit Fungizid spritzen (${pct(Math.max(1, t.pct || 0))} krank)`;
+    case 'orchardHarvest': return `${place}: ${good || 'Früchte'} ernten (${pct(t.pct)})${lands(t)}`;
+    case 'orchardCut': return `${place}: zurückschneiden (${pct(t.pct)})${lands(t)}`;
+    case 'orchardSpray': return `${place}: mit Fungizid spritzen (${pct(Math.max(1, t.pct || 0))} krank)${lands(t)}`;
     case 'helper': return `${t.name || 'Fahrzeug'}: Helfer angehalten${HELPER[t.fill] ? ` (${HELPER[t.fill]})` : ''}`;
     case 'helperDone': return `${t.name || 'Fahrzeug'}: Helfer fertig`;
     case 'rain': {
@@ -455,4 +465,4 @@ function status() {
 }
 
 module.exports = { FARM_KEYS, LIMITS, KINDS, MOD_DIR, LIVE, INBOX, settings, farmSettings, saveGlobal, saveFarm, read, titleOf, syncTasks, openGameTasks, applyDone,
-  inboxBody, inboxXml, apply, dir, run, soon, start, status, enabled, interval, readGame, storeGame, gameData, forgetGame: () => { game = null; }, missions, missionLabel };
+  inboxBody, inboxXml, apply, dir, run, soon, start, status, enabled, interval, readGame, storeGame, gameData, _calDayOf: calDayOf, forgetGame: () => { game = null; }, missions, missionLabel };

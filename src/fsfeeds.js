@@ -217,7 +217,9 @@ function readEnvironment(xml) {
   const s = X.parse(xml);
   const t = n => num(X.text(s, n));
   return {
-    day: t('currentMonotonicDay') ?? t('currentDay'), dayTime: t('dayTime'), daysPerPeriod: t('daysPerPeriod'),
+    // currentDay ist der Kalendertag (Monat, Jahr), currentMonotonicDay zählt einfach weiter (Wetter, Aufgaben). Beide weichen
+    // voneinander ab, sobald die Tage pro Monat einmal geändert wurden.
+    day: t('currentMonotonicDay') ?? t('currentDay'), calDay: t('currentDay'), dayTime: t('dayTime'), daysPerPeriod: t('daysPerPeriod'),
     weather: X.all(s, 'instance').map(w => ({ type: w.a.typeName || w.a.type || '', day: num(w.a.startDay), time: num(w.a.startDayTime, 0), duration: num(w.a.duration, 0) }))
       .filter(w => w.type),
   };

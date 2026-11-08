@@ -2954,6 +2954,10 @@ async function main() {
         page = (await anna.req('/farming/preise?w=BREAD')).text_;
         assert.match(page, /Wird hergestellt in[\s\S]*?href="\/farming\/produktion\?g=k%3A%24data%2Fplaceables%2Fbakery.xml&amp;p=bread">Bäckerei: Brot<\/a>/, 'Katalog zuerst');
         page = (await anna.req('/farming/preise?w=WHEAT')).text_;
+        assert.match(page, /Höchstpreis-Meldung für Hof Anna: <b>an<\/b>/);
+        assert.equal((await anna.form('/farming/preise/meldung', { _csrf: t, fill: 'WHEAT', on: '0', back: '/farming/preise?w=WHEAT' })).headers.get('location'), '/farming/preise?w=WHEAT&ok=gespeichert');
+        assert.match((await anna.req('/farming/preise?w=WHEAT')).text_, /Höchstpreis-Meldung für Hof Anna: <b>aus<\/b>/);
+        await anna.form('/farming/preise/meldung', { _csrf: t, fill: 'WHEAT', on: '1' });
         assert.match(page, /Verkaufen bei:.*?<a href="\/farming\/karte\?station=preplaced_grainElevator_a+">Getreidesilo<\/a>/);
         // Wiki: Anbaukalender aus dem Export, Tiere aus wiki.xml, Planer sagt, wie viele Tiere ein Rezept braucht
         page = (await anna.req('/farming/wiki')).text_;

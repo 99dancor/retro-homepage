@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="104">
     <author>99dancor</author>
-    <version>3.11.0.0</version>
+    <version>3.12.0.0</version>
     <title>
         <en>FS25 Hub Link</en>
         <de>FS25 Hub Link</de>
@@ -12,16 +12,14 @@ Export: on every save, field outlines, farmlands, stations, production recipes, 
 Advisor: watches productions, barns, silos, fields, plantations, bales and helpers of every farm and exchanges the tasks, the website's tasks and notes and all settings with the Farming Hub (modSettings/FS25_FarmingHubExport). Live data (money, weather, fields, contracts, bales) every few minutes.
 Overlay: shows your farm's warnings, tasks, notes and trackers. With the mouse cursor (Quick Selector or Alt+J) drag, resize, tick off and open the options. Alt+H shows/hides it.
 
+Changes in 3.12:
+- Plantations: fungicide, harvest and cut-back tasks now go to the farm that owns the land under the tree rows (bananas and coffee belong to no farm and often span several farms' farmlands). The task names the affected farmlands.
+- Live data: the date as the game shows it (period, day, year). The Hub showed the wrong month once the days per month had been changed.
+
 Changes in 3.11:
 - Plantations: bananas and coffee are now measured like the game's field info box. Along every tree row the mod reads the field state and checks whether the game would show "Fungicide required"; ripe and withered come from the same state.
 - The plantation snapshots of 3.10 (hubLinkOrchards*.xml, hubLinkOrchardLog.xml) are gone; you can delete those files.
 - Diagnostics until confirmed in game: hubLinkFieldInfo.xml on the server and hubLinkHudLines.xml on every player's PC (every line the field info box shows).
-
-Changes in 3.10:
-- 3.10.1: map markers switched off, opening the map broke the menu.
-- Overlay header shows the farm symbol in your farm's color next to the name.
-- Options: second tab is now called "Values"; on the tracker tab the page switch is at the bottom.
-- Plantations: snapshot of what the game saves about each plantation (removed again in 3.11).
 
 Console: hubExport, hubStatus, hubSet, hubHud, hubDone]]></en>
         <de><![CDATA[Verbindet dein Spiel mit dem Farming Hub der Website.
@@ -29,16 +27,14 @@ Export: bei jedem Speichern gehen Feldumrisse, Grundstücke, Stationen, Rezepte,
 Berater: überwacht Produktionen, Ställe, Silos, Felder, Plantagen, Ballen und Helfer jedes Hofs und tauscht die Aufgaben, die Aufgaben und Notizen der Website und alle Einstellungen mit dem Farming Hub aus (modSettings/FS25_FarmingHubExport). Live-Daten (Geld, Wetter, Felder, Aufträge, Ballen) alle paar Minuten.
 Overlay: zeigt Meldungen, Aufgaben, Notizen und Tracker deines Hofs. Mit Mauszeiger (Quick Selector oder Alt+J) verschieben, Größe ziehen, abhaken und Optionen öffnen. Alt+H blendet es ein und aus.
 
+Neu in 3.12:
+- Plantagen: Aufgaben für Fungizid, Ernte und Zurückschneiden gehen an den Hof, dem das Land unter den Baumreihen gehört (Bananen und Kaffee gehören keinem Hof und liegen oft auf Grundstücken mehrerer Höfe). Die Aufgabe nennt die betroffenen Grundstücke.
+- Live-Daten: das Datum so, wie das Spiel es zeigt (Monat, Tag, Jahr). Der Hub hat den falschen Monat gezeigt, sobald die Tage pro Monat einmal geändert wurden.
+
 Neu in 3.11:
 - Plantagen: Bananen und Kaffee werden jetzt wie im Feld-Infokasten des Spiels gemessen. Entlang jeder Baumreihe liest die Mod den Feldzustand und prüft, ob das Spiel dort „Fungizid nötig“ zeigen würde; reif und verdorrt kommen aus demselben Zustand.
 - Die Plantagen-Abbilder aus 3.10 (hubLinkOrchards*.xml, hubLinkOrchardLog.xml) entfallen, die Dateien können weg.
 - Diagnose, bis es im Spiel bestätigt ist: hubLinkFieldInfo.xml auf dem Server und hubLinkHudLines.xml auf dem PC jedes Spielers (jede Zeile, die der Feld-Infokasten zeigt).
-
-Neu in 3.10:
-- 3.10.1: Kartenmarkierungen abgeschaltet, das Öffnen der Karte hat das Menü lahmgelegt.
-- Overlay-Kopf mit dem Hofsymbol in der Farbe deines Hofs neben dem Namen.
-- Optionen: der zweite Reiter heißt jetzt „Werte“; bei den Trackern steht die Seitenwahl ganz unten.
-- Plantagen: Abbild dessen, was das Spiel über jede Plantage speichert (in 3.11 wieder entfernt).
 
 Konsole: hubExport, hubStatus, hubSet, hubHud, hubDone]]></de>
     </description>
@@ -160,6 +156,7 @@ Konsole: hubExport, hubStatus, hubSet, hubHud, hubDone]]></de>
         <text name="hubLink_pieces"><en>%s / %s pieces</en><de>%s / %s Stück</de></text>
         <text name="hubLink_balesHint"><en>fermented, pick up or store</en><de>fertig gegoren, abholen oder einlagern</de></text>
         <text name="hubLink_orchardHint"><en>share of the plantation, from the plants in game</en><de>Anteil der Plantage, laut Pflanzen im Spiel</de></text>
+        <text name="hubLink_orchardLands"><en>farmlands %s</en><de>Grundstücke %s</de></text>
         <text name="hubLink_sprayHint"><en>spray before the last growth stage</en><de>vor der letzten Wachstumsstufe spritzen</de></text>
         <text name="hubLink_trProd"><en>Productions</en><de>Produktionen</de></text>
         <text name="hubLink_trStall"><en>Barns</en><de>Ställe</de></text>

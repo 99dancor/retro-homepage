@@ -655,3 +655,5 @@ details.fs-fold > .in { padding: 0 12px 12px; }
 .fsg .fs-cp-list button:hover, .fsg .fs-cp-list button:focus-visible { background: var(--g-tile-hi); outline: none; }
 .fsg .fs-cp-list button.on { background: var(--g-accent); color: var(--g-ink); }
 .fs-grow { align-self: center; }
+/* Höchstpreis-Meldung je Ware an/aus (Preise) */
+.fs-peak { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 2px; }

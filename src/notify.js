@@ -19,6 +19,7 @@ const KINDS = {
   fshub: { label: '🚜 Farming Simulator Hub (Aufgaben, Server, Vorschläge)', site: true, push: false },
   vorschlag: { label: '🔗 Deine Link-Vorschläge (fertig geladen, abgelehnt)', site: true, push: true },
   dienste: { label: '🗄️ Dienst wieder erreichbar („Sag Bescheid“)', site: true, push: true },
+  jellyfin: { label: '🎬 Jellyfin (Antwort auf deine Zugangsanfrage)', site: true, push: true },
   admin: { label: '⚙️ Admin-Hinweise (Freigaben, Kontakt, Registrierungen)', site: true, push: true, admin: true },
 };
 const KEEP = 100;            // so viele Benachrichtigungen bleiben je Konto höchstens

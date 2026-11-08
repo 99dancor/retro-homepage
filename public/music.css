@@ -620,3 +620,73 @@ body.mp-mini:has(.mp:not([data-skin=klassisch])) .body { padding: 0; }
   .mp:not(.phone) .mp-by, .mp:not(.phone) .mp-table th:nth-child(5) { display: none; }
   .mp[data-skin=winamp]:not(.phone) { grid-template-columns: 300px var(--mp-sbw, 140px) minmax(0, 1fr); }
 }
+
+/* ================= Jellyfin (public/music.js, Abschnitt Jellyfin) ================= */
+/* Klassisch: In den Übersichten weicht das Bild den Kacheln, solange kein Video läuft */
+.mp.jf-browse[data-skin=klassisch]:not([data-view=now]) { grid-template-rows: 0 0 auto minmax(0, 1fr) auto auto auto; }
+.mp.jf-browse[data-skin=klassisch]:not([data-view=now]) .mp-stage, .mp.jf-browse[data-skin=klassisch]:not([data-view=now]) .mp-split-stage { display: none; }
+
+.jf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 14px 12px; padding: 10px; }
+.jf-grid.wide { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.mp .jf-card { display: block; width: 100%; min-width: 0; text-align: left; font: inherit; font-size: 12px; color: inherit; background: none; border: 1px solid transparent; box-shadow: none; padding: 3px; cursor: pointer; }
+.mp .jf-card:hover .jf-poster { filter: brightness(1.08); }
+.mp .jf-card.sel { background: var(--mp-sel); color: var(--mp-sel-text); border: 1px dotted currentColor; }
+.jf-card .t, .jf-card .y { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jf-card .t { font-weight: bold; margin-top: 4px; }
+.jf-card .y { opacity: .75; font-size: 11px; min-height: 1.2em; }
+.jf-poster { position: relative; display: flex; flex-direction: column; justify-content: flex-end; aspect-ratio: 2 / 3; overflow: hidden; color: #fff;
+  border: 2px solid; border-color: var(--dark, #808080) var(--hi, #fff) var(--hi, #fff) var(--dark, #808080);
+  background: linear-gradient(160deg, hsl(var(--h, 210) 55% 58%), hsl(calc(var(--h, 210) + 40) 45% 22%)); }
+.jf-poster.wide { aspect-ratio: 16 / 9; }
+.jf-poster img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; }
+.jf-poster .jf-pt { position: relative; z-index: 1; font: bold 13px/1.15 Georgia, serif; padding: 0 7px 9px; text-shadow: 0 1px 2px rgba(0, 0, 0, .6); overflow-wrap: anywhere; }
+.jf-poster .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(0, 0, 0, .55); z-index: 3; }
+.jf-poster .bar i { display: block; height: 100%; background: #3fbf3f; }
+.jf-poster .seen, .jf-poster .cnt { position: absolute; top: 4px; right: 4px; z-index: 3; min-width: 18px; height: 18px; padding: 0 3px; box-sizing: border-box; display: grid; place-items: center;
+  font: bold 11px var(--font, sans-serif); color: #fff; border: 1px solid #fff; background: #2e8b2e; }
+.jf-poster .cnt { background: #1f5fbf; }
+.jf-poster .new { position: absolute; top: 4px; left: 4px; z-index: 3; background: #c00; color: #fff; font: bold 10px var(--font, sans-serif); padding: 1px 4px; }
+.jf-poster .lock { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; font-size: 26px; background: rgba(0, 0, 0, .25); }
+
+.jf-home { padding-bottom: 8px; }
+.jf-row-h { display: flex; align-items: center; gap: 8px; padding: 10px 10px 0; font-weight: bold; }
+.jf-row-h button { margin-left: auto; font-weight: normal; }
+.jf-row { display: grid; grid-auto-flow: column; grid-auto-columns: 112px; gap: 12px; padding: 8px 10px 6px; overflow-x: auto; overscroll-behavior-x: contain; }
+.jf-row.wide { grid-auto-columns: 190px; }
+.jf-more { text-align: center; margin: 4px 0 12px; }
+
+.jf-det { padding: 8px; font-size: 12px; line-height: 1.4; }
+.jf-det .jf-poster { width: 130px; margin: 0 auto 8px; }
+.jf-det h3 { margin: 0 0 2px; font-size: 14px; }
+.jf-det .meta { opacity: .8; margin-bottom: 6px; }
+.jf-det .tags span { display: inline-block; border: 1px solid var(--mp-line, var(--dark, #808080)); padding: 0 4px; margin: 0 3px 3px 0; font-size: 11px; }
+.jf-det p { margin: 6px 0; white-space: pre-line; }
+.jf-det table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.jf-det td { padding: 2px 0; vertical-align: top; }
+.jf-det td:first-child { opacity: .75; width: 72px; }
+.jf-acts { display: flex; flex-direction: column; gap: 4px; padding: 6px 2px 2px; }
+.jf-acts button, .jf-acts .btn { text-align: left; }
+.jf-acts .big { font-weight: bold; padding: 5px 8px; }
+.jf-note { font-size: 11px; opacity: .75; padding: 4px 2px; }
+.mp-qhead .jf-close { float: right; }
+.mp-dlg .jf-det { padding: 0; display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 0 12px; }
+.mp-dlg .jf-det .jf-poster { width: 120px; margin: 0; grid-row: span 6; }
+.mp-dlg .jf-acts { flex-direction: row; flex-wrap: wrap; }
+.mp-dlg:has(.jf-det) { width: min(560px, calc(100vw - 20px)); }
+
+.jf-ep td { vertical-align: middle; cursor: pointer; }
+.jf-ep .thumb { width: 100px; }
+.jf-ep .thumb .jf-poster { width: 96px; }
+.jf-ep .d { font-size: 11px; opacity: .8; white-space: normal; }
+.jf-ep .nowrap { white-space: nowrap; }
+.mp .jf-ep tr.sel td { background: var(--mp-sel); color: var(--mp-sel-text); }
+.jf-lock { margin-left: auto; }
+.mp-head #jf-q { flex: 1 1 200px; min-width: 140px; max-width: 320px; }
+.mp-jfmodes { display: contents; }
+.jf-cred { border-collapse: collapse; margin: 6px 0; }
+.jf-cred td { padding: 3px 10px 3px 0; vertical-align: top; }
+.jf-cred code, .jf-pw { user-select: all; font-size: 13px; }
+.mp.phone .jf-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px 8px; padding: 8px; }
+.mp.phone .jf-row { grid-auto-columns: 96px; }
+.mp.phone .jf-row.wide { grid-auto-columns: 160px; }
+.mp.phone .jf-ep .thumb { display: none; }

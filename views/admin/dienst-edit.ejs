@@ -63,6 +63,33 @@
     <div class="actions"><button type="button" data-svc-test>🔌 Jetzt testen</button> <span class="svc-result" data-svc-result role="status" aria-live="polite"></span></div>
   </fieldset>
 
+  <% if (svc.kind === 'jellyfin') { const J = locals.jfa, libs = c.libs || []; %>
+  <fieldset class="groupbox" id="mediaplayer"><legend>📀 Im Mediaplayer</legend>
+    <input type="hidden" name="player_sent" value="1">
+    <label class="inline"><input type="checkbox" name="player" value="1" <%= c.player ? 'checked' : '' %>> Filme und Serien im Mediaplayer anbieten (braucht den API-Schlüssel oben)</label>
+    <p style="margin:4px 0"><small>Mitglieder fragen dort Zugang an, du gibst ihn unten frei. Die Seite legt dann ein eigenes Jellyfin-Konto ohne Admin-Rechte an (oder verknüpft ein vorhandenes). Abgespielt wird immer mit diesem Konto, so stimmen Fortschritt, „gesehen“ und die Bibliotheken, die es sehen darf.</small></p>
+    <div class="row">
+      <label>Stöbern (Cover, Beschreibungen) dürfen:<select name="view">
+        <% for (const [k, v] of Object.entries(J ? J.VIEWS : { members: 'Angemeldete Mitglieder', approved: 'Nur freigegebene Mitglieder', public: 'Alle Besucher' })) { %><option value="<%= k %>"<%= (c.view || 'members') === k ? ' selected' : '' %>><%= v %></option><% } %>
+      </select></label>
+      <% if (J && J.info) { %>
+      <label>Stöbern ohne Freigabe zeigt, was dieses Konto sieht:<select name="browse_as">
+        <option value="">alle Bibliotheken</option>
+        <% for (const u of J.info.users) { %><option value="<%= u.id %>"<%= c.browse_as === u.id ? ' selected' : '' %>><%= u.name %><%= u.admin ? ' (Admin)' : '' %></option><% } %>
+      </select></label>
+      <% } %>
+    </div>
+    <% if (J && J.info && J.info.folders.length) { %>
+    <input type="hidden" name="libs_sent" value="1">
+    <p style="margin:6px 0 2px">Neue Konten sehen diese Bibliotheken <small class="muted">(keine angehakt = alle)</small>:</p>
+    <div class="show-checks"><% for (const f of J.info.folders) { %><label class="inline"><input type="checkbox" name="libs" value="<%= f.id %>" <%= libs.includes(f.id) ? 'checked' : '' %>> <%= f.name %><% if (f.type) { %> <small class="muted">(<%= ({ movies: 'Filme', tvshows: 'Serien', music: 'Musik', homevideos: 'Videos', boxsets: 'Sammlungen' })[f.type] || f.type %>)</small><% } %></label><% } %></div>
+    <small>Später änderst du das je Konto direkt in Jellyfin (Dashboard → Benutzer → Bibliothekszugriff).</small>
+    <% } else if (J && J.error) { %><p class="msg warn-box">Jellyfin antwortet gerade nicht (<%= J.error %>), darum fehlen hier die Bibliotheken.</p>
+    <% } else if (!J) { %><p><small>Die Bibliotheken kannst du nach dem Speichern auswählen.</small></p><% } %>
+    <label class="inline"><input type="checkbox" name="app" value="1" <%= c.app !== false ? 'checked' : '' %>> Mitglieder dürfen sich die Zugangsdaten für die Jellyfin-Apps (Fernseher, Handy) anzeigen lassen <small class="muted">(nur mit „Link für Besucher“ unten)</small></label>
+  </fieldset>
+  <% } %>
+
   <fieldset class="groupbox"><legend>👀 Wer sieht ihn und wo</legend>
     <div class="row">
       <label>Sehen dürfen:<select name="visibility">
@@ -103,6 +130,45 @@
   <% } %>
   <small class="muted">Die einzelnen Abfragen hebt die Seite 7 Tage auf.</small>
 </fieldset>
+<% if (locals.jfa) { const J = locals.jfa, A = { pending: '⏳ Wartet', approved: '✅ Freigegeben', denied: '⛔ Abgelehnt' }; %>
+<fieldset class="groupbox" id="zugaenge"><legend>🔑 Zugänge im Mediaplayer</legend>
+  <% if (!svc.config.player) { %><p class="msg warn-box" style="margin-top:0">„Im Mediaplayer anbieten“ ist oben noch aus.</p>
+  <% } else if (!J.active) { %><p class="msg warn-box" style="margin-top:0">Der Mediaplayer nimmt einen anderen Jellyfin-Dienst (den ersten mit Haken und Schlüssel).</p><% } %>
+  <% if (J.list.length) { %>
+  <table class="list">
+    <tr><th>Mitglied</th><th>Stand</th><th>Jellyfin-Konto</th><th>Nachricht</th><th></th></tr>
+    <% for (const a of J.list) { %>
+    <tr>
+      <td><a href="/nutzer/<%= encodeURIComponent(a.username) %>"><%= a.display_name || a.username %></a><br><small class="muted"><%= fmtDate(a.requested_at, true) %><%= a.wants_app ? ' · möchte auch die App' : '' %></small></td>
+      <td><%= A[a.state] || a.state %></td>
+      <td><%= a.jf_name || '–' %><%= a.state === 'approved' ? (a.created_account ? ' (von der Seite angelegt)' : ' (verknüpft)') : '' %></td>
+      <td><small><%= a.message || '' %></small></td>
+      <td class="nowrap">
+        <% if (a.state !== 'approved') { %>
+        <form method="post" action="/admin/dienste/<%= svc.id %>/jellyfin/<%= a.user_id %>/freigeben" class="inline">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <% if (J.info && J.info.users.length) { %><select name="link" title="Neues Konto anlegen oder ein vorhandenes verknüpfen"><option value="">Neues Konto anlegen</option><% for (const u of J.info.users) { %><option value="<%= u.id %>">Verknüpfen: <%= u.name %></option><% } %></select><% } %>
+          <button>✅ Freigeben</button>
+        </form>
+        <% } %>
+        <% if (a.state === 'pending') { %><form method="post" action="/admin/dienste/<%= svc.id %>/jellyfin/<%= a.user_id %>/ablehnen" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button>⛔ Ablehnen</button></form><% } %>
+        <% if (a.state === 'approved') { %><form method="post" action="/admin/dienste/<%= svc.id %>/jellyfin/<%= a.user_id %>/entziehen" class="inline" data-confirm="Zugang für <%= a.display_name || a.username %> entziehen?<%= a.created_account ? ' Das Jellyfin-Konto „' + a.jf_name + '“ wird dabei gelöscht, samt Fortschritt.' : '' %>"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">Entziehen</button></form><% } %>
+      </td>
+    </tr>
+    <% } %>
+  </table>
+  <% } else { %><p style="margin-top:0">Noch keine Anfragen.</p><% } %>
+  <% if (J.members.length) { %>
+  <form method="post" action="/admin/dienste/<%= svc.id %>/jellyfin/0/freigeben" class="row" style="margin-top:8px;align-items:flex-end">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Zugang ohne Anfrage geben:<select name="user"><% for (const m of J.members) { %><option value="<%= m.id %>"><%= m.display_name || m.username %></option><% } %></select></label>
+    <% if (J.info && J.info.users.length) { %><label>Jellyfin-Konto:<select name="link"><option value="">Neues Konto anlegen</option><% for (const u of J.info.users) { %><option value="<%= u.id %>">Verknüpfen: <%= u.name %></option><% } %></select></label><% } %>
+    <button>✅ Freigeben</button>
+  </form>
+  <small>Für dich selbst: dein eigenes Jellyfin-Konto verknüpfen, dann läuft dein Fortschritt mit.</small>
+  <% } %>
+</fieldset>
+<% } %>
 <form method="post" action="/admin/dienste/<%= svc.id %>/loeschen" class="actions" data-confirm="„<%= svc.name %>“ entfernen? Der Verlauf ist dann weg.">
   <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑️ Dienst entfernen</button>
 </form>

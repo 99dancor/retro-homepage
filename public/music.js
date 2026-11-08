@@ -79,7 +79,7 @@
   function isVideo(it) { return !!it && (it.kind === 'video' || it.video === true); }
   function isRadio(it) { return !!it && it.radio === true; }
   function kindBadge(it) {
-    return isRadio(it) ? '<small class="mp-kind radio">Radio</small>' : isYt(it) ? '<small class="mp-kind yt">YouTube</small>' : isVideo(it) ? '<small class="mp-kind video">Video</small>' : '<small class="mp-kind">Audio</small>';
+    return isJf(it) ? '<small class="mp-kind video">Jellyfin</small>' : isRadio(it) ? '<small class="mp-kind radio">Radio</small>' : isYt(it) ? '<small class="mp-kind yt">YouTube</small>' : isVideo(it) ? '<small class="mp-kind video">Video</small>' : '<small class="mp-kind">Audio</small>';
   }
   function kindIcon(it) { return isRadio(it) ? '📻' : isYt(it) ? '▶️' : isVideo(it) ? '🎬' : '🎵'; }
   function fmtSize(n) { return n < 1048576 ? Math.round(n / 1024) + ' KB' : (n / 1048576).toFixed(n < 10485760 ? 1 : 0).replace('.', ',') + ' MB'; }
@@ -373,7 +373,7 @@
     if (/^pl:/.test(key)) { var p = playlist(key); return p ? p.tracks.map(function (id) { return byId[id]; }).filter(Boolean) : []; }
     return all;
   }
-  function isLibView(key) { return !/^(now|lobbys|radio)$/.test(key); }
+  function isLibView(key) { return !/^(now|lobbys|radio)$/.test(key) && !isJfView(key); }
   function filtered(tracks) {
     if (kindF) tracks = tracks.filter(function (t) { return (t.kind || 'audio') === kindF; });
     if (!filter) return tracks;
@@ -411,6 +411,8 @@
     if (lib.tracks.some(function (t) { return t.privat; })) libItems.push({ ic: '🔞', label: 'Privat', go: 'privat', n: viewTracks('privat').length });
     libItems.forEach(function (o) { o.on = view === o.go; });
     out.push({ id: 'lib', ic: '📚', label: 'Bibliothek', items: libItems });
+    var jg = jfGroup();
+    if (jg) out.push(jg);
     // Internetradio: Sender aus der Bibliothek, eintragen darf, wer hochladen darf
     if (lib.radio.length || lib.canUpload) {
       out.push({ id: 'radio', ic: '📻', label: 'Radio', add: lib.canUpload ? 'radio-add' : '', addTitle: 'Sender hinzufügen', badge: lib.radio.length,
@@ -477,6 +479,7 @@
     // Privat ist vor allem Videos: dort startet die Ansicht mit dem Filter Videos und zeigt Kacheln
     if (key === 'privat' && view !== 'privat' && viewTracks('privat').some(isVideo)) kindF = 'video';
     else if (view === 'privat' && key !== 'privat' && kindF === 'video') kindF = '';
+    if (key !== view) JF.det = null;
     view = key; filter = '';
     if (key !== 'now' && skin().indexOf('vlc') === 0 && prefs.big) { prefs.big = false; savePrefs(); }
     root.classList.remove('drawer');
@@ -484,10 +487,12 @@
     if (isPhone()) tab = key === 'now' ? (lob ? 'lobby' : 'queue') : key === 'lobbys' ? 'lobby' : 'lib';
     render();
     if (key === 'lobbys') loadLobbies();
+    if (isJfView(key)) jfEnter(key);
   }
   function render() {
     layout();
     root.dataset.view = view;
+    jfBrowse();
     renderTabs(); renderSide(); renderTop(); renderHead(); renderList(); renderQueue(); renderLobbyBar(); applyPicture(); updateButtons(); nowWa();
   }
 
@@ -499,10 +504,11 @@
     var lobView = view === 'lobbys';
     $('mp-wtop').innerHTML = '<div class="mp-wtabs" role="tablist"><button type="button" data-go="now" class="' + (view === 'now' ? 'on' : '') + '">Wiedergabe läuft</button>' +
       '<button type="button" data-go="all" class="' + (isLibView(view) ? 'on' : '') + '">Bibliothek</button>' +
+      (jfGroup() ? '<button type="button" data-go="jf:start" class="' + (isJfView() ? 'on' : '') + '">' + esc(JF.st.name || 'Jellyfin') + '</button>' : '') +
       (CAN_LOBBY && lib.me ? '<button type="button" data-go="lobbys" class="' + (lobView ? 'on' : '') + '">Lobbys</button>' : '') +
       (lib.canUpload ? '<button type="button" data-act="upload">Hochladen</button>' : '') + '</div><button type="button" class="mp-wskin" data-act="skin-pop" title="Aussehen">🎨</button>';
     var p = /^pl:/.test(view) ? playlist(view) : null;
-    var path = view === 'now' ? ['Wiedergabe läuft'] : lobView ? ['Lobbys'] : view === 'radio' ? ['Radio'] : p ? ['Playlists', p.title] : ['Bibliothek', VIEW_NAME[view] || ''];
+    var path = isJfView() ? [(JF.st && JF.st.name) || 'Jellyfin', JF_VIEWS[view] || (JF.show ? JF.show.name : 'Serie')] : view === 'now' ? ['Wiedergabe läuft'] : lobView ? ['Lobbys'] : view === 'radio' ? ['Radio'] : p ? ['Playlists', p.title] : ['Bibliothek', VIEW_NAME[view] || ''];
     if (kindF) path.push({ audio: 'Musik', video: 'Videos', youtube: 'YouTube' }[kindF]);
     $('mp-crumb').innerHTML = (view !== 'now' ? '<button type="button" class="small" data-act="side-toggle" title="Navigationsbereich ein- oder ausblenden">☰</button>' : '') +
       '<span class="path">Musik<i>▸</i>' + path.map(esc).join('<i>▸</i>') + '</span>';
@@ -518,6 +524,7 @@
     return sideMode() === 'closed' && !isPhone() && skin() !== 'mediaplayer' ? '<button type="button" class="small" data-act="side-open" title="Seitenleiste zeigen">☰</button> ' : '';
   }
   function renderHead() {
+    if (isJfView()) { jfHead(); return; }
     if (view === 'now') { head.innerHTML = infoHead(); return; }
     if (view === 'lobbys') { head.innerHTML = lobbyListHead(); return; }
     if (view === 'radio') { radioHead(); return; }
@@ -537,6 +544,7 @@
   }
 
   function renderList() {
+    if (isJfView()) { jfList(); return; }
     if (view === 'now') { list.innerHTML = ''; return; }
     if (view === 'lobbys') { renderLobbies(); return; }
     if (view === 'radio') { renderRadio(); return; }
@@ -656,7 +664,11 @@
     cur = i; current = queue[i]; counted = false; played[current.key] = true;
     graph();
     overlay.hidden = true;
-    if (isYt(current)) {
+    if (JF.play) jfDetach();
+    if (isJf(current)) {
+      ytStop();
+      jfStart(current);
+    } else if (isYt(current)) {
       media.pause(); media.removeAttribute('src'); media.load();
       ytPlayLocal(current);
     } else if (isRadio(current)) {
@@ -674,7 +686,7 @@
     kick();
   }
   function renderAfterChange() {
-    applyPicture(); renderQueue(); renderList(); updateButtons();
+    jfBrowse(); applyPicture(); renderQueue(); renderList(); updateButtons();
     if (view === 'now') renderHead();
   }
   // Der laufende Titel steht dauerhaft unten im Fensterrand (public/retro.js), daneben die Meldungen
@@ -750,6 +762,7 @@
   function stop() {
     if (lob) { lobbyCtl('pause'); lobbyCtl('seek', { pos: 0 }); return; }
     if (isYt(current)) { ytCmd('pauseVideo'); ytCmd('seekTo', [0, true]); }
+    if (JF.play) jfReport(JF.play, { stop: true });
     media.pause();
     if (media.getAttribute('src')) media.currentTime = 0;
     renderAfterChange();
@@ -878,6 +891,7 @@
 
   // ---------- Wiedergabeliste rechts: eigene oder die der Lobby ----------
   function renderQueue() {
+    if (isJfView() && JF.det && jfSidePanel()) { jfRenderDetails(); return; }
     var s = lob && lob.state, items = lob ? (s ? s.queue : []) : queue, at = lob ? (s ? s.index : -1) : (current ? cur : -1);
     var ctl = !lob || lobbyCanControl(), playing = isPlaying();
     qhead.innerHTML = '<b>Wiedergabeliste</b> <small>' + (lob ? '🔴 ' + (s ? esc(s.name) : 'Lobby') : 'Eigene Wiedergabe') + ' · ' + items.length + ' Titel' +
@@ -950,6 +964,7 @@
   });
   // Eigene Wiedergabe ganz anhalten (Liste leer oder laufender Titel entfernt)
   function stopOwn() {
+    if (JF.play) jfDetach();
     media.pause(); media.removeAttribute('src'); media.load();
     ytStop();
     current = null; cur = Math.min(cur, queue.length - 1);
@@ -1836,11 +1851,476 @@
     });
   }
 
+  // ---------- Jellyfin (src/jellyfin.js) ----------
+  // Eigene Gruppe in der Seitenleiste mit den Ansichten jf:start, jf:weiter, jf:neu, jf:filme, jf:serien, jf:liste, jf:suche
+  // und jf:serie:<id>. Cover kommen als Kacheln in die Liste, rechts stehen statt der Wiedergabeliste die Angaben zum
+  // gewählten Titel (Skins ohne rechte Spalte zeigen sie als Dialog). Abgespielt wird im normalen Bild, über hls.js,
+  // wenn Jellyfin umwandeln muss; Fortschritt und „gesehen“ gehen ins eigene Jellyfin-Konto.
+  var JF = { st: null, data: {}, items: {}, det: null, q: '', sort: 'neu', filter: '', genre: '', genres: {}, show: null, season: null, eps: null, hls: null, play: null, saved: 0, busy: false };
+  var JF_VIEWS = { 'jf:start': 'Start', 'jf:weiter': 'Weiterschauen', 'jf:neu': 'Neu hinzugefügt', 'jf:filme': 'Filme', 'jf:serien': 'Serien', 'jf:liste': 'Meine Liste', 'jf:suche': 'Suche' };
+  var JF_SORT = { neu: 'Neu hinzugefügt', name: 'Name', jahr: 'Jahr', bewertung: 'Bewertung', zufall: 'Zufällig' };
+  var JF_RATES = [[0, 'Auto (20 Mbit/s)'], [8e6, '8 Mbit/s (1080p)'], [4e6, '4 Mbit/s (720p)'], [2e6, '2 Mbit/s (sparsam)']];
+  function isJfView(key) { return /^jf:/.test(key === undefined ? view : key); }
+  function isJf(it) { return !!it && !!it.jf; }
+  function jfLoad() { return req('GET', '/jellyfin/status').then(function (s) { JF.st = s; }).catch(function () { JF.st = null; }); }
+  function jfImg(id, w) { return '/jellyfin/bild/' + id + '?w=' + (w || 240); }
+  function jfRemember(list) { (list || []).forEach(function (x) { JF.items[x.id] = x; }); return list || []; }
+  function jfEp(x) { return x.season != null ? 'S' + x.season + ' F' + (x.episode != null ? x.episode : '?') : ''; }
+  function jfTitle(x) { return x.type === 'Episode' ? x.series + ' – ' + jfEp(x) + ' ' + x.name : x.name; }
+  function jfYears(x) { return x.year ? x.year + (x.type === 'Series' ? (x.endYear && x.endYear !== x.year ? '–' + x.endYear : x.status === 'Continuing' ? '–' : '') : '') : ''; }
+  function jfMin(sec) { var m = Math.round(sec / 60); return m >= 60 ? Math.floor(m / 60) + ' Std. ' + (m % 60) + ' Min.' : m + ' Min.'; }
+  function jfGroup() {
+    var s = JF.st;
+    if (!s || !s.on || (!s.browse && !s.canRequest && s.state !== 'pending')) return null;
+    var c = (JF.data.home && JF.data.home.counts) || {}, items = [];
+    if (s.browse) {
+      items.push({ ic: '🏠', label: 'Start', go: 'jf:start' });
+      if (s.play) items.push({ ic: '⏯️', label: 'Weiterschauen', go: 'jf:weiter' });
+      items.push({ ic: '🆕', label: 'Neu hinzugefügt', go: 'jf:neu' }, { ic: '🎞️', label: 'Filme', go: 'jf:filme', n: c.movies }, { ic: '📺', label: 'Serien', go: 'jf:serien', n: c.series });
+      if (s.play) items.push({ ic: '⭐', label: 'Meine Liste', go: 'jf:liste' });
+    }
+    if (!s.play && (s.canRequest || s.state === 'pending')) items.push({ ic: '🔑', label: s.state === 'pending' ? 'Anfrage liegt beim Admin' : 'Zugang anfragen …', act: 'jf-request' });
+    if (s.app) items.push({ ic: '📱', label: 'Jellyfin-App …', act: 'jf-app' });
+    items.forEach(function (o) { o.on = !!o.go && (view === o.go || (o.go === 'jf:serien' && /^jf:serie:/.test(view))); });
+    return { id: 'jf', ic: '🎬', label: s.name || 'Jellyfin', items: items, badge: s.play ? '' : '🔒' };
+  }
+
+  // Daten zur Ansicht holen und zeichnen
+  function jfQuery(key) {
+    var q = { sort: JF.sort, filter: JF.filter, genre: JF.genre, q: JF.q };
+    if (key === 'jf:filme') q.type = 'Movie';
+    else if (key === 'jf:serien') q.type = 'Series';
+    else if (key === 'jf:neu') { q.type = 'all'; q.sort = 'neu'; q.filter = ''; q.genre = ''; q.q = ''; }
+    else if (key === 'jf:liste') { q.type = 'all'; q.filter = 'liste'; q.genre = ''; }
+    else if (key === 'jf:suche') { q.type = 'all'; q.genre = ''; q.filter = ''; }
+    return q;
+  }
+  function jfEnter(key, more) {
+    if (key === 'jf:start' || key === 'jf:weiter') {
+      JF.busy = !JF.data.home; renderList();
+      return req('GET', '/jellyfin/start').then(function (d) {
+        jfRemember(d.movies); jfRemember(d.episodes); jfRemember(d.resume);
+        JF.data.home = d; JF.busy = false;
+        if (view === key) { renderSide(); renderHead(); renderList(); }
+      }).catch(function (e) { JF.busy = false; oops(e); renderList(); });
+    }
+    var m = /^jf:serie:(\w+)$/.exec(key);
+    if (m) return jfSeries(m[1]);
+    var q = jfQuery(key), old = more && JF.data[key];
+    q.start = old ? old.items.length : 0;
+    var qs = Object.keys(q).filter(function (k) { return q[k] !== '' && q[k] != null; }).map(function (k) { return k + '=' + encodeURIComponent(q[k]); }).join('&');
+    if (!old) { JF.busy = true; renderList(); }
+    if ((key === 'jf:filme' || key === 'jf:serien') && !JF.genres[q.type]) {
+      req('GET', '/jellyfin/genres?type=' + q.type).then(function (g) { JF.genres[q.type] = g.genres; if (view === key) renderHead(); }).catch(function () {});
+    }
+    return req('GET', '/jellyfin/liste?' + qs).then(function (d) {
+      jfRemember(d.items);
+      JF.data[key] = old ? { items: old.items.concat(d.items), total: d.total } : d;
+      JF.busy = false;
+      if (view === key) { renderHead(); renderList(); }
+    }).catch(function (e) { JF.busy = false; oops(e); renderList(); });
+  }
+  function jfSeries(id) {
+    JF.busy = true; renderList();
+    return req('GET', '/jellyfin/titel/' + id).then(function (d) {
+      JF.show = d; JF.det = d;
+      var s = (d.next && d.seasons.filter(function (x) { return x.id === d.next.seasonId; })[0]) || d.seasons[0];
+      return jfSeason(s ? s.id : '');
+    }).catch(function (e) { JF.busy = false; oops(e); renderList(); });
+  }
+  function jfSeason(sid) {
+    JF.season = sid;
+    return req('GET', '/jellyfin/folgen/' + JF.show.id + (sid ? '?staffel=' + sid : '')).then(function (d) {
+      JF.eps = jfRemember(d.items); JF.busy = false;
+      if (/^jf:serie:/.test(view)) { renderHead(); renderList(); renderQueue(); }
+    });
+  }
+  function jfCounts() {
+    var c = JF.data.home && JF.data.home.counts;
+    return c ? c.movies + ' Filme · ' + c.series + ' Serien' : '';
+  }
+  function jfHead() {
+    var s = JF.st || {}, h;
+    if (/^jf:serie:/.test(view)) {
+      var x = JF.show;
+      h = '<div class="mp-title">' + sideBtn() + '<button type="button" class="small" data-go="jf:serien">◀ Serien</button> <b>📺 ' + esc(x ? x.name : 'Serie') + '</b> <small>' +
+        (x ? [x.seasons.length + (x.seasons.length === 1 ? ' Staffel' : ' Staffeln'), jfYears(x), x.age].filter(Boolean).join(' · ') : '') + '</small></div>';
+      if (x) {
+        h += '<div class="mp-tools"><span class="mp-chips" role="group" aria-label="Staffel">' + x.seasons.map(function (z) {
+          return '<button type="button" data-act="jf-season" data-id="' + z.id + '" class="' + (JF.season === z.id ? 'on' : '') + '">' + esc(z.name) + '</button>';
+        }).join('') + '</span>';
+        if (s.play && x.next) h += '<button type="button" class="small" data-act="jf-play" data-id="' + x.next.id + '">▶ Weiter mit ' + esc(jfEp(x.next)) + '</button>';
+        if (s.play && JF.eps && JF.eps.length) h += '<button type="button" class="small" data-act="jf-queue-season">➕ Staffel anhängen</button>';
+        h += '</div>';
+      }
+      head.innerHTML = h;
+      return;
+    }
+    var key = view, d = JF.data[key], title = { 'jf:start': '🎬 ' + esc(s.name || 'Jellyfin'), 'jf:weiter': '⏯️ Weiterschauen', 'jf:neu': '🆕 Neu hinzugefügt', 'jf:filme': '🎞️ Filme', 'jf:serien': '📺 Serien', 'jf:liste': '⭐ Meine Liste', 'jf:suche': '🔍 Suche' }[key];
+    var sub = key === 'jf:start' ? jfCounts() : d ? d.total + ' Titel' : '';
+    h = '<div class="mp-title">' + sideBtn() + '<b>' + title + '</b> <small>' + esc(sub) + '</small></div><div class="mp-tools">';
+    if (key === 'jf:filme' || key === 'jf:serien') {
+      var type = key === 'jf:filme' ? 'Movie' : 'Series';
+      if (s.play) h += '<span class="mp-chips" role="group" aria-label="Filter">' + [['', 'Alle'], ['ungesehen', 'Ungesehen'], ['liste', '⭐ Meine Liste']].map(function (o) {
+        return '<button type="button" data-act="jf-filter" data-v="' + o[0] + '" class="' + (JF.filter === o[0] ? 'on' : '') + '">' + o[1] + '</button>';
+      }).join('') + '</span>';
+      h += '<input type="search" id="jf-q" placeholder="🔍 Suchen" aria-label="Suchen" value="' + esc(JF.q) + '">' +
+        '<select id="jf-genre" aria-label="Genre"><option value="">Genre: alle</option>' + (JF.genres[type] || []).map(function (g) { return '<option' + (JF.genre === g ? ' selected' : '') + '>' + esc(g) + '</option>'; }).join('') + '</select>' +
+        '<select id="jf-sort" aria-label="Sortieren">' + Object.keys(JF_SORT).map(function (k) { return '<option value="' + k + '"' + (JF.sort === k ? ' selected' : '') + '>Sortieren: ' + JF_SORT[k] + '</option>'; }).join('') + '</select>';
+    } else h += '<input type="search" id="jf-q" placeholder="🔍 Filme und Serien durchsuchen" aria-label="Filme und Serien durchsuchen" value="' + esc(key === 'jf:suche' ? JF.q : '') + '">';
+    if (!s.play && s.browse) h += '<span class="mp-hint jf-lock">🔒 ' + (s.state === 'pending' ? 'Deine Anfrage liegt beim Admin.' : s.canRequest ? 'Zum Abspielen <button type="button" class="small" data-act="jf-request">Zugang anfragen …</button>' : 'Abspielen geht nur mit Freigabe.') + '</span>';
+    head.innerHTML = h + '</div>';
+    var qi = $('jf-q'), timer = null;
+    if (qi) qi.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        JF.q = qi.value.trim();
+        if (key === 'jf:filme' || key === 'jf:serien') { delete JF.data[key]; jfEnter(key); }
+        else if (JF.q) { delete JF.data['jf:suche']; if (view !== 'jf:suche') show('jf:suche'); else jfEnter('jf:suche'); setTimeout(function () { var n = $('jf-q'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 0); }
+      }, 350);
+    });
+    ['jf-genre', 'jf-sort'].forEach(function (idn) {
+      var el = $(idn);
+      if (el) el.addEventListener('change', function () { if (idn === 'jf-genre') JF.genre = el.value; else JF.sort = el.value; delete JF.data[key]; jfEnter(key); });
+    });
+  }
+  function jfIsNew(x) { return x.added && Date.now() / 1000 - x.added < 7 * 86400; }
+  function jfCard(x, wide) {
+    var prog = x.pos && x.runtime ? Math.max(2, Math.min(100, Math.round(x.pos / x.runtime * 100))) : 0;
+    var img = x.type === 'Episode' && !wide ? x.seriesImg || x.img : x.img;
+    var name = x.type === 'Episode' ? (wide ? x.series + ' · ' + jfEp(x) : x.series) : x.name;
+    var sub = x.type === 'Episode' ? (wide ? x.name : jfEp(x) + ' ' + x.name) : wide && x.runtime && x.pos ? 'noch ' + jfMin(x.runtime - x.pos) : jfYears(x);
+    return '<button type="button" class="jf-card' + (JF.det && JF.det.id === x.id ? ' sel' : '') + '" data-act="jf-open" data-id="' + x.id + '" title="' + esc(jfTitle(x)) + '">' +
+      '<span class="jf-poster' + (wide ? ' wide' : '') + '" style="--h:' + hue(x.series || x.name) + '">' + '<span class="jf-pt">' + esc(x.series || x.name) + '</span>' +
+      (img ? '<img loading="lazy" alt="" src="' + jfImg(img, wide ? 400 : 240) + '">' : '') +
+      (x.played ? '<span class="seen" title="Gesehen">✓</span>' : x.unplayed ? '<span class="cnt" title="Ungesehene Folgen">' + x.unplayed + '</span>' : '') +
+      (jfIsNew(x) ? '<span class="new">NEU</span>' : '') + (prog ? '<span class="bar"><i style="width:' + prog + '%"></i></span>' : '') + '</span>' +
+      '<span class="t">' + esc(name) + '</span><span class="y">' + esc(String(sub || '')) + '</span></button>';
+  }
+  function jfList() {
+    if (JF.busy) { list.innerHTML = '<p class="mp-empty">Lade von Jellyfin …</p>'; return; }
+    if (/^jf:serie:/.test(view)) { jfEpisodes(); return; }
+    if (view === 'jf:start' || view === 'jf:weiter') {
+      var d = JF.data.home;
+      if (!d) { list.innerHTML = '<p class="mp-empty">Lade von Jellyfin …</p>'; return; }
+      if (view === 'jf:weiter') {
+        list.innerHTML = d.resume.length ? '<div class="jf-grid wide">' + d.resume.map(function (x) { return jfCard(x, true); }).join('') + '</div>' : '<p class="mp-empty">Nichts angefangen. Such dir was aus! 🍿</p>';
+        return;
+      }
+      var row = function (ic, title, items, wide, go) {
+        return items.length ? '<div class="jf-row-h">' + ic + ' ' + title + (go ? '<button type="button" class="small" data-go="' + go + '">Alle ›</button>' : '') + '</div><div class="jf-row' + (wide ? ' wide' : '') + '">' + items.map(function (x) { return jfCard(x, wide); }).join('') + '</div>' : '';
+      };
+      list.innerHTML = '<div class="jf-home">' + row('⏯️', 'Weiterschauen', d.resume, true, d.resume.length > 4 ? 'jf:weiter' : '') + row('🆕', 'Neue Filme', d.movies, false, 'jf:filme') + row('📺', 'Neue Folgen', d.episodes, false, 'jf:serien') + '</div>' ||
+        '<p class="mp-empty">In Jellyfin ist noch nichts.</p>';
+      return;
+    }
+    var dd = JF.data[view];
+    if (!dd) { list.innerHTML = '<p class="mp-empty">Lade von Jellyfin …</p>'; return; }
+    if (!dd.items.length) { list.innerHTML = '<p class="mp-empty">' + (view === 'jf:liste' ? 'Auf deiner Liste steht noch nichts. Merk dir Titel mit ⭐.' : 'Nichts gefunden.') + '</p>'; return; }
+    list.innerHTML = '<div class="jf-grid">' + dd.items.map(function (x) { return jfCard(x, false); }).join('') + '</div>' +
+      (dd.items.length < dd.total ? '<p class="jf-more"><button type="button" class="small" data-act="jf-more">Mehr laden (' + (dd.total - dd.items.length) + ' weitere)</button></p>' : '');
+  }
+  function jfEpisodes() {
+    var s = JF.st || {}, eps = JF.eps || [], playingId = isJf(current) ? current.jfId : null;
+    if (!eps.length) { list.innerHTML = '<p class="mp-empty">In dieser Staffel ist nichts.</p>'; return; }
+    list.innerHTML = '<table class="list mp-table jf-ep"><thead><tr><th class="num">#</th><th></th><th>Folge</th><th class="num">Länge</th><th></th></tr></thead><tbody>' + eps.map(function (x) {
+      var prog = x.pos && x.runtime ? Math.max(2, Math.min(100, Math.round(x.pos / x.runtime * 100))) : 0, now = x.id === playingId;
+      return '<tr class="' + (now ? 'playing' : JF.det && JF.det.id === x.id ? 'sel' : '') + '" data-act="jf-open" data-id="' + x.id + '"><td class="num">' + (now ? (isPlaying() ? '🔊' : '⏸') : x.episode != null ? x.episode : '') + '</td>' +
+        '<td class="thumb"><span class="jf-poster wide" style="--h:' + hue(x.name) + '">' + (x.img ? '<img loading="lazy" alt="" src="' + jfImg(x.img, 200) + '">' : '') +
+        (prog ? '<span class="bar"><i style="width:' + prog + '%"></i></span>' : '') + '</span></td>' +
+        '<td><b>' + esc(x.name) + '</b><div class="d">' + esc(x.overview.slice(0, 220)) + '</div></td><td class="num">' + (x.runtime ? fmt(x.runtime) : '') + '</td>' +
+        '<td class="nowrap">' + (x.played ? '✓ ' : '') + (s.play ? '<button type="button" class="small" data-act="jf-play" data-id="' + x.id + '" title="Abspielen">▶</button>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table>';
+  }
+
+  // Angaben zum gewählten Titel: rechts in der Spalte der Wiedergabeliste, sonst als Dialog
+  function jfDetailHtml(x) {
+    var s = JF.st || {}, h = '<div class="jf-det">';
+    h += '<span class="jf-poster" style="--h:' + hue(x.series || x.name) + '"><span class="jf-pt">' + esc(x.series || x.name) + '</span>' + (x.img ? '<img alt="" src="' + jfImg(x.img, 320) + '">' : '') +
+      (x.pos && x.runtime ? '<span class="bar"><i style="width:' + Math.max(2, Math.round(x.pos / x.runtime * 100)) + '%"></i></span>' : '') + (s.play ? '' : '<span class="lock">🔒</span>') + '</span>';
+    h += '<h3>' + esc(x.type === 'Episode' ? x.name : x.name) + '</h3>';
+    if (x.type === 'Episode') h += '<div class="meta">' + esc(x.series + ' · ' + jfEp(x)) + '</div>';
+    h += '<div class="meta">' + [jfYears(x), x.runtime ? jfMin(x.runtime) : '', x.age, x.rating ? '★ ' + String(x.rating).replace('.', ',') : '', x.type === 'Series' && x.count ? x.count + ' Staffeln' : ''].filter(Boolean).map(esc).join(' · ') + '</div>';
+    var tags = (x.genres || []).slice();
+    if (x.video) { if (x.video.height >= 2000) tags.push('4K'); else if (x.video.height >= 1000) tags.push('HD'); if (x.video.hdr) tags.push(x.video.hdr); }
+    if (tags.length) h += '<div class="tags">' + tags.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</div>';
+    if (x.overview) h += '<p>' + esc(x.overview) + '</p>';
+    if (x.type === 'Series' && s.play) h += '<table><tr><td>Weiter mit</td><td>' + (x.next ? esc(jfEp(x.next) + ' „' + x.next.name + '“') + (x.next.pos ? ' (ab ' + fmt(x.next.pos) + ')' : '') : 'alles gesehen 🎉') + '</td></tr></table>';
+    return h + '</div>';
+  }
+  function jfActsHtml(x) {
+    var s = JF.st || {}, h = '<div class="jf-acts">';
+    if (!s.play) {
+      if (s.canRequest) h += '<button type="button" class="big" data-act="jf-request">🔑 Zugang anfragen …</button><div class="jf-note">Ansehen können nur freigegebene Mitglieder.</div>';
+      else if (s.state === 'pending') h += '<div class="jf-note">⏳ Deine Anfrage liegt beim Admin.</div>';
+      else h += '<div class="jf-note">' + (lib.me ? 'Ansehen geht nur mit Freigabe.' : '<a href="/login?next=/musik%23jellyfin">Melde dich an</a>, um Zugang anzufragen.') + '</div>';
+      return h + '</div>';
+    }
+    if (x.type === 'Series') {
+      if (!/^jf:serie:/.test(view)) h += '<button type="button" class="big" data-go="jf:serie:' + x.id + '">📺 Folgen ansehen</button>';
+      if (x.next) h += '<button type="button"' + (/^jf:serie:/.test(view) ? ' class="big"' : '') + ' data-act="jf-play" data-id="' + x.next.id + '">▶ Weiter mit ' + esc(jfEp(x.next)) + '</button>';
+    } else {
+      if (x.pos > 30) h += '<button type="button" class="big" data-act="jf-play" data-id="' + x.id + '">▶ Fortsetzen bei ' + fmt(x.pos) + '</button><button type="button" data-act="jf-play" data-from="0" data-id="' + x.id + '">⏮ Von vorn abspielen</button>';
+      else h += '<button type="button" class="big" data-act="jf-play" data-id="' + x.id + '">▶ Abspielen</button>';
+      h += '<button type="button" data-act="jf-enqueue" data-id="' + x.id + '">➕ An die Wiedergabeliste</button>';
+      h += '<button type="button" data-act="jf-seen" data-id="' + x.id + '">' + (x.played ? '↩ Als ungesehen markieren' : '✓ Als gesehen markieren') + '</button>';
+    }
+    h += '<button type="button" data-act="jf-fav" data-id="' + x.id + '">' + (x.fav ? '⭐ Von meiner Liste nehmen' : '☆ Auf meine Liste') + '</button>';
+    if (x.app) h += '<a class="btn" href="' + esc(x.app) + '" target="_blank" rel="noopener">↗ In Jellyfin öffnen</a>';
+    return h + '</div>';
+  }
+  function jfSidePanel() { return getComputedStyle($('mp-queue')).display !== 'none' && $('mp-queue').offsetWidth > 150; }
+  function jfRenderDetails() {
+    var x = JF.det;
+    qhead.innerHTML = '<b>Details</b> <button type="button" class="small jf-close" data-act="jf-close" title="Zur Wiedergabeliste">✕</button>';
+    qlist.innerHTML = jfDetailHtml(x);
+    qtools.innerHTML = jfActsHtml(x);
+  }
+  function jfOpen(id) {
+    var x = JF.items[id];
+    if (x && x.type === 'Series' && !/^jf:serie:/.test(view)) { show('jf:serie:' + id); return; }
+    var panel = jfSidePanel();
+    if (x) { JF.det = x; if (panel) { renderQueue(); renderList(); } }
+    req('GET', '/jellyfin/titel/' + id).then(function (d) {
+      JF.items[id] = Object.assign(JF.items[id] || {}, d); JF.det = JF.items[id];
+      if (panel) { renderQueue(); renderList(); return; }
+      dialog(d.type === 'Episode' ? d.series : d.name, jfDetailHtml(d) + jfActsHtml(d), [{ label: 'Schließen', value: 'cancel' }]);
+    }).catch(oops);
+  }
+
+  // Zugang anfragen und App-Zugangsdaten
+  function jfRequest() {
+    var s = JF.st || {};
+    if (!lib.me) { openPage('/login?next=' + encodeURIComponent('/musik#jellyfin')); return; }
+    if (s.state === 'pending') { dialog('🎬 Zugang zu ' + esc(s.name), '<p>Deine Anfrage liegt beim Admin. Du bekommst eine Benachrichtigung, sobald er entschieden hat.</p>', [{ label: 'OK', value: 'ok' }]); return; }
+    if (!s.canRequest) { status('Gerade kannst du nicht noch einmal fragen.'); return; }
+    dialog('🎬 Zugang zu ' + esc(s.name) + ' anfragen', '<p>Der Admin bekommt deine Anfrage als Benachrichtigung. Sagt er ja, kannst du hier im Mediaplayer Filme und Serien ansehen, mit eigenem Fortschritt.</p>' +
+      '<label>Nachricht an den Admin (freiwillig):<textarea name="message" class="w100" rows="3" maxlength="300"></textarea></label>' +
+      '<label class="inline"><input type="checkbox" name="app"> Zugangsdaten auch für die Jellyfin-App (Fernseher, Handy)</label>',
+    [{ label: 'Anfrage senden', value: 'ok' }, { label: 'Abbrechen', value: 'cancel' }]).then(function (r) {
+      if (r !== 'ok') return;
+      post('/jellyfin/anfragen', { message: field('message') || '', app: !!field('app') }).then(function () {
+        status('Anfrage gesendet.'); return jfLoad().then(render);
+      }).catch(oops);
+    });
+  }
+  function jfApp() {
+    post('/jellyfin/app-zugang', {}).then(function (a) {
+      var body = '<p>Damit meldest du dich in der Jellyfin-App (Fernseher, Handy, Tablet) oder im Browser an:</p><table class="jf-cred">' +
+        '<tr><td>Server</td><td><code>' + esc(a.url) + '</code></td></tr><tr><td>Benutzer</td><td><code>' + esc(a.name) + '</code></td></tr>' +
+        '<tr><td>Passwort</td><td>' + (a.pw ? '<code>' + esc(a.pw) + '</code><br><small>Schreib es dir auf: Es wird nur dieses eine Mal angezeigt.</small>' : '<small>schon angezeigt' + (a.canReset ? ', unten kannst du ein neues erzeugen' : ' (dein eigenes Jellyfin-Passwort)') + '</small>') + '</td></tr></table>' +
+        '<p><small>Was du in der App schaust, landet im selben Fortschritt wie hier.</small></p>';
+      var btns = [{ label: 'Schließen', value: 'cancel' }];
+      if (a.canReset) btns.unshift({ label: '🔄 Neues Passwort', value: 'reset' });
+      return dialog('📱 Jellyfin-App', body, btns).then(function (r) {
+        if (r !== 'reset') return;
+        return confirmBox('Neues Passwort', 'Ein neues Passwort erzeugen? Angemeldete Apps müssen sich danach neu anmelden.', 'Erzeugen').then(function (ok) {
+          if (!ok) return;
+          return post('/jellyfin/app-passwort', {}).then(function (j) {
+            dialog('📱 Neues Passwort', '<p>Dein neues Passwort für Jellyfin:</p><p><code class="jf-pw">' + esc(j.pw) + '</code></p><p><small>Wird nur jetzt angezeigt.</small></p>', [{ label: 'OK', value: 'ok' }]);
+          });
+        });
+      });
+    }).catch(oops);
+  }
+
+  // ---------- Jellyfin: abspielen ----------
+  function jfQItem(x, from) {
+    return { jf: true, jfId: x.id, title: jfTitle(x), artist: x.type === 'Episode' ? '' : jfYears(x) ? String(jfYears(x)) : '', album: x.type === 'Episode' ? x.series : '',
+      duration: x.runtime || 0, kind: 'video', video: true, resume: from === 0 ? 0 : x.pos || 0 };
+  }
+  function jfPlay(id, from) {
+    var x = JF.items[id];
+    if (!x) return;
+    if (lob) { status('In einer Lobby läuft Jellyfin nicht. Verlass die Lobby, um das hier anzusehen.'); return; }
+    var list2 = [x];
+    // Folge: die übrigen Folgen der Staffel kommen dahinter
+    if (x.type === 'Episode' && JF.eps) {
+      var i = JF.eps.map(function (e) { return e.id; }).indexOf(id);
+      if (i >= 0) list2 = JF.eps.slice(i);
+    }
+    var items = list2.map(function (e, k) { return jfQItem(e, k === 0 ? from : 0); });
+    if (current && !isJf(current) && queue.length > 1) { enqueue(items.slice(0, 1)); playAt(queue.length - 1); return; }
+    playList(items, 0);
+    if (!isPhone()) show('now');
+  }
+  function jfCodecs() {
+    var c = [], v = document.createElement('video');
+    if (v.canPlayType('video/mp4; codecs="hvc1.1.6.L93.B0"')) c.push('hevc');
+    if (v.canPlayType('video/mp4; codecs="av01.0.05M.08"')) c.push('av1');
+    if (v.canPlayType('video/webm; codecs="vp9"')) c.push('vp9');
+    return c;
+  }
+  var hlsLoad = null;
+  function jfHls() {
+    if (window.Hls) return Promise.resolve(window.Hls);
+    if (!hlsLoad) hlsLoad = new Promise(function (resolve) {
+      var s = document.createElement('script'); s.src = '/jellyfin/hls.js';
+      s.onload = function () { resolve(window.Hls || null); }; s.onerror = function () { hlsLoad = null; resolve(null); };
+      document.head.appendChild(s);
+    });
+    return hlsLoad;
+  }
+  function jfDetach(keepReport) {
+    var p = JF.play;
+    if (p && !keepReport && !p.ended) jfReport(p, media.ended ? { done: true, stop: true, pos: 0 } : { stop: true });
+    if (JF.hls) { try { JF.hls.destroy(); } catch (e) { /* weg */ } JF.hls = null; }
+    media.querySelectorAll('track').forEach(function (t) { t.remove(); });
+    JF.play = null;
+    renderModes();
+  }
+  function jfReport(p, o) {
+    if (!p || !p.it) return;
+    var pos = o && o.pos != null ? o.pos : media.currentTime || 0;
+    if (pos > 0) p.it.resume = pos;
+    var x = JF.items[p.it.jfId];
+    if (x) { if (o && o.done) { x.played = true; x.pos = 0; } else if (pos > 5) x.pos = pos; }
+    fetch('/jellyfin/fortschritt/' + p.it.jfId, { method: 'POST', keepalive: true, credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-csrf-token': CSRF },
+      body: JSON.stringify({ pos: Math.floor(pos), done: !!(o && o.done), stop: !!(o && o.stop), session: p.p.session }) }).catch(function () {});
+    p.saved = Date.now();
+  }
+  function jfStart(it, opts) {
+    jfDetach();
+    opts = opts || {};
+    var at = opts.at != null ? opts.at : it.resume || 0;
+    media.pause(); media.removeAttribute('src'); media.load();
+    status('Lade „' + it.title + '“ von Jellyfin …');
+    var body = { bitrate: prefs.jfRate || 0, codecs: jfCodecs() };
+    if (opts.audio != null) body.audio = opts.audio;
+    if (opts.sub != null && opts.sub >= 0 && !opts.textSub) body.sub = opts.sub;
+    post('/jellyfin/abspielen/' + it.jfId, body).then(function (p) {
+      if (current !== it) return;
+      JF.play = { it: it, p: p, saved: Date.now(), sub: opts.sub != null ? opts.sub : -1, audio: p.audioIndex };
+      var go = function () {
+        p.subs.filter(function (s) { return s.text; }).forEach(function (s) {
+          var t = document.createElement('track'); t.kind = 'subtitles'; t.label = s.label; t.src = s.url; t.dataset.index = s.index; media.appendChild(t);
+        });
+        jfSubs(JF.play.sub);
+        media.play().catch(function () { /* wartet auf Klick */ });
+      };
+      if (p.mode === 'hls' && !media.canPlayType('application/vnd.apple.mpegurl')) {
+        jfHls().then(function (Hls) {
+          if (current !== it) return;
+          if (!Hls || !Hls.isSupported()) { status('⚠ Dieser Browser kann den Jellyfin-Stream nicht abspielen.'); return; }
+          var h = new Hls({ enableWorker: false, startPosition: at > 5 ? at : -1, maxBufferLength: 40, backBufferLength: 60 });
+          JF.hls = h;
+          h.on(Hls.Events.ERROR, function (ev, d) {
+            if (!d.fatal) return;
+            if (d.type === Hls.ErrorTypes.NETWORK_ERROR) h.startLoad();
+            else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) h.recoverMediaError();
+            else { status('⚠ Jellyfin-Stream abgebrochen.'); jfDetach(); }
+          });
+          h.loadSource(p.url); h.attachMedia(media);
+          h.on(Hls.Events.MANIFEST_PARSED, go);
+        });
+      } else {
+        media.src = p.url;
+        if (at > 5) media.addEventListener('loadedmetadata', function () { try { media.currentTime = at; } catch (e) { /* noch nicht */ } }, { once: true });
+        go();
+      }
+      status('▶ ' + it.title + ' · ' + (p.mode === 'direct' ? 'direkt von Jellyfin' + (p.video ? ' (' + p.video + ')' : '') : 'von Jellyfin umgewandelt' + (p.video ? ' (Original: ' + p.video + ')' : '')));
+      renderModes();
+    }).catch(function (e) { if (current === it) oops(e); });
+  }
+  // Untertitel: Text-Untertitel als Spur im Browser, Bild-Untertitel brennt Jellyfin ins Video (neu laden an derselben Stelle)
+  function jfSubs(idx) {
+    var p = JF.play;
+    if (!p) return;
+    p.sub = idx;
+    Array.prototype.forEach.call(media.textTracks, function (t, i) {
+      var el = media.querySelectorAll('track')[i];
+      t.mode = el && Number(el.dataset.index) === idx ? 'showing' : 'disabled';
+    });
+  }
+  function jfSwitch(o) {
+    var p = JF.play;
+    if (!p) return;
+    var at = media.currentTime || 0, it = p.it;
+    if (o.sub !== undefined) {
+      var s = p.p.subs.filter(function (z) { return z.index === o.sub; })[0];
+      if (o.sub < 0 || (s && s.text)) { if (p.p.burn) jfStart(it, { at: at, audio: p.audio, sub: o.sub, textSub: true }); else jfSubs(o.sub); renderModes(); return; }
+      jfStart(it, { at: at, audio: p.audio, sub: o.sub });
+      return;
+    }
+    if (o.audio !== undefined) { jfStart(it, { at: at, audio: o.audio, sub: p.sub, textSub: !p.p.burn }); return; }
+    if (o.rate !== undefined) { prefs.jfRate = o.rate; savePrefs(); jfStart(it, { at: at, audio: p.audio, sub: p.sub, textSub: !p.p.burn }); }
+  }
+  // Ton, Untertitel und Qualität oben im Bild, solange ein Jellyfin-Titel läuft
+  function renderModes() {
+    var box = root.querySelector('.mp-modes'), old = $('mp-jfmodes');
+    if (old) old.remove();
+    var p = JF.play;
+    if (!p || !box) return;
+    var h = '<span id="mp-jfmodes" class="mp-jfmodes">';
+    if (p.p.audio.length > 1) h += '<select data-jf="audio" title="Ton" aria-label="Ton">' + p.p.audio.map(function (a) { return '<option value="' + a.index + '"' + (a.index === p.audio ? ' selected' : '') + '>🔈 ' + esc(a.label) + '</option>'; }).join('') + '</select>';
+    if (p.p.subs.length) h += '<select data-jf="sub" title="Untertitel" aria-label="Untertitel"><option value="-1">💬 Untertitel aus</option>' + p.p.subs.map(function (s) { return '<option value="' + s.index + '"' + (s.index === p.sub ? ' selected' : '') + '>💬 ' + esc(s.label) + '</option>'; }).join('') + '</select>';
+    h += '<select data-jf="rate" title="Qualität" aria-label="Qualität">' + JF_RATES.map(function (r) { return '<option value="' + r[0] + '"' + ((prefs.jfRate || 0) === r[0] ? ' selected' : '') + '>⚙️ ' + r[1] + '</option>'; }).join('') + '</select></span>';
+    box.insertAdjacentHTML('afterbegin', h);
+    $('mp-jfmodes').addEventListener('change', function (e) {
+      var k = e.target.dataset.jf, v = Number(e.target.value);
+      jfSwitch(k === 'audio' ? { audio: v } : k === 'sub' ? { sub: v } : { rate: v });
+    });
+  }
+  media.addEventListener('timeupdate', function () { var p = JF.play; if (p && !media.paused && Date.now() - p.saved > 15000) jfReport(p); });
+  media.addEventListener('pause', function () { var p = JF.play; if (p && !media.ended && media.currentTime > 5) jfReport(p); });
+  media.addEventListener('ended', function () { var p = JF.play; if (p) { p.ended = true; jfReport(p, { done: true, stop: true, pos: 0 }); } }, true);
+  window.addEventListener('pagehide', function () { var p = JF.play; if (p && !p.ended) jfReport(p, { stop: true }); });
+
+  // Klicks auf Jellyfin-Knöpfe, vor den übrigen Klicks des Players (der Dialog liegt außerhalb von #mp)
+  function jfAct(b) {
+    var a = b.dataset.act, id = b.dataset.id;
+    if (dlg.open && dlg.contains(b)) dlg.close('cancel');
+    if (a === 'jf-open') jfOpen(id);
+    else if (a === 'jf-play') jfPlay(id, b.dataset.from === '0' ? 0 : undefined);
+    else if ((a === 'jf-enqueue' || a === 'jf-queue-season') && lob) status('In einer Lobby läuft Jellyfin nicht.');
+    else if (a === 'jf-enqueue') { if (JF.items[id]) enqueue([jfQItem(JF.items[id])]); }
+    else if (a === 'jf-queue-season') enqueue((JF.eps || []).map(function (x) { return jfQItem(x); }));
+    else if (a === 'jf-season') { JF.busy = true; renderList(); jfSeason(id).catch(oops); }
+    else if (a === 'jf-filter') { JF.filter = b.dataset.v; delete JF.data[view]; jfEnter(view); }
+    else if (a === 'jf-more') jfEnter(view, true);
+    else if (a === 'jf-close') { JF.det = null; renderQueue(); renderList(); }
+    else if (a === 'jf-request') jfRequest();
+    else if (a === 'jf-app') jfApp();
+    else if (a === 'jf-fav' || a === 'jf-seen') {
+      var x = JF.items[id];
+      if (!x) return;
+      var p = a === 'jf-fav' ? post('/jellyfin/merken/' + id, { on: !x.fav }) : post('/jellyfin/fortschritt/' + id, { done: !x.played, pos: 0 });
+      p.then(function () {
+        if (a === 'jf-fav') { x.fav = !x.fav; delete JF.data['jf:liste']; } else { x.played = !x.played; x.pos = 0; }
+        if (JF.det && JF.det.id === id) JF.det = x;
+        if (isJfView()) { renderQueue(); renderList(); }
+      }).catch(oops);
+    }
+  }
+  root.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act^="jf-"]');
+    if (!b || !root.contains(b)) return;
+    e.stopPropagation();
+    jfAct(b);
+  }, true);
+  dlg.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act^="jf-"], [data-go^="jf:"]');
+    if (!b) return;
+    e.preventDefault();
+    if (b.dataset.go) { dlg.close('cancel'); show(b.dataset.go); return; }
+    jfAct(b);
+  });
+  // Cover, die Jellyfin nicht hat: das Bild verschwindet, die farbige Kachel mit Namen bleibt (CSP erlaubt kein onerror="…")
+  function jfImgError(e) { if (e.target.tagName === 'IMG' && e.target.closest('.jf-poster')) e.target.remove(); }
+  root.addEventListener('error', jfImgError, true);
+  dlg.addEventListener('error', jfImgError, true);
+  // Klassisch: In den Jellyfin-Ansichten weicht das Bild den Kacheln, solange kein Video läuft
+  function jfBrowse() { root.classList.toggle('jf-browse', isJfView() && !(current && isVideo(current) && !lob && isPlaying())); }
+  media.addEventListener('play', jfBrowse);
+  media.addEventListener('pause', jfBrowse);
+
   // ---------- Start ----------
   applyVolume();
   nowPlaying();
   render();
-  load().then(function () {
+  Promise.all([load(), jfLoad()]).then(function () {
+    // Aus der Benachrichtigung zur Zugangsanfrage: /musik#jellyfin öffnet gleich die Übersicht
+    if (JF.st && JF.st.on) { if (location.hash === '#jellyfin' && jfGroup()) show('jf:start'); else render(); }
     var q = new URLSearchParams(location.search), want = q.get('lobby');
     // Aus Eigene Dateien und vom Desktop: ?titel=ID stellt den Titel in die Wiedergabeliste, ?playlist=ID zeigt die Playlist
     var tid = Number(q.get('titel')), pid = Number(q.get('playlist'));

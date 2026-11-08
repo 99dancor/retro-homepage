@@ -482,23 +482,41 @@ function FarmingHubLive:readOrchards()
     return list
 end
 
+-- Anteile einer Plantage je Hof: ab 3.12 nach Besitzer der Grundstücke unter den Reihen (DLC-Plantagen gehören niemandem
+-- und liegen oft auf Land mehrerer Höfe), sonst die ganze Plantage für ihren Hof
+function FarmingHubLive.orchardShares(o)
+    if o.byFarm ~= nil and #o.byFarm > 0 then
+        return o.byFarm
+    end
+    if farmOk(o.farm) and (o.total or 0) > 0 then
+        return { { farm = o.farm, total = o.total, ripe = o.ripe, withered = o.withered, sick = o.sick } }
+    end
+    return {}
+end
+
 function FarmingHubLive:checkOrchards(found)
     for _, o in ipairs(self:readOrchards()) do
-        if farmOk(o.farm) and self:farm(o.farm).orchard ~= false and (o.total or 0) > 0 then
-            local base = { farm = o.farm, uid = o.uid, name = o.name, file = o.file, custom = o.custom, fill = o.fill, fillTitle = o.fruitTitle, x = o.x, z = o.z }
-            local function put(kind, pct, limit, sev)
-                local open = self:wasOpen(kind, o.farm, o.uid, kind)
-                if pct ~= nil and pct >= (open and limit / 2 or limit) then
-                    local p = { kind = kind, part = kind, pct = pct, sev = sev }
-                    for k, v in pairs(base) do
-                        p[k] = v
+        for _, f in ipairs(FarmingHubLive.orchardShares(o)) do
+            if farmOk(f.farm) and self:farm(f.farm).orchard ~= false and (f.total or 0) > 0 then
+                local base = { farm = f.farm, uid = o.uid, name = o.name, file = o.file, custom = o.custom, fill = o.fill, fillTitle = o.fruitTitle, x = o.x, z = o.z }
+                local function put(kind, pct, limit, sev, lands)
+                    local open = self:wasOpen(kind, f.farm, o.uid, kind)
+                    if pct ~= nil and pct >= (open and limit / 2 or limit) then
+                        local p = { kind = kind, part = kind, pct = pct, sev = sev }
+                        for k, v in pairs(base) do
+                            p[k] = v
+                        end
+                        -- Grundstücke, auf denen es zu tun gibt (Hub und Overlay zeigen sie an)
+                        if lands ~= nil and lands ~= "" then
+                            p.sub, p.lands = lands, lands
+                        end
+                        self:add(found, p)
                     end
-                    self:add(found, p)
                 end
+                put("orchardHarvest", f.ripe, 10, 2, f.ripeLands)
+                put("orchardCut", f.withered, 10, 2, f.cutLands)
+                put("orchardSpray", f.sick, 1, 3, f.sickLands)
             end
-            put("orchardHarvest", o.ripe, 10, 2)
-            put("orchardCut", o.withered, 10, 2)
-            put("orchardSpray", o.sick, 1, 3)
         end
     end
 end
@@ -825,10 +843,12 @@ function FarmingHubLive:collectTrackers()
         end
     end
     for _, o in ipairs(self:readOrchards()) do
-        if farmOk(o.farm) and o.fruit ~= nil then
-            out["tr:orchard:" .. o.uid] = { kind = "orchard", farm = o.farm, uid = o.uid, name = o.name, file = o.file, custom = o.custom, fill = o.fill or "", fillTitle = o.fruitTitle or "",
-                pct = o.ripe or -1, sub = string.format("r:%d;w:%d;s:%d;g:%d:%d", math.floor((o.ripe or 0) + 0.5), math.floor((o.withered or 0) + 0.5), o.sick ~= nil and math.floor(o.sick + 0.5) or -1,
-                    o.state or -1, o.maxState or -1) }
+        for _, f in ipairs(o.fruit ~= nil and FarmingHubLive.orchardShares(o) or {}) do
+            if farmOk(f.farm) then
+                out["tr:orchard:" .. f.farm .. ":" .. o.uid] = { kind = "orchard", farm = f.farm, uid = o.uid, name = o.name, file = o.file, custom = o.custom, fill = o.fill or "", fillTitle = o.fruitTitle or "",
+                    pct = f.ripe or -1, sub = string.format("r:%d;w:%d;s:%d;g:%d:%d", math.floor((f.ripe or 0) + 0.5), math.floor((f.withered or 0) + 0.5), f.sick ~= nil and math.floor(f.sick + 0.5) or -1,
+                        o.state or -1, o.maxState or -1) }
+            end
         end
     end
     local b = self:readBales()
@@ -977,6 +997,9 @@ function FarmingHubLive:writeWatchData(xml, r)
         end
         if o.sickFrom ~= nil then
             xml:setString(k .. "#sickFrom", o.sickFrom)
+        end
+        if FarmingHubLive.writeByFarm ~= nil then
+            FarmingHubLive.writeByFarm(xml, k, o.byFarm)
         end
         -- Diagnose, bis klar ist, wo das DLC die Krankheit führt
         for _, part in ipairs({ "states", "specs", "spec", "deep", "methods", "fruit", "sick", "fields", "funcs", "pos", "field" }) do

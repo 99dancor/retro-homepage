@@ -388,10 +388,13 @@ function HubLinkHud:detailOf(e)
         table.insert(bits, string.format(T("hubLink_limitFrom", "Grenze ab %s"), cfg.siloPct .. " %"))
     elseif k == "balesReady" then
         table.insert(bits, T("hubLink_balesHint", "fertig gegoren, abholen oder einlagern"))
-    elseif k == "orchardHarvest" or k == "orchardCut" then
-        table.insert(bits, T("hubLink_orchardHint", "Anteil der Plantage, laut Pflanzen im Spiel"))
-    elseif k == "orchardSpray" then
-        table.insert(bits, T("hubLink_sprayHint", "vor der letzten Wachstumsstufe spritzen"))
+    elseif k == "orchardHarvest" or k == "orchardCut" or k == "orchardSpray" then
+        -- ab 3.12: Grundstücke des Hofs, auf denen es zu tun gibt
+        if type(e.sub) == "string" and string.find(e.sub, "^%d[%d, ]*$") ~= nil then
+            table.insert(bits, string.format(T("hubLink_orchardLands", "Grundstücke %s"), e.sub))
+        end
+        table.insert(bits, k == "orchardSpray" and T("hubLink_sprayHint", "vor der letzten Wachstumsstufe spritzen")
+            or T("hubLink_orchardHint", "Anteil der Plantage, laut Pflanzen im Spiel"))
     elseif k == "blocked" then
         table.insert(bits, T("hubLink_blockedHint", "Palette passt nicht aus dem Ausgang"))
     elseif k == "pallets" then

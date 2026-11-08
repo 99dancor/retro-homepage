@@ -173,6 +173,20 @@ local function dist(map, limit)
     return table.concat(s, " ")
 end
 
+-- Grundstücksnummern einer Menge, aufsteigend: "89, 91"
+local function landList(set)
+    local l = {}
+    for id in pairs(set) do
+        table.insert(l, id)
+    end
+    table.sort(l)
+    local s = {}
+    for _, id in ipairs(l) do
+        table.insert(s, tostring(id))
+    end
+    return table.concat(s, ", ")
+end
+
 -- Eine Plantage vermessen: Anteil krank, reif, verdorrt; dazu die Diagnose
 local function probe(o, rows, budget)
     if FieldState == nil or FieldState.new == nil or #rows == 0 then
@@ -182,6 +196,25 @@ local function probe(o, rows, budget)
     local values, lines, fruits = {}, {}, {}
     -- hudRows: Reihen, an denen der Infokasten überhaupt etwas schreibt (läuft er auf dem Server nicht, zählt nur der Feldzustand)
     local n, sickHud, sickVal, sickKey, ripe, withered, hudRows = 0, 0, 0, nil, 0, 0, 0
+    -- ab 3.12 je Hof: Plantagen gehören niemandem, ihre Reihen liegen auf Grundstücken verschiedener Höfe (und der KI)
+    local farms = {}
+    local function bucket(sc)
+        local f = type(sc.ownerFarmId) == "number" and math.floor(sc.ownerFarmId) or 0
+        if f < 1 then
+            return nil
+        end
+        local b = farms[f]
+        if b == nil then
+            b = { n = 0, ripe = 0, withered = 0, hudRows = 0, sickHud = 0, lands = {}, ripeLands = {}, cutLands = {}, sickLands = {} }
+            farms[f] = b
+        end
+        return b
+    end
+    local function mark(set, sc)
+        if type(sc.farmlandId) == "number" and sc.farmlandId > 0 then
+            set[math.floor(sc.farmlandId)] = true
+        end
+    end
     local step = math.max(1, math.ceil(#rows * 3 / math.max(3, budget)))
     for i = 1, #rows, step do
         local r = rows[i]
@@ -192,6 +225,11 @@ local function probe(o, rows, budget)
             if ok then
                 n = n + 1
                 local sc = scalars(st)
+                local b = bucket(sc)
+                if b ~= nil then
+                    b.n = b.n + 1
+                    mark(b.lands, sc)
+                end
                 for k, v in pairs(sc) do
                     count(values, k .. "=" .. (type(v) == "number" and U.num(v, 2) or tostring(v)))
                 end
@@ -212,8 +250,16 @@ local function probe(o, rows, budget)
                         o.fruitIndex = o.fruitIndex or fi
                         if gs ~= nil and desc.minHarvestingGrowthState ~= nil and gs >= desc.minHarvestingGrowthState and gs <= (desc.maxHarvestingGrowthState or desc.minHarvestingGrowthState) then
                             ripe = ripe + 1
+                            if b ~= nil then
+                                b.ripe = b.ripe + 1
+                                mark(b.ripeLands, sc)
+                            end
                         elseif gs ~= nil and desc.witheredState ~= nil and gs == desc.witheredState then
                             withered = withered + 1
+                            if b ~= nil then
+                                b.withered = b.withered + 1
+                                mark(b.cutLands, sc)
+                            end
                         end
                     end
                 end
@@ -234,9 +280,16 @@ local function probe(o, rows, budget)
                     end
                     if #got > 0 then
                         hudRows = hudRows + 1
+                        if b ~= nil then
+                            b.hudRows = b.hudRows + 1
+                        end
                     end
                     if sick then
                         sickHud = sickHud + 1
+                        if b ~= nil then
+                            b.sickHud = b.sickHud + 1
+                            mark(b.sickLands, sc)
+                        end
                     end
                 end
             end
@@ -254,6 +307,20 @@ local function probe(o, rows, budget)
     elseif hudRows > 0 then
         res.sick, res.sickFrom = 0, "hud"
     end
+    res.byFarm = {}
+    for f, b in pairs(farms) do
+        if b.n > 0 then
+            local e = { farm = f, total = b.n, ripe = b.ripe * 100 / b.n, withered = b.withered * 100 / b.n,
+                lands = landList(b.lands), ripeLands = landList(b.ripeLands), cutLands = landList(b.cutLands), sickLands = landList(b.sickLands) }
+            if b.hudRows > 0 then
+                e.sick, e.sickFrom = b.sickHud * 100 / b.hudRows, "hud"
+            end
+            table.insert(res.byFarm, e)
+        end
+    end
+    table.sort(res.byFarm, function(a, c)
+        return a.farm < c.farm
+    end)
     return res
 end
 
@@ -291,6 +358,8 @@ function FarmingHubLive:orchardProbe(list)
             if res.sick ~= nil and (e.o.sick == nil or res.sickFrom == "hud") then
                 e.o.sick, e.o.sickFrom = res.sick, res.sickFrom
             end
+            -- Anteile je Hof nach Besitzer des Grundstücks unter der Reihe (KI-Land zählt für keinen Hof)
+            e.o.byFarm = #res.byFarm > 0 and res.byFarm or nil
             e.o.diag = e.o.diag or {}
             e.o.diag.field = string.format("rows=%d samples=%d fruits=%s", res.rows, res.samples, res.fruits)
             table.insert(results, { o = e.o, r = res })
@@ -300,6 +369,25 @@ function FarmingHubLive:orchardProbe(list)
         end
     end
     self:writeFieldInfo(results)
+end
+
+-- <farm id="2" area="…" ripe="…" withered="…" sick="…" lands="89, 91" sickLands="…"/> je Hof unter einer Plantage
+function FarmingHubLive.writeByFarm(xml, k, list)
+    for i, f in ipairs(list or {}) do
+        local fk = string.format("%s.farm(%d)", k, i - 1)
+        xml:setInt(fk .. "#id", f.farm)
+        xml:setString(fk .. "#area", U.num(f.total or 0, 0))
+        for _, a in ipairs({ "ripe", "withered", "sick" }) do
+            if type(f[a]) == "number" then
+                xml:setString(fk .. "#" .. a, U.num(f[a], 0))
+            end
+        end
+        for _, a in ipairs({ "lands", "ripeLands", "cutLands", "sickLands" }) do
+            if f[a] ~= nil and f[a] ~= "" then
+                xml:setString(fk .. "#" .. a, f[a])
+            end
+        end
+    end
 end
 
 function FarmingHubLive:writeFieldInfo(results)
@@ -330,6 +418,7 @@ function FarmingHubLive:writeFieldInfo(results)
             xml:setString(k .. "#sick", U.num(e.r.sick, 0))
             xml:setString(k .. "#sickFrom", e.r.sickFrom)
         end
+        FarmingHubLive.writeByFarm(xml, k, e.o.byFarm)
         xml:setString(k .. ".values", e.r.values)
         xml:setString(k .. ".hudLines", e.r.lines)
     end

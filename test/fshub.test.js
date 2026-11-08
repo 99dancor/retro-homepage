@@ -579,11 +579,11 @@ test('Spieldaten aus farmingHubExport.xml: Grundstücke, Stationen, Produktionen
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubExport.lua"\/>/);
   assert.match(zip.getEntry('modDesc.xml').getData().toString(), /<sourceFile filename="FarmingHubLive.lua"\/>/);
   const desc = zip.getEntry('modDesc.xml').getData().toString();
-  assert.match(desc, /<version>3\.11\.0\.0<\/version>/);
+  assert.match(desc, /<version>3\.12\.0\.0<\/version>/);
   // Beschreibung: Changelog der letzten zwei Versionen, die neueste zuerst
   const de = desc.match(/<de><!\[CDATA\[([\s\S]*?)\]\]><\/de>/)[1];
-  assert.deepEqual([...de.matchAll(/^Neu in (\d+\.\d+):/gm)].map(m => m[1]), ['3.11', '3.10']);
-  assert.deepEqual([...desc.matchAll(/^Changes in (\d+\.\d+):/gm)].map(m => m[1]), ['3.11', '3.10']);
+  assert.deepEqual([...de.matchAll(/^Neu in (\d+\.\d+):/gm)].map(m => m[1]), ['3.12', '3.11']);
+  assert.deepEqual([...desc.matchAll(/^Changes in (\d+\.\d+):/gm)].map(m => m[1]), ['3.12', '3.11']);
   assert.throws(() => E.read('<placeables/>'), /FS25 Hub Link/);
 });
 
@@ -1101,6 +1101,28 @@ test('Datum im Spiel: Ausfall und Neustart zählen keinen Tag, Tage pro Monat bl
   assert.equal(F.readSavegame('<careerSavegame><settings/></careerSavegame>').daysPerPeriod, null);
 });
 
+test('Datum im Spiel: Monat nach dem Kalendertag des Spiels, nicht nach dem fortlaufenden Tag', () => {
+  const hub = require('../src/fshub'), N = require('../src/fsnames'), L = require('../src/fslive');
+  const { setSetting } = require('../src/db');
+  // Dancors Spielstand (Südhalbkugel, 2 Tage pro Monat): fortlaufend Tag 83, im Spiel 1. Mai J4 = Periode 9
+  const a = { period: '9', dayInPeriod: '1', year: '4' };
+  assert.equal(L._calDayOf(a, 2), 89);
+  assert.equal(L._calDayOf({ currentDay: '89' }, 2), 89);
+  setSetting('fs_day_offset', '6');
+  N.setHemisphere('south');
+  try {
+    const d = hub.dateOf(83, 2);
+    assert.equal(d.monthName, 'Mai');
+    assert.equal(d.dom, 1);
+    assert.equal(d.year, 4);
+    assert.equal(hub.dayOfMonth(d.month, d.year, 2), 83, 'zurück auf den fortlaufenden Tag');
+    const F = require('../src/fsfeeds');
+    const env = F.readEnvironment('<environment><currentDay>89</currentDay><currentMonotonicDay>83</currentMonotonicDay><daysPerPeriod>2</daysPerPeriod></environment>');
+    assert.equal(env.day, 83);
+    assert.equal(env.calDay, 89);
+  } finally { N.setHemisphere('north'); setSetting('fs_day_offset', ''); }
+});
+
 test('Anbau planen: Wachstumsdauer, Erntemonat aus Saatmonat und umgekehrt', () => {
   const C = require('../src/fscrops');
   // Monate ab März = 0: Mais säen April/Mai, ernten Oktober/November
@@ -1124,4 +1146,18 @@ test('Anbau planen: Wachstumsdauer, Erntemonat aus Saatmonat und umgekehrt', () 
   const p = db.prepare('SELECT * FROM fs_plans WHERE id = ?').get(id);
   assert.equal(p.sow_month, s);
   assert.equal(p.harvest_month, C.harvestFor(c, s));
+});
+
+test('Höchstpreis-Meldung je Hof und Ware aus, Plantagen-Aufgabe nennt Grundstücke', () => {
+  const hub = require('../src/fshub'), L = require('../src/fslive');
+  assert.equal(hub.peaksOff(1).size, 0);
+  assert.equal(hub.setPeak(1, 'COFFEE', false), true);
+  assert.equal(hub.setPeak(1, 'x"<', false), false, 'nur Warennamen');
+  assert.deepEqual([...hub.peaksOff(1)], ['COFFEE']);
+  assert.equal(hub.peaksOff(2).size, 0, 'anderer Hof unberührt');
+  hub.setPeak(1, 'COFFEE', true);
+  assert.equal(hub.peaksOff(1).size, 0);
+  const t = { kind: 'orchardSpray', pct: 12, sub: '89, 91', name: 'Kaffeeplantage', fill: 'COFFEECHERRIES' };
+  assert.match(L.titleOf(t, new Map()), /Fungizid spritzen \(12 % krank\) · Grundstücke 89, 91$/);
+  assert.doesNotMatch(L.titleOf({ ...t, sub: 'r:1' }, new Map()), /Grundstück/);
 });

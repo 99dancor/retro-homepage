@@ -87,7 +87,7 @@ function withLive(name, base, g) {
   }
   if (name === 'environment.xml' && g.environment && g.environment.day) {
     const e = g.environment;
-    return { ...(base || {}), day: e.day, dayTime: e.dayTime ?? (base && base.dayTime), daysPerPeriod: e.daysPerPeriod || (base && base.daysPerPeriod) || null,
+    return { ...(base || {}), day: e.day, calDay: e.calDay ?? null, dayTime: e.dayTime ?? (base && base.dayTime), daysPerPeriod: e.daysPerPeriod || (base && base.daysPerPeriod) || null,
       weather: e.weather.length ? e.weather : (base ? base.weather : []), temp: e.temp, live: true };
   }
   if (name === 'fields.xml' && g.fields && g.fields.length) return { at: g.at, list: g.fields, live: true };
@@ -128,15 +128,28 @@ function currentDay() {
   if (st && st.day) return st.day;
   return estimateDay();
 }
+// Der Hub zählt den fortlaufenden Spieltag (currentMonotonicDay, wie Wetter und Aufgaben). Monat und Jahr zeigt das Spiel aber
+// nach currentDay; die beiden laufen auseinander, sobald die Tage pro Monat einmal geändert wurden (Dancors Spielstand:
+// Tag 83 ist dort der 1. Mai J4, nicht der 1. Februar). Den Abstand nennt die Mod ab 3.12 (Periode, Tag, Jahr) und
+// environment.xml (currentDay); der Hub merkt ihn sich (fs_day_offset) und rechnet damit, auch wenn der Server aus ist.
+function dayOffset() {
+  const env = ftpFile('environment.xml');
+  if (env && env.calDay && env.day) {
+    const v = Math.round(env.calDay - env.day);
+    if (String(v) !== getSetting('fs_day_offset', '')) setSetting('fs_day_offset', String(v));
+    return v;
+  }
+  return Math.round(Number(getSetting('fs_day_offset', '')) || 0);
+}
 // Absoluter Spieltag → Monat, Tag im Monat, Jahr
-function dateOf(day, dpp = daysPerPeriod()) {
+function dateOf(day, dpp = daysPerPeriod(), off = dayOffset()) {
   if (!day) return null;
-  const i = day - 1;
+  const i = Math.max(0, day - 1 + off);
   const month = Math.floor(i / dpp) % 12;
   return { day, month, monthName: N.MONTHS[month], dom: (i % dpp) + 1, year: Math.floor(i / (dpp * 12)) + 1, dpp };
 }
 // Erster Spieltag eines Monats in einem Spieljahr
-function dayOfMonth(month, year, dpp = daysPerPeriod()) { return (year - 1) * 12 * dpp + month * dpp + 1; }
+function dayOfMonth(month, year, dpp = daysPerPeriod(), off = dayOffset()) { return (year - 1) * 12 * dpp + month * dpp + 1 - off; }
 function fmtDay(day) {
   const d = dateOf(day);
   return d ? `${d.dpp > 1 ? d.dom + '. ' : ''}${d.monthName} J${d.year}` : '';
@@ -794,6 +807,18 @@ let lastAuto = 0;
 // (Saatgut, Dünger, Kalk, Diesel …). Spitze = der Monat mit dem höchsten Preis der Preisliste (Dancor 07.11.2026: nicht schon ab
 // „x % über Schnitt“); bei gleich hohen Monaten zählen alle. Ganz flache Preise (überall gleich) haben keine Spitze.
 const PEAK_MAX = 5;
+// Höchstpreis-Meldungen je Hof und Ware ausschalten (Dancor 08.11.2026: „einzelne Preistracker an und aus“), Preise-Seite
+function peaksOff(farmId) {
+  try { const v = JSON.parse(getSetting('fs_peak_off:' + Number(farmId), '[]')); return new Set(Array.isArray(v) ? v.map(String) : []); } catch { return new Set(); }
+}
+function setPeak(farmId, fill, on) {
+  const off = peaksOff(farmId), f = String(fill || '').slice(0, 64);
+  if (!/^[A-Z0-9_]+$/.test(f)) return false;
+  if (on) off.delete(f); else off.add(f);
+  setSetting('fs_peak_off:' + Number(farmId), JSON.stringify([...off].sort()));
+  invalidate();
+  return true;
+}
 function peaks(m, f) {
   const ec = m.economy;
   if (!ec || m.month === null || m.month === undefined) return [];
@@ -806,10 +831,10 @@ function peaks(m, f) {
     for (const b of planner().eigene) if (b.farmId === f.id) for (const r of b.recipes) if (r.active !== false) for (const o of r.outputs) has(o.fill, `Ihr stellt es her (${b.label || b.name})`);
   } catch { /* ohne Planer: nur Lager */ }
   for (const x of fieldStates()) if (x.owner === f.id && x.cropFill) has(x.cropFill, `Wächst auf euren Feldern`);
-  const sold = new Set(m.stations.flatMap(s => s.sells || []));
+  const sold = new Set(m.stations.flatMap(s => s.sells || [])), off = peaksOff(f.id);
   const out = [];
   for (const [fill, text] of why) {
-    if (SUPPLIES.has(fill) || NOT_GOODS.test(fill) || !sold.has(fill)) continue;
+    if (SUPPLIES.has(fill) || NOT_GOODS.test(fill) || !sold.has(fill) || off.has(fill)) continue;
     const vals = (ec.prices[fill] || []).map(v => v || 0);
     if (vals.length < 12) continue;
     const max = Math.max(...vals), min = Math.min(...vals), avg = vals.reduce((a, v) => a + v, 0) / 12;
@@ -1264,8 +1289,8 @@ function start() {
 
 module.exports = {
   mapName, backgrounds, backgroundFile, saveBackground, removeBackground, slug,
-  peaks, announcePeaks, STATUS, stations: fsst, fscrops, wiki: fswiki, exportData: () => fsexport.current(), parcelAt: (x, z) => fsexport.parcelAt(fsexport.current(), x, z), REPEAT, MAX, SUPPLIES, DEFAULT_COLORS, enabled, canView, canEditFarm, farmOf, model, invalidate, farm, feed, ftpFile,
-  currentDay, setDay, estimateDay, isUp, _onStats: onStats, calendarYear, dateOf, dayOfMonth, fmtDay, hhmm, daysPerPeriod, today, accountFor, history, record,
+  peaks, peaksOff, setPeak, announcePeaks, STATUS, stations: fsst, fscrops, wiki: fswiki, exportData: () => fsexport.current(), parcelAt: (x, z) => fsexport.parcelAt(fsexport.current(), x, z), REPEAT, MAX, SUPPLIES, DEFAULT_COLORS, enabled, canView, canEditFarm, farmOf, model, invalidate, farm, feed, ftpFile,
+  currentDay, setDay, estimateDay, dayOffset, isUp, _onStats: onStats, calendarYear, dateOf, dayOfMonth, fmtDay, hhmm, daysPerPeriod, today, accountFor, history, record,
   join, leave, setMember, saveFarm, notes, addNote, note, canChangeNote, editNote, removeNote,
   tasks, openTasks, task, addTask, editTask, completeTask, reopenTask, removeTask, isDue, dueLabel, repeatLabel,
   suggestions, syncAuto, hideSuggestion, takeSuggestion, crops, crop, plans, plan, addPlan, removePlan, planCells, calendar,

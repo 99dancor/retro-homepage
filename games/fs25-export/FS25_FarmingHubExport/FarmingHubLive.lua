@@ -883,6 +883,13 @@ function FarmingHubLive:writeGameData(xml, r)
         if type(env.daysPerPeriod) == "number" then
             xml:setInt(e .. "#daysPerPeriod", env.daysPerPeriod)
         end
+        -- Ab 3.12: Kalender so, wie das Spiel ihn anzeigt. currentMonotonicDay zählt nur weiter; Monat und Jahr hängen an
+        -- currentDay, und beide laufen auseinander, sobald die Tage pro Monat einmal geändert wurden.
+        for attr, key in pairs({ currentDay = "currentDay", period = "currentPeriod", dayInPeriod = "currentDayInPeriod", year = "currentYear" }) do
+            if type(env[key]) == "number" then
+                xml:setInt(e .. "#" .. attr, math.floor(env[key]))
+            end
+        end
         local weather = env.weather
         if weather ~= nil then
             local ok, temp = pcall(weather.getCurrentTemperature, weather)

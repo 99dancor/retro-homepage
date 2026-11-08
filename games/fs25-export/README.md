@@ -171,3 +171,20 @@ des Spiels/DLC. Der Zustand liegt also im Boden wie bei Feldern.
 - **Reif/verdorrt:** aus `fruitTypeIndex`/`growthState` des Feldzustands und `minHarvestingGrowthState`/`witheredState` der Frucht, wenn die Plantage selbst nichts misst (`measure="fieldState"`).
 - **Diagnose Server:** `<Spielstand>/hubLinkFieldInfo.xml` je Plantage: Verteilung aller Zahlen/Schalter des Feldzustands (`values`), Zeilen des Infokastens (`hudLines`), dazu `#fungiTexts` (Spieltexte mit „fungi“) und `#hudFunctions`. Live-Datei: `debug#field`.
 - **Diagnose Spieler:** Jede `PlayerHUDUpdater.field…`-Funktion ist umhüllt (Original läuft unverändert, `addLine` nur mitgeschrieben). `modSettings/FS25_FarmingHubExport/hubLinkHudLines.xml`: jede gesehene Zeile mit Funktion und Zähler; bei einer „Fungi“-Zeile zusätzlich Position und alle Werte des Feldzustands (`fungi(i).state`).
+
+**Ergebnis 08.11.2026:** Es klappt. Spieltag 83: Kaffee 12 % krank, Bananen 29 %, beides `sickFrom="hud"` über
+`fieldAddFieldActions` („Needs fungicide“, wie „Needs lime“). Der Feldzustand selbst hat keinen Krankheitswert. Aufgaben kamen
+trotzdem keine: die Plantagen haben `farm="0"`, und ihre Reihen liegen auf Grundstücken von Starcucks, Mestle und der KI.
+
+## Ab 3.12: Plantagen je Hof, Datum wie im Spiel
+
+- **Je Hof:** Jeder Messpunkt bringt `ownerFarmId` und `farmlandId` mit. Die Mod rechnet reif/verdorrt/krank je Hof, dem das
+  Land unter der Reihe gehört (KI-Land, Besitzer 0, zählt für keinen). `o.byFarm` = `{ farm, total, ripe, withered, sick,
+  lands, ripeLands, cutLands, sickLands }`. `FarmingHubLive.orchardShares(o)` liefert diese Liste (sonst die ganze Plantage für
+  ihren Hof); daraus entstehen Aufgaben, Tracker (`tr:orchard:<Hof>:<uid>`) und der Regen-Hinweis. Die Grundstücke stehen im
+  `sub` der Aufgabe („89, 91“); Hub und Overlay zeigen sie an. Live-Datei und `hubLinkFieldInfo.xml`: `<farm id … lands …/>` je
+  Plantage.
+- **Datum:** `currentMonotonicDay` zählt nur weiter (Wetter, Aufgaben); Monat und Jahr zeigt das Spiel nach `currentDay`. Beide
+  laufen auseinander, sobald die Tage pro Monat einmal geändert wurden (Tag 83 = 1. Mai J4 statt 1. Februar). Die Live-Datei hat
+  jetzt `environment#currentDay/#period/#dayInPeriod/#year`; der Hub merkt sich den Abstand (`fs_day_offset`, je Spielstand) und
+  nimmt ihn sonst aus `environment.xml` (`currentDay`).

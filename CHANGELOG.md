@@ -1,5 +1,11 @@
 # Changelog
 
+## Update 91 · 08.11.2026 – Farming Hub: Datum wie im Spiel, Plantagen je Hof, Höchstpreise je Ware
+
+- **Datum im Spiel stimmt jetzt wirklich:** Der Hub hat den Monat aus dem fortlaufenden Spieltag gerechnet. Das Spiel zählt Monat und Jahr aber anders, sobald die Tage pro Monat einmal geändert wurden; so wurde aus dem 1. Mai J4 der 1. Februar. Jetzt nimmt der Hub das Datum, wie das Spiel es zeigt (aus der Live-Datei der Mod oder environment.xml), und merkt es sich auch, wenn der Server aus ist.
+- **Höchstpreis-Meldungen je Ware an und aus:** Auf der Preise-Seite steht bei jeder Ware „Höchstpreis-Meldung für deinen Hof: an/aus“ mit einem Knopf zum Umschalten. Ausgeschaltete Waren bekommen in der Liste ein 🔕 und lösen weder Benachrichtigung noch Aufgabe aus. Das gilt für den ganzen Hof.
+- **FS25 Hub Link 3.12:** Die Fungizid-Erkennung aus 3.11 funktioniert (Kaffee 12 %, Bananen 29 % krank), aber die Aufgaben kamen nie an, weil Plantagen keinem Hof gehören. Jetzt zählt, wem das Land unter den Baumreihen gehört: jeder Hof bekommt seine eigene Aufgabe für Fungizid, Ernte und Zurückschneiden, mit den betroffenen Grundstücken („· Grundstücke 89, 91“). Dazu schickt die Mod das Datum so, wie das Spiel es zeigt.
+
 ## Update 90 · 07.11.2026 – Farming Hub: Datum, Höchstpreise und Hub Link 3.11
 
 - **Datum im Spiel stimmt auch, wenn der Server aus ist:** Bisher konnte der Hub bei einem Ausfall einen Tag zu viel zählen (die Uhr eines gestoppten Servers steht auf 0, nach dem Neustart springt sie auf den Autosave zurück) und mit 1 Tag pro Monat rechnen, weil der Spielstand-Feed dann leer ist. Jetzt zählt er nur echte Sprünge über Mitternacht, merkt sich die Tage pro Monat und nimmt nach einem Ausfall den Tag wieder aus dem Spielstand. Solange der Server aus ist, steht dabei „Stand letzter Kontakt“.

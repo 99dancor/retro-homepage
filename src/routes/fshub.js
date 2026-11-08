@@ -373,7 +373,18 @@ router.get('/preise', (req, res) => {
   const uses = sel ? hub.prod.uses(hub.planner(), sel.fill) : null;
   const buyers = sel ? m.stations.filter(s => s.sells.includes(sel.fill)) : [];
   const sellers = sel ? m.stations.filter(s => s.buys.includes(sel.fill)) : [];
-  page(req, res, 'prices', { title: 'Preise – Farming Simulator', goods: list, filter, q, sel, holdings, all: goods.length, uses, buyers, sellers });
+  // Höchstpreis-Meldungen: je Ware für den eigenen Hof an oder aus
+  const mine = req.user ? m.farms.find(f => f.id === hub.farmOf(req.user.id)) || null : null;
+  const peakOff = mine ? hub.peaksOff(mine.id) : new Set();
+  page(req, res, 'prices', { title: 'Preise – Farming Simulator', goods: list, filter, q, sel, holdings, all: goods.length, uses, buyers, sellers, mine, peakOff,
+    peaksOn: getSetting('fs_auto_peaks', '1') === '1' });
+});
+router.post('/preise/meldung', login, (req, res) => {
+  const farmId = hub.farmOf(req.user.id);
+  if (!farmId) return deny(res, 'Dafür musst du zu einem Hof gehören.');
+  const fill = String(req.body.fill || '');
+  hub.setPeak(farmId, fill, req.body.on === '1');
+  back(req, res, '/farming/preise?w=' + encodeURIComponent(fill), 'gespeichert');
 });
 
 // Wiki: Anbaukalender wie im Spiel (?frucht=WHEAT zeigt eine Frucht genauer) und Tiere (?tier=COW)

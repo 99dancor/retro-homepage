@@ -28,7 +28,7 @@
       <tr><th>Ware</th><th>Jetzt</th><th>Tendenz</th><th>Jahr</th><th>Bester Monat</th></tr>
       <% for (const g of goods) { %>
         <tr class="<%= sel && sel.fill === g.fill ? 'hl' : '' %>" data-q="<%= norm(g.name + ' ' + g.fill) %>">
-          <td class="f"><a href="/farming/preise?f=<%= filter %>&amp;w=<%= g.fill %><%= qs %>"><%- icon(g.fill, g.name, 's') %><span><%= g.name %></span></a><% if (g.have) { %> <span class="tag" title="Habt ihr auf Lager">Lager</span><% } %><% if (g.demand) { %> <span class="tag adm" title="Große Nachfrage">Nachfrage</span><% } %></td>
+          <td class="f"><a href="/farming/preise?f=<%= filter %>&amp;w=<%= g.fill %><%= qs %>"><%- icon(g.fill, g.name, 's') %><span><%= g.name %></span></a><% if (g.have) { %> <span class="tag" title="Habt ihr auf Lager">Lager</span><% } %><% if (g.demand) { %> <span class="tag adm" title="Große Nachfrage">Nachfrage</span><% } %><% if (mine && peakOff.has(g.fill)) { %> <span class="tag" title="Höchstpreis-Meldung für <%= mine.name %> aus">🔕</span><% } %></td>
           <td><%= g.now !== null ? de(g.now) : de(g.prices.reduce((a, b) => a + b, 0) / 12) %></td>
           <td class="<%= g.trend > 0 ? 'ok' : g.trend < 0 ? 'bad' : '' %>"><%= g.trend === null ? '' : (g.trend > 0 ? '▲ ' : g.trend < 0 ? '▼ ' : '● ') + Math.abs(g.trend) + ' %' %></td>
           <td class="sp"><svg viewBox="0 0 60 16" aria-hidden="true"><path d="<%= spark(g.prices, 60, 16) %>" fill="none" stroke="currentColor" stroke-width="1.2"/><% if (cur !== null) { %><circle cx="<%= (1 + cur * 58 / 11).toFixed(1) %>" cy="<%= (15 - (g.prices[cur] - Math.min(...g.prices)) / ((Math.max(...g.prices) - Math.min(...g.prices)) || 1) * 14).toFixed(1) %>" r="2" fill="#ee9a22"/><% } %></svg></td>
@@ -50,6 +50,13 @@
       <div>Jetzt <b><%= sel.now !== null ? de(sel.now) + ' €' : '–' %></b> · bester Monat <b><%= N.MONTHS[sel.best] %></b> mit <%= de(sel.bestPrice) %> €<%= sel.demand ? ' · große Nachfrage +' + Math.round((sel.demand.mult - 1) * 100) + ' %' : '' %></div>
       <% for (const h of holdings) { %>
         <div><span class="dot" style="background:<%= h.farm.color %>"></span> <%= h.farm.name %> hat <%= liters(h.amount) %> → jetzt <%= eur(h.amount / 1000 * (sel.now ?? sel.bestPrice)) %>, im <%= N.MONTHS[sel.best] %> <%= eur(h.amount / 1000 * sel.bestPrice) %></div>
+      <% } %>
+      <% if (mine && peaksOn) { const on = !peakOff.has(sel.fill); %>
+        <form method="post" action="/farming/preise/meldung" class="fs-peak"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="back" value="<%= backUrl %>">
+          <input type="hidden" name="fill" value="<%= sel.fill %>"><input type="hidden" name="on" value="<%= on ? '0' : '1' %>">
+          <span><%= on ? '🔔' : '🔕' %> Höchstpreis-Meldung für <%= mine.name %>: <b><%= on ? 'an' : 'aus' %></b></span>
+          <button class="small"><%= on ? 'Ausschalten' : 'Einschalten' %></button>
+        </form>
       <% } %>
       <p class="hint">Die Preise sind der Durchschnitt des Spiels, einzelne Stellen zahlen etwas mehr oder weniger.</p>
     </fieldset>

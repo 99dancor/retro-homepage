@@ -60,7 +60,7 @@ const CATALOG = [
   { key: 'galerie', group: 'werkzeuge', props: '/admin/paint', prefixes: ['/galerie'],
     get: () => (!flag('paint_gallery') ? 'off' : access().galerie === 'members' ? 'members' : 'all'),
     set: v => { put('paint_gallery', v !== 'off'); setAccess('galerie', v === 'members' ? 'members' : 'all'); } },
-  { key: 'musik', group: 'werkzeuge', props: '/admin/programme/mediaplayer', prefixes: ['/musik'] },
+  { key: 'musik', group: 'werkzeuge', props: '/admin/programme/mediaplayer', prefixes: ['/musik', '/jellyfin'] },
   { key: 'zufall', group: 'werkzeuge', prefixes: ['/zufall'] },
   { key: 'board', group: 'mitmachen', note: 'schreiben nur mit Konto', props: '/admin/programme/forum', own: true,
     get: () => (!flag('board_enabled') ? 'off' : flag('board_members_only', '0') ? 'members' : 'all'),

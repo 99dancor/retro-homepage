@@ -144,6 +144,7 @@ app.use('/api/stats', profileRoutes.stats);
 app.use('/admin', require('./routes/admin'));
 app.use('/forum', require('./routes/board'));
 app.use('/musik', require('./routes/music').router);
+app.use('/jellyfin', require('./routes/jellyfin'));
 app.use('/eigene-dateien', require('./routes/ownfiles'));
 app.use('/mods', require('./routes/mods'));
 app.use('/farming', require('./routes/fshub'));

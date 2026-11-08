@@ -297,7 +297,17 @@ function fromForm(b, old) {
   }
   if (K.fields.includes('slow')) c.slow = Math.max(100, Math.min(60000, Math.round(Number(b.slow)) || 2000));
   if (K.fields.includes('insecure')) c.insecure = b.insecure === '1';
-  if (kind === 'jellyfin') c.details = b.details === '1';
+  if (kind === 'jellyfin') {
+    c.details = b.details === '1';
+    // Mediaplayer (src/jellyfin.js): anbieten ja/nein, wer stöbern darf, Bibliotheken für neue Konten, Vorschau-Konto, App-Zugangsdaten
+    c.player = b.player === '1';
+    c.view = ['members', 'approved', 'public'].includes(b.view) ? b.view : oc.view || 'members';
+    if (b.libs_sent === '1') c.libs = [].concat(b.libs || []).filter(x => /^[0-9a-f]{32}$/i.test(x)).slice(0, 50);
+    else if (Array.isArray(oc.libs)) c.libs = oc.libs;
+    if (b.browse_as !== undefined) c.browse_as = /^[0-9a-f]{32}$/i.test(b.browse_as) ? b.browse_as : '';
+    else if (oc.browse_as) c.browse_as = oc.browse_as;
+    c.app = b.player_sent === '1' ? b.app === '1' : oc.app !== false;
+  }
   if (kind === 'immich' || kind === 'nextcloud') c.storage = b.storage === '1';
   const pub = String(b.public_url || '').trim().slice(0, 500);
   if (pub && !/^https?:\/\/[^\s]+$/i.test(pub)) return { error: 'Der Link für Besucher muss mit http:// oder https:// beginnen.' };

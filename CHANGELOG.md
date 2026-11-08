@@ -1,5 +1,14 @@
 # Changelog
 
+## Update 92 · 08.11.2026 – Jellyfin im Mediaplayer
+
+- **Filme und Serien vom Jellyfin-Server im Mediaplayer:** In der Seitenleiste gibt es die neue Gruppe „Jellyfin“ mit Start (Weiterschauen, neue Filme, neue Folgen), Weiterschauen, Neu hinzugefügt, Filme, Serien und Meine Liste. Die Titel erscheinen als Cover-Kacheln mit Suche, Genre, Sortierung und den Filtern Ungesehen und Meine Liste. Ein Klick zeigt rechts die Angaben (Inhalt, Jahr, Länge, FSK, Bewertung, HD/4K), eine Serie öffnet ihre Staffeln mit allen Folgen. Skins ohne rechte Spalte und das Handy zeigen die Angaben als Fenster.
+- **Abspielen mit eigenem Fortschritt:** Freigegebene Mitglieder schauen direkt im Mediaplayer. Was der Browser kann, kommt direkt von Jellyfin, alles andere wandelt Jellyfin um (HLS). Ton, Untertitel und Qualität wählst du oben im Bild. Folgen laufen nacheinander weiter, Fortschritt, „gesehen“ und Meine Liste landen im eigenen Jellyfin-Konto und stimmen damit auch in der Jellyfin-App.
+- **Zugang anfragen:** Wer noch keine Freigabe hat, sieht die Übersicht (einstellbar) und kann mit „Zugang anfragen …“ den Admin fragen, auf Wunsch auch nach Zugangsdaten für die Jellyfin-Apps auf Fernseher und Handy. Der Admin bekommt eine Benachrichtigung und gibt beim Jellyfin-Dienst unter „Zugänge im Mediaplayer“ frei: Die Seite legt ein Jellyfin-Konto ohne Admin-Rechte mit den gewählten Bibliotheken an oder verknüpft ein vorhandenes. Ablehnen und Entziehen gehen dort auch.
+- **Jellyfin-App:** Mit „Link für Besucher“ beim Dienst zeigt der Mediaplayer freigegebenen Mitgliedern Server, Benutzername und einmalig das Passwort für die Apps, dazu „In Jellyfin öffnen“ bei jedem Titel.
+- **Sicherheit:** Der API-Schlüssel von Jellyfin hat dort immer Admin-Rechte. Er bleibt deshalb auf dem Server: Bilder und Videos laufen über die Seite, die nur Titel durchlässt, die das Konto sehen darf, und den Schlüssel auch aus den Wiedergabelisten der Videos entfernt.
+- **Einstellungen** beim Jellyfin-Dienst in der Seitenverwaltung: „Im Mediaplayer anbieten“, wer stöbern darf (Mitglieder, nur Freigegebene oder alle Besucher), welches Konto die Vorschau zeigt, welche Bibliotheken neue Konten sehen und ob es App-Zugangsdaten gibt.
+
 ## Update 91 · 08.11.2026 – Farming Hub: Datum wie im Spiel, Plantagen je Hof, Höchstpreise je Ware
 
 - **Datum im Spiel stimmt jetzt wirklich:** Der Hub hat den Monat aus dem fortlaufenden Spieltag gerechnet. Das Spiel zählt Monat und Jahr aber anders, sobald die Tage pro Monat einmal geändert wurden; so wurde aus dem 1. Mai J4 der 1. Februar. Jetzt nimmt der Hub das Datum, wie das Spiel es zeigt (aus der Live-Datei der Mod oder environment.xml), und merkt es sich auch, wenn der Server aus ist.

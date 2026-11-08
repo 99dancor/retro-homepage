@@ -752,6 +752,8 @@ router.post('/users/:id/delete', (req, res) => {
   // Bilder aus Paint und Galerie verschwinden mit dem Konto (Fremdschlüssel), ihre Dateien hier
   const pictures = id !== req.user.id ? paint.filesOf(id) : [];
   const photos = id !== req.user.id ? require('../gallery').filesOf(id) : [];
+  // Ein Jellyfin-Konto, das die Seite für dieses Mitglied angelegt hat, kommt mit weg (läuft im Hintergrund)
+  if (id !== req.user.id) require('../jellyfin').forget(id).catch(() => {});
   if (id !== req.user.id) tx(() => {
     db.prepare('UPDATE pageviews SET user_id = NULL WHERE user_id = ?').run(id);
     db.prepare('UPDATE downloads SET user_id = NULL WHERE user_id = ?').run(id);

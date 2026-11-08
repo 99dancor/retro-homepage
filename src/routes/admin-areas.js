@@ -234,10 +234,36 @@ function history(id) {
   }
   return { changes: changes.reverse().slice(0, 25), days, bars: services.bars(id, 24), up1: services.uptime(id, 86400), up7: services.uptime(id), watchers: db.prepare('SELECT COUNT(*) AS n FROM service_watch WHERE service_id = ?').get(id).n };
 }
-router.get('/dienste/:id', (req, res, next) => {
+router.get('/dienste/:id', async (req, res, next) => {
   const s = services.get(req.params.id);
   if (!s) return next();
-  res.render('admin/dienst-edit', { title: s.name, svc: { ...s, text: services.summary(s, true) }, K: services.KINDS[s.kind], VIS: services.VIS, SHOW: services.SHOW, history: history(s.id) });
+  // Jellyfin: Bibliotheken und Konten für den Bereich „Im Mediaplayer“, dazu Anfragen und Freigaben
+  let jfa = null;
+  if (s.kind === 'jellyfin') {
+    const jellyfin = require('../jellyfin');
+    let info = null, error = '';
+    if (s.config.key) {
+      const c = { url: String(s.config.url || '').replace(/\/+$/, ''), key: s.config.key, insecure: !!s.config.insecure, libs: [] };
+      info = await jellyfin.adminInfo(c).catch(e => { error = e.message; return null; });
+    }
+    const members = db.prepare("SELECT id, username, display_name FROM users WHERE disabled = 0 AND id NOT IN (SELECT user_id FROM jf_access WHERE state = 'approved') ORDER BY username COLLATE NOCASE").all();
+    jfa = { list: jellyfin.accessList(), info, error, members, VIEWS: jellyfin.VIEWS, active: !!(jellyfin.conf() && jellyfin.conf().id === s.id) };
+  }
+  res.render('admin/dienst-edit', { title: s.name, svc: { ...s, text: services.summary(s, true) }, K: services.KINDS[s.kind], VIS: services.VIS, SHOW: services.SHOW, history: history(s.id), jfa });
+});
+// Jellyfin-Zugänge: freigeben (neues Konto oder vorhandenes verknüpfen), ablehnen, entziehen, direkt hinzufügen
+router.post('/dienste/:id/jellyfin/:uid/:what', async (req, res, next) => {
+  const jellyfin = require('../jellyfin');
+  const back = `/admin/dienste/${Number(req.params.id)}`;
+  // uid 0: Mitglied aus der Auswahlliste (Zugang ohne Anfrage geben)
+  const uid = req.params.uid === '0' ? Number(req.body.user) : Number(req.params.uid);
+  try {
+    if (req.params.what === 'freigeben') await jellyfin.approve(req.user, uid, { link: str(req.body.link, 40) });
+    else if (req.params.what === 'ablehnen') jellyfin.deny(req.user, uid);
+    else if (req.params.what === 'entziehen') await jellyfin.revoke(req.user, uid);
+    else return next();
+  } catch (e) { return fail(res, back + '#zugaenge', e.message); }
+  res.redirect(back + '?ok=1#zugaenge');
 });
 router.post('/dienste/speichern', (req, res) => {
   const id = Number(req.body.id) || 0;

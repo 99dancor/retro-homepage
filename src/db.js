@@ -1120,6 +1120,21 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS sc_service ON service_checks(service_id, at);
 CREATE INDEX IF NOT EXISTS ev_at ON events(at);
 `);
+// Jellyfin im Mediaplayer (src/jellyfin.js): wer Zugang angefragt oder bekommen hat. Abgespielt wird mit dem eigenen
+// Jellyfin-Konto (jf_user_id), damit Fortschritt, „gesehen“ und Bibliotheksrechte je Person stimmen.
+db.exec(`CREATE TABLE IF NOT EXISTS jf_access (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  state TEXT NOT NULL DEFAULT 'pending',    -- pending | approved | denied
+  message TEXT,                             -- Nachricht zur Anfrage, bis 300 Zeichen
+  wants_app INTEGER NOT NULL DEFAULT 0,     -- möchte auch Zugangsdaten für die Jellyfin-Apps
+  jf_user_id TEXT,                          -- Konto in Jellyfin
+  jf_name TEXT,
+  created_account INTEGER NOT NULL DEFAULT 0, -- 1 = die Seite hat das Jellyfin-Konto angelegt (beim Entziehen löschbar)
+  app_pw TEXT,                              -- Passwort für die Apps, bis das Mitglied es einmal angesehen hat
+  requested_at INTEGER NOT NULL,
+  decided_at INTEGER,
+  decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+)`);
 
 function now() { return Math.floor(Date.now() / 1000); }
 

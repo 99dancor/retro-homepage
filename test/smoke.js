@@ -1659,6 +1659,88 @@ async function main() {
       assert.ok(sql.prepare("SELECT s.ended_at FROM bj_sessions s JOIN users u ON u.id = s.user_id WHERE u.username = 'anna'").get().ended_at);
     });
 
+    await step('DS-Spiele: ROM nur für Mitglieder, Spielstand pro Konto mit Fassung, Startmenü, Seitenverwaltung', async () => {
+      const { anna, bernd } = members;
+      // Kleinste gültige DS-ROM: Kopf mit Titel, Spielcode und Prüfsumme (CRC16 über 0x000–0x15D)
+      const rom = Buffer.alloc(0x400);
+      rom.write('TESTROM', 0, 'latin1'); rom.write('ADMP', 12, 'latin1'); rom.write('01', 16, 'latin1');
+      let crc = 0xffff;
+      for (const b of rom.subarray(0, 0x15e)) { crc ^= b; for (let i = 0; i < 8; i++) crc = crc & 1 ? (crc >>> 1) ^ 0xa001 : crc >>> 1; }
+      rom.writeUInt16LE(crc, 0x15e);
+      const up = async (fields, file) => {
+        const fd = new FormData();
+        fd.append('_csrf', await admin.csrf('/admin/ds/new'));
+        for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+        if (file) fd.append('rom', new Blob([file]), 'spiel.nds');
+        return admin.req('/admin/ds/save', { method: 'POST', body: fd });
+      };
+      assert.match((await up({ title: 'Kaputt' }, Buffer.alloc(0x400, 1))).headers.get('location'), /\/admin\/ds\/new\?err=.*Kopf/);
+      let r = await up({ title: 'Animal Crossing', icon: '🍃', visibility: 'members', in_menu: '1' }, rom);
+      const id = Number((r.headers.get('location').match(/\/admin\/ds\/(\d+)\?ok=1/) || [])[1]);
+      assert.ok(id, 'Spiel angelegt');
+      assert.match((await admin.req('/admin/ds')).text_, /🍃 <b>Animal Crossing<\/b>[\s\S]*TESTROM \(ADMP, Europa\)/);
+      // Gäste: kein Spiel, keine ROM, kein Eintrag im Startmenü
+      assert.equal((await guest.req('/ds/animal-crossing')).status, 302);
+      assert.notEqual((await guest.req('/ds/animal-crossing/rom')).status, 200);
+      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /href="\/ds\/animal-crossing"/);
+      assert.match((await anna.req('/', { top: true })).text_, /<div class="startmenu"[\s\S]*href="\/ds\/animal-crossing">🍃 Animal Crossing/);
+      // Das Fenster: Emulator darf WebAssembly übersetzen, nur hier
+      r = await anna.req('/ds/animal-crossing');
+      assert.equal(r.status, 200);
+      assert.match(r.headers.get('content-security-policy'), /script-src 'self' 'wasm-unsafe-eval'/);
+      assert.doesNotMatch((await anna.req('/minesweeper')).headers.get('content-security-policy'), /wasm/);
+      assert.match(r.text_, /data-rom="\/ds\/animal-crossing\/rom" data-save="\/ds\/animal-crossing\/spielstand"/);
+      assert.match(r.text_, /data-lang="German"/);
+      // ROM: genau die Datei, privat, mit ETag
+      r = await anna.req('/ds/animal-crossing/rom');
+      assert.equal(r.status, 200);
+      assert.equal(r.headers.get('cache-control'), 'private, no-cache');
+      const etag = r.headers.get('etag');
+      assert.equal((await anna.req('/ds/animal-crossing/rom', { headers: { 'if-none-match': etag } })).status, 304);
+      const bytes = Buffer.from(await (await fetch(BASE + '/ds/animal-crossing/rom', { headers: { cookie: [...anna.jar].map(([k, v]) => `${k}=${v}`).join('; ') } })).arrayBuffer());
+      assert.ok(bytes.equals(rom), 'ROM unverändert');
+      // Spielstand: Fassung 0 → 1 → 2, ein älteres Fenster bekommt 409, jeder hat seinen eigenen
+      const save = (b, data, rev, token = b.jar.get('csrf')) => b.req('/ds/animal-crossing/spielstand', { method: 'POST', body: data,
+        headers: { 'content-type': 'application/octet-stream', 'x-csrf-token': token, 'x-save-rev': String(rev) } });
+      r = await anna.req('/ds/animal-crossing/spielstand');
+      assert.equal(r.status, 204); assert.equal(r.headers.get('x-save-rev'), '0');
+      assert.equal((await save(anna, Buffer.from('erster'), 0, 'falsch')).status, 403);
+      r = await save(anna, Buffer.from('erster'), 0);
+      assert.deepEqual(JSON.parse(r.text_), { rev: 1 });
+      assert.deepEqual(JSON.parse((await save(anna, Buffer.from('zweiter'), 1)).text_), { rev: 2 });
+      r = await save(anna, Buffer.from('altes Fenster'), 1);
+      assert.equal(r.status, 409);
+      r = await anna.req('/ds/animal-crossing/spielstand');
+      assert.equal(r.text_, 'zweiter'); assert.equal(r.headers.get('x-save-rev'), '2');
+      assert.equal((await bernd.req('/ds/animal-crossing/spielstand')).status, 204, 'Bernd hat seinen eigenen');
+      // Konto → Spielstände zeigt ihn, die Seitenverwaltung auch (mit der vorigen Fassung als Sicherung)
+      assert.match((await anna.req('/konto?reiter=spielstaende')).text_, /href="\/ds\/animal-crossing">🍃 Animal Crossing<\/a>/);
+      const annaId = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db')).prepare("SELECT id FROM users WHERE username = 'anna'").get().id;
+      assert.match((await admin.req(`/admin/ds/${id}`)).text_, /↶ Vorige Fassung/);
+      let tk = await admin.csrf(`/admin/ds/${id}`);
+      await admin.form(`/admin/ds/${id}/spielstand/${annaId}`, { _csrf: tk, act: 'restore' });
+      assert.equal((await anna.req('/ds/animal-crossing/spielstand')).text_, 'erster');
+      assert.equal((await admin.req(`/admin/ds/${id}/spielstand/${annaId}`)).text_, 'erster');
+      // Nur Admin: für Mitglieder weg
+      tk = await admin.csrf(`/admin/ds/${id}`);
+      const fd = new FormData();
+      for (const [k, v] of Object.entries({ _csrf: tk, id: String(id), title: 'Animal Crossing', icon: '🍃', visibility: 'private', in_menu: '1' })) fd.append(k, v);
+      assert.equal((await admin.req('/admin/ds/save', { method: 'POST', body: fd })).status, 302);
+      assert.equal((await anna.req('/ds/animal-crossing')).status, 404);
+      assert.equal((await anna.req('/ds/animal-crossing/rom')).status, 404);
+      assert.doesNotMatch((await anna.req('/', { top: true })).text_, /href="\/ds\/animal-crossing"/);
+      assert.equal((await admin.req('/ds/animal-crossing/rom')).status, 200);
+      // Eigenen Spielstand löschen
+      tk = await anna.csrf('/konto?reiter=spielstaende');
+      await anna.form('/konto/ds-spielstand/loeschen', { _csrf: tk, game: String(id) });
+      assert.doesNotMatch((await anna.req('/konto?reiter=spielstaende')).text_, /🍃 Animal Crossing/);
+      // Löschen nimmt ROM und Spielstände mit
+      tk = await admin.csrf(`/admin/ds/${id}`);
+      await admin.form(`/admin/ds/${id}/delete`, { _csrf: tk });
+      assert.equal((await admin.req('/ds/animal-crossing')).status, 404);
+      assert.deepEqual(fs.readdirSync(path.join(DATA, 'ds')), []);
+    });
+
     await step('Minesweeper: Fenster, Start und Ende auf dem Server, Bestzeiten und Profil', async () => {
       const { anna, bernd } = members;
       const home = (await guest.req('/', { top: true })).text_;

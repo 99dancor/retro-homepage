@@ -1,3 +1,10 @@
+# DS-Spiele: der melonDS-Kern (WebAssembly, GPL-3.0) aus dem npm-Paket von EmulatorJS, entpackt nach public/ds-core
+FROM node:22-alpine AS dscore
+RUN apk add --no-cache 7zip
+WORKDIR /w
+COPY tools/ds-core.sh tools/
+RUN mkdir public && sh tools/ds-core.sh
+
 FROM node:22-alpine
 
 LABEL org.opencontainers.image.title="Retro-Homepage" \
@@ -18,6 +25,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY src ./src
 COPY views ./views
 COPY public ./public
+COPY --from=dscore /w/public/ds-core ./public/ds-core
 COPY games/haustier/src ./games/haustier/src
 COPY games/fs25-export ./games/fs25-export
 COPY CHANGELOG.md ./

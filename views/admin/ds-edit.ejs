@@ -1,0 +1,53 @@
+<%- include('../partials/head') %>
+<p><a href="/admin/ds">« Alle DS-Spiele</a></p>
+<% if (err) { %><div class="msg err">⚠ <%= err %></div><% } %>
+<form method="post" action="/admin/ds/save" enctype="multipart/form-data">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <input type="hidden" name="id" value="<%= g.id || '' %>">
+  <div class="row">
+    <label style="flex:0 0 70px">Symbol:<input type="text" name="icon" class="w100" value="<%= g.icon %>" maxlength="8"></label>
+    <label style="flex:2">Name im Startmenü:<input type="text" name="title" class="w100" value="<%= g.title || '' %>" placeholder="z. B. Animal Crossing" required></label>
+    <% if (g.id) { %><label>Adresse:<br><a href="/ds/<%= g.slug %>" target="_blank">/ds/<%= g.slug %></a></label><% } %>
+  </div>
+  <fieldset class="groupbox"><legend>ROM</legend>
+    <% if (g.id) { %>
+    <p>Jetzt: <b><%= g.rom_title %></b>, Spielcode <%= g.game_code %><%= region(g.game_code) ? ' (' + region(g.game_code) + ')' : '' %>, <%= fmtSize(g.size) %>, SHA-1 <code><%= g.sha1 %></code></p>
+    <% } %>
+    <label>ROM-Datei (.nds)<%= g.id ? ', ersetzt die aktuelle' : '' %>:<input type="file" name="rom" accept=".nds"<%= g.id ? '' : ' required' %>></label>
+    <small>Nur eine Kopie deines eigenen Spiels. Die Datei wird nie öffentlich ausgeliefert. Spielstände bleiben beim Ersetzen erhalten, solange es dieselbe Spielversion ist.</small>
+  </fieldset>
+  <label>Für wen:
+    <select name="visibility">
+      <% for (const [k, v] of Object.entries(VIS)) { %><option value="<%= k %>" <%= g.visibility === k ? 'selected' : '' %>><%= v %></option><% } %>
+    </select>
+  </label>
+  <div class="group-pick">
+    <% if (!allGroups.length) { %><small>Noch keine Gruppen angelegt – unter <a href="/admin/users">Nutzer</a> erstellen.</small><% } %>
+    <% for (const gr of allGroups) { %><label class="inline"><input type="checkbox" name="groups" value="<%= gr.id %>" <%= acl.includes(gr.id) ? 'checked' : '' %>> <%= gr.name %></label><% } %>
+  </div>
+  <label class="inline"><input type="checkbox" name="in_menu" value="1" <%= g.in_menu ? 'checked' : '' %>> Im Startmenü unter Spiele und Apps zeigen</label>
+  <div class="actions"><button>💾 Speichern</button><% if (g.id) { %><a class="btn" href="/ds/<%= g.slug %>" target="_blank">▶ Spielen</a><% } %></div>
+</form>
+<% if (g.id) { %>
+<fieldset class="groupbox" id="spielstaende"><legend>Spielstände</legend>
+  <% if (!saves.length) { %><p>Noch hat niemand gespeichert.</p><% } else { %>
+  <table class="list">
+    <tr><th>Mitglied</th><th>Gespeichert</th><th>Größe</th><th class="num">Fassung</th><th></th></tr>
+    <% for (const s of saves) { %>
+    <tr><td><%= s.display_name || s.username %></td><td><%= fmtDate(s.updated_at) %></td><td><%= fmtSize(s.size) %></td><td class="num"><%= s.rev %></td>
+      <td class="nowrap">
+        <a class="btn small" href="/admin/ds/<%= g.id %>/spielstand/<%= s.user_id %>">⬇ Herunterladen</a>
+        <% if (s.prev_at) { %><form method="post" action="/admin/ds/<%= g.id %>/spielstand/<%= s.user_id %>" class="inline" data-confirm="Die vorige Fassung vom <%= fmtDate(s.prev_at) %> zurückholen? Die jetzige wird dann zur Sicherung.">
+          <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="act" value="restore"><button class="small">↶ Vorige Fassung</button></form><% } %>
+        <form method="post" action="/admin/ds/<%= g.id %>/spielstand/<%= s.user_id %>" class="inline" data-confirm="Spielstand von <%= s.display_name || s.username %> löschen?">
+          <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="act" value="delete"><button class="small danger">Löschen</button></form>
+      </td></tr>
+    <% } %>
+  </table>
+  <% } %>
+</fieldset>
+<form method="post" action="/admin/ds/<%= g.id %>/delete" data-confirm="Spiel mit ROM und allen Spielständen löschen?" class="actions">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="danger">🗑 Spiel löschen</button>
+</form>
+<% } %>
+<%- include('../partials/foot') %>

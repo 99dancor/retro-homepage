@@ -1205,6 +1205,60 @@ tr.me td { background: #ffffcc; color: #000; }
 .qz-libbtns button + button { margin-left: 3px; }
 #qz-dlg:has(.qz-lib) { width: min(620px, calc(100vw - 20px)); }
 
+/* DS-Spiele (views/ds.ejs, public/ds.js): beide Bildschirme übereinander, schwarz drumherum; Menü und Dialoge wie Minesweeper.
+   Auf Touch-Geräten (.ds-touch) stehen unten die Tasten des DS. */
+.ds { margin: -10px; height: 100vh; display: flex; flex-direction: column; position: relative; overflow: hidden; background: var(--win);
+  user-select: none; -webkit-user-select: none; }
+.ds-menu { position: relative; z-index: 5; }
+.ds-mwrap { position: relative; }
+.ds-dd { position: absolute; left: 0; top: 100%; }
+.ds-dd[hidden] { display: none; }
+.ds-stage { flex: 1; min-height: 0; position: relative; background: #000; margin: 0 2px;
+  box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); }
+#ds-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: 0; touch-action: none; image-rendering: pixelated; }
+.ds-stage:fullscreen { margin: 0; box-shadow: none; }
+.ds-load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #000; }
+.ds-load[hidden] { display: none; }
+.ds-load-box { width: min(300px, calc(100% - 24px)); padding: 14px; text-align: center; color: var(--text); background: var(--win);
+  box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--lo), inset 2px 2px var(--win); }
+.ds-load-icon { font-size: 40px; line-height: 1; }
+.ds-load-title { font-weight: bold; margin: 6px 0 10px; }
+#ds-load-text { margin-bottom: 8px; }
+.ds-failed #ds-load-text { color: #a00; }
+.ds-failed progress { display: none; }
+.ds progress { -webkit-appearance: none; appearance: none; width: 100%; height: 18px; border: 0; padding: 2px; background: var(--win);
+  box-shadow: inset 1px 1px var(--lo), inset -1px -1px var(--hi); }
+.ds progress::-webkit-progress-bar { background: var(--win); }
+.ds progress::-webkit-progress-value { background: repeating-linear-gradient(90deg, var(--title-from) 0 8px, transparent 8px 10px); }
+.ds progress::-moz-progress-bar { background: repeating-linear-gradient(90deg, var(--title-from) 0 8px, transparent 8px 10px); }
+.ds-pausedmsg { display: none; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 6px 14px; color: #fff;
+  background: rgba(0,0,0,.65); font-weight: bold; pointer-events: none; }
+.ds-paused .ds-pausedmsg { display: block; }
+.ds-statusbar { flex: 0 0 auto; }
+.ds-statusbar > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-keylist { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 14px; margin: 0 0 8px; }
+.ds-keyrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ds-keyrow button { min-width: 120px; }
+.ds-helptab td { padding: 1px 12px 1px 0; }
+/* Touch-Tasten */
+.ds-touchpad { display: none; flex: 0 0 auto; padding: 6px 10px 8px; background: var(--win); touch-action: none; }
+.ds-touch .ds-touchpad { display: block; }
+.ds-touchpad button { min-width: 0; padding: 0; font-weight: bold; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.ds-touchpad button.on { box-shadow: inset 1px 1px var(--dark), inset -1px -1px var(--hi), inset 2px 2px var(--lo); background: var(--lo); color: #fff; }
+.ds-shoulders { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.ds-shoulders button { width: 30%; height: 30px; }
+.ds-pads { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ds-dpad, .ds-abxy { position: relative; width: 132px; height: 132px; flex: 0 0 auto; }
+.ds-dpad button, .ds-abxy button { position: absolute; width: 44px; height: 44px; }
+.ds-dpad .up, .ds-abxy .x { left: 44px; top: 0; }
+.ds-dpad .down, .ds-abxy .b { left: 44px; bottom: 0; }
+.ds-dpad .left, .ds-abxy .y { left: 0; top: 44px; }
+.ds-dpad .right, .ds-abxy .a { right: 0; top: 44px; }
+.ds-abxy button { border-radius: 50%; }
+.ds-mid { display: flex; flex-direction: column; gap: 10px; }
+.ds-mid button { font-size: 10px; padding: 4px 6px; }
+@media (max-width: 360px) { .ds-dpad, .ds-abxy { transform: scale(.85); margin: -10px; } }
+
 /* Minesweeper: Spielfeld als Pixelgrafik (public/minesweeper.js), Menü und Dialoge wie bei Windows 98 */
 .ms { margin: -10px; height: 100vh; display: flex; flex-direction: column; position: relative; overflow: hidden; background: #c0c0c0;
   user-select: none; -webkit-user-select: none; }

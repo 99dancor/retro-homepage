@@ -1,0 +1,14 @@
+<%- include('../partials/head') %>
+<p>Nintendo-DS-Spiele laufen direkt im Browser, ohne Emulator-Menü: Startmenü → Spiele und Apps. Du lädst dafür eine ROM (.nds) hoch, die du selbst von deiner eigenen Spielkarte ausgelesen hast. Sie bleibt auf dem Server und geht nur an angemeldete Mitglieder, die das Spiel sehen dürfen. Jedes Mitglied hat seinen eigenen Spielstand.</p>
+<% if (!coreReady) { %><div class="msg err">⚠ Der Emulator fehlt (public/ds-core). Das Docker-Image bringt ihn mit; beim Entwickeln holt ihn <code>npm run ds-core</code>.</div><% } %>
+<div class="actions" style="margin-top:0"><a class="btn" href="/admin/ds/new">➕ Neues Spiel</a></div>
+<table class="list" style="margin-top:8px">
+  <tr><th>Spiel</th><th>ROM</th><th>Für</th><th class="num">Gestartet</th></tr>
+  <% for (const g of games) { %>
+  <tr><td><a href="/admin/ds/<%= g.id %>"><%= g.icon %> <b><%= g.title %></b></a></td>
+    <td><%= g.rom_title %> (<%= g.game_code %><%= region(g.game_code) ? ', ' + region(g.game_code) : '' %>) · <%= fmtSize(g.size) %></td>
+    <td><%= { members: 'Mitglieder', groups: 'Gruppen', private: 'Nur Admin' }[g.visibility] || g.visibility %></td><td class="num"><%= g.plays %></td></tr>
+  <% } %>
+  <% if (!games.length) { %><tr><td colspan="4">Noch keine Spiele.</td></tr><% } %>
+</table>
+<%- include('../partials/foot') %>

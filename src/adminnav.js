@@ -17,7 +17,7 @@ const TREE = [
     ['🂡', 'Kartenspiele', '/admin/programme/kartenspiele'], ['❓', 'Quiz', '/admin/quiz'], ['🐺', 'Werwolf', '/admin/werwolf'],
     ['🧩', 'Rätsel', '/admin/programme/raetsel'], ['🚜', 'Farming Hub', '/admin/farming'], ['🎨', 'Paint und Galerie', '/admin/paint'],
     ['📀', 'Mediaplayer', '/admin/programme/mediaplayer'], ['💬', 'Forum', '/admin/programme/forum'], ['📖', 'Besucherbuch', '/admin/programme/besucherbuch'],
-    ['🕹️', 'Eigene Apps', '/admin/apps'],
+    ['🎮', 'DS-Spiele', '/admin/ds'], ['🕹️', 'Eigene Apps', '/admin/apps'],
   ] },
   { key: 'dienste', icon: '🗄️', label: 'Dienste', url: '/admin/dienste', badge: 'down' },
   { key: 'aussehen', icon: '🎨', label: 'Aussehen', kids: [
@@ -54,6 +54,7 @@ const SEARCH = [
   ['Anmeldebildschirm', 'Willkommen Logon XP 98 Laden', '/admin/anmelden'],
   ['SMTP und Test-E-Mail', 'Mail Server Passwort Benachrichtigung', '/admin/email'],
   ['Statistik aufbewahren', 'Tage Besucher Aufrufe löschen', '/admin/statistik#aufbewahren'],
+  ['DS-Spiele', 'Nintendo DS ROM nds Emulator Animal Crossing Spielstand hochladen', '/admin/ds'],
   ['Programme an und aus', 'Startmenü Desktop für wen Mitglieder Gäste ausschalten Menü', '/admin/programme'],
   ['Kasse und Buy-in', 'Startgeld Nachkaufen Geld Kartenspiele', '/admin/programme/kartenspiele#kasse'],
   ['Blackjack', 'Decks Soft 17 Bedenkzeit', '/admin/programme/kartenspiele#spiele'],

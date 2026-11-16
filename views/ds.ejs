@@ -1,0 +1,95 @@
+<%- include('partials/head') %>
+<%# Ein Nintendo-DS-Spiel im Fenster (src/routes/ds.js). Kein Emulator-Menü: Das Spiel startet sofort, Spielstand und
+    Tasten erledigt public/ds.js. Menü und Dialoge wie bei Minesweeper (.ms-… in retro.css). %>
+<div class="ds" id="ds" data-csrf="<%= csrf %>" data-rom="/ds/<%= game.slug %>/rom" data-save="/ds/<%= game.slug %>/spielstand"
+     data-core="<%= asset('ds-core/' + core + '.js') %>" data-wasm="<%= asset('ds-core/' + core + '.wasm') %>" data-lang="<%= lang %>"
+     data-title="<%= game.title %>">
+  <div class="ms-menu ds-menu" role="menubar">
+    <div class="ds-mwrap">
+      <button type="button" class="ms-mtop ds-mtop" aria-haspopup="true"><u>S</u>piel</button>
+      <div class="ms-dd ds-dd" role="menu" hidden>
+        <button type="button" class="ms-mi" data-act="pause" role="menuitem"><span>Anhalten / Weiter</span><span>Pause</span></button>
+        <button type="button" class="ms-mi" data-act="full" role="menuitem"><span>Vollbild</span><span></span></button>
+        <button type="button" class="ms-mi" data-act="mute" role="menuitem"><span>Ton aus</span><span>M</span></button>
+        <hr>
+        <button type="button" class="ms-mi" data-act="save" role="menuitem"><span>Spielstand jetzt sichern</span><span></span></button>
+        <button type="button" class="ms-mi" data-act="keys" role="menuitem"><span>Tastenbelegung…</span><span></span></button>
+      </div>
+    </div>
+    <div class="ds-mwrap">
+      <button type="button" class="ms-mtop ds-mtop" aria-haspopup="true">?</button>
+      <div class="ms-dd ds-dd" role="menu" hidden>
+        <button type="button" class="ms-mi" data-act="help" role="menuitem"><span>Steuerung</span><span>F1</span></button>
+      </div>
+    </div>
+  </div>
+  <div class="ds-stage">
+    <canvas id="ds-canvas" tabindex="0" aria-label="<%= game.title %>"></canvas>
+    <div class="ds-load" id="ds-load">
+      <div class="ds-load-box">
+        <div class="ds-load-icon" aria-hidden="true"><%= game.icon %></div>
+        <div class="ds-load-title"><%= game.title %></div>
+        <% if (coreReady) { %>
+        <div id="ds-load-text">Spiel wird geladen …</div>
+        <progress id="ds-load-bar" max="100" value="0"></progress>
+        <% } else { %>
+        <div id="ds-load-text">Der Emulator fehlt auf dem Server. Das Docker-Image bringt ihn mit, beim Entwickeln holt ihn <code>npm run ds-core</code>.</div>
+        <progress id="ds-load-bar" max="100" value="0" hidden></progress>
+        <% } %>
+      </div>
+    </div>
+    <div class="ds-pausedmsg" aria-hidden="true">Angehalten</div>
+  </div>
+  <%# Tasten zum Antippen auf Handy und Tablet (nur bei Touch-Bildschirmen sichtbar) %>
+  <div class="ds-touchpad" id="ds-touchpad" aria-hidden="true">
+    <div class="ds-shoulders"><button type="button" data-btn="l">L</button><button type="button" data-btn="r">R</button></div>
+    <div class="ds-pads">
+      <div class="ds-dpad">
+        <button type="button" class="up" data-btn="up">▲</button><button type="button" class="left" data-btn="left">◀</button>
+        <button type="button" class="right" data-btn="right">▶</button><button type="button" class="down" data-btn="down">▼</button>
+      </div>
+      <div class="ds-mid"><button type="button" data-btn="select">SELECT</button><button type="button" data-btn="start">START</button></div>
+      <div class="ds-abxy">
+        <button type="button" class="x" data-btn="x">X</button><button type="button" class="y" data-btn="y">Y</button>
+        <button type="button" class="a" data-btn="a">A</button><button type="button" class="b" data-btn="b">B</button>
+      </div>
+    </div>
+  </div>
+  <%# Wandert im Desktop in die Statusleiste des Fensters (retro.js) %>
+  <div class="statusbar ds-statusbar"><span id="ds-status" aria-live="polite">Spiel wird geladen …</span></div>
+</div>
+
+<dialog class="window ms-dlg wide" id="ds-keys">
+  <div class="titlebar"><span class="ttl">Tastenbelegung</span><button type="button" class="tb-btn" aria-label="Schließen" data-close>×</button></div>
+  <form method="dialog" class="body">
+    <p>Klicke auf eine Taste und drücke dann die neue. Gilt nur in diesem Browser.</p>
+    <div class="ds-keylist"></div>
+    <p class="muted">Gamepads gehen ohne Einstellung: Tasten nach Lage wie beim DS (rechts A, unten B, links Y, oben X).</p>
+    <div class="actions"><button type="button" data-reset>Standard</button><button value="ok" class="def">OK</button></div>
+  </form>
+</dialog>
+<dialog class="window ms-dlg wide" id="ds-help">
+  <div class="titlebar"><span class="ttl">Steuerung</span><button type="button" class="tb-btn" aria-label="Schließen" data-close>×</button></div>
+  <form method="dialog" class="body">
+    <table class="ds-helptab">
+      <tr><td>Steuerkreuz</td><td>Pfeiltasten</td></tr>
+      <tr><td>A / B / X / Y</td><td>X / Z / S / A</td></tr>
+      <tr><td>L / R</td><td>Q / W</td></tr>
+      <tr><td>Start / Select</td><td>Eingabe / Umschalt rechts</td></tr>
+      <tr><td>Touchscreen</td><td>Maus oder Finger auf dem unteren Bild</td></tr>
+    </table>
+    <p>Die Tasten liegen nach ihrer Lage auf der Tastatur und lassen sich unter <b>Spiel → Tastenbelegung</b> ändern.</p>
+    <p>Gespeichert wird im Spiel wie auf dem DS. Dein Spielstand liegt danach auf dem Server, in deinem Konto, und ist auf jedem Gerät da, auf dem du angemeldet bist.</p>
+    <div class="actions"><button value="ok" class="def">OK</button></div>
+  </form>
+</dialog>
+<dialog class="window ms-dlg wide" id="ds-conflict">
+  <div class="titlebar"><span class="ttl">Spielstand</span></div>
+  <form method="dialog" class="body">
+    <p>⚠ Dein Spielstand wurde inzwischen auf einem anderen Gerät oder in einem anderen Fenster gespeichert.</p>
+    <p>Damit nichts überschrieben wird, sichert dieses Fenster nicht mehr. Schließe es und öffne das Spiel neu, dann geht es mit dem neueren Stand weiter.</p>
+    <div class="actions"><button value="ok" class="def">OK</button></div>
+  </form>
+</dialog>
+<% if (coreReady) { %><script src="<%= asset('ds.js') %>"></script><% } %>
+<%- include('partials/foot') %>

@@ -234,6 +234,22 @@ Danach „Test-E-Mail senden“.
   Websockets an) und die Adresse bei der App unter „Externer Dienst“ eintragen. Die App erscheint
   dann im Retro-Fenster unter „Spiele & Apps“.
 
+### Nintendo-DS-Spiele (z. B. Animal Crossing: Wild World)
+- **Seitenverwaltung → Programme → DS-Spiele → Neues Spiel:** Name, Symbol und die ROM (`.nds`) hochladen, die du
+  selbst von deiner eigenen Spielkarte ausgelesen hast. Die Seite prüft den Kopf der Datei (Prüfsumme) und legt sie
+  unter `/data/ds` ab. Das Spiel steht dann im Startmenü unter **Spiele und Apps**.
+- **Nur für Mitglieder:** Die ROM geht nie an Gäste, auch nicht über die direkte Adresse, und wird nicht öffentlich
+  zwischengespeichert. Für wen genau: alle Mitglieder, bestimmte Gruppen oder nur Admin.
+- **Läuft im Browser wie ein normales Spiel:** kein Emulator-Menü, das Spiel startet sofort. Dahinter steckt der
+  melonDS-Kern als WebAssembly (aus `@emulatorjs/core-melonds`, GPL-3.0). Das Docker-Image holt ihn beim Bauen
+  nach `public/ds-core`; lokal macht das `npm run ds-core` (braucht `7z`). Nichts lädt von fremden Servern nach.
+- **Spielstand pro Mitglied** auf dem Server (Tabelle `ds_saves`, mit der Fassung davor als Sicherung). Die Seite
+  sichert, sobald das Spiel gespeichert hat. Wer auf zwei Geräten gleichzeitig spielt, überschreibt nichts: Das ältere
+  Fenster hört auf zu sichern und sagt Bescheid. In der Seitenverwaltung kannst du Spielstände herunterladen, die
+  vorige Fassung zurückholen oder löschen.
+- **Steuerung:** Tastatur (Pfeile, X/Z/S/A, Q/W, Eingabe, Umschalt rechts; änderbar), Gamepad, Maus oder Finger auf
+  dem unteren Bildschirm, auf Handy und Tablet zusätzlich DS-Tasten zum Antippen.
+
 ---
 
 ## 4. Lokal entwickeln

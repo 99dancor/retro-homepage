@@ -840,6 +840,58 @@ router.post('/apps/:id/delete', (req, res) => {
   res.redirect('/admin/apps');
 });
 
+// ---------- DS-Spiele (src/ds.js) ----------
+// Die ROM kommt in data/ds und geht nur an Mitglieder, die das Spiel sehen dürfen. Spielstände je Mitglied mit Sicherung.
+const ds = require('../ds');
+const dsInput = b => ({
+  title: str(b.title, 80) || 'DS-Spiel',
+  icon: str(b.icon, 8) || '🎮',
+  visibility: Object.hasOwn(ds.VIS, b.visibility) ? b.visibility : 'members',
+  inMenu: !!b.in_menu,
+});
+router.get('/ds', (req, res) => res.render('admin/ds', { title: 'DS-Spiele', games: ds.all(), coreReady: ds.coreReady(), region: ds.region }));
+router.get('/ds/new', (req, res) => res.render('admin/ds-edit', { title: 'Neues DS-Spiel', g: { visibility: 'members', in_menu: 1, icon: '🎮' }, acl: [], saves: [], err: req.query.err || null, VIS: ds.VIS, region: ds.region }));
+router.get('/ds/:id', (req, res, next) => {
+  const g = ds.byId(req.params.id);
+  if (!g) return next();
+  res.render('admin/ds-edit', { title: g.title, g, acl: auth.getAcl('ds', g.id), saves: ds.savesOf(g.id), err: req.query.err || null, VIS: ds.VIS, region: ds.region });
+});
+router.post('/ds/save', up.zipUpload.single('rom'), multipartCsrf, async (req, res) => {
+  const b = req.body, id = Number(b.id) || 0;
+  const back = id ? `/admin/ds/${id}` : '/admin/ds/new';
+  const bad = msg => { if (req.file) up.removeQuietly(req.file.path); res.redirect(back + '?err=' + encodeURIComponent(msg)); };
+  if (!id && !req.file) return bad('Bitte wähle die ROM-Datei (.nds) aus.');
+  let rom = null;
+  if (req.file) {
+    try { rom = await ds.storeRom(req.file.path, req.file.size); } catch (e) { return bad('Die ROM konnte nicht gespeichert werden: ' + e.message); }
+    if (rom.error) return bad(rom.error);
+  }
+  const input = { ...dsInput(b), rom };
+  const g = id ? ds.update(id, input) : ds.create(input);
+  if (!g) return res.redirect('/admin/ds');
+  auth.setAcl('ds', g.id, input.visibility === 'groups' ? asArray(b.groups) : []);
+  res.redirect(`/admin/ds/${g.id}?ok=1`);
+});
+router.post('/ds/:id/delete', (req, res) => {
+  ds.remove(req.params.id);
+  res.redirect('/admin/ds');
+});
+// Spielstände eines Mitglieds: herunterladen, die vorige Fassung zurückholen, löschen
+router.get('/ds/:id/spielstand/:uid', (req, res, next) => {
+  const g = ds.byId(req.params.id), s = g && ds.getSave(Number(req.params.uid), g.id);
+  if (!s) return next();
+  const u = db.prepare('SELECT username FROM users WHERE id = ?').get(Number(req.params.uid));
+  res.set({ 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' });
+  res.attachment(`${g.slug}-${(u && u.username) || req.params.uid}.sav`);
+  res.send(Buffer.from(s.data));
+});
+router.post('/ds/:id/spielstand/:uid', (req, res) => {
+  const g = ds.byId(req.params.id), uid = Number(req.params.uid);
+  if (g && req.body.act === 'restore') ds.restorePrev(uid, g.id);
+  if (g && req.body.act === 'delete') ds.deleteSave(uid, g.id);
+  res.redirect(`/admin/ds/${req.params.id}?ok=1#spielstaende`);
+});
+
 // ---------- Design ----------
 const THEME_KEYS = ['theme_bg_color', 'theme_bg_image', 'theme_bg_mode', 'theme_window_color', 'theme_title_from', 'theme_title_to',
   'theme_text_color', 'theme_link_color', 'theme_font', 'theme_custom_css'];

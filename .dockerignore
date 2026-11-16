@@ -5,3 +5,4 @@ data
 !CHANGELOG.md
 # Neuigkeiten der eingebauten Spiele gehören ins Image
 !games/*/src/*.md
+public/ds-core

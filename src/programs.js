@@ -6,7 +6,7 @@
 function menu(user) {
   return [['blog', '/blog', '📝 Blog'],
     ['dokumente', '📂 Dokumente', [...(user ? [['eigene-dateien', '/eigene-dateien', '🗂️ Eigene Dateien'], ['notizblock', '/notizblock', '🗒️ Notizblock']] : []), ...(user && user.canUpload ? [['upload', '/files/upload', '📤 Hinzufügen']] : []), ['files', '/files', '📁 Downloads'], ['mods', '/mods', '🧩 Modlisten'], ['links', '/links', '🔗 Links'], ['galerie', '/galerie', '🖼️ Galerie']]],
-    ['spiele', '🎮 Spiele und Apps', [['kartenspiele', '/kartenspiele', '🂡 Kartenspiele'], ['quiz', '/quiz', '❓ Quiz'], ['werwolf', '/werwolf', '🐺 Werwolf'], ['minesweeper', '/minesweeper', '💣 Minesweeper'], ['kreuzwortraetsel', '/kreuzwortraetsel', '📰 Kreuzworträtsel'], ['sudoku', '/sudoku', '🔢 Sudoku'], ['paint', '/paint', '🎨 Paint'], ['zufall', '/zufall', '🎲 Zufallsgenerator'], ['musik', '/musik', '📀 Mediaplayer'], ['apps', '/apps', '🕹️ Andere Games']]],
+    ['spiele', '🎮 Spiele und Apps', [['kartenspiele', '/kartenspiele', '🂡 Kartenspiele'], ['quiz', '/quiz', '❓ Quiz'], ['werwolf', '/werwolf', '🐺 Werwolf'], ['minesweeper', '/minesweeper', '💣 Minesweeper'], ['kreuzwortraetsel', '/kreuzwortraetsel', '📰 Kreuzworträtsel'], ['sudoku', '/sudoku', '🔢 Sudoku'], ['paint', '/paint', '🎨 Paint'], ['zufall', '/zufall', '🎲 Zufallsgenerator'], ['musik', '/musik', '📀 Mediaplayer'], ...require('./ds').menuEntries(user), ['apps', '/apps', '🕹️ Andere Games']]],
     ['haustier', '/haustier/', '🐾 Pixelpfoten'], ['farming', '/farming', '🚜 Farming Simulator'], ['board', '/forum', '💬 Forum'], ['nutzer', '/messenger', '🌼 Messenger'], ['guestbook', '/guestbook', '📖 Besucherbuch'], ['contact', '/contact', '✉️ Kontakt']];
 }
 
@@ -53,6 +53,8 @@ const CATALOG = [
     get: () => (!flag('fs_enabled') ? 'off' : S().getSetting('fs_view', 'members') === 'public' ? 'all' : 'members'),
     set: v => { put('fs_enabled', v !== 'off'); if (v !== 'off') S().setSetting('fs_view', v === 'all' ? 'public' : 'members'); } },
   { key: 'apps', group: 'spiele', note: 'hochgeladene HTML5-Spiele', props: '/admin/apps', prefixes: ['/apps'] },
+  // DS-Spiele: nie für Gäste (eigene ROM, Spielstand pro Konto); im Startmenü steht jedes Spiel einzeln (ds-<slug>)
+  { key: 'ds', group: 'spiele', name: 'DS-Spiele', icon: '🎮', note: 'eigene ROMs, Spielstand pro Mitglied', props: '/admin/ds', opts: ['members', 'off'], prefixes: ['/ds'] },
   { key: 'kreuzwortraetsel', group: 'raetsel', props: '/admin/programme/raetsel', prefixes: ['/kreuzwortraetsel'] },
   { key: 'sudoku', group: 'raetsel', props: '/admin/programme/raetsel#sudoku', prefixes: ['/sudoku'] },
   { key: 'minesweeper', group: 'raetsel', props: '/admin/programme/raetsel#minesweeper', prefixes: ['/minesweeper'] },
@@ -94,7 +96,7 @@ function setState(key, v) {
 // Alle Zeilen für die Seite Programme, mit Name und Symbol aus dem Startmenü
 function catalog() {
   const names = new Map(flat({ canUpload: true }).map(p => [p.key, p]));
-  return CATALOG.map(p => ({ ...p, name: (names.get(p.key) || {}).name || p.key, icon: (names.get(p.key) || {}).icon || '▫️', url: (names.get(p.key) || {}).url || '/', state: state(p.key) }));
+  return CATALOG.map(p => ({ ...p, name: (names.get(p.key) || {}).name || p.name || p.key, icon: (names.get(p.key) || {}).icon || p.icon || '▫️', url: (names.get(p.key) || {}).url || (p.prefixes[0] || '/'), state: state(p.key) }));
 }
 // Sperre für die Adressen der Programme ohne eigene Prüfung: Aus → Hinweis, Mitglieder → erst anmelden. Admins kommen immer durch.
 function gate(req, res, next) {
@@ -119,6 +121,8 @@ function off(l) {
     if (p.own) { if (st === 'off') out[p.key] = true; continue; }
     if (st === 'off' || (st === 'members' && !l.user)) out[p.key] = true;
   }
+  // Die einzelnen DS-Spiele hängen am Programm „ds“ (aus oder im Startmenü ausgeblendet → alle weg)
+  if (out.ds || (l.navHidden || []).includes('ds')) for (const e of require('./ds').menuEntries(l.user)) out[e[0]] = true;
   return out;
 }
 

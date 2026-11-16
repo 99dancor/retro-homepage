@@ -1,0 +1,14 @@
+<%- include('partials/head') %>
+<%# Mehrere DS-Spiele: eine Liste wie bei „Andere Games“. Bei genau einem öffnet /ds gleich das Spiel. %>
+<h1>🎮 DS-Spiele</h1>
+<% if (!games.length) { %>
+<p>Hier gibt es noch keine Spiele.</p>
+<% } else { %>
+<table class="list">
+  <tr><th>Spiel</th><th></th></tr>
+  <% for (const g of games) { %>
+  <tr><td><a href="/ds/<%= g.slug %>"><%= g.icon %> <b><%= g.title %></b></a></td><td><a class="btn small" href="/ds/<%= g.slug %>">▶ Spielen</a></td></tr>
+  <% } %>
+</table>
+<% } %>
+<%- include('partials/foot') %>

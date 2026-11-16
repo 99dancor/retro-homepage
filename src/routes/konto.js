@@ -60,7 +60,7 @@ router.get('/konto', auth.requireLogin, (req, res) => {
     notifyKinds: notify.kindsFor(req.user), notifyPrefs: notify.prefs(u.id), devices: notify.devices(u.id),
     icu: us.get(u.id, 'icu'), ICU_SOUNDS: us.ICU_SOUNDS, ICU_AWAY: us.ICU_AWAY,
     sessions: db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE user_id = ? AND id != ?').get(u.id, req.cookies.sid || '').n,
-    saves: saves(u.id),
+    saves: saves(u.id), dsSaves: require('../ds').savesOfUser(u.id),
   });
 });
 
@@ -108,6 +108,12 @@ router.post('/konto/abmelden', auth.requireLogin, (req, res) => {
 router.post(['/konto/spielstand/loeschen', '/account/saves/delete'], auth.requireLogin, (req, res) => {
   db.prepare('DELETE FROM game_saves WHERE user_id = ? AND app_slug = ? AND slot = ?')
     .run(req.user.id, String(req.body.app || ''), String(req.body.slot || ''));
+  done(req, res, 'spielstaende', 'ok=spielstand');
+});
+
+// DS-Spiele (src/ds.js): eigenen Spielstand löschen, danach beginnt das Spiel von vorn
+router.post('/konto/ds-spielstand/loeschen', auth.requireLogin, (req, res) => {
+  require('../ds').deleteSave(req.user.id, Number(req.body.game) || 0);
   done(req, res, 'spielstaende', 'ok=spielstand');
 });
 

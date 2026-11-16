@@ -158,6 +158,7 @@ app.use('/pilli', require('./routes/cardgame')(require('./pilli')));
 app.use('/quiz', require('./routes/quiz'));
 app.use('/werwolf', require('./routes/werwolf'));
 app.use('/minesweeper', require('./routes/minesweeper'));
+app.use('/ds', require('./routes/ds'));
 app.use('/kreuzwortraetsel', require('./routes/crossword'));
 app.use('/sudoku', require('./routes/sudoku'));
 const paintRoutes = require('./routes/paint');

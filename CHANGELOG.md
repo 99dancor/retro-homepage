@@ -1,5 +1,13 @@
 # Changelog
 
+## Update 93 · 16.11.2026 – Nintendo-DS-Spiele: Animal Crossing im Browser
+
+- **DS-Spiele direkt auf der Seite:** In der Seitenverwaltung unter Programme → DS-Spiele lädst du eine eigene ROM (.nds) hoch, zum Beispiel Animal Crossing: Wild World. Das Spiel steht dann mit eigenem Symbol im Startmenü unter Spiele und Apps und startet sofort in einem Fenster, beide Bildschirme übereinander. Kein Emulator-Menü, keine Einstellungen dazwischen: Es sieht aus wie ein Spiel, das für den Browser gemacht ist.
+- **Jeder hat seinen eigenen Spielstand:** Gespeichert wird im Spiel wie auf dem DS, danach liegt der Stand auf dem Server in deinem Konto und ist auf jedem Gerät da, auf dem du angemeldet bist. Spielst du gleichzeitig auf zwei Geräten, überschreibt das ältere Fenster nichts, sondern sagt Bescheid. Unter Konto und Passwort → Spielstände siehst und löschst du ihn.
+- **Steuerung:** Tastatur (Pfeile, A/B/X/Y auf X/Z/S/A, L/R auf Q/W, Start auf Eingabe), im Menü Spiel → Tastenbelegung änderbar. Gamepads gehen ohne Einstellung. Den unteren Bildschirm bedienst du mit der Maus oder dem Finger, auf Handy und Tablet gibt es dazu die DS-Tasten zum Antippen. Im Menü gibt es außerdem Anhalten, Vollbild, Ton aus und „Spielstand jetzt sichern“.
+- **Die ROM bleibt privat:** Sie geht nur an angemeldete Mitglieder, die das Spiel sehen dürfen (alle Mitglieder, bestimmte Gruppen oder nur Admin), nie an Gäste. Der Emulator (melonDS, als WebAssembly) kommt mit dem Docker-Image und lädt nichts von fremden Servern.
+- **Für den Admin:** Spielstände aller Mitglieder herunterladen, die vorige Fassung zurückholen oder löschen, falls einmal etwas schiefgeht.
+
 ## Update 92 · 08.11.2026 – Jellyfin im Mediaplayer
 
 - **Filme und Serien vom Jellyfin-Server im Mediaplayer:** In der Seitenleiste gibt es die neue Gruppe „Jellyfin“ mit Start (Weiterschauen, neue Filme, neue Folgen), Weiterschauen, Neu hinzugefügt, Filme, Serien und Meine Liste. Die Titel erscheinen als Cover-Kacheln mit Suche, Genre, Sortierung und den Filtern Ungesehen und Meine Liste. Ein Klick zeigt rechts die Angaben (Inhalt, Jahr, Länge, FSK, Bewertung, HD/4K), eine Serie öffnet ihre Staffeln mit allen Folgen. Skins ohne rechte Spalte und das Handy zeigen die Angaben als Fenster.

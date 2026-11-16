@@ -15,7 +15,7 @@
   <li>Was du schreibst, kann der Admin lesen, auch „anonyme“ Forenbeiträge. Nachrichten im Messenger zeigt die Seite ihm nicht an, sie liegen aber unverschlüsselt auf dem Server.</li>
 </ul>
 <p>Springe zu: <a href="#besuch">Besuch</a> · <a href="#cookies">Cookies</a> · <a href="#browser">Im Browser</a> ·
-  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#vorschlaege">Link-Vorschläge</a> · <a href="#spiele">Spiele</a> · <a href="#pixelpfoten">Pixelpfoten</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#kartenspiele">UNO, Flip 7, Pilli Pilli</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#sudoku">Sudoku</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#werwolf">Werwolf</a> · <a href="#farming">Farming Simulator</a> · <a href="#dienste">Dienste, Laufband, Popups</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
+  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#vorschlaege">Link-Vorschläge</a> · <a href="#spiele">Spiele</a> · <a href="#pixelpfoten">Pixelpfoten</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#kartenspiele">UNO, Flip 7, Pilli Pilli</a> · <a href="#ds">DS-Spiele</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#sudoku">Sudoku</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#werwolf">Werwolf</a> · <a href="#farming">Farming Simulator</a> · <a href="#dienste">Dienste, Laufband, Popups</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
 </fieldset>
 
 <h2 id="besuch">👣 Wenn du die Seite besuchst</h2>
@@ -350,6 +350,19 @@
   <%- code('cgResults', 'Eine Zeile pro Spieler und beendetem Spiel, für alle drei Spiele in einer Tabelle.') %>
   <%- code('cgState', 'Jeder Browser bekommt seinen eigenen Stand; was das Spiel dazugibt, steht in den Regeln des Spiels.') %>
   <%- code('unoView', 'UNO: die eigenen Karten bekommt nur der eigene Browser, von den anderen nur die Anzahl.') %>
+</details>
+
+<h2 id="ds">🎮 DS-Spiele</h2>
+<ul>
+  <li>DS-Spiele gibt es nur für angemeldete Mitglieder. Das Spiel läuft ganz in deinem Browser. Der Server schickt ihm das Spiel und deinen Spielstand und bekommt den Spielstand zurück, sonst nichts: keine Tasten, keine Bilder, keine Spielzeit.</li>
+  <li><b>Gespeichert wird pro Konto und Spiel:</b> der Spielstand, wie ihn der DS auf seinen Speicherchip schreiben würde (bei Animal Crossing 256 KB), wann er kam, eine laufende Nummer der Fassung und die Fassung davor als Sicherung. Die Seite schickt ihn, wenn er sich im Spiel geändert hat (höchstens alle 10 Sekunden) und beim Schließen des Fensters.</li>
+  <li>Was in einem Spielstand steht (z. B. der Name deiner Figur und deiner Stadt), bestimmt das Spiel. Der Admin kann Spielstände herunterladen, die vorige Fassung zurückholen und löschen, um bei Problemen zu helfen. Du selbst löschst deinen unter Konto und Passwort → Spielstände. Löschst du dein Konto, verschwinden deine Spielstände mit.</li>
+  <li>Eine geänderte Tastenbelegung bleibt nur in deinem Browser.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('dsSaves', 'Ein Spielstand pro Mitglied und Spiel, dazu die Fassung davor.') %>
+  <%- code('dsPut', 'Geschrieben wird nur auf die Fassung, die dein Fenster geladen hat, sonst überschreibt ein älteres Fenster nichts.') %>
+  <%- code('dsKeys', 'Die Tastenbelegung liegt unter <code>ds-keys</code> im Browser.') %>
 </details>
 
 <h2 id="minesweeper">💣 Minesweeper</h2>

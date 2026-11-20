@@ -9,6 +9,14 @@
     <label>Spiel:<input type="text" name="game" class="w100" value="<%= file.game || '' %>"></label>
   </div>
   <label>Beschreibung:<textarea name="description" style="min-height:60px"><%= file.description || '' %></textarea></label>
+  <fieldset class="groupbox"><legend>📦 Projekt in Dancors Downloads</legend>
+    <div class="row">
+      <label>Gehört zu:<select name="project_id" class="w100"><option value="">kein Projekt (einzelne Datei)</option><% for (const p of projects) { %><option value="<%= p.id %>"<%= file.project_id === p.id ? ' selected' : '' %>><%= p.title %></option><% } %></select></label>
+      <label>Version:<input type="text" name="version" class="w100" value="<%= file.version || '' %>" maxlength="30" placeholder="1.0"></label>
+    </div>
+    <label>Änderungen in dieser Version (Markdown):<textarea name="changes" style="min-height:60px"><%= file.changes || '' %></textarea></label>
+    <small>Dateien in einem Projekt erscheinen auf der Projektseite als Versionen. Die neueste ist „aktuell“, ältere bleiben ladbar.</small>
+  </fieldset>
   <%- include('../partials/visibility', { item: file, acl, owned: true }) %>
   <div class="actions"><button>💾 Speichern</button><a class="btn" href="/files/dl/<%= file.id %>">⬇ Download</a><a class="btn" href="/admin/downloads/<%= file.id %>">📊 Statistik</a></div>
 </form>

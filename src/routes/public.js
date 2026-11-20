@@ -63,7 +63,7 @@ function feed(user, locals) {
   if (shown('files')) {
     const v = auth.visibilitySql(user, 'file', 'f', { noPrivat: true });
     for (const f of db.prepare(`SELECT id, title, category, game, size, created_at FROM files f WHERE ${v.sql} ORDER BY created_at DESC LIMIT 6`).all(...v.params)) {
-      out.push({ kind: 'files', icon: '📁', title: f.title, url: '/files', meta: ['Downloads', f.category, f.game, require('../util').fmtSize(f.size)].filter(Boolean).join(' · '), at: f.created_at });
+      out.push({ kind: 'files', icon: '📁', title: f.title, url: '/downloads', meta: ['Downloads', f.category, f.game, require('../util').fmtSize(f.size)].filter(Boolean).join(' · '), at: f.created_at });
     }
   }
   if (shown('guestbook') && getSetting('guestbook_enabled') === '1') {
@@ -78,13 +78,15 @@ function feed(user, locals) {
 }
 
 // Startseite aus Bausteinen (Aussehen → Startseite, src/homeblocks.js): links breit, rechts schmal, je nach Besucher
-router.get('/', (req, res) => {
+// Willkommensfenster des Desktops (früher die Startseite unter /). Die Startseite mit Kacheln kommt aus src/routes/portal.js;
+// lädt ein Fenster im Desktop noch „/“, bekommt es weiter dieses Fenster.
+function deskHome(req, res) {
   const blocks = require('../homeblocks').forViewer(req.user), want = new Set([...blocks.main, ...blocks.side]);
   const services = require('../services');
   const rules = db.prepare("SELECT * FROM pages WHERE slug = 'regeln'").get();
   const items = want.has('neuigkeiten') ? feed(req.user, res.locals) : [];
   res.render('home', {
-    title: 'Startseite', blocks,
+    title: 'Willkommen', blocks,
     homeHtml: md(getSetting('home_md')),
     feed: items, feedKinds: Object.entries(FEED).filter(([k]) => items.some(i => i.kind === k)),
     services: want.has('dienste') ? services.forViewer(req.user, 'home') : [],
@@ -97,7 +99,9 @@ router.get('/', (req, res) => {
       .map(p => ({ ...p, name: p.name.replace('Kreuzworträtsel', 'Kreuzwort\u00adrätsel'), hint: HOME_APPS[p.key] })),
     update: changelog.latest(),
   });
-});
+}
+router.get('/desktop', deskHome);
+router.get('/', deskHome);
 
 // ---------- Blog ----------
 router.get('/blog', (req, res) => {
@@ -119,12 +123,13 @@ router.get('/blog/:slug', (req, res, next) => {
 });
 
 // ---------- Dateien ----------
+// Die Downloads haben seit Version 3.0 eine Ansicht: Dancors Downloads (src/routes/downloads.js). Alte Adressen leiten weiter.
 router.get('/files', (req, res) => {
-  const view = require('../filesview').build(req.user, String(req.query.ort || req.query.cat && 'k:' + req.query.cat || ''), req.query.q);
-  const lr = require('../linkreq'), canSuggest = lr.canSuggest(req.user);
-  const mySuggestions = canSuggest ? db.prepare("SELECT COUNT(*) AS n FROM link_requests WHERE user_id = ? AND status NOT IN ('done','rejected','withdrawn','failed')").get(req.user.id).n : 0;
-  res.render('files', { ...view, title: view.node === 'alle' ? 'Downloads' : 'Downloads – ' + (view.node.startsWith('privat') ? 'Privat – ' : '') + view.title, nodeTitle: view.title, q: String(req.query.q || ''),
-    disk: req.user && req.user.isAdmin ? up.diskSpace() : null, canSuggest, mySuggestions });
+  const q = new URLSearchParams();
+  const ort = String(req.query.ort || (req.query.cat ? 'k:' + req.query.cat : ''));
+  if (/^(neu|privat|k:.+)$/.test(ort)) q.set('ort', ort.startsWith('privat') ? 'privat' : ort);
+  if (req.query.q) q.set('q', String(req.query.q).slice(0, 100));
+  res.redirect(301, '/downloads' + (q.size ? '?' + q : ''));
 });
 
 router.get('/files/dl/:id', (req, res, next) => {
@@ -216,13 +221,8 @@ router.post('/files/upload', auth.requireLogin, (req, res, next) => (req.user.ca
 // Modlisten: src/routes/mods.js
 
 // ---------- Links ----------
-router.get('/links', (req, res) => {
-  const v = auth.visibilitySql(req.user, 'link', 'l');
-  const links = db.prepare(`SELECT * FROM links l WHERE ${v.sql} ORDER BY category, position, title`).all(...v.params);
-  const grouped = {};
-  for (const l of links) (grouped[l.category] ||= []).push(l);
-  res.render('links', { title: 'Links', grouped });
-});
+// Die Links sind seit Version 3.0 Linksammlungen im Duden (src/duden.js)
+router.get('/links', (req, res) => res.redirect(301, '/duden/links'));
 
 // ---------- Besucherbuch (früher Freundebuch; Adresse /guestbook) ----------
 function guestbookOn(req, res, next) { return getSetting('guestbook_enabled') === '1' ? next() : res.status(404).render('error', { title: 'Besucherbuch', message: 'Das Besucherbuch ist gerade geschlossen.' }); }
@@ -397,13 +397,18 @@ const localPath = v => (typeof v === 'string' && /^\/(?![/\\])/.test(v) ? v : nu
 // Der Anmeldebildschirm (public/logon.js) schickt dieselben Formulare per fetch und will JSON zurück
 const wantsJson = req => req.accepts(['html', 'json']) === 'json';
 const logonInfo = u => ({ u: u.username, n: u.display_name || u.username, a: u.avatar || '', admin: u.role === 'admin' });
-router.get('/login', (req, res) => res.render('login', { title: 'Anmelden', err: null, next: req.query.next || '' }));
+const v3 = require('../v3');
+const authView = (req, res, view, extra) => (!res.locals.embed && v3.modernAuth(req)
+  ? res.render('v3/' + view, { ...v3.locals(req, res), title: view === 'login' ? 'Anmelden' : 'Registrieren', ...extra })
+  : res.render(view, { title: view === 'login' ? 'Anmelden' : 'Registrieren', ...extra }));
+router.get('/login', (req, res) => (req.user && !res.locals.embed && v3.modernAuth(req) ? res.redirect(localPath(req.query.next) || '/') : authView(req, res, 'login', { err: null, next: req.query.next || '' })));
 router.post('/login', auth.rateLimit('login', 10, 600), (req, res) => {
   const u = db.prepare('SELECT * FROM users WHERE username = ?').get(String(req.body.username || ''));
   const nextUrl = localPath(req.body.next) || (u && u.role === 'admin' ? '/admin' : '/');
   if (!u || u.disabled || !auth.checkPassword(String(req.body.password || ''), u.password_hash)) {
     if (wantsJson(req)) return res.status(401).json({ error: 'Benutzername oder Kennwort falsch.' });
-    return res.status(401).render('login', { title: 'Anmelden', err: 'Benutzername oder Passwort falsch.', next: req.body.next || '' });
+    res.status(401);
+    return authView(req, res, 'login', { err: 'Benutzername oder Passwort falsch.', next: req.body.next || '' });
   }
   // Wer schon angemeldet war (Anderer Benutzer…), wird dabei abgemeldet
   auth.endSession(req, res);
@@ -414,7 +419,7 @@ router.post('/login', auth.rateLimit('login', 10, 600), (req, res) => {
 router.post('/logout', (req, res) => {
   auth.endSession(req, res);
   if (wantsJson(req)) return res.json({ ok: true });
-  res.redirect('/');
+  res.redirect(localPath(req.body.next) || '/');
 });
 // Kennworthinweis für den „?“-Knopf. Wie früher bei Windows sieht ihn jeder, der den Benutzernamen kennt.
 router.get('/api/kennworthinweis', auth.rateLimit('hinweis', 30, 600), (req, res) => {
@@ -424,7 +429,7 @@ router.get('/api/kennworthinweis', auth.rateLimit('hinweis', 30, 600), (req, res
 
 router.get('/register', (req, res, next) => {
   if (getSetting('registration_open') !== '1') return next();
-  res.render('register', { title: 'Registrieren', err: null, next: req.query.next || '' });
+  authView(req, res, 'register', { err: null, next: req.query.next || '' });
 });
 router.post('/register', auth.rateLimit('reg', 5, 3600), (req, res, next) => {
   if (getSetting('registration_open') !== '1') return wantsJson(req) ? res.status(403).json({ error: 'Registrieren ist gerade geschlossen.' }) : next();
@@ -434,7 +439,7 @@ router.post('/register', auth.rateLimit('reg', 5, 3600), (req, res, next) => {
   else if (!auth.validPassword(password)) err = 'Passwort muss mindestens 8 Zeichen haben.';
   else if (password !== password2) err = 'Die Passwörter stimmen nicht überein.';
   else if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username)) err = 'Dieser Benutzername ist schon vergeben.';
-  if (err) return wantsJson(req) ? res.status(400).json({ error: err }) : res.render('register', { title: 'Registrieren', err, next: req.body.next || '' });
+  if (err) return wantsJson(req) ? res.status(400).json({ error: err }) : authView(req, res, 'register', { err, next: req.body.next || '', username });
   const id = auth.createUser(username, password);
   mail.notifyQuietly('Neue Registrierung', `Neuer Nutzer: ${username}`);
   notify.toAdmins('👤 Neue Registrierung: ' + username, 'Ein neues Mitglied hat sich angemeldet.', '/nutzer/' + encodeURIComponent(username), 'admin:register');
@@ -446,3 +451,4 @@ router.post('/register', auth.rateLimit('reg', 5, 3600), (req, res, next) => {
 });
 
 module.exports = router;
+module.exports.feed = feed;   // „Vom Desktop“ auf der Startseite (src/routes/portal.js)

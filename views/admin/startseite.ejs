@@ -2,16 +2,16 @@
 <%# Aussehen → Startseite: Text und Bausteine (src/homeblocks.js). ▲▼ speichern erst alles und verschieben dann. %>
 <form method="post" action="/admin/startseite/text">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
-  <fieldset class="groupbox" id="text"><legend>👋 Text auf der Startseite</legend>
+  <fieldset class="groupbox" id="text"><legend>👋 Text auf der Desktop-Startseite</legend>
     <%- include('../partials/md-editor', { name: 'home_md', value: home_md }) %>
     <small>Steht im Baustein „Willkommen“. Regeln (eigene Seite „regeln“) und der kurze Rundgang kommen darunter von selbst.</small>
   </fieldset>
-  <div class="actions"><button>💾 Text speichern</button> <a class="btn" href="/" target="_blank">Startseite ansehen</a></div>
+  <div class="actions"><button>💾 Text speichern</button> <a class="btn" href="/desktop" target="_blank">Desktop-Startseite ansehen</a></div>
 </form>
 <form method="post" action="/admin/startseite/bausteine">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <fieldset class="groupbox" id="bausteine"><legend>🧱 Bausteine</legend>
-    <p style="margin-top:0"><small>Was auf der Startseite steht, in welcher Reihenfolge und Spalte und für wen. Am Handy stehen beide Spalten untereinander, links zuerst.</small></p>
+    <p style="margin-top:0"><small>Was im Fenster „Willkommen“ auf dem Desktop steht, in welcher Reihenfolge und Spalte und für wen. Am Handy stehen beide Spalten untereinander, links zuerst.</small></p>
     <table class="list hb-table">
       <tr><th class="c">An</th><th>Baustein</th><th>Spalte</th><th>Für</th><th></th></tr>
       <% blocks.forEach((b, i) => { %>

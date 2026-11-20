@@ -1,0 +1,11 @@
+<%# Sichtbarkeit eines Eintrags (src/v3.js visForm). Erwartet: vis = { VIS, value, groups, acl } %>
+<label class="f">Wer sieht das?
+  <select name="visibility" data-vis>
+    <% for (const [k, l] of Object.entries(vis.VIS)) { if (k === 'groups' && !vis.groups.length) continue; %><option value="<%= k %>"<%= vis.value === k ? ' selected' : '' %>><%= l %></option><% } %>
+  </select>
+</label>
+<% if (vis.groups.length) { %>
+<div class="group-pick" data-vis-groups>
+  <% for (const g of vis.groups) { %><label class="inline"><input type="checkbox" name="groups" value="<%= g.id %>"<%= vis.acl.includes(g.id) ? ' checked' : '' %>> <%= g.name %></label><% } %>
+</div>
+<% } %>

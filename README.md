@@ -1,6 +1,11 @@
 # 💾 Retro-Homepage
 
-Selbst gehostete Homepage im Look von Windows 98 / 2000 – mit Blog, Downloads (z. B. Spielstände),
+Selbst gehostete Homepage von Dancor. Seit **Version 3.0** öffnet `/` eine moderne Startseite mit Kacheln
+(hell und dunkel, am Handy wie am PC): **Dancors Desktop** (der Retro-Desktop unter `/desktop`), **Dancors Downloads**,
+**Dancors Duden** (Guides, Wiki, Linksammlungen), **Dancors Deliziösitäten** (Rezeptbuch) und **Dancors Dreschplatz**
+(der FS25 Hub, eigenes Projekt [99dancor/fs25hub](https://github.com/99dancor/fs25hub), hier als Paket eingebaut).
+
+Der Desktop im Look von Windows 98 / 2000 hat Blog, Downloads (z. B. Spielstände),
 Modlisten, Linksammlung, Forum, Besucherbuch, Kontaktformular, eigenen Seiten, Mediaplayer für Musik,
 Videos und YouTube mit Lobbys zum gemeinsamen Hören, Blackjack und Poker mit Spielgeld, Durak, UNO, Flip 7, Pilli Pilli, Paint mit Galerie, Quiz für Spieleabende, Werwolf (lokal am Tisch oder online), einem Bereich für Browser-Spiele/Apps und einem Admin-Bereich mit Besucherstatistik, Nutzer- und Rechteverwaltung
 und Design-Editor.
@@ -170,9 +175,11 @@ strenger möchte, setzt `TRUST_PROXY` auf die IP des Pi.
 | Bereich | Was geht |
 |---|---|
 | **Blog** | Editor mit Live-Vorschau, Bilder hochladen per Button, Drag & Drop oder Strg+V; Bilder in der Vorschau anklicken für Lage (links/mittig/rechts, Text fließt drumherum) und Größe, an der Ecke ziehen, per Drag & Drop verschieben; Tags, Entwürfe, Datum frei wählbar |
-| **Downloads** | Mehrere Dateien auf einmal hochladen (mit Fortschrittsanzeige), Kategorien + Spiel, Suche, Download-Zähler |
+| **Startseite (Version 3.0)** | `/` mit Kacheln, Suche über alle Bereiche (`/finden`), „Zuletzt neu“, Server-Status, Fußzeile mit Changelog, Besucherbuch, Kontakt und Datenschutz, Anmeldung oben rechts. Kacheln, Begrüßung und Name unter Seitenverwaltung → Aussehen → Startseite (Kacheln): sortieren, breit, ausblenden, nur Mitglieder (Gäste sehen ein Schloss), eigene Kacheln. Code: `src/portal.js`, `src/v3.js`, `views/v3/`, `public/v3.css`, `public/v3.js`. Die neuen Seiten laufen ohne Desktop; im Desktop-Fenster zeigen sie sich ohne Kopfzeile, Links in einen anderen Bereich öffnen ein eigenes Fenster |
+| **Downloads** | `/downloads`: Kategorien links, hervorgehobene Projekte oben, darunter die Liste. **Projekte** (`src/downloads.js`) haben Beschreibung, Bilder, Anleitung und Versionen mit Änderungen, alte Versionen bleiben ladbar; Dateien lassen sich in der Seitenverwaltung einem Projekt als Version zuordnen. Hochladen wie bisher im Fenster „Hinzufügen“ (mehrere Dateien, Fortschritt, Kategorien + Spiel), Download-Zähler. Die Hub-Link-Mod steht nur als Verweis auf den Dreschplatz. Alte Adressen `/files?…` leiten weiter |
+| **Duden** | `/duden` (`src/duden.js`): Guides, Wiki-Artikel und Linksammlungen nach Themen, Inhaltsverzeichnis aus den Überschriften, `[[Wiki-Links]]`, Blogbeiträge zum Lesen. Schreiben dürfen Admins und Mitglieder mit dem neuen Recht „Schreiben“ (Konten und Gruppen), mit dem bekannten Editor und Entwürfen. `/links` leitet auf `/duden/links`, die alten Link-Kategorien werden beim Start zu Linksammlungen |
+| **Rezepte** | `/rezepte` (`src/recipes.js`, `public/rezept.js`): Schlagworte, Suche nach Zutaten, Favoriten, Portionsrechner, Kochmodus (ein Schritt pro Bildschirm, Wecker aus den Zeiten im Text, Bildschirm bleibt an), Einkaufsliste pro Mitglied, die gleiche Zutaten zusammenzählt, und „Von einer Rezeptseite übernehmen“ (schema.org/Recipe) |
 | **Modlisten** | Jedes Mitglied legt Listen an (Titel, Spiel, kurze Beschreibung, wer sie sieht). Mods als Zeilen mit Name, Link, Bemerkung und Haken „läuft auf dem Server“, nach Kategorien sortiert, die sich ein- und ausklappen lassen; Zeilen per ✕ entfernen, mit ➕ anhängen, per Ziehen verschieben oder viele auf einmal aus Text einfügen. Darunter Vorschläge, die je nach Liste alle (auch Gäste), nur Angemeldete oder niemand eintragen und ändern dürfen, mit Verlauf zum Zurückdrehen; der Besitzer übernimmt Vorschläge per Klick in eine Kategorie |
-| **Links** | Linksammlung nach Kategorien |
 | **Forum** | Angemeldete Nutzer erstellen Themen und antworten (mit Bildern), auf Wunsch anonym (nur der Admin sieht den Namen), bearbeiten/löschen eigene Beiträge; Admin pinnt an, schließt und löscht. Unter Einstellungen abschaltbar oder nur für Mitglieder lesbar |
 | **Changelog** | Im Startmenü, Inhalt aus `CHANGELOG.md` (wird mit jedem Update ergänzt) |
 | **Datenschutz** | Im Startmenü unter `/datenschutz`: in einfacher Sprache, was über Besucher gespeichert wird, mit aufklappbaren Code-Ausschnitten und Screenshots der Admin-Ansicht. Die Ausschnitte liest der Server aus dem laufenden Code (Anker in `src/privacy.js`); wer neue Daten speichert, ergänzt Seite und Anker |

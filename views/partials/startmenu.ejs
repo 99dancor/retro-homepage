@@ -1,5 +1,6 @@
 <div class="startmenu" id="startmenu" data-title="<%= site.title %>">
-  <a href="/">🏠 Startseite</a>
+  <a href="/" data-top>↩️ Zur Startseite</a>
+  <a href="/desktop">🏠 Willkommen</a>
   <%# Einträge aus src/programs.js: [Schlüssel, Adresse, Beschriftung] oder [Gruppe, Beschriftung, [Einträge]] → Untermenü wie bei Windows 98, auch verschachtelt.
       Jeden Eintrag kann man auf den Desktop ziehen, dann entsteht dort eine Verknüpfung (public/desk.js). %>
   <% const entries = programs.menu(user);

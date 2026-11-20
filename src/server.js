@@ -69,7 +69,7 @@ app.use((req, res, next) => {
     quizEnabled: getSetting('quiz_enabled', '1') === '1',
     werwolfEnabled: getSetting('ww_enabled', '1') === '1',
     galleryEnabled: getSetting('paint_gallery', '1') === '1',
-    farmingVisible: require('./fshub').canView(req.user),
+    farmingVisible: require('./hub').canView(req.user),
     navHidden: (getSetting('nav_hidden') || '').split(','),
     // Wartungsmodus (System → Allgemein): Admins sehen die Seite weiter, mit Hinweis
     maintOn: getSetting('maint_on', '0') === '1',
@@ -105,6 +105,9 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/') || req.method !== 'GET') return res.json({ error: 'Die Seite wird gerade gewartet.' });
   res.render('wartung', { title: 'Wartungsarbeiten', text: getSetting('maint_text', '') });
 });
+// Eigene Seiten ohne Desktop drumherum (Version 3.0, src/v3.js): Startseite, Downloads, Duden, Deliziösitäten, Suche,
+// die Anmeldung von dort und der Hub, der sein eigenes Aussehen mitbringt
+const v3 = require('./v3');
 // Desktop: Seiten laufen als Fenster (iframes) auf einem Win98-Desktop. Direkt aufgerufen
 // liefert jede öffentliche Seite den Desktop mit ihr als Fenster, im Fenster selbst den
 // schlanken Inhalt ohne Rahmen. Der Browser verrät per Sec-Fetch-Dest, ob er ein iframe lädt.
@@ -112,7 +115,7 @@ app.use((req, res, next) => {
   res.vary('Sec-Fetch-Dest');
   const embed = req.get('sec-fetch-dest') === 'iframe' || 'embed' in req.query;
   res.locals.embed = embed;
-  if (embed || req.method !== 'GET') return next();
+  if (embed || req.method !== 'GET' || v3.isModern(req)) return next();
   const render = res.render.bind(res);
   res.render = (view, opts, cb) => {
     req.shell = true;
@@ -147,7 +150,8 @@ app.use('/musik', require('./routes/music').router);
 app.use('/jellyfin', require('./routes/jellyfin'));
 app.use('/eigene-dateien', require('./routes/ownfiles'));
 app.use('/mods', require('./routes/mods'));
-app.use('/farming', require('./routes/fshub'));
+// Dancors Dreschplatz: der FS25 Hub als Paket (src/hub.js), mit eigenem Aussehen und eigener Verwaltung
+app.use('/farming', require('./hub'));
 app.use('/kartenspiele', require('./routes/kartenspiele'));
 app.use('/blackjack', require('./routes/blackjack'));
 app.use('/poker', require('./routes/poker'));
@@ -166,6 +170,12 @@ app.use('/paint', paintRoutes.router);
 app.use('/galerie', require('./routes/gallery'));
 app.use('/galerie', paintRoutes.gallery);
 app.use('/einstellungen', settingsRoutes.router);
+// Version 3.0: Startseite mit Kacheln und die neuen Bereiche
+app.use('/', require('./routes/portal'));
+app.use('/downloads', require('./routes/downloads'));
+app.use('/duden', require('./routes/duden'));
+app.use('/rezepte', require('./routes/rezepte'));
+app.use('/api/schreiben', require('./routes/schreiben'));
 app.use('/', deskRoutes.router);
 app.use('/', require('./routes/notify'));
 app.use('/', require('./routes/games'));
@@ -175,10 +185,13 @@ app.use('/', profileRoutes.router);
 app.use('/', require('./routes/linkreq'));
 app.use('/', require('./routes/public'));
 
-app.use((req, res) => res.status(404).render('error', { title: 'Nicht gefunden', message: 'Diese Seite gibt es nicht (oder du hast keinen Zugriff).' }));
+app.use((req, res) => (v3.isModern(req) ? v3.error(req, res, 404, 'Nicht gefunden', 'Diese Seite gibt es nicht (oder du hast keinen Zugriff).')
+  : res.status(404).render('error', { title: 'Nicht gefunden', message: 'Diese Seite gibt es nicht (oder du hast keinen Zugriff).' })));
 app.use((err, req, res, next) => {
   console.error(err);
   const msg = err.code === 'LIMIT_FILE_SIZE' ? 'Die Datei ist zu groß.' : 'Da ist etwas schiefgelaufen.';
+  if (res.headersSent) return;
+  if (v3.isModern(req)) return v3.error(req, res, err.status || (err.code === 'LIMIT_FILE_SIZE' ? 413 : 500), 'Fehler', msg);
   res.status(err.status || 500).render('error', { title: 'Fehler', message: msg });
 });
 
@@ -205,8 +218,8 @@ setInterval(events.cleanup, 24 * 3600e3).unref();
   const u = require('./changelog').latest();
   events.info('System', `Seite gestartet${u && u.no != null ? ` (Update ${u.no})` : ''}`);
 }
-// Farming Simulator Hub: Feeds des Spieleservers im Hintergrund abholen (src/fsfeeds.js)
-require('./fshub').start();
+// Dancors Dreschplatz: Feeds des Spieleservers und Austausch mit der Mod im Hintergrund (Paket fs25hub)
+require('./hub').start();
 // Haustier-Erinnerungen und alte Benachrichtigungen aufräumen
 require('./petwatch').start();
 setInterval(notify.cleanup, 6 * 3600e3).unref();

@@ -1,0 +1,53 @@
+<%# Version 3.0: Kopf jeder modernen Seite (src/v3.js). Erwartet die Werte aus v3.locals() und title.
+    Im Desktop-Fenster (framed) nur der Inhalt, ohne Kopfleiste. %>
+<% const _area = areas.find(a => a.key === area); const _q = typeof q === 'string' ? q : ''; %>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= title ? title + ' – ' : '' %><%= siteName %></title>
+<% if (typeof description === 'string' && description) { %><meta name="description" content="<%= description %>"><% } %>
+<script src="<%= asset('v3-theme.js') %>"></script>
+<link rel="stylesheet" href="<%= asset('v3.css') %>">
+<link rel="icon" href="<%= asset('favicon.svg') %>">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="<%= asset('icon.png') %>">
+<meta name="theme-color" content="#1d5fd1">
+<script src="<%= asset('v3.js') %>" defer></script>
+</head>
+<body class="v3<%= framed ? ' framed embed' : '' %><%= typeof bodyClass === 'string' ? ' ' + bodyClass : '' %>" data-user="<%= user ? user.id : '' %>" data-csrf="<%= csrf %>">
+<% if (!framed) { %>
+<header class="v3-top">
+  <a class="v3-logo" href="/" aria-label="<%= siteName %> – Startseite"><span class="mk emo" aria-hidden="true">🪟</span><span><%= siteName %></span></a>
+  <% if (_area) { %><span class="v3-crumb" aria-hidden="true">/ <a href="<%= _area.url %>">Dancors <b><%= _area.name %></b></a></span><% } %>
+  <form class="v3-search" action="/finden" role="search">
+    <label class="vh" for="v3q">Suchen</label>
+    <input type="search" id="v3q" name="q" value="<%= _q %>" placeholder="Downloads, Duden und Rezepte durchsuchen …" autocomplete="off" maxlength="100">
+  </form>
+  <div class="v3-me">
+    <% if (user) { %>
+    <button type="button" class="pill" data-menu="v3menu" aria-haspopup="true" aria-expanded="false">
+      <% if (user.avatar) { %><img class="av" src="/avatar/<%= user.avatar %>" alt=""><% } else { %><span class="av emo" aria-hidden="true">👤</span><% } %>
+      <span><%= user.name %></span><% if (unreadNotify + unreadPm) { %><span class="badge" title="Neu"><%= unreadNotify + unreadPm %></span><% } %>
+    </button>
+    <div class="v3-menu" id="v3menu" hidden>
+      <div class="who"><b><%= user.name %></b>@<%= user.username %></div>
+      <a href="<%= profileUrl(user.username) %>"><span class="emo">👤</span> Mein Profil</a>
+      <a href="/benachrichtigungen"><span class="emo">🔔</span> Benachrichtigungen<% if (unreadNotify) { %> <span class="badge"><%= unreadNotify %></span><% } %></a>
+      <a href="/messenger"><span class="emo">🌼</span> Messenger<% if (unreadPm) { %> <span class="badge"><%= unreadPm %></span><% } %></a>
+      <a href="/rezepte/einkauf"><span class="emo">🛒</span> Einkaufsliste</a>
+      <a href="/konto"><span class="emo">🔑</span> Konto und Passwort</a>
+      <hr>
+      <a href="/desktop"><span class="emo">🖥️</span> Zum Desktop</a>
+      <% if (user.isAdmin) { %><a href="/admin"><span class="emo">⚙️</span> Seitenverwaltung</a><% } %>
+      <hr>
+      <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="next" value="<%= here %>"><button><span class="emo">🚪</span> Abmelden</button></form>
+    </div>
+    <% } else { %>
+    <a class="pill" href="/login?next=<%= encodeURIComponent(here) %>"><span class="emo">🔑</span> Anmelden</a>
+    <% } %>
+  </div>
+</header>
+<% } %>
+<main class="v3-main" id="inhalt">

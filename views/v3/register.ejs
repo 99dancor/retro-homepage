@@ -1,0 +1,17 @@
+<%- include('_head') %>
+<div class="auth-box">
+  <div class="card">
+    <h1>Neues Konto</h1>
+    <p class="muted" style="margin:0 0 16px">Mit Konto siehst du alles für Mitglieder, sammelst Lieblingsrezepte und spielst im Desktop mit.</p>
+    <% if (err) { %><p class="v3-flash err" role="alert"><%= err %></p><% } %>
+    <form method="post" action="/register" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="next" value="<%= next %>">
+      <label class="f">Benutzername <small>3–32 Zeichen: Buchstaben, Zahlen, _ . -</small><input type="text" name="username" value="<%= typeof username === 'string' ? username : '' %>" autocomplete="username" required maxlength="32" pattern="[A-Za-z0-9_.\-]{3,32}"></label>
+      <label class="f">Kennwort <small>mindestens 8 Zeichen</small><input type="password" name="password" autocomplete="new-password" required minlength="8"></label>
+      <label class="f">Kennwort wiederholen <input type="password" name="password2" autocomplete="new-password" required minlength="8"></label>
+      <div class="actions"><button class="pill pri big">Konto anlegen</button><a class="pill" href="/login?next=<%= encodeURIComponent(next || '/') %>">Ich habe schon eins</a></div>
+    </form>
+  </div>
+</div>
+<%- include('_foot') %>

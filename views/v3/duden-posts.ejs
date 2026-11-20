@@ -1,0 +1,16 @@
+<%- include('_head') %>
+<% const d = t => new Date(t * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); %>
+<div class="v3-page">
+  <%- include('_duden-side', { cur: { posts: true } }) %>
+  <div class="v3-content">
+    <h2 class="page-h">Beiträge</h2>
+    <p class="page-sub">Aus dem Blog, zum Lesen ohne Desktop.</p>
+    <% if (!posts.length) { %><div class="card empty-state"><span class="e emo">📭</span>Noch keine Beiträge.</div><% } %>
+    <div class="du-list">
+      <% for (const p of posts) { %>
+      <a class="du-item" href="/duden/beitraege/<%= p.slug %>"><span class="art c-x"><span class="emo">📝</span></span><span style="min-width:0"><h3><%= p.title %></h3><% if (p.summary) { %><p><%= p.summary %></p><% } %><span class="row"><span><%= d(p.created_at) %></span><% if (p.tags) { %><% for (const t of p.tags.split(',').map(s => s.trim()).filter(Boolean)) { %><span class="tag"><%= t %></span><% } %><% } %></span></span></a>
+      <% } %>
+    </div>
+  </div>
+</div>
+<%- include('_foot') %>

@@ -445,7 +445,7 @@ function saveAvatar(buf) {
   return name;
 }
 function removeAvatar(name) {
-  if (name && /^[a-f0-9]{32}\.(png|jpg|gif|webp)$/.test(name)) fs.rm(path.join(AVATAR_DIR, name), { force: true }, () => {});
+  if (name && /^[a-f0-9]{32}\.(png|jpg|gif|webp)$/.test(name)) { try { fs.rmSync(path.join(AVATAR_DIR, name), { force: true }); } catch { /* schon weg */ } }
 }
 
 module.exports = {

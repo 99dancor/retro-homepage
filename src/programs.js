@@ -5,9 +5,9 @@
 
 function menu(user) {
   return [['blog', '/blog', '📝 Blog'],
-    ['dokumente', '📂 Dokumente', [...(user ? [['eigene-dateien', '/eigene-dateien', '🗂️ Eigene Dateien'], ['notizblock', '/notizblock', '🗒️ Notizblock']] : []), ...(user && user.canUpload ? [['upload', '/files/upload', '📤 Hinzufügen']] : []), ['files', '/files', '📁 Downloads'], ['mods', '/mods', '🧩 Modlisten'], ['links', '/links', '🔗 Links'], ['galerie', '/galerie', '🖼️ Galerie']]],
+    ['dokumente', '📂 Dokumente', [...(user ? [['eigene-dateien', '/eigene-dateien', '🗂️ Eigene Dateien'], ['notizblock', '/notizblock', '🗒️ Notizblock']] : []), ...(user && user.canUpload ? [['upload', '/files/upload', '📤 Hinzufügen']] : []), ['files', '/downloads', '📦 Downloads'], ['duden', '/duden', '📚 Duden'], ['links', '/duden/links', '🔗 Links'], ['rezepte', '/rezepte', '🍝 Rezepte'], ['mods', '/mods', '🧩 Modlisten'], ['galerie', '/galerie', '🖼️ Galerie']]],
     ['spiele', '🎮 Spiele und Apps', [['kartenspiele', '/kartenspiele', '🂡 Kartenspiele'], ['quiz', '/quiz', '❓ Quiz'], ['werwolf', '/werwolf', '🐺 Werwolf'], ['minesweeper', '/minesweeper', '💣 Minesweeper'], ['kreuzwortraetsel', '/kreuzwortraetsel', '📰 Kreuzworträtsel'], ['sudoku', '/sudoku', '🔢 Sudoku'], ['paint', '/paint', '🎨 Paint'], ['zufall', '/zufall', '🎲 Zufallsgenerator'], ['musik', '/musik', '📀 Mediaplayer'], ...require('./ds').menuEntries(user), ['apps', '/apps', '🕹️ Andere Games']]],
-    ['haustier', '/haustier/', '🐾 Pixelpfoten'], ['farming', '/farming', '🚜 Farming Simulator'], ['board', '/forum', '💬 Forum'], ['nutzer', '/messenger', '🌼 Messenger'], ['guestbook', '/guestbook', '📖 Besucherbuch'], ['contact', '/contact', '✉️ Kontakt']];
+    ['haustier', '/haustier/', '🐾 Pixelpfoten'], ['farming', '/farming', '🚜 Dancors Dreschplatz'], ['board', '/forum', '💬 Forum'], ['nutzer', '/messenger', '🌼 Messenger'], ['guestbook', '/guestbook', '📖 Besucherbuch'], ['contact', '/contact', '✉️ Kontakt']];
 }
 
 // Symbole, die als Bild gezeichnet werden (retro.css .sym-…): Der Messenger zeigt je nach Design die ICU-Blume oder die
@@ -49,9 +49,9 @@ const CATALOG = [
   { key: 'quiz', group: 'spiele', props: '/admin/quiz', own: true, ...TWO('quiz_enabled', 'quiz_guests') },
   { key: 'werwolf', group: 'spiele', props: '/admin/werwolf', own: true, ...TWO('ww_enabled', 'ww_guests') },
   { key: 'haustier', group: 'spiele', prefixes: ['/haustier'] },
-  { key: 'farming', group: 'spiele', props: '/admin/farming', own: true,
-    get: () => (!flag('fs_enabled') ? 'off' : S().getSetting('fs_view', 'members') === 'public' ? 'all' : 'members'),
-    set: v => { put('fs_enabled', v !== 'off'); if (v !== 'off') S().setSetting('fs_view', v === 'all' ? 'public' : 'members'); } },
+  // Dancors Dreschplatz (Paket fs25hub): Ein und Aus stehen in seinen Einstellungen, verwaltet wird er unter /farming/verwaltung
+  { key: 'farming', group: 'spiele', props: '/farming/verwaltung', own: true,
+    get: () => require('./hub').access(), set: v => require('./hub').setAccess(v) },
   { key: 'apps', group: 'spiele', note: 'hochgeladene HTML5-Spiele', props: '/admin/apps', prefixes: ['/apps'] },
   // DS-Spiele: nie für Gäste (eigene ROM, Spielstand pro Konto); im Startmenü steht jedes Spiel einzeln (ds-<slug>)
   { key: 'ds', group: 'spiele', name: 'DS-Spiele', icon: '🎮', note: 'eigene ROMs, Spielstand pro Mitglied', props: '/admin/ds', opts: ['members', 'off'], prefixes: ['/ds'] },
@@ -75,9 +75,11 @@ const CATALOG = [
     get: () => (!flag('contact_enabled') ? 'off' : access().contact === 'members' ? 'members' : 'all'),
     set: v => { put('contact_enabled', v !== 'off'); setAccess('contact', v === 'members' ? 'members' : 'all'); } },
   { key: 'blog', group: 'inhalte', props: '/admin/posts', prefixes: ['/blog'] },
-  { key: 'files', group: 'inhalte', props: '/admin/files', prefixes: ['/files'] },
+  // Version 3.0: Downloads, Duden und Deliziösitäten haben eigene Seiten (src/routes/downloads.js, duden.js, rezepte.js)
+  { key: 'files', group: 'inhalte', props: '/admin/files', prefixes: ['/downloads', '/files'] },
+  { key: 'duden', group: 'inhalte', note: 'Guides, Wiki und Linksammlungen', props: '/admin/users', prefixes: ['/duden', '/links'] },
+  { key: 'rezepte', group: 'inhalte', note: 'Rezeptbuch', props: '/admin/users', prefixes: ['/rezepte'] },
   { key: 'mods', group: 'inhalte', props: '/admin/mods', prefixes: ['/mods'] },
-  { key: 'links', group: 'inhalte', props: '/admin/links', prefixes: ['/links'] },
 ].map(p => ({ opts: ['all', 'members', 'off'], prefixes: [], ...p }));
 const BY_KEY = new Map(CATALOG.map(p => [p.key, p]));
 function state(key) {
@@ -105,7 +107,11 @@ function gate(req, res, next) {
   if (!p) return next();
   const st = state(p.key);
   if (p.own && st !== 'off') return next();
-  if (st === 'off') return res.status(404).render('error', { title: 'Ausgeschaltet', message: 'Dieses Programm ist gerade ausgeschaltet.' });
+  if (st === 'off') {
+    const v3 = require('./v3');
+    if (v3.isModern(req)) return v3.error(req, res, 404, 'Ausgeschaltet', 'Dieser Bereich ist gerade ausgeschaltet.');
+    return res.status(404).render('error', { title: 'Ausgeschaltet', message: 'Dieses Programm ist gerade ausgeschaltet.' });
+  }
   if (st === 'members' && !req.user) return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
   next();
 }

@@ -1,0 +1,39 @@
+<%- include('_head') %>
+<% const d = t => new Date(t * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); %>
+<% if (ok) { %><p class="v3-flash" role="status"><%= ok %></p><% } %>
+<div class="v3-page">
+  <%- include('_duden-side', { cur: { topic, kind } }) %>
+  <div class="v3-content">
+    <h2 class="page-h"><%= topic || (kind ? KINDS[kind].plural : 'Dancors Duden') %></h2>
+    <p class="page-sub"><%= q ? `${rows.length} Treffer für „${q}“` : kind ? KINDS[kind].hint[0].toUpperCase() + KINDS[kind].hint.slice(1) + '.' : topic ? `${rows.length} ${rows.length === 1 ? 'Eintrag' : 'Einträge'} zum Thema` : 'Guides Schritt für Schritt, Wiki-Artikel zum Nachschlagen und Linksammlungen.' %></p>
+    <form class="v3-tools" action="/duden" role="search">
+      <input type="search" name="q" value="<%= q %>" placeholder="Im Duden suchen …" style="max-width:340px" aria-label="Im Duden suchen">
+      <button class="pill">Suchen</button>
+      <% if (q) { %><a class="pill ghost" href="/duden">✕ Suche löschen</a><% } %>
+    </form>
+    <% if (!rows.length) { %>
+    <div class="card empty-state"><span class="e emo">📭</span><%= q ? 'Nichts gefunden.' : 'Hier steht noch nichts.' %><% if (canWrite && !q) { %><p><a class="pill pri" href="/duden/neu">＋ Ersten Eintrag schreiben</a></p><% } %></div>
+    <% } %>
+    <div class="du-list">
+      <% for (const e of rows) { %>
+      <a class="du-item" href="/duden/<%= e.slug %>">
+        <span class="art c-<%= e.kind === 'links' ? 'dl' : e.kind === 'guide' ? 'du' : 'desk' %>"><span class="emo"><%= e.icon || KINDS[e.kind].icon %></span></span>
+        <span style="min-width:0;flex:1">
+          <h3><%= e.title %></h3>
+          <% if (e.summary) { %><p><%= e.summary %></p><% } %>
+          <span class="row"><span class="tag"><%= KINDS[e.kind].label %></span><span class="tag">🏷️ <%= e.topic %></span><span>aktualisiert <%= d(e.updated_at) %></span><% if (e.visibility !== 'public') { %><span>🔒</span><% } %></span>
+        </span>
+      </a>
+      <% } %>
+    </div>
+    <% if (!q && !topic && !kind && posts.length) { %>
+    <h3 class="sec-h" style="margin-top:22px">Neu im Blog</h3>
+    <div class="du-list">
+      <% for (const p of posts) { %>
+      <a class="du-item" href="/duden/beitraege/<%= p.slug %>"><span class="art c-x"><span class="emo">📝</span></span><span><h3><%= p.title %></h3><% if (p.summary) { %><p><%= p.summary %></p><% } %><span class="row"><span><%= d(p.created_at) %></span></span></span></a>
+      <% } %>
+    </div>
+    <% } %>
+  </div>
+</div>
+<%- include('_foot') %>

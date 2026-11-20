@@ -1,0 +1,49 @@
+<%- include('_head') %>
+<section class="v3-hero">
+  <div>
+    <h1><%= hero.title %></h1>
+    <% if (hero.text) { %><p><%= hero.text %></p><% } %>
+  </div>
+  <% if (services.length) { %>
+  <div class="now" aria-label="Dienste">
+    <% for (const s of services) { %>
+    <a class="chip" href="/dienste" title="<%= s.text || '' %>"><span class="dot <%= s.state === 'up' ? '' : s.state === 'warn' ? 'warn' : 'down' %>"></span><%= s.name %><% if (s.text && s.state === 'up') { %> · <%= s.text.length > 22 ? s.text.slice(0, 21) + '…' : s.text %><% } %></a>
+    <% } %>
+  </div>
+  <% } %>
+</section>
+
+<nav class="tiles" aria-label="Bereiche">
+  <% for (const t of tiles) { %>
+  <a class="tile c-<%= t.color %><%= t.wide ? ' wide' : '' %>" href="<%= t.href %>"<%= /^https:/.test(t.href) ? ' rel="noopener"' : '' %> data-tile="<%= t.key %>">
+    <div class="band">
+      <span class="e emo" aria-hidden="true"><%= t.icon %></span>
+      <h2><% if (t.kicker) { %><small><%= t.kicker %></small><% } %><%= t.title %></h2>
+      <% if (t.key === 'desktop') { %><span class="mini" aria-hidden="true"></span><% } %>
+      <% if (t.locked) { %><span class="lock">🔒 für Mitglieder</span><% } %>
+    </div>
+    <div class="body">
+      <p><%= t.text %></p>
+      <% if (t.meta.length) { %><div class="meta"><% for (const m of t.meta) { %><span><% if (m.dot) { %><i class="dot <%= m.dot === 'up' ? '' : 'off' %>"></i><% } %><%= m.text %></span><% } %></div><% } %>
+    </div>
+  </a>
+  <% } %>
+</nav>
+
+<div class="strip">
+  <section class="box" aria-labelledby="zn">
+    <h3 id="zn">Zuletzt neu</h3>
+    <% if (!recent.length) { %><p class="empty">Hier erscheint, was in Downloads, Duden und Rezepten dazukommt.</p><% } %>
+    <% for (const r of recent) { %>
+    <div class="row"><span class="kind k-<%= r.kind %>"><%= r.label %></span><a href="<%= r.url %>"><%= r.title %></a><span class="when"><%= r.when %></span></div>
+    <% } %>
+  </section>
+  <section class="box" aria-labelledby="vd">
+    <h3 id="vd">Vom Desktop</h3>
+    <% if (!fromDesk.length) { %><p class="empty">Noch nichts Neues.</p><% } %>
+    <% for (const r of fromDesk) { %>
+    <div class="row"><span class="kind k-<%= r.kind %>"><%= r.label %></span><a href="<%= r.url %>"><%= r.title %></a><% if (r.when) { %><span class="when"><%= r.when %></span><% } %></div>
+    <% } %>
+  </section>
+</div>
+<%- include('_foot') %>

@@ -15,13 +15,13 @@ const TREE = [
   ] },
   { key: 'programme', icon: '🎮', label: 'Programme', url: '/admin/programme', kids: [
     ['🂡', 'Kartenspiele', '/admin/programme/kartenspiele'], ['❓', 'Quiz', '/admin/quiz'], ['🐺', 'Werwolf', '/admin/werwolf'],
-    ['🧩', 'Rätsel', '/admin/programme/raetsel'], ['🚜', 'Farming Hub', '/admin/farming'], ['🎨', 'Paint und Galerie', '/admin/paint'],
+    ['🧩', 'Rätsel', '/admin/programme/raetsel'], ['🚜', 'Dancors Dreschplatz', '/farming/verwaltung'], ['🎨', 'Paint und Galerie', '/admin/paint'],
     ['📀', 'Mediaplayer', '/admin/programme/mediaplayer'], ['💬', 'Forum', '/admin/programme/forum'], ['📖', 'Besucherbuch', '/admin/programme/besucherbuch'],
     ['🎮', 'DS-Spiele', '/admin/ds'], ['🕹️', 'Eigene Apps', '/admin/apps'],
   ] },
   { key: 'dienste', icon: '🗄️', label: 'Dienste', url: '/admin/dienste', badge: 'down' },
   { key: 'aussehen', icon: '🎨', label: 'Aussehen', kids: [
-    ['🖌️', 'Design', '/admin/design'], ['🖥️', 'Desktop', '/admin/desktop'], ['🏠', 'Startseite', '/admin/startseite'],
+    ['🖌️', 'Design', '/admin/design'], ['🖥️', 'Desktop', '/admin/desktop'], ['🧱', 'Startseite (Kacheln)', '/admin/kacheln'], ['🏠', 'Desktop-Startseite', '/admin/startseite'],
     ['📢', 'Laufband', '/admin/laufband'], ['💬', 'Popup-Bilder', '/admin/popups', [], 'popups'],
   ] },
   { key: 'system', icon: '⚙️', label: 'System', kids: [
@@ -49,6 +49,7 @@ function current(path) {
 const SEARCH = [
   ...TREE.flatMap(g => [[g.label, '', g.url || (g.kids[0] && g.kids[0].url)], ...g.kids.map(k => [k.label, g.label, k.url])]),
   ['Name der Website', 'Titel Untertitel Statusleiste', '/admin/settings#allgemein'],
+  ['Kacheln der Startseite', 'Portal Version 3.0 Bereiche sortieren ausblenden eigene Kachel Begrüßung', '/admin/kacheln'],
   ['Wartungsmodus', 'Wartung gesperrt offline Baustelle', '/admin/settings#wartung'],
   ['Registrieren erlauben', 'Anmeldung neue Mitglieder Konto anlegen', '/admin/anmelden'],
   ['Anmeldebildschirm', 'Willkommen Logon XP 98 Laden', '/admin/anmelden'],

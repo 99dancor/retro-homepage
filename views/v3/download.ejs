@@ -1,0 +1,73 @@
+<%- include('_head') %>
+<% const d = t => new Date(t * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+   const size = n => { if (n < 1024) return n + ' B'; const u = ['KB', 'MB', 'GB']; let i = -1; do { n /= 1024; i++; } while (n >= 1024 && i < 2); return n.toFixed(n < 10 ? 1 : 0).replace('.', ',') + ' ' + u[i]; };
+   const vlabel = f => f.version ? 'v' + String(f.version).replace(/^v/i, '') : f.original_name; %>
+<p style="margin:18px 0 0"><a href="/downloads">← Alle Downloads</a></p>
+<% if (ok) { %><p class="v3-flash" role="status"><%= ok %></p><% } %>
+<% if (err) { %><p class="v3-flash err" role="alert"><%= err %></p><% } %>
+<div class="v3-page">
+  <div class="v3-content">
+    <section class="card proj-head">
+      <span class="art big c-<%= p.color %>"><% if (p.cover) { %><img src="/media/<%= p.cover %>" alt=""><% } else { %><span class="emo"><%= p.icon %></span><% } %></span>
+      <div class="info">
+        <h1><%= p.title %></h1>
+        <% if (p.summary) { %><p class="lead"><%= p.summary %></p><% } %>
+        <div class="cta">
+          <% if (latest) { %><a class="pill pri big" href="/files/dl/<%= latest.id %>">⬇ <%= latest.version ? 'Version ' + String(latest.version).replace(/^v/i, '') : 'Herunterladen' %> <small style="font-weight:500;opacity:.85">(<%= size(latest.size) %>)</small></a><% } else { %><span class="muted">Noch keine Version hochgeladen.</span><% } %>
+          <% if (versions.length > 1) { %><a class="pill" href="#versionen"><%= versions.length %> Versionen</a><% } %>
+          <% if (canEdit) { %><a class="pill" href="/downloads/<%= p.slug %>/bearbeiten">✎ Bearbeiten</a><% } %>
+        </div>
+        <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">
+          <span class="tag"><%= row.catIcon %> <%= p.category %></span>
+          <% if (p.game) { %><span class="tag">🎮 <%= p.game %></span><% } %>
+          <span class="tag">⬇ <%= row.downloads %> Downloads</span>
+          <span class="tag">Stand <%= d(row.date) %></span>
+          <% if (p.visibility !== 'public') { %><span class="tag">🔒 <%= ({ members: 'Mitglieder', friends: 'Freunde', groups: 'Gruppen', private: 'privat' })[p.visibility] %></span><% } %>
+          <% if (owner) { %><span class="tag">von <%= owner.display_name || owner.username %></span><% } %>
+        </div>
+      </div>
+    </section>
+
+    <% if (shots.length) { %>
+    <div class="shots" aria-label="Bilder"><% for (const s of shots) { %><a href="/media/<%= s %>" target="_blank" rel="noopener"><img src="/media/<%= s %>" alt="" loading="lazy"></a><% } %></div>
+    <% } %>
+
+    <% if (p.body_md.trim()) { %><section class="card" style="margin-top:14px"><h2 class="sec-h">Beschreibung</h2><div class="prose"><%- body %></div></section><% } %>
+    <% if (p.howto_md.trim()) { %><section class="card" style="margin-top:14px" id="anleitung"><h2 class="sec-h">Anleitung</h2><div class="prose"><%- howto %></div></section><% } %>
+
+    <section class="card" style="margin-top:14px" id="versionen">
+      <h2 class="sec-h">Versionen</h2>
+      <% if (!versions.length) { %><p class="muted" style="margin:0">Noch keine.</p><% } %>
+      <ul class="vers">
+        <% versions.forEach((f, i) => { %>
+        <li>
+          <div class="vh2">
+            <b><%= vlabel(f) %></b><% if (i === 0) { %><span class="ver">aktuell</span><% } %>
+            <span class="muted" style="font-size:13px"><%= d(f.created_at) %> · <%= size(f.size) %> · <%= f.downloads %>× geladen</span>
+            <span class="act">
+              <a class="pill small<%= i === 0 ? ' pri' : '' %>" href="/files/dl/<%= f.id %>">⬇ Laden</a>
+              <% if (canEdit) { %><form method="post" action="/downloads/<%= p.slug %>/version/<%= f.id %>/loeschen" data-confirm="Version <%= vlabel(f) %> wirklich löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="pill small danger" title="Version löschen">🗑</button></form><% } %>
+            </span>
+          </div>
+          <% if (changes[i]) { %><div class="chg prose"><%- changes[i] %></div><% } %>
+        </li>
+        <% }) %>
+      </ul>
+      <% if (canEdit) { %>
+      <details style="margin-top:14px"<%= !versions.length ? ' open' : '' %>>
+        <summary class="pill" style="display:inline-flex">＋ Neue Version hochladen</summary>
+        <form method="post" action="/downloads/<%= p.slug %>/version" enctype="multipart/form-data" class="stack" style="margin-top:12px">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <div class="grid2">
+            <label class="f">Datei <small>höchstens <%= maxMb %> MB</small><input type="file" name="file" required></label>
+            <label class="f">Version <small>zum Beispiel 2.1</small><input type="text" name="version" maxlength="30" placeholder="<%= latest && latest.version ? latest.version : '1.0' %>"></label>
+          </div>
+          <label class="f">Was ist neu? <small>eine Zeile je Änderung, mit „- “ davor wird es eine Liste</small><textarea name="changes" rows="4" placeholder="- Neu: …&#10;- Behoben: …"></textarea></label>
+          <div class="actions"><button class="pill pri">Hochladen</button><span class="hint">Die bisherigen Versionen bleiben ladbar.</span></div>
+        </form>
+      </details>
+      <% } %>
+    </section>
+  </div>
+</div>
+<%- include('_foot') %>

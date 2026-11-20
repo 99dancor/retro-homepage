@@ -3236,19 +3236,6 @@ body.embed:has(.konto) > .body { height: 100vh; box-sizing: border-box; display:
 .konto-foot .def { font-weight: bold; }
 @media (max-width: 560px) { .konto-two { grid-template-columns: 1fr; } .konto-who td { display: block; width: auto !important; } }
 
-/* ===== Farming Simulator Hub: eigenes Spielmenü-Design in public/fshub.css (nur in views/fshub geladen) ===== */
-
-/* Seitenverwaltung → Farming */
-.fs-admin-feeds td { vertical-align: middle; }
-.fs-admin-feeds input[name^=url_] { min-width: 320px; }
-.fs-admin-ftp { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
-.fs-admin-ftp label { display: flex; gap: 6px; align-items: center; }
-.fs-admin-row { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
-.fs-slot-on td { background: rgba(0, 128, 0, .08); font-weight: bold; }
-.fs-months { display: inline-flex; flex-wrap: wrap; gap: 0 4px; font-size: 11px; align-items: center; }
-.fs-months label { display: inline-flex; align-items: center; gap: 1px; }
-.fs-form.row > button, .fs-form .row > button { flex: none; }
-
 /* ==================== Seitenverwaltung 2.0 (views/partials/admin-nav.ejs, admin-head.ejs, public/admin.js) ==================== */
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .nowrap { white-space: nowrap; }

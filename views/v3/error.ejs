@@ -1,0 +1,10 @@
+<%- include('_head') %>
+<div class="auth-box" style="max-width:560px">
+  <div class="card" style="text-align:center">
+    <div class="emo" style="font-size:48px" aria-hidden="true">🧭</div>
+    <h1><%= title %></h1>
+    <p class="muted"><%= message %></p>
+    <div class="actions" style="justify-content:center"><a class="pill pri" href="/">Zur Startseite</a><% if (!user) { %><a class="pill" href="/login?next=<%= encodeURIComponent(here) %>">Anmelden</a><% } %></div>
+  </div>
+</div>
+<%- include('_foot') %>

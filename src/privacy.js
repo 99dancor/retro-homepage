@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 const REPO = 'https://github.com/99dancor/retro-homepage/blob/main/';
+const HUB = 'node_modules/fs25hub/', HUB_REPO = 'https://github.com/99dancor/fs25hub/blob/main/';
 
 // name: [Datei, Text in der ersten Zeile, Anzahl Zeilen]
 const SNIPPETS = {
@@ -123,10 +124,11 @@ const SNIPPETS = {
   wwView: ['src/werwolf.js', 'function roleVisible(r, me, q) {', 8],
   wwChat: ['src/werwolf.js', 'function chat(r, p, b) {', 10],
   wwResults: ['src/db.js', 'CREATE TABLE IF NOT EXISTS ww_results (', 12],
-  fsMembers: ['src/db.js', 'CREATE TABLE IF NOT EXISTS fs_members (', 5],
-  fsSessions: ['src/fshub.js', 'function trackSessions(names) {', 10],
-  fsSessionTable: ['src/db.js', 'CREATE TABLE IF NOT EXISTS fs_sessions (', 6],
-  fsSecret: ['src/routes/admin.js', 'function maskUrl(', 8],
+  // Der Hub ist ein eigenes Paket (github.com/99dancor/fs25hub), sein Code liegt unter node_modules/fs25hub
+  fsMembers: [HUB + 'lib/schema.js', 'CREATE TABLE IF NOT EXISTS fs_members (', 5],
+  fsSessions: [HUB + 'lib/hub.js', 'function trackSessions(names) {', 10],
+  fsSessionTable: [HUB + 'lib/schema.js', 'CREATE TABLE IF NOT EXISTS fs_sessions (', 6],
+  fsSecret: [HUB + 'lib/routes/admin.js', 'function maskUrl(', 8],
   modSuggestions: ['src/db.js', 'CREATE TABLE IF NOT EXISTS mod_suggestions (', 13],
   modLog: ['src/db.js', 'CREATE TABLE IF NOT EXISTS mod_suggestion_log (', 10],
   modActor: ['src/routes/mods.js', 'const actorOf = (req, guestName)', 1],
@@ -171,11 +173,11 @@ function collect(map) {
     const lines = files[file].slice(i, i + count);
     const indent = Math.min(...lines.filter(l => l.trim()).map(l => l.match(/^ */)[0].length));
     out[name] = {
-      file,
+      file: file.startsWith(HUB) ? 'fs25hub/' + file.slice(HUB.length) : file,
       from: i + 1,
       to: i + lines.length,
       code: lines.map(l => l.slice(indent)).join('\n'),
-      url: `${REPO}${file}#L${i + 1}-L${i + lines.length}`,
+      url: `${file.startsWith(HUB) ? HUB_REPO + file.slice(HUB.length) : REPO + file}#L${i + 1}-L${i + lines.length}`,
     };
   }
   return out;

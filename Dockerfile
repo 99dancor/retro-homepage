@@ -27,7 +27,6 @@ COPY views ./views
 COPY public ./public
 COPY --from=dscore /w/public/ds-core ./public/ds-core
 COPY games/haustier/src ./games/haustier/src
-COPY games/fs25-export ./games/fs25-export
 COPY CHANGELOG.md ./
 
 RUN mkdir -p /data

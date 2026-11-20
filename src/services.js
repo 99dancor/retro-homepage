@@ -33,7 +33,7 @@ const KINDS = {
     fields: ['host', 'port'], port: 25565, placeholder: '192.168.1.10' },
   steam: { name: 'Steam-Spieleserver', icon: '🎮', hint: 'Valheim, CS2, ARK, Rust, Satisfactory …: Spieler und Karte (Steam-Abfrage A2S)',
     fields: ['host', 'port'], port: 27015, placeholder: '192.168.1.10' },
-  fs25: { name: 'Farming Simulator 25', icon: '🚜', hint: 'Der Server aus dem Farming Hub, ohne weitere Angaben', fields: [] },
+  fs25: { name: 'Farming Simulator 25', icon: '🚜', hint: 'Der Server aus Dancors Dreschplatz (Hub), ohne weitere Angaben', fields: [] },
   http: { name: 'Website', icon: '🌐', hint: 'Antwortet eine Adresse? Für alles mit Weboberfläche', fields: ['url', 'slow', 'insecure'], placeholder: 'http://192.168.1.10:8080' },
   tcp: { name: 'TCP-Port', icon: '🔌', hint: 'Nimmt ein Port Verbindungen an? Für alles ohne Weboberfläche', fields: ['host', 'port'], placeholder: '192.168.1.10' },
 };
@@ -252,10 +252,11 @@ const CHECKS = {
       server: r.info.name.slice(0, 80), version: r.info.version.slice(0, 30), password: r.info.password } };
   },
   async fs25() {
-    const feeds = require('./fsfeeds');
-    if (!feeds.configured('stats')) return { state: 'down', error: 'Im Farming Hub ist keine Stats-Adresse eingetragen', info: {} };
-    const st = feeds.status('stats'), d = st.data;
-    const fresh = st.ok_at && now() - st.ok_at < Math.max(180, feeds.interval('stats') * 3);
+    // Letzter Stand des Stats-Feeds aus dem Hub (Paket fs25hub, src/hub.js)
+    const st = require('./hub').serverStatus();
+    if (!st) return { state: 'down', error: 'Im Hub ist keine Stats-Adresse eingetragen', info: {} };
+    const d = st.data;
+    const fresh = st.okAt && now() - st.okAt < Math.max(180, st.interval * 3);
     if (!fresh || !d) return { state: 'down', error: st.error || 'Der Server antwortet dem Hub nicht', info: {} };
     return { state: 'up', ms: null, info: { players: d.players.length, max: d.capacity, map: d.map, server: d.name, version: d.version } };
   },

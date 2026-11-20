@@ -161,6 +161,6 @@ setInterval(() => db.prepare('DELETE FROM sessions WHERE expires < ?').run(now()
 
 module.exports = {
   hashPassword, checkPassword, createUser, validUsername, validPassword,
-  startSession, endSession, loadUser, csrfCheck, requireLogin, requireAdmin,
+  startSession, endSession, loadUser, csrfCheck, csrfValid, requireLogin, requireAdmin,
   canSee, visibilitySql, setAcl, getAcl, rateLimit, secureFor, isFriend,
 };

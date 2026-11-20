@@ -16,7 +16,7 @@ const KINDS = {
   galerie: { label: '🖼️ Galerie (Kommentare zu deinen Bildern, neue Bilder in deinen Alben)', site: true, push: false },
   modliste: { label: '💡 Vorschläge zu deinen Modlisten', site: true, push: false },
   daily: { label: '📅 Tägliche Aktionen (Besuchsserie, Tagesfrage)', site: true, push: false },
-  fshub: { label: '🚜 Farming Simulator Hub (Aufgaben, Server, Vorschläge)', site: true, push: false },
+  fshub: { label: '🚜 Dancors Dreschplatz (Aufgaben, Server, Vorschläge)', site: true, push: false },
   vorschlag: { label: '🔗 Deine Link-Vorschläge (fertig geladen, abgelehnt)', site: true, push: true },
   dienste: { label: '🗄️ Dienst wieder erreichbar („Sag Bescheid“)', site: true, push: true },
   jellyfin: { label: '🎬 Jellyfin (Antwort auf deine Zugangsanfrage)', site: true, push: true },

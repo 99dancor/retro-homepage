@@ -59,7 +59,7 @@
     <% if (has('insecure')) { %>
     <label class="inline"><input type="checkbox" name="insecure" value="1" <%= c.insecure ? 'checked' : '' %>> Selbst signiertes Zertifikat annehmen (nur für Adressen im eigenen Netz)</label>
     <% } %>
-    <% if (svc.kind === 'fs25') { %><p><small>Nimmt den Server aus dem <a href="/admin/farming">Farming Hub</a>, ohne weitere Angaben.</small></p><% } %>
+    <% if (svc.kind === 'fs25') { %><p><small>Nimmt den Server aus dem <a href="/farming/verwaltung?tab=server">Hub</a>, ohne weitere Angaben.</small></p><% } %>
     <div class="actions"><button type="button" data-svc-test>🔌 Jetzt testen</button> <span class="svc-result" data-svc-result role="status" aria-live="polite"></span></div>
   </fieldset>
 

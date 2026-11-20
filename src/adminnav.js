@@ -15,7 +15,7 @@ const TREE = [
   ] },
   { key: 'programme', icon: '🎮', label: 'Programme', url: '/admin/programme', kids: [
     ['🂡', 'Kartenspiele', '/admin/programme/kartenspiele'], ['❓', 'Quiz', '/admin/quiz'], ['🐺', 'Werwolf', '/admin/werwolf'],
-    ['🧩', 'Rätsel', '/admin/programme/raetsel'], ['🚜', 'Farming Hub', '/admin/farming'], ['🎨', 'Paint und Galerie', '/admin/paint'],
+    ['🧩', 'Rätsel', '/admin/programme/raetsel'], ['🚜', 'Dancors Dreschplatz', '/farming/verwaltung'], ['🎨', 'Paint und Galerie', '/admin/paint'],
     ['📀', 'Mediaplayer', '/admin/programme/mediaplayer'], ['💬', 'Forum', '/admin/programme/forum'], ['📖', 'Besucherbuch', '/admin/programme/besucherbuch'],
     ['🎮', 'DS-Spiele', '/admin/ds'], ['🕹️', 'Eigene Apps', '/admin/apps'],
   ] },

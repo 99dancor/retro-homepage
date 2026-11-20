@@ -1,7 +1,7 @@
 'use strict';
 // Seitenverwaltung 2.0 (Baum in src/adminnav.js): Übersicht, Programme mit Eigenschaften, Dienste, Aussehen (Startseite,
 // Laufband, Popup-Bilder), Postfach und System (Allgemein, Anmelden, E-Mail, Ereignisanzeige, Info). Inhalte, Mitglieder,
-// Design, Desktop und die Programme mit eigener Seite (Quiz, Werwolf, Paint, Farming) stehen weiter in src/routes/admin.js.
+// Design, Desktop und die Programme mit eigener Seite (Quiz, Werwolf, Paint) stehen weiter in src/routes/admin.js; der Hub hat seine Verwaltung selbst.
 // Jede Seite speichert nur ihre eigenen Schalter: Ein Häkchen, das auf einer Seite fehlt, schaltet woanders nichts aus.
 const express = require('express');
 const { db, now, getSetting, setSetting } = require('../db');

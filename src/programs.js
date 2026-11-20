@@ -7,7 +7,7 @@ function menu(user) {
   return [['blog', '/blog', '📝 Blog'],
     ['dokumente', '📂 Dokumente', [...(user ? [['eigene-dateien', '/eigene-dateien', '🗂️ Eigene Dateien'], ['notizblock', '/notizblock', '🗒️ Notizblock']] : []), ...(user && user.canUpload ? [['upload', '/files/upload', '📤 Hinzufügen']] : []), ['files', '/files', '📁 Downloads'], ['mods', '/mods', '🧩 Modlisten'], ['links', '/links', '🔗 Links'], ['galerie', '/galerie', '🖼️ Galerie']]],
     ['spiele', '🎮 Spiele und Apps', [['kartenspiele', '/kartenspiele', '🂡 Kartenspiele'], ['quiz', '/quiz', '❓ Quiz'], ['werwolf', '/werwolf', '🐺 Werwolf'], ['minesweeper', '/minesweeper', '💣 Minesweeper'], ['kreuzwortraetsel', '/kreuzwortraetsel', '📰 Kreuzworträtsel'], ['sudoku', '/sudoku', '🔢 Sudoku'], ['paint', '/paint', '🎨 Paint'], ['zufall', '/zufall', '🎲 Zufallsgenerator'], ['musik', '/musik', '📀 Mediaplayer'], ...require('./ds').menuEntries(user), ['apps', '/apps', '🕹️ Andere Games']]],
-    ['haustier', '/haustier/', '🐾 Pixelpfoten'], ['farming', '/farming', '🚜 Farming Simulator'], ['board', '/forum', '💬 Forum'], ['nutzer', '/messenger', '🌼 Messenger'], ['guestbook', '/guestbook', '📖 Besucherbuch'], ['contact', '/contact', '✉️ Kontakt']];
+    ['haustier', '/haustier/', '🐾 Pixelpfoten'], ['farming', '/farming', '🚜 Dancors Dreschplatz'], ['board', '/forum', '💬 Forum'], ['nutzer', '/messenger', '🌼 Messenger'], ['guestbook', '/guestbook', '📖 Besucherbuch'], ['contact', '/contact', '✉️ Kontakt']];
 }
 
 // Symbole, die als Bild gezeichnet werden (retro.css .sym-…): Der Messenger zeigt je nach Design die ICU-Blume oder die
@@ -49,9 +49,9 @@ const CATALOG = [
   { key: 'quiz', group: 'spiele', props: '/admin/quiz', own: true, ...TWO('quiz_enabled', 'quiz_guests') },
   { key: 'werwolf', group: 'spiele', props: '/admin/werwolf', own: true, ...TWO('ww_enabled', 'ww_guests') },
   { key: 'haustier', group: 'spiele', prefixes: ['/haustier'] },
-  { key: 'farming', group: 'spiele', props: '/admin/farming', own: true,
-    get: () => (!flag('fs_enabled') ? 'off' : S().getSetting('fs_view', 'members') === 'public' ? 'all' : 'members'),
-    set: v => { put('fs_enabled', v !== 'off'); if (v !== 'off') S().setSetting('fs_view', v === 'all' ? 'public' : 'members'); } },
+  // Dancors Dreschplatz (Paket fs25hub): Ein und Aus stehen in seinen Einstellungen, verwaltet wird er unter /farming/verwaltung
+  { key: 'farming', group: 'spiele', props: '/farming/verwaltung', own: true,
+    get: () => require('./hub').access(), set: v => require('./hub').setAccess(v) },
   { key: 'apps', group: 'spiele', note: 'hochgeladene HTML5-Spiele', props: '/admin/apps', prefixes: ['/apps'] },
   // DS-Spiele: nie für Gäste (eigene ROM, Spielstand pro Konto); im Startmenü steht jedes Spiel einzeln (ds-<slug>)
   { key: 'ds', group: 'spiele', name: 'DS-Spiele', icon: '🎮', note: 'eigene ROMs, Spielstand pro Mitglied', props: '/admin/ds', opts: ['members', 'off'], prefixes: ['/ds'] },

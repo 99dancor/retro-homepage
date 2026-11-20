@@ -69,7 +69,7 @@ function parse(text) {
   return { no: h.no, date: h.date, title: h.title, items };
 }
 
-// Alle Einträge mit vollem Text der Punkte (für den Changelog des Farming Hubs)
+// Alle Einträge mit vollem Text der Punkte (Info und Updates, Statusseite)
 function sections(text) {
   const out = [];
   let cur = null;

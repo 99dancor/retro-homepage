@@ -122,7 +122,7 @@ async function storeRom(tmp, size) {
 }
 function removeRomIfUnused(file) {
   if (!file || db.prepare('SELECT 1 FROM ds_games WHERE file = ?').get(file)) return;
-  fs.rm(path.join(DS_DIR, path.basename(file)), { force: true }, () => {});
+  try { fs.rmSync(path.join(DS_DIR, path.basename(file)), { force: true }); } catch { /* schon weg */ }
 }
 
 function create({ title, icon, visibility, inMenu, rom }) {

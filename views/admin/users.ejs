@@ -3,13 +3,14 @@
 <div class="row">
 <fieldset class="groupbox" style="flex:2"><legend>👥 Nutzer</legend>
   <table class="list">
-    <tr><th>Name</th><th>Rolle</th><th>Gruppen</th><th>Upload</th><th>Letzter Login</th></tr>
+    <tr><th>Name</th><th>Rolle</th><th>Gruppen</th><th>Upload</th><th>Schreiben</th><th>Letzter Login</th></tr>
     <% for (const u of users) { %>
     <tr style="<%= u.disabled ? 'opacity:.5' : '' %>">
       <td><a href="/admin/users/<%= u.id %>"><b><%= u.username %></b></a><% if (u.display_name) { %> <small>„<%= u.display_name %>“</small><% } %><%= u.disabled ? ' (gesperrt)' : '' %></td>
       <td><%= u.role === 'admin' ? 'Admin' : 'Nutzer' %></td>
       <td><%= u.group_names || '–' %></td>
       <td><%= u.role === 'admin' || u.can_upload ? '✔' : '' %></td>
+      <td><%= u.role === 'admin' || u.can_write ? '✔' : '' %></td>
       <td><%= u.last_login ? fmtDate(u.last_login, true) : 'nie' %></td>
     </tr>
     <% } %>

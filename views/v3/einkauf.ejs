@@ -1,0 +1,38 @@
+<%- include('_head') %>
+<% const row = i => { %>
+  <li class="<%= i.done ? 'done' : '' %>" data-shop-row>
+    <input type="checkbox" data-shop-ids="<%= i.ids.join(',') %>"<%= i.done ? ' checked' : '' %> aria-label="<%= i.name %> abhaken" id="s-<%= i.ids[0] %>">
+    <label class="what" for="s-<%= i.ids[0] %>" style="flex:1;min-width:0;display:flex;gap:10px;align-items:baseline;cursor:pointer">
+      <span class="amt"><%= i.amountText %> <%= i.unit %><%= i.uncounted && i.counted ? ' +' : '' %></span>
+      <span style="min-width:0"><b style="font-weight:600"><%= i.name %></b><% if (i.from.length) { %><br><span class="from">für <% i.from.forEach((f, k) => { %><%= k ? ', ' : '' %><a href="/rezepte/<%= f.slug %>"><%= f.title %></a><% }) %></span><% } %></span>
+    </label>
+  </li>
+<% }; %>
+<p class="noprint" style="margin:18px 0 0"><a href="/rezepte">← Alle Rezepte</a></p>
+<div class="card" style="margin-top:12px;max-width:760px">
+  <h1 style="margin:0 0 4px;font-size:26px">🛒 Einkaufsliste</h1>
+  <p class="muted" style="margin:0 0 16px">Gleiche Zutaten mit gleicher Einheit zählt die Liste zusammen. Abhaken geht auch am Handy im Laden.</p>
+  <% if (ok === 'leer') { %><p class="v3-flash" role="status">Die Liste ist leer.</p><% } %>
+  <form method="post" action="/rezepte/einkauf" class="noprint" style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <input type="text" name="text" placeholder="Etwas dazuschreiben, z. B. 1 l Milch" maxlength="200" required style="flex:1;min-width:200px" aria-label="Was fehlt noch?">
+    <button class="pill pri">＋ Dazu</button>
+  </form>
+  <% if (!items.length) { %>
+  <div class="empty-state" style="padding:20px 0"><span class="e emo">🧺</span>Noch nichts auf der Liste. Bei jedem Rezept gibt es „Auf die Einkaufsliste“.</div>
+  <% } %>
+  <ul class="shop" data-shop data-csrf="<%= csrf %>"><% for (const i of open) row(i); %></ul>
+  <% if (done.length) { %>
+  <h3 class="sec-h" style="margin-top:18px">Im Korb</h3>
+  <ul class="shop"><% for (const i of done) row(i); %></ul>
+  <% } %>
+  <% if (items.length) { %>
+  <div class="actions noprint" style="margin-top:18px">
+    <button type="button" class="pill" data-print>🖨 Drucken</button>
+    <% if (done.length) { %><form method="post" action="/rezepte/einkauf/aufraeumen"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="pill">🧹 Abgehakte entfernen</button></form><% } %>
+    <form method="post" action="/rezepte/einkauf/leeren" data-confirm="Die ganze Einkaufsliste leeren?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="pill danger">🗑 Liste leeren</button></form>
+  </div>
+  <% } %>
+</div>
+<script src="<%= asset('rezept.js') %>" defer></script>
+<%- include('_foot') %>

@@ -311,7 +311,7 @@ router.post('/freigaben/paint/:id/:what', (req, res, next) => {
 
 // ---------- Aussehen → Startseite ----------
 router.get('/startseite', (req, res) => {
-  res.render('admin/startseite', { title: 'Startseite', home_md: getSetting('home_md', ''), blocks: homeblocks.list(), FOR: homeblocks.FOR, COLS: homeblocks.COLS });
+  res.render('admin/startseite', { title: 'Desktop-Startseite', home_md: getSetting('home_md', ''), blocks: homeblocks.list(), FOR: homeblocks.FOR, COLS: homeblocks.COLS });
 });
 router.post('/startseite/text', (req, res) => {
   setSetting('home_md', String(req.body.home_md || '').slice(0, 20000));
@@ -322,6 +322,37 @@ router.post('/startseite/bausteine', (req, res) => {
   const [key, dir] = String(req.body.move || '').split(':');
   if (key && (dir === 'up' || dir === 'down')) homeblocks.move(key, dir);
   res.redirect('/admin/startseite?ok=1#bausteine');
+});
+
+// ---------- Aussehen → Startseite (Kacheln), Version 3.0 (src/portal.js) ----------
+router.get('/kacheln', (req, res) => {
+  const portal = require('../portal');
+  res.render('admin/kacheln', {
+    title: 'Startseite (Kacheln)', tiles: portal.tiles(), COLORS: portal.COLORS, SHOW: portal.SHOW, hero: portal.hero(),
+    siteName: getSetting('portal_name', 'dancor.org'), edit: String(req.query.k || ''),
+  });
+});
+router.post('/kacheln', (req, res) => {
+  const portal = require('../portal'), b = req.body;
+  setSetting('portal_name', str(b.portal_name, 40) || 'dancor.org');
+  setSetting('portal_title', str(b.portal_title, 80));
+  setSetting('portal_text', str(b.portal_text, 300));
+  const wide = new Set(asArray(b.wide));
+  let list = asArray(b.order).map(key => ({
+    key, show: b['show_' + key], wide: wide.has(key), icon: b['icon_' + key], kicker: b['kicker_' + key] ?? undefined, title: b['title_' + key],
+    text: b['text_' + key], color: b['color_' + key], url: b['url_' + key],
+  }));
+  const del = String(b.del || '');
+  if (/^k\d+$/.test(del)) list = list.filter(t => t.key !== del);
+  if (b.add) {
+    const n = Math.max(0, ...list.map(t => (/^k(\d+)$/.exec(t.key) || [0, 0])[1]).map(Number)) + 1;
+    list.push({ key: 'k' + n, title: 'Neue Kachel', icon: '⭐', color: 'x', url: '/', text: '', kicker: '', show: 'off' });
+  }
+  const [key, dir] = String(b.move || '').split(':');
+  const i = list.findIndex(t => t.key === key), j = dir === 'up' ? i - 1 : i + 1;
+  if (i >= 0 && j >= 0 && j < list.length) [list[i], list[j]] = [list[j], list[i]];
+  portal.save(list);
+  res.redirect('/admin/kacheln?ok=1' + (b.add ? '#neu' : ''));
 });
 
 // ---------- Aussehen → Laufband ----------

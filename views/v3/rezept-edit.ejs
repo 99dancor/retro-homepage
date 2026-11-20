@@ -1,0 +1,56 @@
+<%- include('_head') %>
+<% const back = r.id ? '/rezepte/' + r.slug : '/rezepte'; %>
+<p style="margin:18px 0 0"><a href="<%= back %>">← <%= r.id ? r.title : 'Alle Rezepte' %></a></p>
+<% if (!r.id) { %>
+<form method="post" action="/rezepte/import" class="card" style="margin-top:12px;display:grid;gap:8px">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <b>🔗 Von einer Rezeptseite übernehmen</b>
+  <span class="muted" style="font-size:13.5px">Viele Rezeptseiten beschreiben ihr Rezept maschinenlesbar. Dann füllt die Seite das Formular aus, du prüfst und speicherst. Bilder werden nicht übernommen.</span>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><input type="url" name="url" value="<%= typeof importUrl !== 'undefined' ? importUrl : '' %>" placeholder="https://…" required style="flex:1;min-width:220px" aria-label="Adresse der Rezeptseite"><button class="pill">Übernehmen</button></div>
+</form>
+<% } %>
+<div class="card" style="margin-top:12px">
+  <h1 style="margin:0 0 4px;font-size:26px"><%= r.id ? 'Rezept bearbeiten' : 'Neues Rezept' %></h1>
+  <p class="muted" style="margin:0 0 16px">Zutaten und Schritte schreibst du einfach untereinander. Mengen erkennt die Seite selbst, damit der Portionsrechner und die Einkaufsliste rechnen können.</p>
+  <% if (err) { %><p class="v3-flash err" role="alert"><%= err %></p><% } %>
+  <% if (imported) { %><p class="v3-flash" role="status">Übernommen. Bitte alles prüfen, vor allem die Mengen, und dann speichern.</p><% } %>
+  <form method="post" action="<%= r.id ? '/rezepte/' + r.slug + '/bearbeiten' : '/rezepte/neu' %>" enctype="multipart/form-data" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div class="grid2">
+      <label class="f">Name <input type="text" name="title" value="<%= r.title || '' %>" required maxlength="140" placeholder="Omas Kartoffelsalat"></label>
+      <label class="f">Adresse <small>/rezepte/…, leer = aus dem Namen</small><input type="text" name="slug" value="<%= r.slug || '' %>" maxlength="80"></label>
+    </div>
+    <label class="f">In einem Satz <input type="text" name="summary" value="<%= r.summary || '' %>" maxlength="280" placeholder="Was macht es besonders?"></label>
+    <div class="grid3">
+      <label class="f">Für <span style="display:flex;gap:6px"><input type="number" name="servings" value="<%= r.servings || 4 %>" min="1" max="100" style="width:80px"><input type="text" name="servings_label" value="<%= r.servings_label || 'Portionen' %>" maxlength="30" aria-label="Einheit, z. B. Portionen oder Stück"></span></label>
+      <label class="f">Arbeitszeit <small>Minuten</small><input type="number" name="prep_min" value="<%= r.prep_min || '' %>" min="0" max="99999"></label>
+      <label class="f">Koch- und Backzeit <small>Minuten</small><input type="number" name="cook_min" value="<%= r.cook_min || '' %>" min="0" max="99999"></label>
+    </div>
+    <div class="grid2">
+      <label class="f">Schlagworte <small>mit Komma</small><input type="text" name="tags" value="<%= r.tags || '' %>" maxlength="300" data-tags placeholder="vegetarisch, schnell"></label>
+      <label class="f">Symbol <small>falls kein Bild</small><input type="text" name="icon" value="<%= r.icon || '' %>" maxlength="8" placeholder="🥗"></label>
+    </div>
+    <div class="actions" style="margin-top:-6px" aria-label="Schlagwort-Ideen"><% for (const t of TAG_IDEAS) { %><button type="button" class="chip" data-tag-idea="<%= t %>">＋ <%= t %></button><% } %></div>
+    <div class="grid2">
+      <label class="f">Zutaten <small>eine je Zeile, z. B. „200 g Mehl“ oder „1 Prise Salz“. Eine Zeile mit Doppelpunkt am Ende ist eine Überschrift („Für den Teig:“).</small>
+        <textarea name="ingredients_text" rows="14" class="mono" placeholder="Für den Teig:&#10;250 g Mehl&#10;2 Eier&#10;1 Prise Salz&#10;&#10;Für die Füllung:&#10;400 g Spinat, frisch"><%= ingredientsText %></textarea></label>
+      <label class="f">Schritte <small>einer je Zeile. Zeiten wie „10 Minuten“ werden im Rezept zu Weckern.</small>
+        <textarea name="steps_text" rows="14" placeholder="Mehl, Eier und Salz zu einem Teig kneten.&#10;Den Teig 30 Minuten ruhen lassen."><%= stepsText %></textarea></label>
+    </div>
+    <div style="display:grid;gap:5px"><b style="font-size:14px">Einleitung und Tipps <small class="muted" style="font-weight:400">optional</small></b>
+      <%- include('../partials/md-editor', { name: 'body_md', value: r.intro_md || '', uploadUrl: '/api/schreiben/bild', previewUrl: '/api/schreiben/vorschau', libraryUrl: null, compact: true }) %></div>
+    <fieldset><legend>Bild</legend>
+      <div class="grid2" style="align-items:end">
+        <label class="f">Foto vom fertigen Gericht <input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+        <% if (r.image) { %><div style="display:flex;gap:12px;align-items:center"><img src="/media/<%= r.image %>" alt="" style="width:90px;height:66px;object-fit:cover;border-radius:10px"><label class="check"><input type="checkbox" name="drop_image" value="1"> Bild entfernen</label></div><% } %>
+      </div>
+    </fieldset>
+    <label class="f">Übernommen von <small>Link zum Original, falls es eins gibt</small><input type="url" name="source_url" value="<%= r.source_url || '' %>" maxlength="1000" placeholder="https://…"></label>
+    <fieldset><legend>Sichtbarkeit</legend><%- include('_visibility') %>
+      <% if (r.id && !(user.isAdmin || r.author_id === user.id)) { %><p class="hint" style="margin:8px 0 0">Die Sichtbarkeit stellt nur der Autor ein. Deine Änderung behält sie bei.</p><% } %></fieldset>
+    <%- include('../partials/drafts-bar', { kind: 'rezept', place: r.id ? 'recipe:' + r.id : 'new' }) %>
+    <div class="actions"><button class="pill pri big">💾 Speichern</button><a class="pill" href="<%= back %>">Abbrechen</a></div>
+  </form>
+</div>
+<script src="<%= asset('rezept.js') %>" defer></script>
+<%- include('_foot') %>

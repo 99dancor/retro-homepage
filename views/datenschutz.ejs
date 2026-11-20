@@ -79,6 +79,7 @@
   <li>Werwolf: ohne Konto der zuletzt gewählte Name und das Bild, außerdem ob der Erzähler auf diesem Gerät vorlesen soll. Die Stimme erzeugt dein Browser bzw. dein Gerät selbst.</li>
   <li>Modlisten: welche Kategorien einer Liste du zugeklappt hast und, wenn du ohne Konto etwas vorschlägst, den Namen, den du dabei angegeben hast.</li>
   <li>Laufband oben: ob du es mit × ausgeblendet hast (bis es etwas Neues gibt: dann steht dort ein kurzer Fingerabdruck der Meldungen). Dienste: ohne Konto, ob du das Widget „Dienste“ ausgeblendet hast, und ob es zugeklappt ist; für den Tab, welche Ausfälle du schon als Sprechblase gesehen hast. Popup-Bilder: wann zuletzt eins kam und wie viele es im laufenden Tab waren. Mehr dazu unter <a href="#dienste">Dienste, Laufband und Popup-Bilder</a>.</li>
+  <li>Auf der Startseite und in Downloads, Duden und Rezepten: ob du „hell“, „dunkel“ oder „wie Gerät“ gewählt hast (unten auf der Seite). Im Kochmodus hält die Seite auf Wunsch den Bildschirm an, solange er offen ist; die Wecker laufen nur im offenen Tab.</li>
   <li>Die Lautstärke für Musik und Effekte (🔊 neben der Uhr), im Mediaplayer die gewählte Visualisierung, ob Videos als Bild oder Visualisierung laufen, Zufall und Wiederholen, die Breite von Aufgabenleiste und Wiedergabeliste und die Höhe des Bilds, das Aussehen (Skin, Seitenleiste, zugeklappte Gruppen, Equalizer; mit Konto zusätzlich am Konto, siehe <a href="#desktop">Einstellungen am Konto</a>), und ob du „YouTube laden“ für diesen Browser merken wolltest. Die eigene Wiedergabeliste liegt nur im offenen Fenster und ist nach dem Schließen weg.</li>
 </ul>
 <details><summary>🔍 Code dazu</summary>
@@ -98,6 +99,7 @@
   <%- code('musicPrefs', 'Der Mediaplayer merkt sich Visualisierung, Bild oder Visualisierung bei Videos, Zufall, Wiederholen, die Größe der Bereiche, Skin, Seitenleiste und Equalizer.') %>
   <%- code('modsLocal', 'Unter <code>modliste:&lt;Nummer&gt;</code> liegen die zugeklappten Kategorien einer Modliste, unter <code>modliste-gast</code> dein Name für Vorschläge ohne Konto.') %>
   <%- code('youtubeKey', 'Hier steht nur „1“, wenn du „Für diesen Browser merken“ angekreuzt hast.') %>
+  <%- code('v3Theme', 'Die neuen Seiten merken sich nur hell oder dunkel unter <code>v3-theme</code>.') %>
 </details>
 
 <h2 id="konto">🔑 Dein Konto</h2>
@@ -222,6 +224,23 @@
 <details><summary>👁 So sieht es der Admin</summary>
   <div class="shots"><%- shot('forum-anonym-andere.png', 'Anonymer Forenbeitrag, wie andere Mitglieder ihn sehen') %>
   <%- shot('forum-anonym-admin.png', 'Derselbe Beitrag, wie der Admin ihn sieht') %></div>
+</details>
+
+<h2 id="bereiche">📚 Downloads, Duden und Rezepte</h2>
+<ul>
+  <li><b>Duden-Einträge und Rezepte</b> schreiben der Admin und Mitglieder mit dem Recht „Schreiben“. Gespeichert werden Titel, Text, Thema oder Schlagworte, Bild, Sichtbarkeit, Zeit, dein Konto als Autor und, wenn jemand anderes etwas verbessert, auch sein Konto. Beide Namen stehen für alle, die den Eintrag sehen dürfen, am Eintrag. Wie oft ein Eintrag aufgerufen wurde, ist nur eine Zahl. Die Sichtbarkeit stellt nur der Autor (und der Admin) ein.</li>
+  <li><b>Wiki-Links</b> wie <code>[[Titel]]</code> werden nur zu Links, wenn du den Eintrag dahinter sehen darfst. So verrät ein öffentlicher Text nicht, welche Einträge es nur für Mitglieder gibt.</li>
+  <li><b>Favoriten und Einkaufsliste</b> (nur mit Konto): welche Rezepte du dir gemerkt hast, und auf der Einkaufsliste jede Zutat mit Menge, Einheit, aus welchem Rezept und ob sie abgehakt ist. Beides sieht nur du. „Abgehakte entfernen“ und „Liste leeren“ löschen die Einträge sofort, mit deinem Konto verschwinden beide ganz.</li>
+  <li><b>Rezept von einer Seite übernehmen:</b> Die Rezeptseite ruft der Server ab, nicht dein Browser, und nur Seiten im Internet, keine Adressen im Heimnetz. Die Gegenseite sieht die Adresse unseres Anschlusses, über dich geht nichts mit. Gespeichert wird nur, was du danach im Formular speicherst, dazu der Link zum Original.</li>
+  <li><b>Download-Projekte:</b> Name, Beschreibung, Anleitung, Bilder, Versionen mit Änderungen, Sichtbarkeit und das Konto, das das Projekt angelegt hat (sein Name steht auf der Projektseite). Downloads werden wie bisher nur als Zahl gezählt.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('duden', 'Diese Spalten hat ein Eintrag im Duden.') %>
+  <%- code('wikiLinks', 'Wiki-Links zeigen nur auf Einträge, die du sehen darfst.') %>
+  <%- code('recipeFavs', 'Ein Favorit ist nur Konto, Rezept und Zeit.') %>
+  <%- code('shopping', 'So sieht ein Eintrag auf der Einkaufsliste aus.') %>
+  <%- code('recipeImport', 'Vor dem Abruf prüft der Server die Adresse wie bei den Link-Vorschlägen und folgt Weiterleitungen nur nach erneuter Prüfung.') %>
+  <%- code('dlProjects', 'Diese Spalten hat ein Projekt in den Downloads.') %>
 </details>
 
 <h2 id="musik">🎵 Musik und Videos</h2>

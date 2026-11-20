@@ -1,0 +1,18 @@
+<%- include('_head') %>
+<div class="auth-box">
+  <div class="card">
+    <h1>Anmelden</h1>
+    <p class="muted" style="margin:0 0 16px">Einmal anmelden gilt für alles: Startseite, Bereiche, Desktop und Hub.</p>
+    <% if (err) { %><p class="v3-flash err" role="alert"><%= err %></p><% } %>
+    <form method="post" action="/login" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="next" value="<%= next %>">
+      <label class="f">Benutzername <input type="text" name="username" autocomplete="username" required autofocus maxlength="32"></label>
+      <label class="f">Kennwort <input type="password" name="password" autocomplete="current-password" required></label>
+      <div class="actions"><button class="pill pri big">Anmelden</button>
+        <% if (registrationOpen) { %><a class="pill" href="/register?next=<%= encodeURIComponent(next || '/') %>">Neues Konto</a><% } %></div>
+    </form>
+  </div>
+  <p class="muted" style="text-align:center;font-size:13px">Lieber im Retro-Look? <a href="/desktop">Zum Desktop mit Anmeldebildschirm</a></p>
+</div>
+<%- include('_foot') %>

@@ -1,0 +1,50 @@
+<%- include('_head') %>
+<% const d = t => new Date(t * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+   const K = KINDS[e.kind] || { label: 'Beitrag', icon: '📝' };
+   const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } }; %>
+<% if (ok) { %><p class="v3-flash" role="status"><%= ok %></p><% } %>
+<div class="v3-page">
+  <%- include('_duden-side', { cur: e.kind === 'post' ? { posts: true } : { topic: e.topic } }) %>
+  <article class="v3-content du-article">
+    <div class="card">
+      <div class="by">
+        <span class="tag"><%= K.icon %> <%= K.label %></span>
+        <% if (e.kind !== 'post') { %><a class="tag" href="/duden?thema=<%= encodeURIComponent(e.topic) %>">🏷️ <%= e.topic %></a><% } %>
+        <span><%= e.updated_at > e.created_at + 3600 ? 'aktualisiert ' + d(e.updated_at) : d(e.created_at) %></span>
+        <% if (author) { %><span>von <a href="<%= profileUrl(author.username) %>"><%= author.display_name || author.username %></a><% if (editor) { %>, verbessert von <a href="<%= profileUrl(editor.username) %>"><%= editor.display_name || editor.username %></a><% } %></span><% } %>
+        <% if (e.visibility && e.visibility !== 'public') { %><span>🔒 <%= ({ members: 'Mitglieder', friends: 'Freunde', groups: 'Gruppen', private: 'privat' })[e.visibility] %></span><% } %>
+      </div>
+      <h1><% if (e.icon) { %><span class="emo"><%= e.icon %></span> <% } %><%= e.title %></h1>
+      <% if (e.summary) { %><p class="lead" style="font-size:17px;color:var(--text-2);margin:0 0 16px"><%= e.summary %></p><% } %>
+      <% if (canEdit || canDelete || deskUrl) { %>
+      <div class="actions noprint" style="margin:0 0 16px">
+        <% if (canEdit) { %><a class="pill small" href="/duden/<%= e.slug %>/bearbeiten">✎ Bearbeiten</a><% } %>
+        <% if (canDelete) { %><form method="post" action="/duden/<%= e.slug %>/loeschen" data-confirm="„<%= e.title %>“ wirklich löschen?<%= e.kind === 'links' ? ' Die Links der Sammlung gehen mit.' : '' %>"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="pill small danger">🗑 Löschen</button></form><% } %>
+        <% if (deskUrl) { %><a class="pill small" href="<%= deskUrl %>">💬 Im Blog des Desktops öffnen</a><% } %>
+      </div>
+      <% } %>
+      <div class="prose" id="artikel"><%- html %></div>
+      <% if (e.kind === 'links') { %>
+      <% if (!links.length) { %><p class="muted">In dieser Sammlung ist noch kein Link.</p><% } %>
+      <ul class="links-list">
+        <% for (const l of links) { %>
+        <li><span class="emo" aria-hidden="true">🔗</span><span style="min-width:0"><b><a href="<%= l.url %>" target="_blank" rel="noopener"><%= l.title %></a></b><% if (l.description) { %><span><%= l.description %></span><% } %><small><%= host(l.url) %></small></span></li>
+        <% } %>
+      </ul>
+      <% } %>
+    </div>
+  </article>
+  <aside class="v3-rail">
+    <div class="card" data-toc-wrap>
+      <h3 class="sec-h">Inhalt</h3>
+      <ol data-toc="#artikel"></ol>
+    </div>
+    <% if (related.length) { %>
+    <div class="card">
+      <h3 class="sec-h"><%= e.kind === 'post' ? 'Weitere Beiträge' : 'Mehr zu ' + e.topic %></h3>
+      <ul><% for (const r of related) { %><li><a href="<%= r.url %>"><%= r.title %></a></li><% } %></ul>
+    </div>
+    <% } %>
+  </aside>
+</div>
+<%- include('_foot') %>

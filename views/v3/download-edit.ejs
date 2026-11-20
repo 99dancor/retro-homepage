@@ -1,0 +1,52 @@
+<%- include('_head') %>
+<p style="margin:18px 0 0"><a href="<%= p.id ? '/downloads/' + p.slug : '/downloads' %>">← <%= p.id ? p.title : 'Alle Downloads' %></a></p>
+<div class="card" style="margin-top:12px">
+  <h1 style="margin:0 0 4px;font-size:26px"><%= p.id ? 'Projekt bearbeiten' : 'Neues Projekt' %></h1>
+  <p class="muted" style="margin:0 0 16px">Ein Projekt ist ein Download mit Beschreibung, Bildern, Anleitung und mehreren Versionen.</p>
+  <% if (err) { %><p class="v3-flash err" role="alert"><%= err %></p><% } %>
+  <form method="post" action="<%= p.id ? '/downloads/' + p.slug + '/bearbeiten' : '/downloads/neues-projekt' %>" enctype="multipart/form-data" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div class="grid2">
+      <label class="f">Name <input type="text" name="title" value="<%= p.title || '' %>" required maxlength="120" placeholder="Dancors Widget"></label>
+      <label class="f">Adresse <small>/downloads/…, leer = aus dem Namen</small><input type="text" name="slug" value="<%= p.slug || '' %>" maxlength="80"></label>
+    </div>
+    <label class="f">In einem Satz <input type="text" name="summary" value="<%= p.summary || '' %>" maxlength="240" placeholder="Wofür ist das gut?"></label>
+    <div class="grid3">
+      <label class="f">Symbol <input type="text" name="icon" value="<%= p.icon || '📦' %>" maxlength="8"></label>
+      <label class="f">Farbe <select name="color"><% for (const [k, l] of Object.entries(COLORS)) { %><option value="<%= k %>"<%= p.color === k ? ' selected' : '' %>><%= l %></option><% } %></select></label>
+      <label class="f">Kategorie <select name="category"><% for (const c of cats) { %><option value="<%= c.name %>"<%= p.category === c.name ? ' selected' : '' %>><%= c.icon %> <%= c.name %></option><% } %></select></label>
+    </div>
+    <label class="f">Spiel <small>nur bei Kategorien mit Spiel, z. B. Mods und Spielstände</small><input type="text" name="game" value="<%= p.game || '' %>" maxlength="100"></label>
+    <div class="f" style="display:grid;gap:5px"><b style="font-size:14px">Beschreibung</b>
+      <%- include('../partials/md-editor', { name: 'body_md', value: p.body_md || '', uploadUrl: '/api/schreiben/bild', previewUrl: '/api/schreiben/vorschau', libraryUrl: null, compact: true }) %></div>
+    <label class="f">Anleitung <small>Installieren, Einrichten … (Markdown)</small><textarea name="howto_md" rows="6" class="mono"><%= p.howto_md || '' %></textarea></label>
+    <fieldset><legend>Bilder</legend>
+      <div class="grid2">
+        <label class="f">Titelbild <small>quadratisch wirkt am besten</small><input type="file" name="cover" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+        <label class="f">Weitere Bilder <small>Bildschirmfotos, bis zu 10 auf einmal</small><input type="file" name="shots" accept="image/png,image/jpeg,image/webp,image/gif" multiple></label>
+      </div>
+      <% if (p.cover) { %><label class="check" style="margin-top:10px"><input type="checkbox" name="drop_cover" value="1"> Titelbild entfernen</label><% } %>
+      <% if (shots.length) { %><div class="shots"><% for (const s of shots) { %><label style="display:grid;gap:4px;font-size:13px"><img src="/media/<%= s %>" alt=""><span class="check"><input type="checkbox" name="drop_shots" value="<%= s %>"> entfernen</span></label><% } %></div><% } %>
+    </fieldset>
+    <% if (!p.id) { %>
+    <fieldset><legend>Erste Version <small class="muted">(geht auch später)</small></legend>
+      <div class="grid2">
+        <label class="f">Datei <input type="file" name="file"></label>
+        <label class="f">Version <input type="text" name="version" maxlength="30" placeholder="1.0"></label>
+      </div>
+      <label class="f" style="margin-top:10px">Was ist drin? <textarea name="changes" rows="3"></textarea></label>
+    </fieldset>
+    <% } %>
+    <fieldset><legend>Sichtbarkeit</legend>
+      <%- include('_visibility') %>
+      <% if (user.isAdmin) { %><label class="check" style="margin-top:10px"><input type="checkbox" name="featured" value="1"<%= p.featured ? ' checked' : '' %>> ⭐ Oben bei den Projekten hervorheben</label><% } %>
+    </fieldset>
+    <div class="actions"><button class="pill pri big">💾 Speichern</button><a class="pill" href="<%= p.id ? '/downloads/' + p.slug : '/downloads' %>">Abbrechen</a></div>
+  </form>
+  <% if (p.id) { %>
+  <form method="post" action="/downloads/<%= p.slug %>/loeschen" data-confirm="Projekt „<%= p.title %>“ mit allen Versionen löschen?" class="actions" style="margin-top:18px">
+    <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="pill danger">🗑 Projekt mit allen Versionen löschen</button>
+  </form>
+  <% } %>
+</div>
+<%- include('_foot') %>

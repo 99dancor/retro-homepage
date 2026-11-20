@@ -1,0 +1,32 @@
+<%- include('_head') %>
+<p style="margin:18px 0 0"><a href="<%= e.id ? '/duden/' + e.slug : '/duden' %>">← <%= e.id ? e.title : 'Duden' %></a></p>
+<div class="card" style="margin-top:12px">
+  <h1 style="margin:0 0 4px;font-size:26px"><%= e.id ? 'Eintrag bearbeiten' : 'Neuer Eintrag' %></h1>
+  <p class="muted" style="margin:0 0 16px">Wiki-Verweise schreibst du als <code>[[Titel eines Eintrags]]</code>, sie werden zu Links.</p>
+  <% if (err) { %><p class="v3-flash err" role="alert"><%= err %></p><% } %>
+  <form method="post" action="<%= e.id ? '/duden/' + e.slug + '/bearbeiten' : '/duden/neu' %>" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div class="grid3">
+      <label class="f">Art <select name="kind" data-kind><% for (const [k, K] of Object.entries(KINDS)) { %><option value="<%= k %>"<%= e.kind === k ? ' selected' : '' %>><%= K.icon %> <%= K.label %> (<%= K.hint %>)</option><% } %></select></label>
+      <label class="f">Thema <input type="text" name="topic" value="<%= e.topic || '' %>" list="topics" maxlength="60" placeholder="z. B. Unraid" required></label>
+      <label class="f">Symbol <small>leer = nach Art</small><input type="text" name="icon" value="<%= e.icon || '' %>" maxlength="8"></label>
+    </div>
+    <datalist id="topics"><% for (const t of topics) { %><option value="<%= t %>"><% } %></datalist>
+    <div class="grid2">
+      <label class="f">Titel <input type="text" name="title" value="<%= e.title || '' %>" required maxlength="140"></label>
+      <label class="f">Adresse <small>/duden/…, leer = aus dem Titel</small><input type="text" name="slug" value="<%= e.slug || '' %>" maxlength="80"></label>
+    </div>
+    <label class="f">Worum geht es? <small>ein Satz für die Übersicht</small><input type="text" name="summary" value="<%= e.summary || '' %>" maxlength="280"></label>
+    <div style="display:grid;gap:5px"><b style="font-size:14px">Text</b>
+      <%- include('../partials/md-editor', { name: 'body_md', value: e.body_md || '', uploadUrl: '/api/schreiben/bild', previewUrl: '/api/schreiben/vorschau', libraryUrl: null }) %></div>
+    <fieldset data-links<%= e.kind !== 'links' ? ' hidden' : '' %>><legend>Links der Sammlung</legend>
+      <label class="f">Eine Zeile je Link: <code>Titel | https://adresse | Beschreibung</code> <small>Die Beschreibung darf fehlen. Die Reihenfolge bleibt.</small>
+        <textarea name="links_text" rows="8" class="mono" placeholder="Unraid-Forum | https://forums.unraid.net | Hilfe zu allem rund um Unraid"><%= linksText %></textarea></label>
+    </fieldset>
+    <fieldset><legend>Sichtbarkeit</legend><%- include('_visibility') %>
+      <% if (e.id && !(user.isAdmin || e.author_id === user.id)) { %><p class="hint" style="margin:8px 0 0">Die Sichtbarkeit stellt nur der Autor ein. Deine Änderung behält sie bei.</p><% } %></fieldset>
+    <%- include('../partials/drafts-bar', { kind: 'duden', place: e.id ? 'entry:' + e.id : 'new' }) %>
+    <div class="actions"><button class="pill pri big">💾 Speichern</button><a class="pill" href="<%= e.id ? '/duden/' + e.slug : '/duden' %>">Abbrechen</a></div>
+  </form>
+</div>
+<%- include('_foot') %>

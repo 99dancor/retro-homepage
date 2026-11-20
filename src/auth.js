@@ -37,13 +37,14 @@ function loadUser(req, res, next) {
   req.user = null;
   const sid = req.cookies.sid;
   if (sid) {
-    const u = db.prepare(`SELECT u.id, u.username, u.display_name, u.avatar, u.role, u.disabled, u.can_upload, u.can_private, u.jd_trusted FROM sessions s JOIN users u ON u.id = s.user_id
+    const u = db.prepare(`SELECT u.id, u.username, u.display_name, u.avatar, u.role, u.disabled, u.can_upload, u.can_private, u.can_write, u.jd_trusted FROM sessions s JOIN users u ON u.id = s.user_id
                           WHERE s.id = ? AND s.expires > ?`).get(sid, now());
     if (u && !u.disabled) {
       u.groups = db.prepare('SELECT group_id FROM user_groups WHERE user_id = ?').all(u.id).map(r => r.group_id);
       u.isAdmin = u.role === 'admin';
       u.canUpload = u.isAdmin || !!u.can_upload;
       u.canPrivate = u.isAdmin || !!u.can_private;
+      u.canWrite = u.isAdmin || !!u.can_write;          // Duden und Rezepte schreiben (Version 3.0)
       u.name = u.display_name || u.username;
       req.user = u;
     }
@@ -86,7 +87,7 @@ function requireAdmin(req, res, next) {
 }
 
 // Sichtbarkeit: public | members | groups | private, bei Dateien, Titeln und Playlists auch friends (nur Freunde des Besitzers)
-const OWNER = { file: 'uploader_id', track: 'uploader_id', playlist: 'user_id', modlist: 'owner_id' };
+const OWNER = { file: 'uploader_id', track: 'uploader_id', playlist: 'user_id', modlist: 'owner_id', dl_project: 'owner_id', duden: 'author_id', recipe: 'author_id' };
 function isFriend(a, b) {
   return !!a && !!b && !!db.prepare('SELECT 1 FROM friends WHERE accepted = 1 AND ((user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?))').get(a, b, b, a);
 }

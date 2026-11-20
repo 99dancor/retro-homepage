@@ -1,0 +1,109 @@
+<%- include('_head') %>
+<% const mins = n => n >= 60 ? Math.floor(n / 60) + ' Std.' + (n % 60 ? ' ' + (n % 60) + ' Min.' : '') : n + ' Min.';
+   const d = t => new Date(t * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); %>
+<% if (ok) { %><p class="v3-flash" role="status"><%= ok %><% if (/Einkaufsliste/.test(ok)) { %> <a href="/rezepte/einkauf">Zur Liste</a><% } %></p><% } %>
+<p class="noprint" style="margin:18px 0 0"><a href="/rezepte">← Alle Rezepte</a></p>
+<article class="rz" data-recipe data-servings="<%= r.servings %>">
+  <div class="rz-head card" style="margin-top:12px">
+    <div>
+      <div class="by">
+        <span class="tag">🍝 Rezept</span>
+        <% for (const t of r.tagList) { %><a class="tag" href="/rezepte?tag=<%= encodeURIComponent(t) %>"><%= t %></a><% } %>
+        <% if (r.visibility !== 'public') { %><span>🔒 <%= ({ members: 'Mitglieder', friends: 'Freunde', groups: 'Gruppen', private: 'privat' })[r.visibility] %></span><% } %>
+      </div>
+      <h1><% if (r.icon) { %><span class="emo"><%= r.icon %></span> <% } %><%= r.title %></h1>
+      <% if (r.summary) { %><p style="font-size:17px;color:var(--text-2);margin:0"><%= r.summary %></p><% } %>
+      <div class="rz-facts">
+        <% if (r.prep_min) { %><span class="chip">🔪 <%= mins(r.prep_min) %> Arbeit</span><% } %>
+        <% if (r.cook_min) { %><span class="chip">🔥 <%= mins(r.cook_min) %> Kochen/Backen</span><% } %>
+        <% if (r.total && r.prep_min && r.cook_min) { %><span class="chip">⏱ <%= mins(r.total) %> gesamt</span><% } %>
+        <span class="chip">👥 <%= r.servings %> <%= r.servings_label %></span>
+      </div>
+      <div class="actions noprint">
+        <% if (r.stepList.length) { %><button type="button" class="pill pri" data-cook>👩‍🍳 Kochmodus</button><% } %>
+        <% if (user) { %>
+        <form method="post" action="/rezepte/<%= r.slug %>/favorit" data-fav><input type="hidden" name="_csrf" value="<%= csrf %>">
+          <button class="pill" aria-pressed="<%= fav ? 'true' : 'false' %>" data-fav-label><%= fav ? '❤ Favorit' : '♡ Merken' %></button></form>
+        <% } %>
+        <button type="button" class="pill" data-print>🖨 Drucken</button>
+        <% if (canEdit) { %><a class="pill" href="/rezepte/<%= r.slug %>/bearbeiten">✎ Bearbeiten</a><% } %>
+        <% if (canDelete) { %><form method="post" action="/rezepte/<%= r.slug %>/loeschen" data-confirm="Rezept „<%= r.title %>“ wirklich löschen?"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="pill danger">🗑 Löschen</button></form><% } %>
+      </div>
+      <p class="muted" style="margin:14px 0 0;font-size:13px">
+        <% if (author) { %>von <a href="<%= profileUrl(author.username) %>"><%= author.display_name || author.username %></a> · <% } %><%= d(r.created_at) %>
+        <% if (source) { %> · nach einem Rezept von <a href="<%= r.source_url %>" target="_blank" rel="noopener nofollow"><%= source %></a><% } %>
+      </p>
+    </div>
+    <div class="ph <%= tint(r) %>"><% if (r.image) { %><img src="/media/<%= r.image %>" alt="<%= r.title %>"><% } else { %><span class="emo"><%= r.icon || '🍽️' %></span><% } %></div>
+  </div>
+
+  <div class="rz-body">
+    <section class="card" aria-labelledby="zutaten-h">
+      <h2 id="zutaten-h" class="sec-h" style="margin-top:0">Zutaten</h2>
+      <div class="portions noprint">
+        <button type="button" data-portion="-1" aria-label="Weniger <%= r.servings_label %>">−</button>
+        <output data-portion-out aria-live="polite"><%= r.servings %></output> <span><%= r.servings_label %></span>
+        <button type="button" data-portion="1" aria-label="Mehr <%= r.servings_label %>">+</button>
+        <button type="button" class="pill small ghost" data-portion-reset hidden style="width:auto;border-radius:99px;font-size:13px">zurück</button>
+      </div>
+      <% if (!r.ing.length) { %><p class="muted">Keine Zutaten eingetragen.</p><% } %>
+      <ul class="ingr">
+        <% for (const i of r.ing) { if (i.g) { %><li class="grp"><%= i.g %></li><% continue; } %>
+        <li data-ing data-a="<%= i.a ?? '' %>" data-a2="<%= i.a2 ?? '' %>" data-u="<%= i.u %>" data-n="<%= i.n %>">
+          <span class="amt"><%= i.a != null ? fmtAmount(i.a, i.u) + (i.a2 != null ? '–' + fmtAmount(i.a2, i.u) : '') : '' %> <%= i.u %></span>
+          <span><%= i.n %><% if (i.note) { %><span class="note">, <%= i.note %></span><% } %></span>
+        </li>
+        <% } %>
+      </ul>
+      <% if (user && r.ing.some(i => !i.g)) { %>
+      <form method="post" action="/rezepte/<%= r.slug %>/einkauf" class="noprint" style="margin-top:14px">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="portionen" value="<%= r.servings %>" data-portion-field>
+        <button class="pill" style="width:100%">🛒 Auf die Einkaufsliste</button>
+      </form>
+      <% } else if (!user && r.ing.length) { %>
+      <p class="muted noprint" style="font-size:13px;margin:12px 0 0"><a href="/login?next=<%= encodeURIComponent(here) %>">Melde dich an</a>, um Zutaten auf deine Einkaufsliste zu setzen.</p>
+      <% } %>
+    </section>
+    <section class="card">
+      <% if (intro) { %><div class="prose" style="margin-bottom:18px"><%- intro %></div><% } %>
+      <h2 class="sec-h" style="margin-top:0">Zubereitung</h2>
+      <% if (!steps.length) { %><p class="muted">Keine Schritte eingetragen.</p><% } %>
+      <ol class="steps" data-steps>
+        <% for (const s of steps) { %><li><%- s %></li><% } %>
+      </ol>
+    </section>
+  </div>
+
+  <% if (more.length) { %>
+  <h3 class="sec-h noprint" style="margin-top:24px">Mehr zum Nachkochen</h3>
+  <div class="rgrid noprint">
+    <% for (const m of more) { %>
+    <a class="rc" href="/rezepte/<%= m.slug %>">
+      <span class="ph <%= tint(m) %>"><% if (m.image) { %><img src="/media/<%= m.image %>" alt="" loading="lazy"><% } else { %><span class="emo"><%= m.icon || '🍽️' %></span><% } %></span>
+      <span class="in"><h3><%= m.title %></h3><span class="mt"><% if (m.total) { %><span>⏱ <%= mins(m.total) %></span><% } %><span>👥 <%= m.servings %></span></span></span>
+    </a>
+    <% } %>
+  </div>
+  <% } %>
+</article>
+
+<div class="cook" data-cook-box hidden role="dialog" aria-modal="true" aria-label="Kochmodus">
+  <div class="cook-top">
+    <b><%= r.title %></b>
+    <span class="prog" aria-hidden="true"><i data-cook-prog></i></span>
+    <span class="muted" data-cook-lock></span>
+    <button type="button" class="pill small" data-cook-close>✕ Beenden</button>
+  </div>
+  <div class="cook-step">
+    <span class="n" data-cook-n></span>
+    <div class="t" data-cook-text></div>
+    <div class="need" data-cook-need></div>
+  </div>
+  <div class="cook-nav">
+    <button type="button" class="pill" data-cook-prev>← Zurück</button>
+    <button type="button" class="pill pri" data-cook-next>Weiter →</button>
+  </div>
+</div>
+<div class="timers" data-timers aria-live="polite"></div>
+<script src="<%= asset('rezept.js') %>" defer></script>
+<%- include('_foot') %>

@@ -1,0 +1,21 @@
+<%# Seitenleiste des Duden: Arten, Themen, Beiträge. Erwartet view (duden.view), KINDS, optional cur = { topic, kind, posts } %>
+<% const _cur = typeof cur === 'object' && cur ? cur : {}; %>
+<aside class="v3-side" aria-label="Themen">
+  <nav class="grp nav">
+    <a class="it<%= !_cur.topic && !_cur.kind && !_cur.posts ? ' sel' : '' %>" href="/duden"><span class="emo">📚</span> Alles<span class="n"><%= view.all.length %></span></a>
+    <% for (const [k, K] of Object.entries(KINDS)) { if (!view.kinds[k]) continue; %>
+    <a class="it<%= _cur.kind === k ? ' sel' : '' %>" href="<%= k === 'links' ? '/duden/links' : '/duden?art=' + k %>"><span class="emo"><%= K.icon %></span> <%= K.plural %><span class="n"><%= view.kinds[k] %></span></a>
+    <% } %>
+    <% if (view.topics.length) { %><h3>Themen</h3><% } %>
+    <% for (const t of view.topics) { %>
+    <a class="it<%= _cur.topic === t.name ? ' sel' : '' %>" href="/duden?thema=<%= encodeURIComponent(t.name) %>"><span class="emo">🏷️</span> <%= t.name %><span class="n"><%= t.n %></span></a>
+    <% } %>
+    <h3>Blog</h3>
+    <a class="it<%= _cur.posts ? ' sel' : '' %>" href="/duden/beitraege"><span class="emo">📝</span> Beiträge</a>
+  </nav>
+  <% if (typeof canWrite !== 'undefined' && canWrite) { %>
+  <div class="grp" style="padding:12px;display:grid;gap:8px">
+    <a class="pill pri" href="/duden/neu<%= _cur.topic ? '?thema=' + encodeURIComponent(_cur.topic) : '' %>">＋ Neuer Eintrag</a>
+  </div>
+  <% } %>
+</aside>

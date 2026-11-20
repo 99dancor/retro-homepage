@@ -114,7 +114,7 @@
   // ---------- Anmelden, Registrieren, Gast ----------
   function target() {
     var t = next || (location.pathname + location.search);
-    return /^\/(login|register)\b/.test(t) || !/^\/(?![/\\])/.test(t) ? '/' : t;
+    return /^\/(login|register)\b/.test(t) || !/^\/(?![/\\])/.test(t) ? '/desktop' : t;
   }
   function post(url, data) {
     data._csrf = csrf;
@@ -147,7 +147,7 @@
         remember(j.user);
         welcome(j.user.n);
         put(SKIP, '1');
-        setTimeout(function () { location.href = j.next || '/'; }, 1100);
+        setTimeout(function () { location.href = j.next || '/desktop'; }, 1100);
         return;
       }
       sound('fehler');
@@ -184,7 +184,7 @@
       post('/logout', {}).then(function () { put(SKIP, '1'); location.href = target(); });
       return;
     }
-    if (/^\/(login|register)\b/.test(location.pathname)) { put(SKIP, '1'); location.href = '/'; return; }
+    if (/^\/(login|register)\b/.test(location.pathname)) { put(SKIP, '1'); location.href = '/desktop'; return; }
     hide();
   }
 
@@ -247,7 +247,7 @@
       box.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
       sound('abmelden');
       if (what === 'switch') put(MODE, 'other');
-      post('/logout', {}).then(function () { setTimeout(function () { location.href = '/'; }, 400); });
+      post('/logout', {}).then(function () { setTimeout(function () { location.href = '/desktop'; }, 400); });
     });
     box.querySelector('[data-off=logout]').focus();
   }

@@ -1,0 +1,45 @@
+<%- include('../partials/head') %>
+<%# Aussehen → Startseite (Kacheln), Version 3.0: Begrüßung und Kacheln auf dancor.org (src/portal.js). ▲▼, Löschen und
+    „Neue Kachel“ speichern erst alles und ändern dann die Liste. %>
+<form method="post" action="/admin/kacheln">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <fieldset class="groupbox" id="begruessung"><legend>👋 Begrüßung</legend>
+    <div class="form-grid" style="display:grid;gap:8px;max-width:720px">
+      <label>Name oben links <input type="text" name="portal_name" value="<%= siteName %>" maxlength="40" class="w100"></label>
+      <label>Überschrift <input type="text" name="portal_title" value="<%= hero.title %>" maxlength="80" class="w100"></label>
+      <label>Text darunter <input type="text" name="portal_text" value="<%= hero.text %>" maxlength="300" class="w100"></label>
+    </div>
+  </fieldset>
+  <fieldset class="groupbox" id="kacheln"><legend>🧱 Kacheln</legend>
+    <p style="margin-top:0"><small>Reihenfolge, Größe und für wen. „Breit“ nimmt eine halbe Zeile ein, sonst ein Drittel. Bei „nur Mitglieder“ sehen Gäste die Kachel mit Schloss, ein Klick führt zur Anmeldung.
+      Ob Downloads, Duden und Rezepte überhaupt an sind, steht unter <a href="/admin/programme">Programme</a>, beim Dreschplatz in seiner <a href="/farming/verwaltung">Verwaltung</a>.</small></p>
+    <table class="list">
+      <tr><th>Kachel</th><th>Für</th><th class="c">Breit</th><th></th></tr>
+      <% tiles.forEach((t, i) => { %>
+      <tr class="<%= t.show === 'off' ? 'off' : '' %>" id="<%= t.key %>">
+        <td>
+          <input type="hidden" name="order" value="<%= t.key %>">
+          <details<%= edit === t.key || (!t.builtin && t.title === 'Neue Kachel') ? ' open' : '' %>>
+            <summary><span style="font-size:18px"><%= t.icon %></span> <b><%= t.title %></b> <small class="muted"><%= t.builtin ? t.url : t.url + ' · eigene Kachel' %></small></summary>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin:8px 0">
+              <label>Symbol <input type="text" name="icon_<%= t.key %>" value="<%= t.icon %>" maxlength="8"></label>
+              <label>Darüber, klein <input type="text" name="kicker_<%= t.key %>" value="<%= t.kicker %>" maxlength="40" placeholder="z. B. Dancors"></label>
+              <label>Name <input type="text" name="title_<%= t.key %>" value="<%= t.title %>" maxlength="60"></label>
+              <label>Farbe <select name="color_<%= t.key %>"><% for (const [k, v] of Object.entries(COLORS)) { %><option value="<%= k %>"<%= t.color === k ? ' selected' : '' %>><%= v %></option><% } %></select></label>
+              <% if (!t.builtin) { %><label>Adresse <small>/seite oder https://…</small><input type="text" name="url_<%= t.key %>" value="<%= t.url %>" maxlength="500"></label><% } %>
+            </div>
+            <label style="display:grid;gap:3px">Text <textarea name="text_<%= t.key %>" rows="2" maxlength="300"><%= t.text %></textarea></label>
+            <% if (!t.builtin) { %><p style="margin:6px 0 0"><button class="small" name="del" value="<%= t.key %>">🗑 Kachel löschen</button></p><% } %>
+          </details>
+        </td>
+        <td><select name="show_<%= t.key %>" aria-label="Für wen: <%= t.title %>"><% for (const [k, v] of Object.entries(SHOW)) { %><option value="<%= k %>"<%= t.show === k ? ' selected' : '' %>><%= v %></option><% } %></select></td>
+        <td class="c"><input type="checkbox" name="wide" value="<%= t.key %>"<%= t.wide ? ' checked' : '' %> aria-label="<%= t.title %> breit"></td>
+        <td class="nowrap"><button class="small" name="move" value="<%= t.key %>:up" title="Nach oben" aria-label="<%= t.title %> nach oben"<%= i === 0 ? ' disabled' : '' %>>▲</button><button class="small" name="move" value="<%= t.key %>:down" title="Nach unten" aria-label="<%= t.title %> nach unten"<%= i === tiles.length - 1 ? ' disabled' : '' %>>▼</button></td>
+      </tr>
+      <% }) %>
+    </table>
+    <p id="neu"><button class="small" name="add" value="1">＋ Eigene Kachel</button> <small class="muted">kommt ausgeblendet ans Ende, damit du sie erst fertig machen kannst</small></p>
+  </fieldset>
+  <div class="actions"><button>💾 Speichern</button> <a class="btn" href="/" target="_blank">Startseite ansehen</a></div>
+</form>
+<%- include('../partials/foot') %>

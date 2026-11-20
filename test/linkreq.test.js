@@ -165,10 +165,13 @@ test('Privat: eigener Bereich, nur mit Recht sichtbar, nicht in Lobby-Listen', a
   assert.ok(!auth.canSee(null, 'track', t));
   const v = auth.visibilitySql(p, 'track', 't', { noPrivat: true });
   assert.ok(!db.prepare(`SELECT 1 FROM tracks t WHERE t.id = ? AND ${v.sql}`).get(t.id, ...v.params), 'noPrivat lässt es weg');
-  const fv = require('../src/filesview');
-  assert.ok(fv.build(p, 'privat').rows.some(r => r.ref === 'titel:' + t.id));
-  assert.ok(!fv.build(p, 'neu').rows.some(r => r.ref === 'titel:' + t.id), 'nicht in Neu hinzugefügt');
-  assert.equal(fv.build(other, 'privat').node, 'alle');
+  // Dancors Downloads (Version 3.0): Privat nur an seiner Stelle und nur mit Recht
+  const dl = require('../src/downloads');
+  const isIt = r => r.type === 'track' && r.id === t.id;
+  assert.ok(dl.view(p, 'privat').rows.some(isIt));
+  assert.ok(!dl.view(p, 'neu').rows.some(isIt), 'nicht in Neu hinzugefügt');
+  assert.ok(!dl.view(p, 'alle').rows.some(isIt), 'nicht unter Alle');
+  assert.equal(dl.view(other, 'privat').node, 'alle');
 });
 
 test('Datei: Quarantäne bei falschem Inhalt, Ablehnen mit Grund', async () => {

@@ -201,13 +201,14 @@ router.get('/files/:id', (req, res, next) => {
   if (!file) return next();
   const categories = require('../filecats').list().map(c => c.name);
   if (!categories.includes(file.category)) categories.push(file.category);
-  res.render('admin/file-edit', { title: 'Datei bearbeiten', file, categories, acl: auth.getAcl('file', file.id) });
+  res.render('admin/file-edit', { title: 'Datei bearbeiten', file, categories, acl: auth.getAcl('file', file.id), projects: require('../downloads').all() });
 });
 router.post('/files/:id', (req, res) => {
   const b = req.body, id = Number(req.params.id);
   db.prepare('UPDATE files SET title=?, description=?, category=?, game=?, visibility=? WHERE id=?')
     .run(str(b.title, 200) || 'Datei', str(b.description, 2000), str(b.category, 100) || 'Allgemein', str(b.game, 100) || null, visibilityFrom(b, true), id);
   saveVisibility('file', id, b);
+  if (b.project_id !== undefined) require('../downloads').assign(id, Number(b.project_id) || null, b.version, b.changes);
   res.redirect(`/admin/files/${id}?ok=1`);
 });
 router.post('/files/:id/delete', (req, res) => {
@@ -456,8 +457,8 @@ router.post('/users/:id', (req, res) => {
   const isSelf = id === req.user.id;
   if (b.password && !auth.validPassword(b.password)) return res.redirect(`/admin/users/${id}?err=` + encodeURIComponent('Passwort muss mindestens 8 Zeichen haben.'));
   tx(() => {
-    db.prepare('UPDATE users SET role = ?, disabled = ?, can_upload = ?, can_private = ?, jd_trusted = ? WHERE id = ?').run(
-      isSelf ? 'admin' : (b.role === 'admin' ? 'admin' : 'user'), isSelf ? 0 : (b.disabled ? 1 : 0), b.can_upload ? 1 : 0, b.can_private ? 1 : 0, b.jd_trusted ? 1 : 0, id);
+    db.prepare('UPDATE users SET role = ?, disabled = ?, can_upload = ?, can_private = ?, can_write = ?, jd_trusted = ? WHERE id = ?').run(
+      isSelf ? 'admin' : (b.role === 'admin' ? 'admin' : 'user'), isSelf ? 0 : (b.disabled ? 1 : 0), b.can_upload ? 1 : 0, b.can_private ? 1 : 0, b.can_write ? 1 : 0, b.jd_trusted ? 1 : 0, id);
     if (b.password) {
       db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(auth.hashPassword(b.password), id);
       if (!isSelf) db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);

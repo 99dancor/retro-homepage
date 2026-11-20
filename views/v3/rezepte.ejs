@@ -1,0 +1,68 @@
+<%- include('_head') %>
+<% const mins = n => n >= 60 ? Math.floor(n / 60) + ' Std.' + (n % 60 ? ' ' + (n % 60) + ' Min.' : '') : n + ' Min.';
+   const filtered = q || tag || zutat || fav; %>
+<% if (ok) { %><p class="v3-flash" role="status"><%= ok %></p><% } %>
+<div class="v3-page">
+  <aside class="v3-side" aria-label="Filter">
+    <nav class="grp nav">
+      <a class="it<%= !filtered ? ' sel' : '' %>" href="/rezepte"><span class="emo">🍽️</span> Alle Rezepte<span class="n"><%= count %></span></a>
+      <% if (user) { %>
+      <a class="it<%= fav ? ' sel' : '' %>" href="/rezepte?favoriten=1"><span class="emo">❤️</span> Favoriten<span class="n"><%= favCount %></span></a>
+      <a class="it" href="/rezepte/einkauf"><span class="emo">🛒</span> Einkaufsliste<% if (shopCount) { %><span class="n"><%= shopCount %></span><% } %></a>
+      <% } %>
+      <% if (tags.length) { %><h3>Schlagworte</h3><% } %>
+      <% for (const t of tags) { %>
+      <a class="it<%= tag.toLowerCase() === t.name.toLowerCase() ? ' sel' : '' %>" href="/rezepte?tag=<%= encodeURIComponent(t.name) %>"><span class="emo">🏷️</span> <%= t.name %><span class="n"><%= t.n %></span></a>
+      <% } %>
+    </nav>
+    <% if (canWrite) { %>
+    <div class="grp" style="padding:12px;display:grid;gap:8px">
+      <a class="pill pri" href="/rezepte/neu">＋ Neues Rezept</a>
+    </div>
+    <% } %>
+  </aside>
+
+  <div class="v3-content">
+    <h2 class="page-h"><%= tag ? tag : fav ? 'Deine Favoriten' : 'Dancors Deliziösitäten' %></h2>
+    <p class="page-sub"><%= filtered ? `${rows.length} ${rows.length === 1 ? 'Rezept' : 'Rezepte'}${zutat ? ` mit „${zutat}“` : ''}${q ? ` für „${q}“` : ''}` : 'Rezepte zum Nachkochen. Portionen umrechnen, im Kochmodus Schritt für Schritt, Zutaten auf die Einkaufsliste.' %></p>
+    <form class="v3-tools" action="/rezepte" role="search">
+      <% if (tag) { %><input type="hidden" name="tag" value="<%= tag %>"><% } %>
+      <% if (fav) { %><input type="hidden" name="favoriten" value="1"><% } %>
+      <input type="search" name="q" value="<%= q %>" placeholder="Rezept suchen …" style="max-width:260px" aria-label="Rezept suchen">
+      <input type="search" name="zutat" value="<%= zutat %>" placeholder="Zutat, z. B. Paprika" style="max-width:280px" aria-label="Nach Zutat suchen">
+      <button class="pill">Suchen</button>
+      <% if (filtered) { %><a class="pill ghost" href="/rezepte">✕ Filter löschen</a><% } %>
+    </form>
+
+    <% if (!rows.length) { %>
+    <div class="card empty-state"><span class="e emo"><%= fav ? '🤍' : '🍳' %></span><%= fav ? 'Noch keine Favoriten. Tipp auf das Herz bei einem Rezept.' : filtered ? 'Kein Rezept passt dazu.' : 'Hier steht noch kein Rezept.' %>
+      <% if (canWrite && !filtered) { %><p><a class="pill pri" href="/rezepte/neu">＋ Erstes Rezept schreiben</a></p><% } %></div>
+    <% } %>
+    <div class="rgrid">
+      <% for (const r of rows) { %>
+      <div class="rc">
+        <% if (user) { %>
+        <form method="post" action="/rezepte/<%= r.slug %>/favorit" data-fav>
+          <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="next" value="<%= here %>">
+          <button class="fav-btn" aria-pressed="<%= r.fav ? 'true' : 'false' %>" title="<%= r.fav ? 'Aus den Favoriten nehmen' : 'Als Favorit merken' %>"><%= r.fav ? '❤' : '♡' %></button>
+        </form>
+        <% } %>
+        <a href="/rezepte/<%= r.slug %>" style="color:inherit;text-decoration:none;display:flex;flex-direction:column;flex:1">
+          <span class="ph <%= tint(r) %>"><% if (r.image) { %><img src="/media/<%= r.image %>" alt="" loading="lazy"><% } else { %><span class="emo"><%= r.icon || '🍽️' %></span><% } %></span>
+          <span class="in">
+            <h3><%= r.title %></h3>
+            <span class="mt">
+              <% if (r.total) { %><span>⏱ <%= mins(r.total) %></span><% } %>
+              <span>👥 <%= r.servings %> <%= r.servings_label %></span>
+              <% if (r.visibility !== 'public') { %><span>🔒</span><% } %>
+            </span>
+            <% if (r.tagList.length) { %><span class="mt" style="margin-top:8px"><% for (const t of r.tagList.slice(0, 3)) { %><span class="tag"><%= t %></span><% } %></span><% } %>
+          </span>
+        </a>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+<script src="<%= asset('rezept.js') %>" defer></script>
+<%- include('_foot') %>

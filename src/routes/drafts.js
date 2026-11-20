@@ -1,5 +1,5 @@
 'use strict';
-// Entwürfe für Forum und Blog. Die Formulare (public/drafts.js) speichern hier Titel, Text und die übrigen Felder
+// Entwürfe für Forum, Blog, Duden und Rezepte. Die Formulare (public/drafts.js) speichern hier Titel, Text und die übrigen Felder
 // und laden sie wieder. Forenentwürfe hat jedes Konto für sich, Blogentwürfe nur der Admin.
 //
 //   GET  /api/entwuerfe?art=forum|blog   -> [{ id, kind, place, where, url, title, snippet, updated_at }]
@@ -13,9 +13,9 @@ const { db, now } = require('../db');
 
 const router = express.Router();
 const MAX_DRAFTS = 50;
-const MAX_BODY = { forum: 20000, blog: 500000 };
+const MAX_BODY = { forum: 20000, blog: 500000, duden: 300000, rezept: 100000 };
 const MAX_FIELDS = 5000;
-const PLACE_RE = { forum: /^(new|reply:\d+|edit:\d+)$/, blog: /^(new|post:\d+)$/ };
+const PLACE_RE = { forum: /^(new|reply:\d+|edit:\d+)$/, blog: /^(new|post:\d+)$/, duden: /^(new|entry:\d+)$/, rezept: /^(new|recipe:\d+)$/ };
 
 router.use(express.json({ limit: '1mb' }));
 router.use((req, res, next) => {
@@ -24,12 +24,20 @@ router.use((req, res, next) => {
   next();
 });
 
-const allowed = (user, kind) => kind === 'forum' || (kind === 'blog' && user.isAdmin);
+const allowed = (user, kind) => kind === 'forum' || (kind === 'blog' && user.isAdmin) || ((kind === 'duden' || kind === 'rezept') && (user.isAdmin || user.canWrite));
 
 // Wofür der Entwurf war und wo man weiterschreibt. Gibt es das Thema oder den Beitrag nicht mehr, geht es ins leere Formular.
 function describe(d) {
   const [what, ref] = d.place.split(':');
   const q = 'entwurf=' + d.id;
+  if (d.kind === 'duden') {
+    const e = what === 'entry' && db.prepare('SELECT slug, title FROM duden WHERE id = ?').get(Number(ref));
+    return e ? { where: `Duden „${e.title}“`, url: `/duden/${e.slug}/bearbeiten?${q}` } : { where: 'Neuer Duden-Eintrag', url: '/duden/neu?' + q };
+  }
+  if (d.kind === 'rezept') {
+    const r = what === 'recipe' && db.prepare('SELECT slug, title FROM recipes WHERE id = ?').get(Number(ref));
+    return r ? { where: `Rezept „${r.title}“`, url: `/rezepte/${r.slug}/bearbeiten?${q}` } : { where: 'Neues Rezept', url: '/rezepte/neu?' + q };
+  }
   if (d.kind === 'blog') {
     const p = what === 'post' && db.prepare('SELECT id, title FROM posts WHERE id = ?').get(Number(ref));
     return p ? { where: `Blogbeitrag „${p.title}“`, url: `/admin/posts/${p.id}?${q}` } : { where: 'Neuer Blogbeitrag', url: '/admin/posts/new?' + q };
@@ -61,7 +69,7 @@ function consume(req) {
 }
 
 router.get('/', (req, res) => {
-  const kind = req.query.art === 'blog' ? 'blog' : 'forum';
+  const kind = Object.hasOwn(PLACE_RE, req.query.art) ? req.query.art : 'forum';
   if (!allowed(req.user, kind)) return res.status(403).json({ error: 'admin' });
   res.json(list(req.user.id, kind));
 });
@@ -76,7 +84,7 @@ router.get('/:id', (req, res) => {
 
 router.post('/', (req, res) => {
   const b = req.body || {};
-  const kind = b.kind === 'blog' ? 'blog' : 'forum';
+  const kind = Object.hasOwn(PLACE_RE, b.kind) ? b.kind : 'forum';
   if (!allowed(req.user, kind)) return res.status(403).json({ error: 'admin' });
   const place = PLACE_RE[kind].test(String(b.place)) ? String(b.place) : 'new';
   const title = String(b.title ?? '').trim().slice(0, 150);

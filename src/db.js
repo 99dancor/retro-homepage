@@ -816,7 +816,8 @@ CREATE TABLE IF NOT EXISTS link_items (
 CREATE INDEX IF NOT EXISTS link_items_request ON link_items(request_id);
 `);
 addColumn('users', 'can_private', 'INTEGER NOT NULL DEFAULT 0');      // darf den Bereich „Privat“ sehen (vergibt nur der Admin)
-addColumn('users', 'jd_trusted', 'INTEGER NOT NULL DEFAULT 0');       // Link-Vorschläge ohne Prüfung genehmigen (innerhalb der Regeln)
+addColumn('users', 'jd_trusted', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('users', 'can_write', 'INTEGER NOT NULL DEFAULT 0');        // Recht „Schreiben“: Duden-Einträge und Rezepte (Version 3.0)       // Link-Vorschläge ohne Prüfung genehmigen (innerhalb der Regeln)
 for (const t of ['files', 'tracks']) {
   addColumn(t, 'source_url', 'TEXT');                                 // Herkunft: geladener Link
   addColumn(t, 'source_id', 'TEXT');                                  // z. B. youtube:<id>, damit nichts doppelt geladen wird

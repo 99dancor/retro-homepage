@@ -160,6 +160,13 @@ const SNIPPETS = {
   popupLocal: ['public/popups.js', "set('popups-zuletzt', String(Date.now()));", 1],
   popupSuggest: ['src/popups.js', 'function suggest(user, artworkId) {', 10],
   events: ['src/db.js', 'CREATE TABLE IF NOT EXISTS events (', 8],
+  v3Theme: ['public/v3-theme.js', "try { var t = localStorage.getItem('v3-theme')", 1],
+  duden: ['src/duden.js', 'CREATE TABLE IF NOT EXISTS duden (', 17],
+  wikiLinks: ['src/duden.js', 'function wikiLinks(md, user) {', 5],
+  recipeFavs: ['src/recipes.js', 'CREATE TABLE IF NOT EXISTS recipe_favs (', 6],
+  shopping: ['src/recipes.js', 'CREATE TABLE IF NOT EXISTS shopping_items (', 10],
+  recipeImport: ['src/recipes.js', 'async function importUrl(raw) {', 6],
+  dlProjects: ['src/downloads.js', 'CREATE TABLE IF NOT EXISTS dl_projects (', 19],
 };
 
 // Liest die Ausschnitte aus den Dateien: { name: [Datei, Zeile, die den Anfang markiert, Anzahl Zeilen] }.

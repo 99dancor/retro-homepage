@@ -120,7 +120,7 @@
   // ---------- Desktop mit Fenstern ----------
   var deskEl = document.getElementById('desk'), tasks = document.getElementById('tasks');
   var siteTitle = body.dataset.title, me = body.dataset.user;
-  var ICONS = { ds: '🎮', '': '🏠', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
+  var ICONS = { ds: '🎮', '': '🏠', desktop: '🏠', downloads: '📦', duden: '📚', rezepte: '🍝', finden: '🔍', blog: '📝', files: '📁', mods: '🧩', links: '🔗', apps: '🎮', haustier: '🐾', forum: '💬', guestbook: '📖',
     contact: '✉️', changelog: '📋', datenschutz: '🔒', p: '📄', login: '🔑', register: '✏️', account: '🔑', konto: '🔑', messenger: '🌼', musik: '📀', zufall: '🎲', kartenspiele: '🂡', blackjack: '🃏', poker: '♠️', durak: '🎴', uno: '🟥', flip7: '7️⃣', pilli: '🌶️', quiz: '❓', werwolf: '🐺', minesweeper: '💣', kreuzwortraetsel: '📰', sudoku: '🔢', farming: '🚜',
     nutzer: '👤', paint: '🎨', galerie: '🖼️', admin: '⚙️', 'eigene-dateien': '🗂️', einstellungen: '🛠️', notizblock: '🗒️', suche: '🔍',
     ordner: '📁', ansehen: '🖼️', benachrichtigungen: '🔔', info: 'ℹ️', dienste: '🗄️' };
@@ -147,9 +147,11 @@
   }
 
   function syncTop() {
-    if (!active) { document.title = siteTitle; history.replaceState(null, '', '/'); return; }
+    if (!active) { document.title = siteTitle; history.replaceState(null, '', '/desktop'); return; }
     document.title = active.title + ' – ' + siteTitle;
-    history.replaceState(null, '', active.url);
+    // Die neuen Bereiche (Downloads, Duden, Rezepte, Hub) hätten ohne Desktop ihre eigene Seite: die Adresse bleibt /desktop,
+    // nach dem Neuladen kommen die Fenster aus der Sitzung zurück
+    history.replaceState(null, '', /^\/(downloads|duden|rezepte|farming|finden)(\/|$|\?)/.test(active.url) || active.url === '/' ? '/desktop' : active.url);
   }
 
   function focus(w) {
@@ -416,7 +418,7 @@
   }
 
   // Fenstergröße beim ersten Öffnen; Haustier-Spiel und Mediaplayer brauchen etwas mehr Platz
-  var SIZES = { ds: [540, 880], haustier: [1000, 720], musik: [1080, 700], zufall: [760, 620], kartenspiele: [1080, 760], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], werwolf: [1000, 720], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], sudoku: [720, 640], farming: [1120, 760], konto: [700, 620], paint: [1000, 700], galerie: [1120, 720], admin: [1100, 740], 'eigene-dateien': [900, 620],
+  var SIZES = { ds: [540, 880], downloads: [1100, 760], duden: [1120, 780], rezepte: [1120, 780], finden: [900, 680], haustier: [1000, 720], musik: [1080, 700], zufall: [760, 620], kartenspiele: [1080, 760], blackjack: [1000, 680], poker: [1060, 720], durak: [1060, 740], uno: [1060, 740], flip7: [1060, 740], pilli: [1060, 740], quiz: [1040, 700], werwolf: [1000, 720], minesweeper: [180, 300], kreuzwortraetsel: [960, 680], sudoku: [720, 640], farming: [1120, 760], konto: [700, 620], paint: [1000, 700], galerie: [1120, 720], admin: [1100, 740], 'eigene-dateien': [900, 620],
     einstellungen: [860, 640], notizblock: [660, 500], suche: [760, 580], ansehen: [800, 600], ordner: [820, 580], info: [440, 360], dienste: [820, 560], files: [1120, 680] };
   // Vergrößerte Fensterinhalte (🖥️ → Größe der Oberfläche mit „Fensterinhalte mitskalieren“) brauchen größere Fenster
   function contentZoom() {
@@ -579,6 +581,8 @@
   if (menu) menu.addEventListener('click', function (e) {
     var a = e.target.closest('a[href]');
     if (!a) return;
+    // „Zur Startseite“ verlässt den Desktop (Startseite mit Kacheln, Version 3.0)
+    if (a.hasAttribute('data-top')) { closeMenu(); return; }
     e.preventDefault();
     if (Date.now() - toggled < 400) return;
     closeMenu();

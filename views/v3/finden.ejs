@@ -1,0 +1,25 @@
+<%- include('_head') %>
+<section class="v3-hero"><div>
+  <h1><%= q ? 'Suche' : 'Suchen' %></h1>
+  <p><%= q ? (hits.length ? `${hits.length} ${hits.length === 1 ? 'Treffer' : 'Treffer'} für „${q}“` : `Nichts gefunden für „${q}“.`) : 'Downloads, Duden, Rezepte und die Programme des Desktops.' %></p>
+</div></section>
+<% if (framed) { %>
+<form class="v3-tools" action="/finden" role="search"><input type="search" name="q" value="<%= q %>" placeholder="Suchbegriff" class="grow" style="max-width:420px"><button class="pill pri">Suchen</button></form>
+<% } %>
+<% const LABEL = { dl: 'Download', du: 'Duden', de: 'Rezept', blog: 'Beitrag', desk: 'Desktop' }; %>
+<div class="hits" style="margin-top:16px">
+  <% for (const h of hits) { %>
+  <a class="hit" href="<%= h.url %>">
+    <span class="e emo" aria-hidden="true"><%= h.icon %></span>
+    <span style="min-width:0;flex:1"><b><%= h.title %></b><small><%= h.text %></small></span>
+    <span class="kind k-<%= h.kind %>"><%= LABEL[h.kind] %></span>
+  </a>
+  <% } %>
+</div>
+<% if (q && !hits.length) { %>
+<div class="card" style="margin-top:16px">
+  <p style="margin:0">Tipp: Ein kürzeres Wort probieren, oder direkt in einen Bereich schauen:
+    <a href="/downloads">Downloads</a> · <a href="/duden">Duden</a> · <a href="/rezepte">Rezepte</a> · <a href="/desktop">Desktop</a></p>
+</div>
+<% } %>
+<%- include('_foot') %>

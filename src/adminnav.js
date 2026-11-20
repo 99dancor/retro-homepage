@@ -21,7 +21,7 @@ const TREE = [
   ] },
   { key: 'dienste', icon: '🗄️', label: 'Dienste', url: '/admin/dienste', badge: 'down' },
   { key: 'aussehen', icon: '🎨', label: 'Aussehen', kids: [
-    ['🖌️', 'Design', '/admin/design'], ['🖥️', 'Desktop', '/admin/desktop'], ['🏠', 'Startseite', '/admin/startseite'],
+    ['🖌️', 'Design', '/admin/design'], ['🖥️', 'Desktop', '/admin/desktop'], ['🧱', 'Startseite (Kacheln)', '/admin/kacheln'], ['🏠', 'Desktop-Startseite', '/admin/startseite'],
     ['📢', 'Laufband', '/admin/laufband'], ['💬', 'Popup-Bilder', '/admin/popups', [], 'popups'],
   ] },
   { key: 'system', icon: '⚙️', label: 'System', kids: [
@@ -49,6 +49,7 @@ function current(path) {
 const SEARCH = [
   ...TREE.flatMap(g => [[g.label, '', g.url || (g.kids[0] && g.kids[0].url)], ...g.kids.map(k => [k.label, g.label, k.url])]),
   ['Name der Website', 'Titel Untertitel Statusleiste', '/admin/settings#allgemein'],
+  ['Kacheln der Startseite', 'Portal Version 3.0 Bereiche sortieren ausblenden eigene Kachel Begrüßung', '/admin/kacheln'],
   ['Wartungsmodus', 'Wartung gesperrt offline Baustelle', '/admin/settings#wartung'],
   ['Registrieren erlauben', 'Anmeldung neue Mitglieder Konto anlegen', '/admin/anmelden'],
   ['Anmeldebildschirm', 'Willkommen Logon XP 98 Laden', '/admin/anmelden'],

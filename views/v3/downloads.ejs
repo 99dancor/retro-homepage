@@ -1,0 +1,80 @@
+<%- include('_head') %>
+<% const fmt = t => t ? v3fmt(t) : ''; function v3fmt(t) { return new Date(t * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); } %>
+<div class="v3-page">
+  <aside class="v3-side" aria-label="Kategorien">
+    <nav class="grp nav">
+      <a class="it<%= node === 'alle' ? ' sel' : '' %>" href="/downloads"><span class="emo">🗂️</span> Alle<span class="n"><%= tree.all %></span></a>
+      <% if (tree.fresh) { %><a class="it<%= node === 'neu' ? ' sel' : '' %>" href="/downloads?ort=neu"><span class="emo">🆕</span> Neu<span class="n"><%= tree.fresh %></span></a><% } %>
+      <% if (tree.projects) { %><a class="it<%= node === 'projekte' ? ' sel' : '' %>" href="/downloads?ort=projekte"><span class="emo">⭐</span> Projekte<span class="n"><%= tree.projects %></span></a><% } %>
+      <h3>Kategorien</h3>
+      <% for (const c of tree.cats) { %>
+      <a class="it<%= node === c.key ? ' sel' : '' %>" href="/downloads?ort=<%= encodeURIComponent(c.key) %>"><span class="emo"><%= c.icon %></span> <%= c.label %><span class="n"><%= c.n %></span></a>
+      <% } %>
+      <% if (tree.privat != null) { %>
+      <h3>Nur für dich</h3>
+      <a class="it<%= node === 'privat' ? ' sel' : '' %>" href="/downloads?ort=privat"><span class="emo">🔒</span> Privat<span class="n"><%= tree.privat %></span></a>
+      <% } %>
+    </nav>
+    <% if (canUpload || canCreate || canSuggest) { %>
+    <div class="grp" style="padding:12px;display:grid;gap:8px">
+      <% if (canCreate) { %><a class="pill pri" href="/downloads/neues-projekt">＋ Neues Projekt</a><% } %>
+      <% if (canUpload) { %><a class="pill" href="/files/upload">📤 Dateien hinzufügen</a><% } %>
+      <% if (canSuggest) { %><a class="pill" href="/files/upload?tab=link">🔗 Link vorschlagen</a><% } %>
+    </div>
+    <% } %>
+  </aside>
+
+  <div class="v3-content">
+    <h2 class="page-h"><%= node === 'alle' ? 'Dancors Downloads' : title.replace(/ – Downloads$/, '') %></h2>
+    <p class="page-sub"><%= node === 'alle' ? 'Alles zum Herunterladen. Projekte haben Versionen, Anleitung und eine Liste der Änderungen.' : node === 'privat' ? 'Nur für Konten mit Freigabe für den Bereich Privat.' : `${rows.length} ${rows.length === 1 ? 'Eintrag' : 'Einträge'}` %></p>
+    <form class="v3-tools" action="/downloads" role="search">
+      <% if (node !== 'alle' && node !== 'suche') { %><input type="hidden" name="ort" value="<%= node %>"><% } %>
+      <input type="search" name="q" value="<%= q %>" placeholder="In Downloads suchen …" style="max-width:340px" aria-label="In Downloads suchen">
+      <button class="pill">Suchen</button>
+      <% if (q) { %><a class="pill ghost" href="/downloads">✕ Suche löschen</a><% } %>
+    </form>
+
+    <% if (featured.length) { %>
+    <h3 class="sec-h">Projekte</h3>
+    <div class="feat">
+      <% for (const p of featured) { %>
+      <a class="fc" href="<%= p.url %>">
+        <span class="art c-<%= p.color %>"><% if (p.cover) { %><img src="<%= p.cover %>" alt=""><% } else { %><span class="emo"><%= p.icon %></span><% } %></span>
+        <span style="min-width:0">
+          <h3><%= p.title %></h3>
+          <p><%= p.summary %></p>
+          <span class="row"><% if (p.version) { %><span class="ver">v<%= p.version.replace(/^v/i, '') %></span><% } %><span class="tag"><%= p.cat %></span><% if (p.sizeText) { %><span class="tag"><%= p.sizeText %></span><% } %></span>
+        </span>
+      </a>
+      <% } %>
+    </div>
+    <% } %>
+
+    <% if (!rows.length) { %>
+    <div class="list"><div class="empty-state"><span class="e emo">📭</span><%= q ? 'Nichts gefunden.' : 'Hier liegt noch nichts.' %></div></div>
+    <% } else { %>
+    <div class="list" role="table" aria-label="Downloads">
+      <div class="lr h" role="row"><span></span><span role="columnheader">Name</span><span role="columnheader" class="opt">Kategorie</span><span role="columnheader" class="opt">Größe</span><span role="columnheader" class="opt">Datum</span><span></span></div>
+      <% for (const r of rows) { %>
+      <div class="lr" role="row">
+        <span class="e emo" aria-hidden="true"><%= r.icon %></span>
+        <span class="nm">
+          <% if (r.type === 'project' || r.type === 'link') { %><a class="t" href="<%= r.url %>"><%= r.title %></a><% } else { %><b><%= r.title %></b><% } %>
+          <span><% if (r.version) { %><span class="ver">v<%= String(r.version).replace(/^v/i, '') %></span> <% } %><%= r.summary || '' %><% if (r.type === 'project' && r.count > 1) { %> · <%= r.count %> Versionen<% } %></span>
+        </span>
+        <span class="mu opt"><%= r.cat %><% if (r.game) { %> · <%= r.game %><% } %></span>
+        <span class="mu opt"><%= r.sizeText || '–' %></span>
+        <span class="mu opt"><%= r.date ? fmt(r.date) : '' %></span>
+        <span class="act">
+          <% if (r.type === 'project') { %><a class="pill small" href="<%= r.url %>">Ansehen</a><% if (r.dl) { %><a class="pill small pri" href="<%= r.dl %>" aria-label="<%= r.title %> herunterladen">⬇</a><% } %>
+          <% } else if (r.type === 'link') { %><a class="pill small pri" href="<%= r.url %>">Zum Hub</a>
+          <% } else if (r.type === 'track') { %><a class="pill small" href="<%= r.url %>">▶ Abspielen</a><a class="pill small pri" href="<%= r.dl %>" aria-label="<%= r.title %> herunterladen">⬇</a>
+          <% } else { %><% if (r.edit) { %><a class="pill small ghost" href="<%= r.edit %>" title="Bearbeiten">✎</a><% } %><a class="pill small pri" href="<%= r.dl %>">⬇ Download</a><% } %>
+        </span>
+      </div>
+      <% } %>
+    </div>
+    <% } %>
+  </div>
+</div>
+<%- include('_foot') %>

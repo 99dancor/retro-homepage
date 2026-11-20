@@ -73,7 +73,7 @@ async function main() {
     });
 
     await step('Öffentliche Seiten laden', async () => {
-      for (const p of ['/', '/blog', '/files', '/mods', '/links', '/guestbook', '/contact', '/apps', '/forum', '/changelog', '/datenschutz', '/login', '/theme.css', '/static/retro.css', '/static/editor.js', '/musik', '/musik/bibliothek', '/static/sound.js', '/static/music.js', '/static/visualizer.js', '/paint', '/galerie', '/static/paint-core.js']) {
+      for (const p of ['/', '/desktop', '/downloads', '/duden', '/rezepte', '/finden?q=a', '/blog', '/mods', '/guestbook', '/contact', '/apps', '/forum', '/changelog', '/datenschutz', '/login', '/theme.css', '/static/retro.css', '/static/editor.js', '/musik', '/musik/bibliothek', '/static/sound.js', '/static/music.js', '/static/visualizer.js', '/paint', '/galerie', '/static/paint-core.js']) {
         const r = await guest.req(p);
         assert.equal(r.status, 200, p);
       }
@@ -81,7 +81,7 @@ async function main() {
     });
 
     await step('Zufallsgenerator im Startmenü und als Fenster', async () => {
-      const desk = await guest.req('/', { top: true });
+      const desk = await guest.req('/desktop', { top: true });
       assert.match(desk.text_, /<div class="startmenu"[\s\S]*href="\/zufall"[\s\S]*Zufallsgenerator/);
       const r = await guest.req('/zufall');
       assert.equal(r.status, 200);
@@ -164,7 +164,7 @@ async function main() {
       assert.equal(dl.text_, 'spielstand');
       assert.match(dl.headers.get('content-disposition'), /Speicherstand%20%C3%A4%C3%B6%C3%BC\.sav/);
       assert.equal((await guest.req('/files/dl/1')).status, 404, 'Gast darf private Datei nicht laden');
-      assert.doesNotMatch((await guest.req('/files')).text_, /Speicherstand/);
+      assert.doesNotMatch((await guest.req('/downloads')).text_, /Speicherstand/);
     });
 
     await step('Besucherbuch-Eintrag als Gast', async () => {
@@ -298,8 +298,8 @@ async function main() {
     });
 
     await step('Download-Statistik zählt Downloads, Abbrüche und Fortsetzungen', async () => {
-      const list = await guest.req('/files');
-      const id = list.text_.match(/\/files\/dl\/(\d+)" download><span class="ex-ic">[^<]*<\/span>Riesen Mod\.zip/)[1];
+      const list = await guest.req('/downloads?q=Riesen', { top: true });
+      const id = list.text_.match(/href="\/files\/dl\/(\d+)"/)[1];
       const full = await guest.req('/files/dl/' + id);
       assert.equal(full.status, 200);
       assert.equal(full.text_.length, 300000);
@@ -544,7 +544,7 @@ async function main() {
       assert.match(page.text_, /<script src="\/static\/visualizer\.js\?v=\w+"><\/script>/);
       assert.match(page.text_, /<video id="mp-media" playsinline/, 'Musik und Videos laufen über ein Element');
       assert.match(page.text_, /data-act="mini"[\s\S]*data-act="mini-off"/);
-      const desk = (await guest.req('/', { top: true })).text_;
+      const desk = (await guest.req('/desktop', { top: true })).text_;
       assert.match(desk, /<div class="startmenu"[\s\S]*href="\/musik"/);
       assert.match(desk, /id="displaybtn"[\s\S]*id="volumebtn"[\s\S]*id="clock"/, '🔊 neben der Uhr');
       assert.match(desk, /<script src="\/static\/sound\.js\?v=\w+"><\/script>/);
@@ -609,9 +609,9 @@ async function main() {
       assert.match((await anna.req('/musik')).text_, /data-skin="vlc-dunkel"/);
       assert.equal((await api(guest, '/musik/einstellungen', { skin: 'winamp' })).status, 401);
       // Das Symbol des Mediaplayers folgt dem Skin: am Desktop und in jedem Fenster steht er an <html>
-      assert.match((await anna.req('/', { top: true })).text_, /<html lang="de" data-design="\w+" data-mp-skin="vlc-dunkel">/);
-      assert.match((await guest.req('/', { top: true })).text_, /data-mp-skin="klassisch" data-mp-guest>/);
-      assert.match((await anna.req('/', { top: true })).text_, /sym-player/, 'Startmenü zeigt das Bild-Symbol');
+      assert.match((await anna.req('/desktop', { top: true })).text_, /<html lang="de" data-design="\w+" data-mp-skin="vlc-dunkel">/);
+      assert.match((await guest.req('/desktop', { top: true })).text_, /data-mp-skin="klassisch" data-mp-guest>/);
+      assert.match((await anna.req('/desktop', { top: true })).text_, /sym-player/, 'Startmenü zeigt das Bild-Symbol');
     });
 
     await step('Mediaplayer: Internetradio eintragen, abspielen über den Server, Rechte', async () => {
@@ -895,12 +895,12 @@ async function main() {
       tk = await anna.csrf('/guestbook');
       await anna.form('/guestbook', { _csrf: tk, message: 'Hallo von Anna' });
       assert.match((await guest.req('/guestbook')).text_, /href="\/nutzer\/anna" class="userlink">[\s\S]*?Anna B\.<\/a>/);
-      const desk = (await anna.req('/', { top: true })).text_;
+      const desk = (await anna.req('/desktop', { top: true })).text_;
       assert.match(desk, /<div class="startmenu"[\s\S]*href="\/messenger"><i class="sym sym-msgr" aria-hidden="true">🌼<\/i> Messenger[\s\S]*href="\/nutzer\/anna">👤 Mein Profil<\/a>\s*<a href="\/konto">🔑 Konto und Passwort/);
       assert.match(desk, /id="msgrtray"/);
       assert.match(desk, /messenger-hub\.js/);
       assert.match(desk, /Anna B\. abmelden/);
-      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /id="msgrtray"|messenger-hub\.js/);
+      assert.doesNotMatch((await guest.req('/desktop', { top: true })).text_, /id="msgrtray"|messenger-hub\.js/);
     });
 
     await step('Freunde: anfragen, annehmen, nur für Freunde sichtbar', async () => {
@@ -940,7 +940,7 @@ async function main() {
       assert.match(sent.headers.get('location'), /^\/messenger\/mit\/anna#n\d+$/);
       assert.equal(JSON.parse((await anna.req('/api/nachrichten')).text_).unread, 1);
       assert.equal(JSON.parse((await anna.req('/api/messenger/kontakte')).text_).contacts.find(c => c.user === 'bernd').unread, 1);
-      const desk = (await anna.req('/', { top: true })).text_;
+      const desk = (await anna.req('/desktop', { top: true })).text_;
       assert.match(desk, /id="msgrtray"[^>]*><i class="st st-offline"><\/i><span class="pm-count">1</);
       const conv = (await anna.req('/messenger/mit/bernd')).text_;
       assert.match(conv, /Hallo Anna!\nWie geht es dir\?/);
@@ -1090,8 +1090,8 @@ async function main() {
       assert.ok(j.items.some(n => /bernd hat deine Freundschaftsanfrage angenommen/.test(n.title)), 'Annahme der Anfrage');
       const pm = j.items.find(n => n.title === '💬 Nachricht von bernd');
       assert.ok(pm && pm.body === 'Klar!' && pm.read, 'Nachricht, gelesen beim Öffnen des Gesprächs');
-      assert.match((await anna.req('/', { top: true })).text_, /id="notifybtn"[\s\S]*?class="notify-count">\d+</);
-      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /id="notifybtn"/);
+      assert.match((await anna.req('/desktop', { top: true })).text_, /id="notifybtn"[\s\S]*?class="notify-count">\d+</);
+      assert.doesNotMatch((await guest.req('/desktop', { top: true })).text_, /id="notifybtn"/);
       assert.match((await anna.req('/benachrichtigungen')).text_, /Nachricht von bernd/);
       let tk = await anna.csrf('/benachrichtigungen');
       await anna.form('/benachrichtigungen/alle-gelesen', { _csrf: tk });
@@ -1458,7 +1458,7 @@ async function main() {
 
     await step('Kartenspiele: Startmenü, Fenster, Spieltisch eröffnen, Kasse', async () => {
       const { anna, bernd } = members;
-      const home = (await guest.req('/', { top: true })).text_;
+      const home = (await guest.req('/desktop', { top: true })).text_;
       // Ein Eintrag für alle Kartenspiele in Spiele und Apps, die einzelnen Spiele führen dorthin
       assert.match(home, /🎮 Spiele und Apps<\/button><div class="submenu">\s*<a href="\/kartenspiele"><i class="sym sym-karten" aria-hidden="true">🂡<\/i> Kartenspiele<\/a>\s*<a href="\/quiz"/);
       assert.match(home, /href="\/guestbook">📖 Besucherbuch/);
@@ -1682,8 +1682,8 @@ async function main() {
       // Gäste: kein Spiel, keine ROM, kein Eintrag im Startmenü
       assert.equal((await guest.req('/ds/animal-crossing')).status, 302);
       assert.notEqual((await guest.req('/ds/animal-crossing/rom')).status, 200);
-      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /href="\/ds\/animal-crossing"/);
-      assert.match((await anna.req('/', { top: true })).text_, /<div class="startmenu"[\s\S]*href="\/ds\/animal-crossing">🍃 Animal Crossing/);
+      assert.doesNotMatch((await guest.req('/desktop', { top: true })).text_, /href="\/ds\/animal-crossing"/);
+      assert.match((await anna.req('/desktop', { top: true })).text_, /<div class="startmenu"[\s\S]*href="\/ds\/animal-crossing">🍃 Animal Crossing/);
       // Das Fenster: Emulator darf WebAssembly übersetzen, nur hier
       r = await anna.req('/ds/animal-crossing');
       assert.equal(r.status, 200);
@@ -1728,7 +1728,7 @@ async function main() {
       assert.equal((await admin.req('/admin/ds/save', { method: 'POST', body: fd })).status, 302);
       assert.equal((await anna.req('/ds/animal-crossing')).status, 404);
       assert.equal((await anna.req('/ds/animal-crossing/rom')).status, 404);
-      assert.doesNotMatch((await anna.req('/', { top: true })).text_, /href="\/ds\/animal-crossing"/);
+      assert.doesNotMatch((await anna.req('/desktop', { top: true })).text_, /href="\/ds\/animal-crossing"/);
       assert.equal((await admin.req('/ds/animal-crossing/rom')).status, 200);
       // Eigenen Spielstand löschen
       tk = await anna.csrf('/konto?reiter=spielstaende');
@@ -1743,7 +1743,7 @@ async function main() {
 
     await step('Minesweeper: Fenster, Start und Ende auf dem Server, Bestzeiten und Profil', async () => {
       const { anna, bernd } = members;
-      const home = (await guest.req('/', { top: true })).text_;
+      const home = (await guest.req('/desktop', { top: true })).text_;
       assert.match(home, /<div class="startmenu"[\s\S]*href="\/minesweeper">💣 Minesweeper/);
       const page = (await guest.req('/minesweeper')).text_;
       assert.match(page, /src="\/static\/minesweeper\.js\?v=\w+"/, 'auch Gäste spielen');
@@ -1780,7 +1780,7 @@ async function main() {
     await step('Kreuzworträtsel: Rätsel des Tages, Prüfen, Lösen, Bestenliste und Profil', async () => {
       const { anna, bernd } = members;
       const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'));
-      const home = (await guest.req('/', { top: true })).text_;
+      const home = (await guest.req('/desktop', { top: true })).text_;
       assert.match(home, /<div class="startmenu"[\s\S]*href="\/kreuzwortraetsel">📰 Kreuzworträtsel/);
       const page = (await guest.req('/kreuzwortraetsel')).text_;
       assert.match(page, /src="\/static\/crossword\.js\?v=\w+"/);
@@ -1825,7 +1825,7 @@ async function main() {
     await step('Sudoku: drei Stufen am Tag, Prüfen, Lösen, Bestenliste und Profil', async () => {
       const { anna, bernd } = members;
       const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'));
-      const home = (await guest.req('/', { top: true })).text_;
+      const home = (await guest.req('/desktop', { top: true })).text_;
       assert.match(home, /<div class="startmenu"[\s\S]*href="\/sudoku">🔢 Sudoku/);
       const page = (await guest.req('/sudoku')).text_;
       assert.match(page, /src="\/static\/sudoku\.js\?v=\w+"/);
@@ -1867,7 +1867,7 @@ async function main() {
 
     await step('Quiz: Raum, Gast mit Namen, Live-Verbindung, Wertung, Profil und Admin', async () => {
       const { anna, bernd } = members;
-      const home = (await guest.req('/', { top: true })).text_;
+      const home = (await guest.req('/desktop', { top: true })).text_;
       assert.match(home, /<div class="startmenu"[\s\S]*href="\/quiz">❓ Quiz/);
       const oma = browser();
       assert.match((await oma.req('/quiz')).text_, /quiz\.js/, 'auch Gäste bekommen das Quiz');
@@ -1959,7 +1959,7 @@ async function main() {
 
     await step('Werwolf: Dorf mit Gästen, Rollen geheim, Nacht, Abstimmung, Profil und Admin', async () => {
       const { anna, bernd } = members;
-      const home = (await guest.req('/', { top: true })).text_;
+      const home = (await guest.req('/desktop', { top: true })).text_;
       assert.match(home, /<div class="startmenu"[\s\S]*href="\/werwolf">🐺 Werwolf/);
       const oma = browser(), opa = browser();
       assert.match((await oma.req('/werwolf')).text_, /werwolf\.js/, 'auch Gäste bekommen Werwolf');
@@ -2046,7 +2046,7 @@ async function main() {
     });
 
     await step('Changelog im Startmenü', async () => {
-      const home = (await guest.req('/', { top: true })).text_;
+      const home = (await guest.req('/desktop', { top: true })).text_;
       assert.match(home, /<div class="startmenu"[\s\S]*href="\/changelog"/);
       // Auf dem Desktop selbst kein Symbol dafür; das Laufband darf aufs neueste Update zeigen
       assert.doesNotMatch(home.split('<div class="startmenu"')[0].replace(/<div class="tick[\s\S]*?<span class="ctl">/, ''), /\/changelog/);
@@ -2126,7 +2126,7 @@ async function main() {
     });
 
     await step('Datenschutzseite im Startmenü zeigt echten Code und Bilder', async () => {
-      const home = (await guest.req('/', { top: true })).text_;
+      const home = (await guest.req('/desktop', { top: true })).text_;
       assert.match(home, /<div class="startmenu"[\s\S]*href="\/changelog"[\s\S]*href="\/datenschutz"/);
       const r = await guest.req('/datenschutz');
       assert.equal(r.status, 200);
@@ -2143,7 +2143,7 @@ async function main() {
     });
 
     await step('Darstellung: Knopf neben der Uhr, Skript in jeder Seite', async () => {
-      const home = (await guest.req('/', { top: true })).text_;
+      const home = (await guest.req('/desktop', { top: true })).text_;
       assert.match(home, /<div class="tray">\s*<button[^>]*id="displaybtn"[\s\S]*id="clock"/);
       const panel = home.slice(home.indexOf('id="displaypanel"'));
       for (const re of [/data-tab="hintergrund"/, /name="bg" value="bild"/, /type="file" name="bild"/, /name="desktop"/, /data-scheme="nacht"/,
@@ -2153,7 +2153,7 @@ async function main() {
       const data = JSON.parse(home.match(/<script type="application\/json" id="darstellung-daten">([^<]*)<\/script>/)[1]);
       assert.equal(data.presets.Matrix.desktop, '#001100');
       assert.match(data.fonts.comic.stack, /Comic Sans/);
-      for (const [url, opts] of [['/', { top: true }], ['/blog', {}], ['/admin', null]]) {
+      for (const [url, opts] of [['/desktop', { top: true }], ['/blog', {}], ['/admin', null]]) {
         const page = (await (opts ? guest.req(url, opts) : admin.req(url))).text_;
         assert.match(page, /<head>[\s\S]*<script src="\/static\/display\.js\?v=\w+"><\/script>[\s\S]*<\/head>/, url);
       }
@@ -2173,7 +2173,7 @@ async function main() {
 
     await step('Paint: malen ohne Konto, speichern mit Konto, Sichtbarkeit und Galerie', async () => {
       const { png } = require('./png');
-      const desk = (await guest.req('/', { top: true })).text_;
+      const desk = (await guest.req('/desktop', { top: true })).text_;
       // Galerie steht unter Dokumente, Paint unter Spiele und Apps
       assert.match(desk, /<div class="startmenu"[\s\S]*📂 Dokumente<\/button><div class="submenu">[\s\S]*href="\/galerie"[\s\S]*🎮 Spiele und Apps[\s\S]*href="\/paint"/);
       const page = await guest.req('/paint');
@@ -2438,13 +2438,13 @@ async function main() {
       assert.equal((await admin.req('/files/upload', { method: 'POST', body: fd })).status, 200);
       const f = sql.prepare("SELECT * FROM files WHERE title = 'Nur für Freunde'").get();
       assert.equal(f.visibility, 'friends');
-      assert.match((await anna.req('/files')).text_, /Nur für Freunde/, 'Freundin sieht die Datei');
+      assert.match((await anna.req('/downloads')).text_, /Nur für Freunde/, 'Freundin sieht die Datei');
       assert.equal((await anna.req('/files/dl/' + f.id)).status, 200);
-      assert.doesNotMatch((await bernd.req('/files')).text_, /Nur für Freunde/, 'kein Freund');
+      assert.doesNotMatch((await bernd.req('/downloads')).text_, /Nur für Freunde/, 'kein Freund');
       assert.notEqual((await bernd.req('/files/dl/' + f.id)).status, 200);
-      assert.doesNotMatch((await guest.req('/files')).text_, /Nur für Freunde/);
+      assert.doesNotMatch((await guest.req('/downloads')).text_, /Nur für Freunde/);
       // Startmenü: Eigene Dateien unter Dokumente, Info mit Changelog und Datenschutz
-      const home = (await anna.req('/', { top: true })).text_;
+      const home = (await anna.req('/desktop', { top: true })).text_;
       assert.match(home, /📂 Dokumente<\/button><div class="submenu">\s*<a href="\/eigene-dateien">/);
       assert.match(home, /ℹ️ Info<\/button><div class="submenu">[\s\S]*href="\/changelog"[\s\S]*href="\/datenschutz"/);
       // Explorer: Bibliothek Downloads mit Name und Sichtbarkeit
@@ -2457,11 +2457,11 @@ async function main() {
       const t3 = await admin.csrf('/eigene-dateien?bib=datei');
       assert.equal((await admin.form('/eigene-dateien/datei/' + f.id, { _csrf: t3, title: 'Für alle', visibility: 'members' })).status, 302);
       assert.equal(sql.prepare('SELECT visibility FROM files WHERE id = ?').get(f.id).visibility, 'members');
-      assert.match((await bernd.req('/files')).text_, /Für alle/);
+      assert.match((await bernd.req('/downloads')).text_, /Für alle/);
       // Löschen legt in den Papierkorb: privat, zurückholbar, erst dort endgültig weg
       assert.equal((await admin.form('/eigene-dateien/datei/' + f.id + '/loeschen', { _csrf: t3 })).status, 302);
       assert.equal(sql.prepare('SELECT visibility FROM files WHERE id = ?').get(f.id).visibility, 'private');
-      assert.doesNotMatch((await bernd.req('/files')).text_, /Für alle/, 'im Papierkorb sieht es niemand');
+      assert.doesNotMatch((await bernd.req('/downloads')).text_, /Für alle/, 'im Papierkorb sieht es niemand');
       assert.match((await admin.req('/eigene-dateien?ordner=papierkorb')).text_, /Für alle/);
       const api = (method, url, body) => admin.req(url, { method, headers: { 'Content-Type': 'application/json', 'x-csrf-token': admin.jar.get('csrf') }, body: JSON.stringify(body) });
       assert.equal((await api('POST', '/api/desktop/wiederherstellen', { refs: ['datei:' + f.id] })).status, 200);
@@ -2473,7 +2473,7 @@ async function main() {
       sql.close();
     });
 
-    await step('Downloads als Explorer, Hinzufügen einzeln, Kategorien und gesperrte Endungen', async () => {
+    await step('Dancors Downloads: Kategorien links, Hinzufügen einzeln, gesperrte Endungen', async () => {
       const { anna, bernd } = members;
       const { DatabaseSync } = require('node:sqlite');
       const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
@@ -2501,14 +2501,14 @@ async function main() {
       assert.equal(sql.prepare("SELECT game FROM files WHERE original_name = 'mein spielstand.sav'").get().game, 'FS25');
       assert.equal(JSON.parse((await send('notiz.txt', { category: 'Gibt es nicht' })).text_).category, 'Allgemein');
       // Explorer: Baum mit Kategorien, Knoten zeigt nur seine Einträge, Suche über alles
-      const all = (await bernd.req('/files')).text_;
-      assert.match(all, /href="\/files\?ort=k%3ASpielst%C3%A4nde" class="ex-node">💾 Spielstände/);
-      assert.match(all, /data-ref="datei:\d+" data-item="[^"]*mein spielstand\.sav/);
-      const cat = (await bernd.req('/files?ort=' + encodeURIComponent('k:Spielstände'))).text_;
+      const all = (await bernd.req('/downloads')).text_;
+      assert.match(all, /href="\/downloads\?ort=k%3ASpielst%C3%A4nde"><span class="emo">💾<\/span> Spielstände/);
+      assert.match(all, /href="\/files\/dl\/\d+"[^>]*>[\s\S]*?mein spielstand\.sav|mein spielstand\.sav[\s\S]*?href="\/files\/dl\/\d+"/);
+      const cat = (await bernd.req('/downloads?ort=' + encodeURIComponent('k:Spielstände'))).text_;
       assert.match(cat, /mein spielstand\.sav/);
       assert.doesNotMatch(cat, /notiz\.txt/);
-      assert.match((await bernd.req('/files?q=spielstand')).text_, /Suchergebnis[\s\S]*mein spielstand\.sav/);
-      assert.match((await bernd.req('/files?ort=neu')).text_, /notiz\.txt/);
+      assert.match((await bernd.req('/downloads?q=spielstand')).text_, /mein spielstand\.sav/);
+      assert.match((await bernd.req('/downloads?ort=neu')).text_, /notiz\.txt/);
       // Kategorien verwalten: umbenennen nimmt Dateien mit, löschen legt sie unter Allgemein, gesperrte Endungen einstellbar
       const tk = await admin.csrf('/admin/files/kategorien');
       const form = (await admin.req('/admin/files/kategorien')).text_;
@@ -2520,7 +2520,7 @@ async function main() {
       }
       assert.equal((await admin.req('/admin/files/kategorien', { method: 'POST', body: fd })).status, 302);
       assert.equal(sql.prepare("SELECT category FROM files WHERE original_name = 'mein spielstand.sav'").get().category, 'Savegames');
-      assert.doesNotMatch((await admin.req('/files')).text_, /🖼️ Bilder/);
+      assert.doesNotMatch((await admin.req('/downloads')).text_, /🖼️<\/span> Bilder/);
       assert.equal((await send('noch eine.txt')).status, 415, 'neue Sperrliste gilt');
       const tk2 = await admin.csrf('/admin/files/kategorien');
       const reset = new URLSearchParams({ _csrf: tk2, blocked: 'exe msi bat cmd com scr' });
@@ -2537,7 +2537,7 @@ async function main() {
       assert.match(page, /aria-selected="true">🔗 Link vorschlagen/);
       assert.doesNotMatch(page, /📤 Datei hochladen/);
       assert.doesNotMatch(page, /value="privat"/, 'Privat nur mit Recht');
-      assert.match((await bernd.req('/files')).text_, /href="\/files\/upload\?tab=link">🔗 Link vorschlagen/);
+      assert.match((await bernd.req('/downloads')).text_, /href="\/files\/upload\?tab=link">🔗 Link vorschlagen/);
       const t = await bernd.csrf('/files/upload?tab=link');
       let r = await bernd.form('/files/vorschlag', { _csrf: t, urls: 'http://192.168.1.5/x.mp3', kind: 'musik' });
       assert.match(decodeURIComponent(r.headers.get('location')), /Interne Adressen/);
@@ -2583,11 +2583,11 @@ async function main() {
       // Privat: Knoten nur mit Recht, Dateien darin nirgends sonst
       sql.prepare(`INSERT INTO files(title, category, original_name, stored_name, size, visibility, created_at, privat) VALUES ('Geheimclip', 'Privat', 'g.mp4', 'privat/g.mp4', 1, 'members', ?, 1)`).run(Math.floor(Date.now() / 1000));
       sql.prepare("UPDATE users SET can_private = 1 WHERE username = 'anna'").run();
-      assert.match((await anna.req('/files')).text_, /🔞 Privat <small>\(1\)/);
-      assert.match((await anna.req('/files?ort=privat')).text_, /Geheimclip/);
-      assert.doesNotMatch((await anna.req('/files?ort=neu')).text_, /Geheimclip/);
-      assert.doesNotMatch((await bernd.req('/files')).text_, /🔞 Privat|Geheimclip/);
-      assert.doesNotMatch((await bernd.req('/files?q=Geheim')).text_, /Geheimclip/);
+      assert.match((await anna.req('/downloads')).text_, /Privat<span class="n">1<\/span>/);
+      assert.match((await anna.req('/downloads?ort=privat')).text_, /Geheimclip/);
+      assert.doesNotMatch((await anna.req('/downloads?ort=neu')).text_, /Geheimclip/);
+      assert.doesNotMatch((await bernd.req('/downloads')).text_, /ort=privat|Geheimclip/);
+      assert.doesNotMatch((await bernd.req('/downloads?q=Geheim')).text_, /Geheimclip/);
       assert.match((await anna.req('/files/upload?tab=link')).text_, /value="privat"/);
       const fid = sql.prepare("SELECT id FROM files WHERE title = 'Geheimclip'").get().id;
       assert.equal((await bernd.req('/files/dl/' + fid)).status, 404);
@@ -2685,19 +2685,19 @@ async function main() {
       assert.ok(Array.isArray(JSON.parse((await anna.req('/api/lobbys')).text_).lobbies));
       sql.prepare("UPDATE settings SET value = '0' WHERE key IN ('lobby_widget', 'search_enabled')").run();
       assert.equal((await anna.req('/api/suche?q=Einkauf')).status, 404);
-      const shell = (await anna.req('/', { top: true })).text_;
+      const shell = (await anna.req('/desktop', { top: true })).text_;
       assert.doesNotMatch(shell, /id="lobbywidget"/);
       assert.doesNotMatch(shell, /id="tbsearch"/);
       sql.prepare("UPDATE settings SET value = '1' WHERE key IN ('lobby_widget', 'search_enabled')").run();
-      assert.match((await anna.req('/', { top: true })).text_, /id="tbsearch"/);
+      assert.match((await anna.req('/desktop', { top: true })).text_, /id="tbsearch"/);
 
       // Darstellung am Konto: nur mit Haken, ohne Größe der Oberfläche
       const r = await json(await api(anna, '/api/einstellungen/darstellung', { display: { design: 'xp', xp: 'oliv', scale: 150, t: 5 } }));
       assert.equal(r.display.design, 'xp');
       assert.equal(r.display.scale, undefined, 'Größe bleibt im Browser');
-      assert.match((await anna.req('/', { top: true })).text_, /id="darstellung-konto">\{[^<]*"xp":"oliv"/);
+      assert.match((await anna.req('/desktop', { top: true })).text_, /id="darstellung-konto">\{[^<]*"xp":"oliv"/);
       await api(anna, '/api/einstellungen/darstellung', { display: null });
-      assert.doesNotMatch((await anna.req('/', { top: true })).text_, /"xp":"oliv"/);
+      assert.doesNotMatch((await anna.req('/desktop', { top: true })).text_, /"xp":"oliv"/);
       sql.close();
     });
 
@@ -2734,7 +2734,7 @@ async function main() {
       assert.equal(sql.prepare('SELECT visibility FROM desk_items WHERE id = ?').get(id).visibility, 'private');
       // Grunddesign der Seite
       await admin.form('/admin/design', { _csrf: t, theme_design: 'xp-silber' });
-      assert.match((await guest.req('/', { top: true })).text_, /<html lang="de" data-design="xp-silber"[ >]/);
+      assert.match((await guest.req('/desktop', { top: true })).text_, /<html lang="de" data-design="xp-silber"[ >]/);
       await admin.form('/admin/design', { _csrf: t, theme_design: '98' });
       // Profilbild: Querformat lehnt der Server ab, quadratisch geht
       const zlib = require('node:zlib');
@@ -2865,8 +2865,8 @@ async function main() {
       const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'), { timeout: 5000 });
       // Gäste nur, wenn erlaubt; im Startmenü nur für die, die ihn sehen
       assert.equal((await guest.req('/farming', { top: true })).headers.get('location'), '/login?next=%2Ffarming');
-      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /🚜 Dancors Dreschplatz/);
-      assert.match((await anna.req('/', { top: true })).text_, /href="\/farming">🚜 Dancors Dreschplatz/);
+      assert.doesNotMatch((await guest.req('/desktop', { top: true })).text_, /🚜 Dancors Dreschplatz/);
+      assert.match((await anna.req('/desktop', { top: true })).text_, /href="\/farming">🚜 Dancors Dreschplatz/);
       // Eigene Seite ohne Desktop drumherum, mit Rückweg; im Fenster schlank
       let page = (await anna.req('/farming/', { top: true })).text_;
       assert.match(page, /<title>Dancors Dreschplatz<\/title>/);
@@ -2900,6 +2900,214 @@ async function main() {
       sql.close();
     });
 
+    await step('Version 3.0: Startseite mit Kacheln, Suche, Anmeldung, Desktop unter /desktop, alte Adressen', async () => {
+      const home = await guest.req('/', { top: true });
+      assert.equal(home.status, 200);
+      assert.match(home.text_, /<body class="v3"/);
+      for (const k of ['desktop', 'downloads', 'duden', 'rezepte']) assert.match(home.text_, new RegExp(`data-tile="${k}"`), k);
+      assert.doesNotMatch(home.text_, /class="startmenu"|id="logon"/, 'kein Desktop auf der Startseite');
+      assert.match(home.text_, /href="\/login\?next=%2F"/);
+      assert.match(home.text_, /href="\/changelog">Changelog[\s\S]*href="\/guestbook">Besucherbuch[\s\S]*href="\/contact">Kontakt[\s\S]*href="\/datenschutz">Datenschutz/);
+      // Im Desktop-Fenster bleibt / die Willkommensseite, der Desktop selbst liegt unter /desktop
+      assert.doesNotMatch((await guest.req('/')).text_, /class="v3-top"/);
+      const desk = (await guest.req('/desktop', { top: true })).text_;
+      assert.match(desk, /<div class="startmenu"[\s\S]*<a href="\/" data-top>↩️ Zur Startseite<\/a>/);
+      // Alte Adressen leiten weiter
+      for (const [from, to] of [['/files', '/downloads'], ['/files?ort=neu', '/downloads?ort=neu'], ['/files?q=mod', '/downloads?q=mod'], ['/links', '/duden/links']]) {
+        const r = await guest.req(from, { top: true });
+        assert.equal(r.status, 301, from);
+        assert.equal(r.headers.get('location'), to, from);
+      }
+      // Anmeldung: modern für die neuen Bereiche, der Desktop behält seine
+      const login = (await guest.req('/login?next=%2Fduden', { top: true })).text_;
+      assert.match(login, /<body class="v3/);
+      assert.match(login, /name="next" value="\/duden"/);
+      assert.doesNotMatch((await guest.req('/login?next=%2Fforum', { top: true })).text_, /<body class="v3/);
+      // Suche über alle Bereiche, auch Programme des Desktops
+      const hits = (await guest.req('/finden?q=Minesweeper', { top: true })).text_;
+      assert.match(hits, /Minesweeper/);
+      assert.equal((await guest.req('/finden?q=' + 'x'.repeat(500), { top: true })).status, 200);
+      // Kacheln in der Seitenverwaltung: ausblenden, nur Mitglieder, eigene Kachel, Reihenfolge
+      const page = (await admin.req('/admin/kacheln')).text_;
+      const order = [...page.matchAll(/name="order" value="([^"]+)"/g)].map(m => m[1]);
+      assert.deepEqual(order, ['desktop', 'downloads', 'duden', 'rezepte', 'hub']);
+      const t = await admin.csrf('/admin/kacheln');
+      const post = extra => {
+        const fd = new URLSearchParams({ _csrf: t, portal_name: 'dancor.org', portal_title: 'Hallo Rauch', portal_text: 'Test' });
+        for (const k of order) { fd.append('order', k); fd.append('show_' + k, extra.show && extra.show[k] || 'all'); }
+        for (const [k, v] of Object.entries(extra.fields || {})) fd.append(k, v);
+        return admin.req('/admin/kacheln', { method: 'POST', body: fd });
+      };
+      assert.equal((await post({ show: { rezepte: 'off', duden: 'members' }, fields: { add: '1' } })).status, 302);
+      let g = (await guest.req('/', { top: true })).text_;
+      assert.match(g, /<h1>Hallo Rauch<\/h1>/);
+      assert.doesNotMatch(g, /data-tile="rezepte"/, 'ausgeblendet');
+      assert.match(g, /href="\/login\?next=%2Fduden" data-tile="duden"[\s\S]*?🔒 für Mitglieder/, 'Gäste sehen das Schloss');
+      assert.doesNotMatch(g, /data-tile="k1"/, 'neue Kachel ist erst aus');
+      assert.match((await members.anna.req('/', { top: true })).text_, /href="\/duden" data-tile="duden"/);
+      order.push('k1');
+      assert.equal((await post({ fields: { title_k1: 'Mein Blog', url_k1: 'javascript:alert(1)', icon_k1: '📝', move: 'k1:up' } })).status, 302);
+      g = (await guest.req('/', { top: true })).text_;
+      assert.match(g, /href="\/" data-tile="k1"[\s\S]*?Mein Blog/, 'unsichere Adresse wird /');
+      assert.ok(g.indexOf('data-tile="k1"') < g.indexOf('data-tile="hub"') || !/data-tile="hub"/.test(g), 'nach oben geschoben');
+      order.splice(order.indexOf('k1'), 1);
+      assert.equal((await post({ fields: { del: 'k1' } })).status, 302);
+      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /data-tile="k1"/);
+    });
+
+    await step('Dancors Downloads: Projekt mit Versionen und Bildern, alte Versionen bleiben, Sichtbarkeit, Zuordnung', async () => {
+      const { anna } = members;
+      const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'), { timeout: 5000 });
+      const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+      const send = async (url, fields, files = {}) => {
+        const t = await admin.csrf(url.includes('neues-projekt') ? url : '/downloads/rauch-widget');
+        const fd = new FormData();
+        fd.append('_csrf', t);
+        for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+        for (const [k, [name, type, buf]] of Object.entries(files)) fd.append(k, new Blob([buf], { type }), name);
+        return admin.req(url, { method: 'POST', body: fd });
+      };
+      let r = await send('/downloads/neues-projekt', { title: 'Rauch Widget', summary: 'Für den Rauchtest', icon: '📱', color: 'dl', category: 'Allgemein', body_md: '## Funktionen\n\nViele.', howto_md: '1. Laden', version: '1.0', changes: '- Erste Fassung', visibility: 'public', featured: '1' },
+        { cover: ['cover.png', 'image/png', PNG], file: ['widget-1.0.zip', 'application/zip', Buffer.from('PK eins')] });
+      assert.equal(r.headers.get('location'), '/downloads/rauch-widget?ok=neu');
+      const v1 = sql.prepare("SELECT id FROM files WHERE original_name = 'widget-1.0.zip'").get().id;
+      r = await send('/downloads/rauch-widget/version', { version: '1.1', changes: '- Fehler behoben' }, { file: ['widget-1.1.zip', 'application/zip', Buffer.from('PK zwei')] });
+      assert.equal(r.headers.get('location'), '/downloads/rauch-widget?ok=version#versionen');
+      const page = (await guest.req('/downloads/rauch-widget', { top: true })).text_;
+      assert.match(page, /<h1>[^<]*Rauch Widget/);
+      assert.match(page, /Version 1\.1/);
+      assert.match(page, /v1\.1[\s\S]*aktuell[\s\S]*Fehler behoben[\s\S]*v1\.0[\s\S]*Erste Fassung/);
+      assert.match(page, /<img src="\/media\/[0-9a-f]+\.png"/);
+      assert.equal((await guest.req('/files/dl/' + v1)).status, 200, 'alte Version bleibt ladbar');
+      const list = (await guest.req('/downloads', { top: true })).text_;
+      assert.match(list, /class="feat"[\s\S]*Rauch Widget/, 'hervorgehoben oben');
+      // Privat: nur Besitzer und Admin
+      r = await send('/downloads/neues-projekt', { title: 'Geheimes Tool', category: 'Allgemein', visibility: 'private' });
+      assert.equal(r.status, 302);
+      assert.equal((await guest.req('/downloads/geheimes-tool', { top: true })).status, 404);
+      assert.equal((await anna.req('/downloads/geheimes-tool', { top: true })).status, 404);
+      assert.doesNotMatch((await anna.req('/downloads?q=Geheimes')).text_, /Geheimes Tool/);
+      // Ohne Upload-Recht kein neues Projekt, fremde Projekte nicht ändern
+      sql.prepare("UPDATE users SET can_upload = 0 WHERE username = 'bernd'").run();
+      assert.equal((await members.bernd.req('/downloads/neues-projekt')).status, 403);
+      assert.equal((await members.bernd.req('/downloads/rauch-widget/bearbeiten')).status, 403);
+      // Seitenverwaltung: einzelne Datei einem Projekt als Version zuordnen
+      const fid = sql.prepare("SELECT id FROM files WHERE project_id IS NULL ORDER BY id LIMIT 1").get().id;
+      const pid = sql.prepare("SELECT id FROM dl_projects WHERE slug = 'rauch-widget'").get().id;
+      const ta = await admin.csrf('/admin/files/' + fid);
+      assert.match((await admin.req('/admin/files/' + fid)).text_, /name="project_id"/);
+      assert.equal((await admin.form('/admin/files/' + fid, { _csrf: ta, title: 'Alt', category: 'Allgemein', visibility: 'public', project_id: String(pid), version: '0.9', changes: 'Ganz alt' })).status, 302);
+      assert.deepEqual({ ...sql.prepare('SELECT project_id, version FROM files WHERE id = ?').get(fid) }, { project_id: pid, version: '0.9' });
+      // Der Hub erscheint als Verweis, die Mod liegt im Hub
+      assert.match((await anna.req('/downloads')).text_, /href="\/farming\/hublink"/);
+      sql.close();
+    });
+
+    await step('Dancors Duden: Recht „Schreiben“, Guide mit Wiki-Links, Linksammlung, Sichtbarkeit, Entwürfe', async () => {
+      const { anna, bernd } = members;
+      const sql = new (require('node:sqlite').DatabaseSync)(path.join(DATA, 'site.db'), { timeout: 5000 });
+      assert.equal((await anna.req('/duden/neu')).status, 403, 'ohne Recht Schreiben');
+      // Recht über die Seitenverwaltung
+      assert.match((await admin.req('/admin/users')).text_, /Schreiben/);
+      sql.prepare("UPDATE users SET can_write = 1 WHERE username = 'anna'").run();
+      let t = await anna.csrf('/duden/neu');
+      let r = await anna.form('/duden/neu', { _csrf: t, kind: 'wiki', topic: 'Rauch', title: 'Docker Wiki', summary: 'Container', body_md: 'Ein **Container**.', visibility: 'members' });
+      assert.equal(r.headers.get('location'), '/duden/docker-wiki?ok=neu');
+      r = await anna.form('/duden/neu', { _csrf: t, kind: 'guide', topic: 'Rauch', title: 'Server einrichten', summary: 'Schritt für Schritt', body_md: '## Erst\n\nSiehe [[Docker Wiki]].\n\n## Dann\n\nFertig.', visibility: 'public' });
+      assert.equal(r.status, 302);
+      let page = (await anna.req('/duden/server-einrichten', { top: true })).text_;
+      assert.match(page, /<a href="\/duden\/docker-wiki"[^>]*>Docker Wiki<\/a>/);
+      assert.match(page, /data-toc="#artikel"/);
+      assert.match(page, /Mehr zu Rauch[\s\S]*Docker Wiki/);
+      page = (await guest.req('/duden/server-einrichten', { top: true })).text_;
+      assert.doesNotMatch(page, /href="\/duden\/docker-wiki"/, 'Gäste bekommen keinen Link auf Mitglieder-Einträge');
+      assert.equal((await guest.req('/duden/docker-wiki', { top: true })).status, 404);
+      // Linksammlung: eine Zeile je Link, unter /duden/links und /links
+      r = await anna.form('/duden/neu', { _csrf: t, kind: 'links', topic: 'Rauch', title: 'Rauch Links', body_md: '', links_text: 'Unraid-Forum | https://forums.unraid.net | Hilfe\nkaputt | javascript:alert(1)\nDocs | https://docs.unraid.net', visibility: 'public' });
+      assert.equal(r.status, 302);
+      page = (await guest.req('/duden/rauch-links', { top: true })).text_;
+      assert.match(page, /href="https:\/\/forums\.unraid\.net\/?"[^>]*>Unraid-Forum[\s\S]*Hilfe[\s\S]*docs\.unraid\.net/);
+      assert.doesNotMatch(page, /javascript:/);
+      assert.match((await guest.req('/duden/links', { top: true })).text_, /Rauch Links/);
+      // Fremde ändern ohne Recht nicht, mit Recht schon, löschen nur Autor und Admin
+      assert.equal((await bernd.req('/duden/server-einrichten/bearbeiten')).status, 403);
+      sql.prepare("UPDATE users SET can_write = 1 WHERE username = 'bernd'").run();
+      assert.equal((await bernd.req('/duden/server-einrichten/bearbeiten')).status, 200);
+      const tb = await bernd.csrf('/duden/server-einrichten/bearbeiten');
+      assert.equal((await bernd.form('/duden/server-einrichten/bearbeiten', { _csrf: tb, kind: 'guide', topic: 'Rauch', title: 'Server einrichten', body_md: '## Erst\n\nBesser.', visibility: 'private' })).status, 302);
+      assert.equal(sql.prepare("SELECT visibility FROM duden WHERE slug = 'server-einrichten'").get().visibility, 'public', 'Sichtbarkeit stellt nur der Autor ein');
+      assert.match((await guest.req('/duden/server-einrichten', { top: true })).text_, /verbessert von/);
+      assert.equal((await bernd.form('/duden/server-einrichten/loeschen', { _csrf: tb })).status, 403);
+      sql.prepare("UPDATE users SET can_write = 0 WHERE username = 'bernd'").run();
+      // Entwürfe für Duden und Rezepte
+      const api = (b, body) => b.req('/api/entwuerfe', { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': b.jar.get('csrf') }, body: JSON.stringify(body) });
+      r = await api(anna, { kind: 'duden', place: 'new', title: 'Halb fertig', body_md: 'Text', fields: { topic: 'Rauch' } });
+      assert.equal(r.status, 200);
+      const drafts = JSON.parse((await anna.req('/api/entwuerfe?art=duden')).text_);
+      assert.ok(drafts.some(d => d.title === 'Halb fertig' && d.kind === 'duden' && /\/duden\/neu\?entwurf=/.test(d.url)));
+      assert.equal((await api(bernd, { kind: 'duden', place: 'new', title: 'x', body_md: 'y' })).status, 403);
+      // Suche und Startseite
+      assert.match((await guest.req('/finden?q=Server einrichten', { top: true })).text_, /href="\/duden\/server-einrichten"/);
+      assert.match((await guest.req('/', { top: true })).text_, /Zuletzt neu[\s\S]*Server einrichten/);
+      sql.close();
+    });
+
+    await step('Dancors Deliziösitäten: Rezept, Wecker, Einkaufsliste zählt zusammen, Favoriten, Import nur ins Internet', async () => {
+      const { anna, bernd } = members;
+      let t = await anna.csrf('/rezepte/neu');
+      let r = await anna.form('/rezepte/neu', { _csrf: t, title: 'Rauchsalat', summary: 'Lecker', servings: '4', servings_label: 'Portionen', prep_min: '20', cook_min: '25', tags: 'vegetarisch, Party',
+        ingredients_text: 'Für den Salat:\n1 kg Kartoffeln, festkochend\n1 Zwiebel\n1 1/2 TL Senf\n½ Bund Schnittlauch\nSalz', steps_text: 'Kartoffeln 25 Minuten kochen.\n1 Stunde ziehen lassen.', body_md: 'Am besten **lauwarm**.', visibility: 'public' });
+      assert.equal(r.headers.get('location'), '/rezepte/rauchsalat?ok=neu');
+      r = await anna.form('/rezepte/neu', { _csrf: t, title: 'Zwiebelkuchen', servings: '4', ingredients_text: '2 Zwiebeln\n200 g Mehl', steps_text: 'Backen.', visibility: 'public' });
+      assert.equal(r.status, 302);
+      const page = (await guest.req('/rezepte/rauchsalat', { top: true })).text_;
+      assert.match(page, /data-timer="1500"[^>]*>⏱ 25 Minuten/);
+      assert.match(page, /data-timer="3600"/);
+      assert.match(page, /<li class="grp">Für den Salat<\/li>/);
+      assert.match(page, /data-a="1" data-a2="" data-u="kg" data-n="Kartoffeln"/);
+      assert.match(page, /1½ TL/);
+      assert.match(page, /<strong>lauwarm<\/strong>/);
+      assert.match(page, /data-cook-box/);
+      assert.match((await guest.req('/rezepte?tag=Party', { top: true })).text_, /Rauchsalat/);
+      assert.match((await guest.req('/rezepte?zutat=kartoffel', { top: true })).text_, /Rauchsalat/);
+      assert.doesNotMatch((await guest.req('/rezepte?zutat=kartoffel', { top: true })).text_, /Zwiebelkuchen/);
+      // Einkaufsliste: Portionen umgerechnet, gleiche Zutaten zusammen (auch Einzahl und Mehrzahl)
+      assert.equal((await guest.req('/rezepte/einkauf')).status, 302);
+      const tb = await bernd.csrf('/rezepte/rauchsalat');
+      assert.equal((await bernd.form('/rezepte/rauchsalat/einkauf', { _csrf: tb, portionen: '8' })).headers.get('location'), '/rezepte/rauchsalat?ok=einkauf&n=5');
+      await bernd.form('/rezepte/zwiebelkuchen/einkauf', { _csrf: tb, portionen: '4' });
+      await bernd.form('/rezepte/einkauf', { _csrf: tb, text: '1 l Milch' });
+      const list = (await bernd.req('/rezepte/einkauf')).text_;
+      assert.match(list, /class="amt">2 kg[\s\S]*?Kartoffeln/);
+      assert.match(list, /class="amt">4 [\s\S]*?Zwiebel/);
+      assert.match(list, /class="amt">3 TL[\s\S]*?Senf/);
+      assert.match(list, /class="amt">1 l[\s\S]*?Milch/);
+      assert.doesNotMatch((await anna.req('/rezepte/einkauf')).text_, /aria-label="Milch/, 'jede Liste für sich');
+      const ids = list.match(/data-shop-ids="([\d,]+)"[^>]*aria-label="Zwiebel/)[1];
+      r = await bernd.req('/rezepte/einkauf/haken', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, body: new URLSearchParams({ _csrf: tb, ids, done: '1' }) });
+      assert.equal(JSON.parse(r.text_).ok, true);
+      assert.match((await bernd.req('/rezepte/einkauf')).text_, /Im Korb[\s\S]*Zwiebel/);
+      await bernd.form('/rezepte/einkauf/aufraeumen', { _csrf: tb });
+      assert.doesNotMatch((await bernd.req('/rezepte/einkauf')).text_, /aria-label="Zwiebel/);
+      // Favoriten
+      r = await bernd.req('/rezepte/rauchsalat/favorit', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, body: new URLSearchParams({ _csrf: tb }) });
+      assert.deepEqual(JSON.parse(r.text_), { fav: true });
+      assert.match((await bernd.req('/rezepte?favoriten=1')).text_, /Rauchsalat/);
+      assert.doesNotMatch((await bernd.req('/rezepte?favoriten=1')).text_, /Zwiebelkuchen/);
+      assert.equal((await guest.form('/rezepte/rauchsalat/favorit', { _csrf: guest.jar.get('csrf') || 'x' })).status !== 200, true);
+      // Ohne Recht kein Rezept, Import nur von Seiten im Internet
+      assert.equal((await bernd.req('/rezepte/neu')).status, 403);
+      t = await anna.csrf('/rezepte/neu');
+      r = await anna.form('/rezepte/import', { _csrf: t, url: 'http://127.0.0.1:' + PORT + '/rezepte/rauchsalat' });
+      assert.equal(r.status, 400);
+      assert.match(r.text_, /Interne Adressen/);
+      // Suche, Startseite, löschen
+      assert.match((await guest.req('/finden?q=Rauchsalat', { top: true })).text_, /href="\/rezepte\/rauchsalat"/);
+      assert.equal((await bernd.form('/rezepte/rauchsalat/loeschen', { _csrf: tb })).status, 403);
+      assert.equal((await anna.form('/rezepte/zwiebelkuchen/loeschen', { _csrf: t })).headers.get('location'), '/rezepte?ok=geloescht');
+      assert.equal((await guest.req('/rezepte/zwiebelkuchen', { top: true })).status, 404);
+    });
+
     await step('Gelöschtes Konto verliert seine Statistik-Einträge', async () => {
       const { DatabaseSync } = require('node:sqlite');
       const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
@@ -2923,7 +3131,7 @@ async function main() {
       let t = await admin.csrf('/admin/users');
       await admin.form('/admin/users/create', { _csrf: t, username: 'dora', password: 'passwort123' });
       const dora = browser();
-      const home = await dora.req('/', { top: true });
+      const home = await dora.req('/desktop', { top: true });
       assert.match(home.text_, /<div id="logon" class="logon"/);
       assert.match(home.text_, /logon\.js/);
       assert.doesNotMatch(home.text_, /data-me=/, 'Gast hat keine eigene Kachel');
@@ -2937,7 +3145,7 @@ async function main() {
       assert.equal(ok.next, '/blog');
       assert.equal(ok.user.u, 'dora');
       assert.doesNotMatch(JSON.stringify(ok), /hash|passwort/i);
-      const me = await dora.req('/', { top: true });
+      const me = await dora.req('/desktop', { top: true });
       assert.match(me.text_, /data-me="[^"]*dora/);
       // Hinweis setzen: das Kennwort selbst geht nicht
       const kt = await dora.csrf('/konto?reiter=kennwort');
@@ -2951,7 +3159,7 @@ async function main() {
       const { DatabaseSync } = require('node:sqlite');
       const sql = new DatabaseSync(path.join(DATA, 'site.db'), { timeout: 5000 });
       sql.prepare("INSERT OR REPLACE INTO settings(key, value) VALUES ('logon_screen', '0')").run();
-      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /id="logon"/);
+      assert.doesNotMatch((await guest.req('/desktop', { top: true })).text_, /id="logon"/);
       sql.prepare("DELETE FROM settings WHERE key = 'logon_screen'").run();
       sql.close();
     });
@@ -2983,7 +3191,7 @@ async function main() {
       assert.equal((await post({ for_zufall: 'off', nav: 'zufall' })).headers.get('location'), '/admin/programme?ok=1');
       assert.equal((await guest.req('/zufall')).status, 404);
       assert.equal((await admin.req('/zufall')).status, 200, 'Admins kommen immer durch');
-      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /href="\/zufall"/);
+      assert.doesNotMatch((await guest.req('/desktop', { top: true })).text_, /href="\/zufall"/);
       await post({ for_zufall: 'members', nav: 'zufall', desk: 'zufall' });
       let r = await guest.req('/zufall');
       assert.equal(r.status, 302);
@@ -2995,11 +3203,11 @@ async function main() {
       // Ohne Haken im Startmenü verschwindet es dort, bleibt aber erreichbar
       await post({ for_zufall: 'all' });
       assert.equal((await guest.req('/zufall')).status, 200);
-      assert.doesNotMatch((await guest.req('/', { top: true })).text_, /<div class="startmenu"[\s\S]*href="\/zufall"/);
+      assert.doesNotMatch((await guest.req('/desktop', { top: true })).text_, /<div class="startmenu"[\s\S]*href="\/zufall"/);
       await post({ for_zufall: 'all', nav: 'zufall' });
       page = (await admin.req('/admin/programme')).text_;
       assert.match(page, /name="desk" value="zufall"\s+aria-label/, 'nicht mehr auf dem Desktop');
-      assert.match((await guest.req('/', { top: true })).text_, /<div class="startmenu"[\s\S]*href="\/zufall"/);
+      assert.match((await guest.req('/desktop', { top: true })).text_, /<div class="startmenu"[\s\S]*href="\/zufall"/);
 
       // Eigenschaften der Kartenspiele: alle Schalter in einem Formular, zurück auf den richtigen Reiter
       page = (await admin.req('/admin/programme/kartenspiele')).text_;
@@ -3091,7 +3299,7 @@ async function main() {
         assert.match((await guest.req('/')).text_, /🗄️ Server-Status[\s\S]*Webseite/, 'Startseite');
         assert.doesNotMatch((await guest.req('/')).text_, /Valheim-Port/);
         assert.match((await members.anna.req('/dienste')).text_, /Valheim-Port[\s\S]*offline/);
-        let desk = (await members.anna.req('/', { top: true })).text_;
+        let desk = (await members.anna.req('/desktop', { top: true })).text_;
         assert.match(desk, /id="svctray"/);
         assert.match(desk, /id="svcwidget"/);
 
@@ -3130,7 +3338,7 @@ async function main() {
         await widget({ svc_widget: '0', svc_storage: '0', svc_storage_for: 'members' }, disks.map(k => ['disk_' + k, '1']));
         assert.equal((await dienste(members.anna)).widget, false);
         assert.equal((await dienste(members.anna)).storage, null);
-        desk = (await members.anna.req('/', { top: true })).text_;
+        desk = (await members.anna.req('/desktop', { top: true })).text_;
         assert.doesNotMatch(desk, /id="svcwidget"/);
         assert.match(desk, /id="svctray"/, 'Taskleiste hängt nicht am Widget');
         await widget({ svc_widget: '1', svc_storage: '1', svc_storage_for: 'members' }, disks.map(k => ['disk_' + k, '1']));
@@ -3141,7 +3349,7 @@ async function main() {
         for (const id of [webId, gameId, jfId]) assert.equal((await admin.form(`/admin/dienste/${id}/loeschen`, { _csrf: t })).status, 302);
         assert.deepEqual((await dienste(admin)).services, []);
         assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM service_watch').get().n, 0);
-        assert.doesNotMatch((await members.anna.req('/', { top: true })).text_, /id="svctray"/);
+        assert.doesNotMatch((await members.anna.req('/desktop', { top: true })).text_, /id="svctray"/);
       } finally {
         web.close();
         if (game) game.close();
@@ -3177,7 +3385,7 @@ async function main() {
         assert.ok(at.includes('Für Mitglieder: Neustart um 22 Uhr'));
         assert.ok(!at.includes('Für Gäste: jetzt registrieren'));
         assert.equal(sql.prepare("SELECT ends_at FROM ticker_items WHERE text = 'Längst vorbei'").get().ends_at, new Date('2020-01-01T09:00:00Z').getTime() / 1000, 'Ortszeit der Seite');
-        let desk = (await guest.req('/', { top: true })).text_;
+        let desk = (await guest.req('/desktop', { top: true })).text_;
         assert.match(desk, /<div class="tick t-eil" id="ticker"/);
         assert.match(desk, /<a href="\/forum">Grillabend am Samstag &lt;b&gt;<\/a>/);
         assert.match(desk, /laufband\.js/);
@@ -3187,14 +3395,14 @@ async function main() {
         assert.equal(sql.prepare('SELECT id FROM ticker_items ORDER BY position, id').get().id, ids[1]);
         // Ausgeschaltet: kein Laufband, keine Meldungen
         await admin.form('/admin/laufband', { _csrf: t, ticker_on: '0', ticker_style: 'led', ticker_label: '' });
-        desk = (await guest.req('/', { top: true })).text_;
+        desk = (await guest.req('/desktop', { top: true })).text_;
         assert.doesNotMatch(desk, /id="ticker"/);
         assert.doesNotMatch(desk, /laufband\.js/);
         assert.deepEqual((await texts(guest)).items, []);
         for (const id of ids) await admin.form(`/admin/laufband/${id}/loeschen`, { _csrf: t });
         assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM ticker_items').get().n, 0);
         await admin.form('/admin/laufband', { _csrf: t, ticker_on: '1', ticker_style: 'led', ticker_label: '' });
-        assert.doesNotMatch((await guest.req('/', { top: true })).text_, /id="ticker"/, 'ohne Meldungen kein Laufband');
+        assert.doesNotMatch((await guest.req('/desktop', { top: true })).text_, /id="ticker"/, 'ohne Meldungen kein Laufband');
       } finally { sql.close(); }
     });
 
@@ -3222,7 +3430,7 @@ async function main() {
         let g = await pop(guest);
         assert.deepEqual([g.first, g.every, g.max, g.mobile, g.cheeky], [5, 2, 4, false, false]);
         assert.deepEqual(g.items, [{ id: p.id, title: 'Du hast gewonnen!', image: p.image, link: '/forum', weight: 3 }]);
-        assert.match((await guest.req('/', { top: true })).text_, /popups\.js/);
+        assert.match((await guest.req('/desktop', { top: true })).text_, /popups\.js/);
         // Zähler ohne Personenbezug
         const count = (b, what) => b.req(`/api/popups/${p.id}/${what}`, { method: 'POST', headers: { 'x-csrf-token': b.jar.get('csrf') || '' } });
         assert.equal((await count(guest, 'zeige')).status, 200);
@@ -3233,7 +3441,7 @@ async function main() {
         assert.match((await admin.form(`/admin/popups/${p.id}`, { _csrf: t, title: 'x', link: 'javascript:alert(1)' })).headers.get('location'), /fehler=/);
         await admin.form(`/admin/popups/${p.id}`, { _csrf: t, title: 'Du hast gewonnen!', link: '/forum', weight: '3', audience: 'members' });
         assert.equal(await pop(guest).then(x => x.items.length), 0);
-        assert.doesNotMatch((await guest.req('/', { top: true })).text_, /popups\.js/);
+        assert.doesNotMatch((await guest.req('/desktop', { top: true })).text_, /popups\.js/);
         assert.equal((await pop(anna)).items.length, 1);
 
         // Vorschlag: eigenes Paint-Bild, öffentlich und freigegeben
@@ -3267,7 +3475,7 @@ async function main() {
         // Abgeschaltet: nichts mehr
         await admin.form('/admin/popups/einstellungen', { _csrf: t, popup_on: '0', popup_first: '5', popup_every: '2', popup_max: '4', popup_audience: 'all', popup_suggest: '1' });
         assert.deepEqual((await pop(anna)).items, []);
-        assert.doesNotMatch((await anna.req('/', { top: true })).text_, /popups\.js/);
+        assert.doesNotMatch((await anna.req('/desktop', { top: true })).text_, /popups\.js/);
         for (const id of [p.id, s.id]) await admin.form(`/admin/popups/${id}/loeschen`, { _csrf: t });
         assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM popups').get().n, 0);
         await admin.form('/admin/popups/einstellungen', { _csrf: t, popup_on: '1', popup_first: '30', popup_every: '15', popup_max: '3', popup_audience: 'all', popup_suggest: '1' });
@@ -3298,7 +3506,7 @@ async function main() {
       // Ohne maint_form bleibt der Wartungsmodus, wie er ist (Formular „Website“)
       await admin.form('/admin/settings', { _csrf: t, site_title: 'Rauchtest', site_tagline: '' });
       assert.equal((await guest.req('/forum')).status, 200);
-      assert.match((await guest.req('/', { top: true })).text_, /<title>[^<]*Rauchtest/);
+      assert.match((await guest.req('/desktop', { top: true })).text_, /<title>[^<]*Rauchtest/);
     });
 
     await step('Besucherstatistik zählt Aufrufe', async () => {

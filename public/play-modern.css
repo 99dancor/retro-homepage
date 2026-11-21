@@ -1,0 +1,99 @@
+/* ==========================================================================================================
+   Spiele in der Daddelecke (/spiele): die gewohnten Seiten (Sudoku, Minesweeper, Kartentische, Quiz …) im Look der Startseite.
+   Gilt nur mit <html data-look="modern"> (views/partials/head.ejs bei ?look=modern, sonst public/display.js im Rahmen der
+   Daddelecke). retro.css baut auf Design-Werten auf (--win, --title-from, --hi/--lo …): Wir stellen erst sie um, danach die
+   Bausteine (Knöpfe, Felder, Fenster, Reiter, Menüs), die sonst Kanten im 98-Stil zeichnen. Im Desktop bleibt alles Retro.
+   ========================================================================================================== */
+html[data-look="modern"] {
+  color-scheme: light;
+  --m-bg: #f3f7fc; --m-surface: #fff; --m-surface-2: #f5f8fc; --m-line: #d6e1f1; --m-line-soft: #e8eef7;
+  --m-text: #14213d; --m-text-2: #45567a; --m-heading: #0b2a6b; --m-accent: #1f62d6; --m-accent-2: #4f97ff; --m-accent-soft: #e3efff;
+  --m-btn: linear-gradient(180deg, #fff, #e9eff8); --m-btn-line: #c5d2e6; --m-shadow: 0 1px 2px rgba(20, 50, 110, .08);
+  --desktop: var(--m-bg); --win: var(--m-surface); --title-from: var(--m-accent); --title-to: var(--m-accent-2);
+  --text: var(--m-text); --link: var(--m-accent); --field: #fff; --field-text: var(--m-text); --field-link: var(--m-accent);
+  --hi: transparent; --lo: var(--m-line); --dark: transparent; --hover: var(--m-accent-soft); --danger: #c0392b;
+  --sel-bg: var(--m-accent); --sel-text: #fff; --accent: var(--m-accent); --radius: 10px; --win-radius: 14px;
+  --font: Inter, "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  accent-color: var(--m-accent);
+}
+html[data-look="modern"][data-theme="dark"] {
+  color-scheme: dark;
+  --m-bg: #0f1522; --m-surface: #161e2e; --m-surface-2: #1a2336; --m-line: #2a3650; --m-line-soft: #222c42;
+  --m-text: #e6ecf7; --m-text-2: #b4c0d8; --m-heading: #dbe7ff; --m-accent: #4f97ff; --m-accent-2: #6fadff; --m-accent-soft: #1b2c4d;
+  --m-btn: linear-gradient(180deg, #24304a, #1b2539); --m-btn-line: #33415f; --m-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  --field: #111827;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-look="modern"]:not([data-theme="light"]) {
+    color-scheme: dark;
+    --m-bg: #0f1522; --m-surface: #161e2e; --m-surface-2: #1a2336; --m-line: #2a3650; --m-line-soft: #222c42;
+    --m-text: #e6ecf7; --m-text-2: #b4c0d8; --m-heading: #dbe7ff; --m-accent: #4f97ff; --m-accent-2: #6fadff; --m-accent-soft: #1b2c4d;
+    --m-btn: linear-gradient(180deg, #24304a, #1b2539); --m-btn-line: #33415f; --m-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    --field: #111827;
+  }
+}
+
+html[data-look="modern"] body, html[data-look="modern"] body.embed { background: var(--m-bg) !important; color: var(--m-text); font: 14px/1.5 var(--font); }
+html[data-look="modern"] h1, html[data-look="modern"] h2, html[data-look="modern"] h3 { color: var(--m-heading); letter-spacing: -.01em; }
+html[data-look="modern"] a:visited { color: var(--m-accent); }
+
+/* Knöpfe */
+html[data-look="modern"] button, html[data-look="modern"] .btn, html[data-look="modern"] input[type=submit] {
+  background: var(--m-btn); color: var(--m-text); border: 1px solid var(--m-btn-line); border-radius: 10px; box-shadow: var(--m-shadow);
+  font: 600 13px var(--font); padding: 5px 14px; transition: filter .1s, border-color .1s;
+}
+html[data-look="modern"] button:hover:not(:disabled), html[data-look="modern"] .btn:hover { border-color: var(--m-accent-2); filter: brightness(1.03); }
+html[data-look="modern"] button:active:not(:disabled), html[data-look="modern"] .btn:active { box-shadow: inset 0 1px 2px rgba(0, 0, 0, .12); }
+html[data-look="modern"] button:focus-visible, html[data-look="modern"] .btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--m-accent-2) 50%, transparent); outline-offset: 1px; }
+html[data-look="modern"] button:disabled { opacity: .55; }
+html[data-look="modern"] button.pressed, html[data-look="modern"] button[aria-pressed="true"] { background: var(--m-accent-soft); border-color: var(--m-accent); color: var(--m-accent); }
+
+/* Felder */
+html[data-look="modern"] input[type=text], html[data-look="modern"] input[type=password], html[data-look="modern"] input[type=email],
+html[data-look="modern"] input[type=url], html[data-look="modern"] input[type=number], html[data-look="modern"] input[type=search],
+html[data-look="modern"] input:not([type]), html[data-look="modern"] select, html[data-look="modern"] textarea {
+  border: 1px solid var(--m-line); border-radius: 9px; box-shadow: inset 0 1px 2px rgba(20, 33, 61, .05); padding: 5px 8px; font: 14px var(--font);
+  background: var(--field); color: var(--m-text);
+}
+html[data-look="modern"] input:focus, html[data-look="modern"] select:focus, html[data-look="modern"] textarea:focus { outline: none; border-color: var(--m-accent-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--m-accent-2) 25%, transparent); }
+
+/* Fenster, Titel, Menüs, Statusleiste */
+html[data-look="modern"] .window { background: var(--m-surface); border: 1px solid var(--m-line); border-radius: 16px; box-shadow: 0 10px 30px rgba(20, 50, 110, .12); padding: 0; overflow: hidden; }
+html[data-look="modern"] .titlebar { background: linear-gradient(180deg, var(--m-accent-2), var(--m-accent)); border-radius: 0; padding: 8px 10px 8px 14px; font-weight: 700; }
+html[data-look="modern"] .tb-btn { border-radius: 7px; }
+html[data-look="modern"] .menubar { border-bottom: 1px solid var(--m-line-soft); padding: 4px 6px; gap: 4px; }
+html[data-look="modern"] .menubar a { border-radius: 8px; padding: 3px 10px; }
+html[data-look="modern"] .menubar a:hover, html[data-look="modern"] .menubar a.active { background: var(--m-accent-soft); color: var(--m-accent); }
+html[data-look="modern"] .statusbar { gap: 6px; padding: 6px 8px; color: var(--m-text-2); }
+html[data-look="modern"] .statusbar > * { box-shadow: none; background: var(--m-surface-2); border: 1px solid var(--m-line-soft); border-radius: 8px; padding: 2px 8px; }
+html[data-look="modern"] .ms-menu { background: transparent; gap: 4px; padding: 4px 6px; }
+html[data-look="modern"] .ms-mtop { border: 0; border-radius: 8px; box-shadow: none; background: none; font-weight: 500; padding: 3px 10px; }
+html[data-look="modern"] .ms-mtop.open, html[data-look="modern"] .ms-mtop:focus-visible, html[data-look="modern"] .ms-mtop:hover { background: var(--m-accent-soft); color: var(--m-accent); }
+html[data-look="modern"] .ms-dd { background: var(--m-surface); border: 1px solid var(--m-line); border-radius: 12px; box-shadow: 0 12px 30px rgba(20, 50, 110, .18); padding: 5px; }
+html[data-look="modern"] .ms-dd button, html[data-look="modern"] .ms-dd a { border: 0; box-shadow: none; background: none; border-radius: 8px; text-align: left; font-weight: 500; }
+html[data-look="modern"] .ms-dd button:hover:not(:disabled), html[data-look="modern"] .ms-dd a:hover { background: var(--m-accent); color: #fff; }
+
+/* Eingesunkene Flächen, Gruppen, Reiter, Listen */
+html[data-look="modern"] .panel, html[data-look="modern"] .sunken { border: 1px solid var(--m-line); border-radius: 12px; box-shadow: none; }
+html[data-look="modern"] .groupbox, html[data-look="modern"] fieldset { border: 1px solid var(--m-line); border-radius: 14px; box-shadow: none; background: var(--m-surface); }
+html[data-look="modern"] .groupbox > legend, html[data-look="modern"] fieldset > legend { color: var(--m-heading); font-weight: 700; }
+html[data-look="modern"] .tabs { gap: 6px; margin-bottom: 8px; }
+html[data-look="modern"] .tabs button, html[data-look="modern"] .sd-tabs button {
+  border-radius: 999px; margin: 0; padding: 4px 14px; box-shadow: none; top: 0; background: var(--m-surface); font-weight: 600;
+}
+html[data-look="modern"] .tabs button[aria-selected=true], html[data-look="modern"] .sd-tabs button.on { background: var(--m-accent-soft); border-color: var(--m-accent); color: var(--m-accent); padding-bottom: 4px; }
+html[data-look="modern"] .sd-tabs { gap: 6px; }
+html[data-look="modern"] table.list { border: 1px solid var(--m-line); border-radius: 12px; box-shadow: none; overflow: hidden; border-collapse: separate; border-spacing: 0; }
+html[data-look="modern"] table.list th { background: var(--m-surface-2); box-shadow: none; border-bottom: 1px solid var(--m-line); font-weight: 600; color: var(--m-text-2); }
+html[data-look="modern"] table.list td { border-bottom: 1px solid var(--m-line-soft); }
+html[data-look="modern"] .msg { border-radius: 12px; border-color: var(--m-line); }
+html[data-look="modern"] .badge { border-radius: 999px; padding: 1px 8px; }
+html[data-look="modern"] .tag { border-radius: 6px; }
+html[data-look="modern"] hr { border-top-color: var(--m-line); border-bottom: 0; }
+
+/* Sudoku, Kreuzworträtsel, Minesweeper: Statuszeilen und Bretter */
+html[data-look="modern"] .sd-status, html[data-look="modern"] .cw-clue { border-radius: 10px; background: linear-gradient(180deg, var(--m-accent-2), var(--m-accent)); }
+html[data-look="modern"] .sd-board, html[data-look="modern"] .cw-board { border-radius: 14px; background: var(--m-surface); border: 1px solid var(--m-line); }
+html[data-look="modern"] .sd-pad button { border-radius: 12px; }
+html[data-look="modern"] .ms { background: var(--m-bg); }
+html[data-look="modern"] .ms-board, html[data-look="modern"] .ms-game { border-radius: 6px; }

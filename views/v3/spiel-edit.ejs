@@ -1,0 +1,83 @@
+<%- include('_head') %>
+<%# Spiel hinzufügen oder bearbeiten (src/routes/daddelecke.js). Art wählen, Datei, Angaben. %>
+<p style="margin:18px 0 0"><a href="<%= a.id ? '/spiele/' + a.slug : '/spiele' %>">← <%= a.id ? a.title : 'Daddelecke' %></a></p>
+<div class="card dd-form" style="margin-top:12px">
+  <h1 style="margin:0 0 4px;font-size:26px"><%= a.id ? 'Spiel bearbeiten' : 'Spiel hinzufügen' %></h1>
+  <p class="muted" style="margin:0 0 16px"><%= a.id ? 'Angaben ändern oder eine neue Fassung hochladen.' : 'Was soll in die Daddelecke? Alles läuft hier auf der Seite in einem eigenen Rahmen.' %>
+    <% if (!user.isAdmin) { %>Neue Spiele und neue Fassungen sehen alle, sobald der Admin sie freigegeben hat.<% } %></p>
+  <% if (err) { %><p class="v3-flash err" role="alert"><%= err %></p><% } %>
+  <form method="post" action="<%= a.id ? '/spiele/' + a.slug + '/bearbeiten' : '/spiele/neu' %>" enctype="multipart/form-data" class="stack" data-dd-form>
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <% if (!a.id) { %>
+    <h3 class="sec-h">1 · Was hast du?</h3>
+    <div class="fmt" role="radiogroup" aria-label="Art des Spiels">
+      <% for (const [k, x] of Object.entries(KINDS)) { %>
+      <label><input type="radio" name="kind" value="<%= k %>"<%= a.kind === k ? ' checked' : '' %>><span class="e emo" aria-hidden="true"><%= x.icon %></span><b><%= x.name %></b><%= x.text %></label>
+      <% } %>
+    </div>
+    <% } else { %><input type="hidden" name="kind" value="<%= a.kind %>"><p class="muted" style="margin:0">Art: <b><%= KINDS[a.kind] ? KINDS[a.kind].icon + ' ' + KINDS[a.kind].name : a.kind %></b></p><% } %>
+
+    <h3 class="sec-h" style="margin-top:8px"><%= a.id ? 'Datei' : '2 · Datei' %></h3>
+    <div data-kind-show="html zip dos flash">
+      <label class="drop">
+        <span class="emo" style="font-size:30px" aria-hidden="true">📥</span>
+        <b data-drop-name><%= a.id ? 'Neue Fassung hierher ziehen' : 'Datei hierher ziehen' %></b> oder klicken zum Auswählen
+        <small data-kind-hint="html">.html, alles in einer Datei</small>
+        <small data-kind-hint="zip">.zip mit index.html (Unity WebGL, Godot, Construct, Phaser …), bis 1 GB</small>
+        <small data-kind-hint="dos">.zip mit dem DOS-Spiel oder fertige .jsdos-Datei</small>
+        <small data-kind-hint="flash">.swf</small>
+        <input type="file" name="datei" accept=".html,.htm,.zip,.jsdos,.swf" data-drop-input>
+      </label>
+      <% if (a.id) { %><p class="note" style="margin:6px 0 0">Leer lassen, wenn die Datei bleibt.</p><% } %>
+    </div>
+    <div data-kind-show="link">
+      <label class="f">Adresse oder Einbettungscode <small>z. B. von itch.io: „Embed game“ → Code hier einfügen</small>
+        <textarea name="external_url" rows="2" class="mono" placeholder='https://… oder <iframe src="https://…">'><%= a.external_url || '' %></textarea></label>
+    </div>
+    <div data-kind-show="dos">
+      <label class="f">Startbefehl <small>leer = die erste .exe/.com/.bat; mehrere mit ; trennen, z. B. „cd KEEN4; KEEN4E.EXE“</small>
+        <input type="text" name="dos_cmd" value="<%= a.dos_cmd || '' %>" maxlength="200" class="mono"></label>
+    </div>
+
+    <h3 class="sec-h" style="margin-top:8px"><%= a.id ? 'Angaben' : '3 · Angaben' %></h3>
+    <div class="grid2">
+      <label class="f">Name <input type="text" name="title" value="<%= a.title || '' %>" required maxlength="120" placeholder="Astro Drift"></label>
+      <% if (user.isAdmin) { %>
+      <label class="f">Regal <select name="shelf"><% for (const s of shelves) { %><option value="<%= s.id %>"<%= s.id === shelf ? ' selected' : '' %>><%= s.icon %> <%= s.title %></option><% } %></select></label>
+      <% } else { %><span></span><% } %>
+    </div>
+    <label class="f">In einem Satz <input type="text" name="description" value="<%= a.description || '' %>" maxlength="240" placeholder="Worum geht's?"></label>
+    <div class="grid3">
+      <label class="f">Symbol <input type="text" name="icon" value="<%= a.icon || '🕹️' %>" maxlength="8"></label>
+      <label class="f">Farbe <select name="color"><% for (const [k, l] of Object.entries(COLORS)) { %><option value="<%= k %>"<%= (a.color || 'lila') === k ? ' selected' : '' %>><%= l %></option><% } %></select></label>
+      <label class="f">Seitenverhältnis <select name="aspect"><% for (const [k, l] of Object.entries(ASPECTS)) { %><option value="<%= k %>"<%= (a.aspect || '16:9') === k ? ' selected' : '' %>><%= l %></option><% } %></select></label>
+    </div>
+    <div class="grid2">
+      <label class="f">Titelbild <small>breit wirkt am besten</small><input type="file" name="cover" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+      <div class="f"><b style="font-size:14px">Steuerung</b>
+        <div class="checks"><% const cs = String(a.controls || '').split(','); for (const [k, l] of Object.entries(CONTROLS)) { %><label class="check"><input type="checkbox" name="controls" value="<%= k %>"<%= cs.includes(k) ? ' checked' : '' %>> <%= l %></label><% } %></div>
+      </div>
+    </div>
+    <% if (a.cover) { %><div class="cover-now"><img src="<%= a.cover %>" alt=""><label class="check"><input type="checkbox" name="drop_cover" value="1"> Titelbild entfernen</label></div><% } %>
+    <div class="f" style="display:grid;gap:5px"><b style="font-size:14px">Beschreibung und Anleitung <small class="muted">Markdown wie bei Duden und Rezepten</small></b>
+      <%- include('../partials/md-editor', { name: 'howto_md', value: a.howto_md || '', uploadUrl: '/api/schreiben/bild', previewUrl: '/api/schreiben/vorschau', libraryUrl: null, compact: true }) %></div>
+    <div class="grid2">
+      <label class="f">Quelle und Lizenz <small>wer hat's gemacht, woher</small><input type="text" name="source" value="<%= a.source || '' %>" maxlength="300" placeholder="ExampleDev · CC BY 4.0 · itch.io"></label>
+      <label class="f">Bestenliste <small>nur wenn das Spiel Punkte meldet</small><select name="score_mode"><% for (const [k, l] of Object.entries(SCORES)) { %><option value="<%= k %>"<%= (a.score_mode || '') === k ? ' selected' : '' %>><%= l %></option><% } %></select></label>
+    </div>
+    <details class="note"><summary>Wie meldet ein Spiel Punkte?</summary>
+      <p>Das Spiel schickt am Ende einer Runde <code>parent.postMessage({ dancor: 'score', score: 1234 }, '*')</code>. Die Daddelecke trägt den Wert für das angemeldete Mitglied ein, je Konto zählt der beste.</p></details>
+    <fieldset><legend>Sichtbarkeit</legend>
+      <%- include('_visibility') %>
+      <label class="check" style="margin-top:10px"><input type="checkbox" name="fresh" value="1"<%= a.fresh ? ' checked' : '' %>> Oben bei „Neu dabei“ zeigen, solange es das neueste ist</label>
+    </fieldset>
+    <div class="actions"><button class="pill pri big">💾 Speichern und ausprobieren</button><a class="pill" href="<%= a.id ? '/spiele/' + a.slug : '/spiele' %>">Abbrechen</a></div>
+  </form>
+  <% if (a.id) { %>
+  <form method="post" action="/spiele/<%= a.slug %>/loeschen" data-confirm="„<%= a.title %>“ mit allen Dateien löschen?" class="actions" style="margin-top:18px">
+    <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="pill danger">🗑 Spiel löschen</button>
+  </form>
+  <% } %>
+</div>
+<script src="<%= asset('daddelecke.js') %>" defer></script>
+<%- include('_foot') %>

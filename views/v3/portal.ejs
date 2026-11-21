@@ -1,9 +1,12 @@
 <%- include('_head') %>
+<% if (ok) { %><p class="v3-flash" role="status"><%= ok %></p><% } %>
+<div data-ed-root>
 <section class="v3-hero">
   <div>
-    <h1><%= hero.title %></h1>
-    <% if (hero.text) { %><p><%= hero.text %></p><% } %>
+    <h1 data-ed-text="title"><%= hero.title %></h1>
+    <% if (hero.text || admin) { %><p data-ed-text="text" data-ed-multiline><%= hero.text %></p><% } %>
   </div>
+  <% if (admin) { %><button type="button" class="pill ed-start" data-ed-start data-ed-off><span class="emo">✏️</span> Seite bearbeiten</button><% } %>
   <% if (services.length) { %>
   <div class="now" aria-label="Dienste">
     <% for (const s of services) { %>
@@ -13,22 +16,47 @@
   <% } %>
 </section>
 
-<nav class="tiles" aria-label="Bereiche">
+<nav class="tiles" aria-label="Bereiche" data-ed-list="tiles">
   <% for (const t of tiles) { %>
-  <a class="tile c-<%= t.color %><%= t.wide ? ' wide' : '' %>" href="<%= t.href %>"<%= /^https:/.test(t.href) ? ' rel="noopener"' : '' %> data-tile="<%= t.key %>">
+  <a class="tile c-<%= t.color %><%= t.wide ? ' wide' : '' %>" href="<%= t.href %>"<%= /^https:/.test(t.href) ? ' rel="noopener"' : '' %> data-tile="<%= t.key %>"<% if (admin) { %>
+     data-ed-item data-key="<%= t.key %>" data-ed-val="<%= JSON.stringify({ icon: t.icon, color: t.color, wide: t.wide, show: t.show === 'off' ? 'all' : t.show, url: t.builtin ? '' : t.url, builtin: t.builtin }) %>"<%= t.show === 'off' ? ' data-hidden' : '' %><% } %>>
     <div class="band">
-      <span class="e emo" aria-hidden="true"><%= t.icon %></span>
-      <h2><% if (t.kicker) { %><small><%= t.kicker %></small><% } %><%= t.title %></h2>
+      <span class="e emo" aria-hidden="true" data-show="icon"><%= t.icon %></span>
+      <h2><% if (t.kicker || admin) { %><small data-ed-text="kicker"><%= t.kicker %></small><% } %><span data-ed-text="title"><%= t.title %></span></h2>
       <% if (t.key === 'desktop') { %><span class="mini" aria-hidden="true"></span><% } %>
       <% if (t.locked) { %><span class="lock">🔒 für Mitglieder</span><% } %>
     </div>
+    <% if (admin) { %>
+    <span class="tools" data-ed-only>
+      <button type="button" class="pill small" data-ed-props title="Symbol, Farbe, Größe">🎨</button>
+      <button type="button" class="pill small" data-ed-hide title="Ein- oder ausblenden"><span class="h-on">🙈</span><span class="h-off">👁️</span></button>
+      <% if (!t.builtin) { %><button type="button" class="pill small danger" data-ed-del="Kachel „<%= t.title %>“ löschen?" title="Löschen">🗑</button><% } %>
+    </span>
+    <% } %>
     <div class="body">
-      <p><%= t.text %></p>
+      <p data-ed-text="text" data-ed-multiline><%= t.text %></p>
       <% if (t.meta.length) { %><div class="meta"><% for (const m of t.meta) { %><span><% if (m.dot) { %><i class="dot <%= m.dot === 'up' ? '' : 'off' %>"></i><% } %><%= m.text %></span><% } %></div><% } %>
     </div>
   </a>
   <% } %>
+  <% if (admin) { %><button type="button" class="tile add" data-ed-add="tpl-tile" data-ed-only>＋ Eigene Kachel</button><% } %>
 </nav>
+</div>
+<% if (admin) { %>
+<template id="tpl-tile">
+  <a class="tile c-x" href="/" data-ed-item data-key="__neu__" data-ed-val='{"icon":"⭐","color":"x","wide":false,"show":"all","url":"/","builtin":false}'>
+    <div class="band"><span class="e emo" aria-hidden="true" data-show="icon">⭐</span><h2><small data-ed-text="kicker">Dancors</small><span data-ed-text="title">Neue Kachel</span></h2></div>
+    <span class="tools" data-ed-only>
+      <button type="button" class="pill small" data-ed-props title="Symbol, Farbe, Größe, Adresse">🎨</button>
+      <button type="button" class="pill small" data-ed-hide><span class="h-on">🙈</span><span class="h-off">👁️</span></button>
+      <button type="button" class="pill small danger" data-ed-del="Kachel löschen?">🗑</button>
+    </span>
+    <div class="body"><p data-ed-text="text" data-ed-multiline>Worum geht es? Mit 🎨 die Adresse eintragen.</p></div>
+  </a>
+</template>
+<script src="<%= asset('v3-edit.js') %>" defer></script>
+<script src="<%= asset('portal-edit.js') %>" defer></script>
+<% } %>
 
 <div class="strip">
   <section class="box" aria-labelledby="zn">

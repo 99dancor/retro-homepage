@@ -545,41 +545,13 @@ router.post('/pages/:id/delete', (req, res) => {
 });
 
 // ---------- Spiele & Apps ----------
-router.get('/apps', (req, res) => res.render('admin/apps', { title: 'Spiele & Apps', apps: db.prepare('SELECT * FROM apps ORDER BY title').all() }));
-router.get('/apps/new', (req, res) => res.render('admin/app-edit', { title: 'Neue App', a: { visibility: 'public' }, acl: [], err: null }));
+// Mitgebrachte Spiele verwaltet die Daddelecke (/spiele, src/routes/daddelecke.js) direkt auf ihrer Seite
+router.get('/apps', (req, res) => res.redirect('/spiele'));
+router.get('/apps/new', (req, res) => res.redirect('/spiele/neu'));
 router.get('/apps/:id', (req, res, next) => {
-  const a = db.prepare('SELECT * FROM apps WHERE id = ?').get(Number(req.params.id));
+  const a = db.prepare('SELECT slug FROM apps WHERE id = ?').get(Number(req.params.id));
   if (!a) return next();
-  res.render('admin/app-edit', { title: 'App bearbeiten', a, acl: auth.getAcl('app', a.id), err: req.query.err || null });
-});
-router.post('/apps/save', up.zipUpload.single('zip'), multipartCsrf, (req, res) => {
-  const b = req.body, id = Number(b.id) || 0;
-  const title = str(b.title, 200) || 'App';
-  const old = id ? db.prepare('SELECT * FROM apps WHERE id = ?').get(id) : null;
-  const slug = old ? old.slug : uniqueSlug('apps', b.slug || title, 0);
-  const external = safeUrl(b.external_url) || null;
-  let entry = str(b.entry, 200) || (old && old.entry) || 'index.html';
-  if (req.file) {
-    try {
-      const dir = up.extractApp(req.file.path, slug);
-      if (!b.entry) entry = up.findEntry(dir);
-    } catch (e) {
-      const back = old ? `/admin/apps/${id}` : '/admin/apps/new';
-      return res.redirect(back + '?err=' + encodeURIComponent('ZIP konnte nicht entpackt werden: ' + e.message));
-    }
-  }
-  entry = entry.replace(/^\/+/, '').replace(/\.\.+/g, '');
-  const vals = [title, str(b.description, 2000), entry, visibilityFrom(b), external, now()];
-  let aid = id;
-  if (id) db.prepare('UPDATE apps SET title=?, description=?, entry=?, visibility=?, external_url=?, updated_at=? WHERE id=?').run(...vals, id);
-  else aid = Number(db.prepare('INSERT INTO apps(title, description, entry, visibility, external_url, updated_at, slug, created_at) VALUES (?,?,?,?,?,?,?,?)').run(...vals, slug, now()).lastInsertRowid);
-  saveVisibility('app', aid, b);
-  res.redirect(`/admin/apps/${aid}?ok=1`);
-});
-router.post('/apps/:id/delete', (req, res) => {
-  const a = db.prepare('SELECT * FROM apps WHERE id = ?').get(Number(req.params.id));
-  if (a) { up.removeQuietly(path.join(APPS_DIR, a.slug)); db.prepare('DELETE FROM apps WHERE id = ?').run(a.id); }
-  res.redirect('/admin/apps');
+  res.redirect(`/spiele/${a.slug}/bearbeiten`);
 });
 
 // ---------- DS-Spiele (src/ds.js) ----------

@@ -51,6 +51,13 @@ app.use('/static', express.static(PUBLIC_DIR, {
   maxAge: '7d',
   setHeaders: (res, file) => { if ('v' in res.req.query) res.set('Cache-Control', 'public, max-age=31536000, immutable'); },
 }));
+// Spieler für mitgebrachte Spiele der Daddelecke: js-dos (DOS) und Ruffle (Flash) aus node_modules, nichts aus dem Netz.
+// Die Spielerseiten laufen unter /apps/<slug>/play und holen sie von hier.
+for (const [url, pkg, sub] of [['/vendor/js-dos', 'js-dos/package.json', 'dist'], ['/vendor/ruffle', '@ruffle-rs/ruffle/package.json', '']]) {
+  let dir = null;
+  try { dir = path.join(path.dirname(require.resolve(pkg)), sub); } catch { /* Paket fehlt: dann eben ohne */ }
+  if (dir) app.use(url, express.static(dir, { maxAge: '7d', index: false }));
+}
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: false, limit: '2mb' }));
 app.use(auth.loadUser);
@@ -98,7 +105,7 @@ app.use((req, res, next) => {
 });
 // Wartungsmodus: Wer kein Admin ist, sieht nur die Wartungsseite (mit Anmeldung für Admins). Kommt vor dem Desktop,
 // damit die Seite ohne Fenster und ohne die Abfragen des Desktops auskommt.
-const MAINT_OPEN = /^\/(login|logout|theme\.css|favicon\.ico|manifest\.webmanifest|sw\.js|static\/.*|media\/.*|api\/kennworthinweis)$/;
+const MAINT_OPEN = /^\/(login|logout|theme\.css|favicon\.ico|manifest\.webmanifest|sw\.js|static\/.*|vendor\/.*|media\/.*|api\/kennworthinweis)$/;
 app.use((req, res, next) => {
   if (!res.locals.maintOn || (req.user && req.user.isAdmin) || MAINT_OPEN.test(req.path)) return next();
   res.status(503).set('Retry-After', '600');
@@ -115,6 +122,8 @@ app.use((req, res, next) => {
   res.vary('Sec-Fetch-Dest');
   const embed = req.get('sec-fetch-dest') === 'iframe' || 'embed' in req.query;
   res.locals.embed = embed;
+  // Spiele in der Daddelecke: moderner Look statt 98/XP (public/play-modern.css)
+  res.locals.lookModern = embed && req.query.look === 'modern';
   if (embed || req.method !== 'GET' || v3.isModern(req)) return next();
   const render = res.render.bind(res);
   res.render = (view, opts, cb) => {
@@ -175,6 +184,8 @@ app.use('/', require('./routes/portal'));
 app.use('/downloads', require('./routes/downloads'));
 app.use('/duden', require('./routes/duden'));
 app.use('/rezepte', require('./routes/rezepte'));
+// Dancors Daddelecke: alle Spiele ohne Desktop, dazu mitgebrachte Spiele (src/daddelecke.js)
+app.use('/spiele', require('./routes/daddelecke'));
 app.use('/api/schreiben', require('./routes/schreiben'));
 app.use('/', deskRoutes.router);
 app.use('/', require('./routes/notify'));

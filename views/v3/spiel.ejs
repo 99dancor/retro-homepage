@@ -1,0 +1,66 @@
+<%- include('_head') %>
+<%# Spielseite der Daddelecke: Spiel im Rahmen, rechts Bestenliste, Anleitung, offene Tische (src/routes/daddelecke.js) %>
+<% const big = g.wide || g.kind === 'ds'; const ratio = a && a.aspect && a.aspect !== 'fill' ? a.aspect.replace(':', ' / ') : ''; %>
+<% if (ok) { %><p class="v3-flash" role="status"><%= ok %></p><% } %>
+<% if (a && !a.approved) { %>
+<div class="v3-flash err" role="status">Dieses Spiel sehen bisher nur <%= admin ? 'du und wer es hinzugefügt hat' : 'du und der Admin' %>. <% if (admin) { %>
+  <form method="post" action="/spiele/<%= a.slug %>/freigeben" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="pill small pri">✔ Für alle freigeben</button></form><% } else { %>Der Admin gibt es frei.<% } %></div>
+<% } %>
+<div class="dd-bar">
+  <a class="pill small" href="/spiele">← <%= shelf ? shelf.title : 'Daddelecke' %></a>
+  <h1><span class="emo" aria-hidden="true"><%= g.icon %></span> <%= g.title %></h1>
+  <span class="sp"></span>
+  <button type="button" class="pill small" data-dd-full>⛶ Vollbild</button>
+  <% if (a && a.kind === 'link') { %><a class="pill small" href="<%= src %>" target="_blank" rel="noopener">↗ Original</a><% } %>
+  <% if (g.kind !== 'link' && !a) { %><a class="pill small" href="<%= g.src %>" title="Im Retro-Desktop öffnen">🖥️ Im Desktop</a><% } %>
+  <% if (canEdit) { %><a class="pill small" href="/spiele/<%= a.slug %>/bearbeiten">✏️ Bearbeiten</a><% } %>
+</div>
+<div class="dd-play<%= big ? ' full' : '' %>">
+  <div class="dd-frame<%= a && a.aspect === 'fill' ? ' fill' : '' %>" data-dd-frame>
+    <iframe src="<%= src %>" title="<%= g.title %>" data-dd-game="<%= g.key %>"<% if (a && a.score_mode) { %> data-dd-score="/spiele/<%= a.slug %>/punkte"<% } %>
+      <% if (ratio) { %>style="aspect-ratio:<%= ratio %>;height:auto"<% } %>
+      allow="fullscreen; gamepad; autoplay; clipboard-write" allowfullscreen<% if (a && a.kind === 'link') { %> referrerpolicy="no-referrer-when-downgrade"<% } %>></iframe>
+    <% if (a) { %>
+    <div class="ft">
+      <span><%= KINDS[a.kind] ? KINDS[a.kind].name : 'Spiel' %></span>
+      <% for (const c of String(a.controls || '').split(',').filter(c => CONTROLS[c])) { %><span>· <%= CONTROLS[c] %></span><% } %>
+      <span class="sp"></span><span><%= a.plays %>× gespielt</span>
+    </div>
+    <% } %>
+  </div>
+  <aside class="dd-side">
+    <% if (g.cards) { %>
+    <div class="card">
+      <h3 class="sec-h"><%= g.icon %> <%= g.title %> spielen</h3>
+      <% if (tables.length) { %>
+      <div class="lb">
+        <% for (const t of tables) { %><div><a href="/spiele/<%= g.key %>?tisch=<%= encodeURIComponent(t.id) %>"><%= t.name %></a><span class="muted"><%= t.players %>/<%= t.seats %><%= t.live ? ' · läuft' : '' %></span></div><% } %>
+      </div>
+      <% } else { %><p class="note">Gerade kein Tisch mit <%= g.title %> offen.</p><% } %>
+      <button type="button" class="pill pri" style="margin-top:10px;width:100%" data-dd-quick="<%= g.cards %>">⚡ Schnell spielen</button>
+      <p class="note" style="margin:8px 0 0">Setzt dich an den vollsten Tisch mit freiem Platz oder macht einen auf.</p>
+    </div>
+    <% } %>
+    <% for (const b of boards) { %>
+    <div class="card" data-dd-board>
+      <h3 class="sec-h">🏆 <%= b.title %></h3>
+      <% if (!b.rows.length) { %><p class="note">Noch niemand drin. Du könntest der Erste sein.</p><% } %>
+      <div class="lb">
+        <% b.rows.forEach((r, i) => { %><div<%= r.me ? ' class="me"' : '' %>><span><%= ['🥇', '🥈', '🥉'][i] || (i + 1) + '.' %></span><span><%= r.name %><% if (r.help) { %> <small class="muted">mit Hilfe</small><% } %></span><span><%= r.value %></span></div><% }) %>
+      </div>
+    </div>
+    <% } %>
+    <% if (g.help || (!a && g.text)) { %>
+    <div class="card">
+      <h3 class="sec-h">So geht's</h3>
+      <p class="note-b"><%= g.help || g.text %></p>
+    </div>
+    <% } %>
+    <% if (a) { %>
+    <% if (howto) { %><div class="card prose dd-howto"><h3 class="sec-h">Über das Spiel</h3><%- howto %></div><% } else if (a.description) { %><div class="card"><h3 class="sec-h">Über das Spiel</h3><p class="note-b"><%= a.description %></p></div><% } %>
+    <% if (a.source) { %><div class="card"><h3 class="sec-h">Quelle</h3><p class="note-b"><%= a.source %></p></div><% } %>
+    <% } %>
+  </aside>
+</div>
+<script src="<%= asset('daddelecke.js') %>" defer></script>
+<%- include('_foot') %>

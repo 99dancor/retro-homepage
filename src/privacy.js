@@ -68,6 +68,7 @@ const SNIPPETS = {
   profileGuestbook: ['src/db.js', 'CREATE TABLE IF NOT EXISTS profile_guestbook (', 7],
   gameStats: ['src/db.js', 'CREATE TABLE IF NOT EXISTS game_stats (', 8],
   countStart: ['src/profiles.js', 'function countStart(user, app)', 5],
+  ddScores: ['src/db.js', 'CREATE TABLE IF NOT EXISTS dd_scores (', 7],
   ksWallets: ['src/db.js', 'CREATE TABLE IF NOT EXISTS ks_wallets (', 12],
   ksItems: ['src/db.js', 'CREATE TABLE IF NOT EXISTS ks_items (', 7],
   ksMeta: ['src/kartenspiele.js', 'function meta(s) {', 8],

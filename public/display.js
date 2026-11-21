@@ -15,6 +15,23 @@
   }
   try { data = JSON.parse(document.getElementById('darstellung-daten').textContent); } catch (e) { /* ohne Vorlagen */ }
 
+  // Daddelecke (/spiele): Spiele im Rahmen der Seite tragen den modernen Look (public/play-modern.css) statt 98/XP.
+  // Der Server setzt <html data-look="modern"> beim ersten Laden (?look=modern); wechselt das Spiel im Rahmen die Seite
+  // (z. B. Quiz-Raum), merkt es sich das hier am Rahmen der Daddelecke. Hell/dunkel wie auf den modernen Seiten.
+  var modern = root.getAttribute('data-look') === 'modern';
+  if (!modern && window.parent !== window) {
+    try {
+      if (window.parent.document.body.classList.contains('dd-host')) {
+        modern = true;
+        root.setAttribute('data-look', 'modern');
+        var ln = document.createElement('link');
+        ln.rel = 'stylesheet'; ln.href = '/static/play-modern.css';
+        (document.head || root).appendChild(ln);
+      }
+    } catch (e) { /* fremder Rahmen */ }
+  }
+  if (modern) { try { var th = localStorage.getItem('v3-theme'); if (th) root.setAttribute('data-theme', th); } catch (e) { /* privat */ } }
+
   var SCHEMES = ['seite', 'nacht', 'kontrast'], DESIGNS = ['seite', '98', 'xp'], XP = ['blau', 'oliv', 'silber'];
   // Die alten Stufen der Schriftgröße werden zu Prozent der Oberfläche
   var OLD_SIZE = { gross: 115, 'sehr-gross': 130 };
@@ -113,14 +130,14 @@
   function apply(p, img) {
     p = p || load();
     if (img === undefined) img = loadImage();
-    var d = designOf(p), xp = d.xp && p.scheme !== 'kontrast';
+    var d = designOf(p), xp = d.xp && p.scheme !== 'kontrast' && !modern;
     root.classList.toggle('theme-xp', xp);
     root.classList.toggle('xp-oliv', xp && d.scheme === 'oliv');
     root.classList.toggle('xp-silber', xp && d.scheme === 'silber');
     root.classList.toggle('zoomed', p.scale !== 100);
     root.classList.toggle('zoom-all', p.scale !== 100 && p.scaleAll);
     if (p.scale !== 100) root.style.setProperty('--zoom', String(p.scale / 100)); else root.style.removeProperty('--zoom');
-    SCHEMES.forEach(function (s) { root.classList.toggle('scheme-' + s, s === p.scheme && s !== 'seite'); });
+    SCHEMES.forEach(function (s) { root.classList.toggle('scheme-' + s, s === p.scheme && s !== 'seite' && !modern); });
     root.classList.toggle('still', p.marquee !== 'an');
     var el = document.getElementById('darstellung-css');
     if (!el) {
@@ -128,7 +145,7 @@
       el.id = 'darstellung-css';
       (document.head || root).appendChild(el);
     }
-    var text = cssFor(p, img);
+    var text = modern ? '' : cssFor(p, img);
     if (el.textContent !== text) el.textContent = text;
     if (document.body) {
       document.querySelectorAll('marquee').forEach(function (m) { try { if (p.marquee === 'still') m.stop(); else m.start(); } catch (e) { /* egal */ } });

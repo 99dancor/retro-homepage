@@ -1,0 +1,15 @@
+<%- include('_head') %>
+<%# Changelog im Stil der Startseite (Inhalt aus CHANGELOG.md, Suche über public/changelog.js) %>
+<section class="v3-hero">
+  <div>
+    <h1>Changelog</h1>
+    <p>Was sich an dieser Website geändert hat, das Neueste steht oben.<% if (latest && latest.no != null) { %> Gerade läuft <b>Update <%= latest.no %></b>.<% } %></p>
+  </div>
+</section>
+<div class="v3-tools cl-search" hidden>
+  <input type="search" id="cl-q" placeholder="Im Changelog suchen, z. B. Poker oder 83" aria-label="Im Changelog suchen" autocomplete="off" style="max-width:380px">
+  <small id="cl-n" class="muted" aria-live="polite"></small>
+</div>
+<article class="card prose v3-text v3-changelog" id="changelog"><%- changelogHtml %></article>
+<script src="<%= asset('changelog.js') %>" defer></script>
+<%- include('_foot') %>

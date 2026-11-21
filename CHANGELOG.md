@@ -1,5 +1,13 @@
 # Changelog
 
+## Update 98 · 22.11.2026 – Dancors Dioramen: Spielstände und Bauwerke zeigen
+
+- **Neue Kachel „Dancors Dioramen“:** Auf der Startseite gibt es einen neuen Bereich unter /dioramen für Spielstände und einzelne Bauwerke aus Spielständen, zum Beispiel aus dem Farming Simulator. Die Übersicht ist eine Bildergalerie: jede Karte mit Titelbild, 💾 Spielstand oder 🏗️ Bauwerk, Spiel und Karte, Kurztext und Downloads. Oben steht ein Eintrag groß mit dem Knopf „Spielstand laden“. Chips filtern nach Spiel, ein Schalter nach Spielständen oder Bauwerken, dazu Sortierung und Suche.
+- **Eintragsseite:** Großes Titelbild mit Titel, darunter alle Bilder mit Unterschrift; ein Klick öffnet sie groß, mit Pfeilen oder Wischen blättern. Daneben der Download-Kasten mit Version, älteren Versionen, Änderungen und „So geht’s“, ein Steckbrief mit eigenen Zeilen (Spielzeit, Felder, Kosten …) und die benötigten Mods mit Version und Link.
+- **Spielstand und Bauwerke:** Ein Bauwerk kann „Teil von“ einem Spielstand sein. Der Spielstand zeigt dann seine Bauwerke, auf Wunsch auf einem Lageplan mit Nummern (Bild von oben hochladen, Bauwerke anklicken und auf den Plan setzen). Ein Bauwerk ohne eigenen Download verweist auf den des Spielstands. Jeder Eintrag kann ein Vorher- und ein Nachher-Bild bekommen, die Seite zeigt dann einen Regler zum Vergleichen.
+- **Anlegen und Bearbeiten:** Einträge legen der Admin und Mitglieder mit dem Recht „Schreiben“ an. Bilder zieht man einfach ins Formular, mehrere auf einmal, sortiert sie per Ziehen und wählt mit ★ das Titelbild. Mit „✏️ Seite bearbeiten“ ordnet der Admin die Karten, pinnt an, blendet aus, ändert Überschrift, Titel und Kurztext direkt und legt fest, was oben groß steht.
+- **In den Downloads:** Mit dem Haken „auch in Dancors Downloads zeigen“ erscheint ein Eintrag zusätzlich als Karte in den Downloads, mit Download-Knopf und Link zu den Bildern. Die Dateien zählen zum Speicher des Mitglieds.
+
 ## Update 97 · 21.11.2026 – Downloads: neue Version auch beim Bearbeiten hochladen
 
 - **Datei beim Bearbeiten:** „Projekt bearbeiten“ hat jetzt wie das neue Projekt das Feld „Datei“ mit Version und Änderungen. Eine Datei dort wird beim Speichern eine neue Version. Bisher gab es das Feld nur beim Anlegen, und eine Datei beim Bearbeiten ging still verloren.

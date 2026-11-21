@@ -1,0 +1,128 @@
+<%- include('_head') %>
+<%# Eintragsseite eines Dioramas (src/dioramen.js page()): Titelbild, Bilderleiste, Text, Lageplan, Bauwerke, Vorher/Nachher,
+    rechts Download, Steckbrief, Mods. Bilder groß und Regler: public/dioramen.js %>
+<% const fmt = t => new Date(t * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+   const size = n => { if (n < 1024) return n + ' B'; const u = ['KB', 'MB', 'GB', 'TB']; let i = -1; do { n /= 1024; i++; } while (n >= 1024 && i < 3); return n.toFixed(n < 10 ? 1 : 0).replace('.', ',') + ' ' + u[i]; };
+   const vno = v => String(v).replace(/^v/i, '');
+   const cover = gallery[0] ? '/media/' + gallery[0].f : null;
+   const ext = u => /^https?:/i.test(u); %>
+<p class="crumbs"><a href="/dioramen">Dancors Dioramen</a><% if (d.game) { %> › <a href="/dioramen?spiel=<%= encodeURIComponent(d.game) %>"><%= d.game %></a><% } %><% if (parent) { %> › <a href="/dioramen/<%= parent.slug %>">💾 <%= parent.title %></a><% } %> › <%= d.title %></p>
+<% if (ok) { %><p class="v3-flash" role="status"><%= ok %></p><% } %>
+
+<section class="di-hero<%= cover ? '' : ' plain' %>"<%= cover ? ' data-lb-hero' : '' %>>
+  <% if (cover) { %><img src="<%= cover %>" alt=""><% } %>
+  <span class="flg">
+    <% if (d.pinned) { %><span class="flag-b pin">📌 Angepinnt</span><% } %>
+    <% if (fresh) { %><span class="flag-b new">🆕 Neu</span><% } %>
+  </span>
+  <div class="tx">
+    <span class="kick"><%= kind.icon %> <%= kind.label %><% if (d.game) { %> · <%= d.game %><% } %><% if (d.world) { %> · <%= d.world %><% } %><% if (parent) { %> · Teil von <%= parent.title %><% } %></span>
+    <h1><%= d.title %></h1>
+    <% if (d.summary) { %><p><%= d.summary %></p><% } %>
+    <div class="row">
+      <% if (kids.length) { %><span class="tag">🏗️ <%= kids.length %> <%= kids.length === 1 ? 'Bauwerk' : 'Bauwerke' %></span><% } %>
+      <% if (gallery.length) { %><span class="tag">🖼️ <%= gallery.length %> <%= gallery.length === 1 ? 'Bild' : 'Bilder' %></span><% } %>
+      <span class="tag">Stand <%= fmt(Math.max(d.updated_at, latest ? latest.created_at : 0)) %></span>
+      <% if (author) { %><span class="tag">von <%= author %></span><% } %>
+      <% if (d.visibility !== 'public') { %><span class="tag">🔒 <%= ({ members: 'Mitglieder', friends: 'Freunde', groups: 'Gruppen', private: 'privat' })[d.visibility] %></span><% } %>
+      <% if (canEdit) { %><a class="pill small" href="/dioramen/<%= d.slug %>/bearbeiten">✎ Bearbeiten</a><% } %>
+    </div>
+  </div>
+</section>
+
+<% if (gallery.length > 1) { %>
+<div class="gal" aria-label="Bilder">
+  <% gallery.forEach((g, i) => { %><figure><a href="/media/<%= g.f %>" data-lb data-cap="<%= g.cap %>"><img src="/media/<%= g.f %>" alt="<%= g.cap %>" loading="lazy"></a><% if (g.cap) { %><figcaption><%= g.cap %></figcaption><% } %></figure><% }) %>
+</div>
+<% } else if (gallery.length) { %><a href="/media/<%= gallery[0].f %>" data-lb data-cap="<%= gallery[0].cap %>" hidden>Bild</a><% } %>
+
+<div class="di-entry">
+  <div class="di-main">
+    <% if (d.body_md.trim()) { %><section class="card"><h2 class="sec-h"><%= d.kind === 'spielstand' ? 'Über den Spielstand' : 'Über das Bauwerk' %></h2><div class="prose"><%- body %></div></section><% } %>
+
+    <% if (compare) { %>
+    <section class="card"><h2 class="sec-h">Vorher / Nachher</h2>
+      <div class="cmp" style="--at:50%">
+        <img src="/media/<%= compare.before %>" alt="Vorher"><img class="after" src="/media/<%= compare.after %>" alt="Nachher">
+        <span class="line" aria-hidden="true"></span><span class="knob" aria-hidden="true">⇔</span><span class="lb1">Vorher</span><span class="lb2">Nachher</span>
+        <input type="range" min="0" max="100" value="50" aria-label="Vorher und Nachher vergleichen">
+      </div>
+      <p class="muted small-note">Regler ziehen zum Vergleichen.</p>
+    </section>
+    <% } %>
+
+    <% if (plan) { %>
+    <section class="card"><h2 class="sec-h">Lageplan</h2>
+      <div class="lage"><img src="/media/<%= plan %>" alt="Lageplan">
+        <% for (const k of kids) { if (!k.pin) continue; %><a class="mpin" href="<%= k.url %>" style="left:<%= k.pin[0] %>%;top:<%= k.pin[1] %>%"><i><span><%= k.no %></span></i><em><%= k.title %></em></a><% } %>
+      </div>
+      <p class="muted small-note">Klick auf eine Nummer öffnet das Bauwerk.</p>
+    </section>
+    <% } %>
+
+    <% if (kids.length || (canWrite && canEdit && d.kind === 'spielstand')) { %>
+    <section class="card"><h2 class="sec-h">Bauwerke in diesem Spielstand</h2>
+      <div class="bw-grid">
+        <% for (const k of kids) { %>
+        <a class="bw" href="<%= k.url %>"><% if (k.cover) { %><img src="<%= k.cover %>" alt="" loading="lazy"><% } else { %><span class="ph emo">🏗️</span><% } %><div><b><% if (plan && k.pin) { %><span class="no"><%= k.no %></span><% } %><%= k.title %></b><small><%= [k.imageCount ? k.imageCount + (k.imageCount === 1 ? ' Bild' : ' Bilder') : '', k.dl ? 'eigener Download' : ''].filter(Boolean).join(' · ') || k.summary %></small></div></a>
+        <% } %>
+        <% if (canEdit && canWrite && d.kind === 'spielstand') { %><a class="bw add" href="/dioramen/neu?typ=bauwerk&amp;teil=<%= d.id %>"><span class="ph">＋</span><div><b>Bauwerk hinzufügen</b><small>gehört dann zu diesem Spielstand</small></div></a><% } %>
+      </div>
+    </section>
+    <% } %>
+  </div>
+
+  <aside class="di-side">
+    <% if (latest) { %>
+    <section class="card dlbox" id="download">
+      <h3 class="side-h">⬇ Download</h3>
+      <a class="pill pri big" href="/dioramen/dl/<%= latest.id %>">⬇ <%= latest.version ? (d.kind === 'spielstand' ? 'Spielstand ' : 'Version ') + vno(latest.version) : 'Herunterladen' %> <small>(<%= size(latest.size) %>)</small></a>
+      <div class="sm"><span class="fn"><%= latest.original_name %></span><span><%= downloads %>× geladen</span></div>
+      <% if (files.length > 1 || changes[0]) { %>
+      <div class="vers-mini">
+        <% files.forEach((f, i) => { %>
+        <div class="vrow"><b><%= f.version ? vno(f.version) : fmt(f.created_at) %></b><span class="sp"><%= fmt(f.created_at) %> · <%= size(f.size) %></span><% if (i === 0) { %><span class="ver">aktuell</span><% } else { %><a class="pill small" href="/dioramen/dl/<%= f.id %>" aria-label="Version <%= f.version || '' %> laden">⬇</a><% } %></div>
+        <% if (changes[i]) { %><div class="chg prose"><%- changes[i] %></div><% } %>
+        <% }) %>
+      </div>
+      <% } %>
+      <% if (howto) { %><details class="note" open><summary>📖 So geht’s</summary><div class="prose"><%- howto %></div></details><% } %>
+    </section>
+    <% } else if (parentDl) { %>
+    <section class="card dlbox" id="download">
+      <h3 class="side-h">⬇ Download</h3>
+      <a class="pill pri big" href="<%= parentDl.url %>">⬇ Spielstand <%= parentDl.version ? vno(parentDl.version) : '' %> <small>(<%= parentDl.size %>)</small></a>
+      <div class="note">🏗️ Dieses Bauwerk steckt im Spielstand <a href="/dioramen/<%= parent.slug %>"><%= parent.title %></a>, einen eigenen Download dafür gibt es nicht.</div>
+    </section>
+    <% } %>
+
+    <section class="card"><h3 class="side-h">📋 Steckbrief</h3>
+      <dl class="facts">
+        <% if (d.game) { %><dt>Spiel</dt><dd><%= d.game %></dd><% } %>
+        <% if (d.world) { %><dt>Karte</dt><dd><%= d.world %></dd><% } %>
+        <% if (parent) { %><dt>Teil von</dt><dd><a href="/dioramen/<%= parent.slug %>"><%= parent.title %></a></dd><% } %>
+        <% for (const [k, v] of facts) { %><dt><%= k %></dt><dd><%= v %></dd><% } %>
+        <dt>Art</dt><dd><%= kind.icon %> <%= kind.label %></dd>
+        <dt>Angelegt</dt><dd><%= fmt(d.created_at) %></dd>
+      </dl>
+    </section>
+
+    <% if (mods.length) { %>
+    <section class="card"><h3 class="side-h">🧩 Benötigte Mods</h3>
+      <ul class="mods">
+        <% for (const m of mods) { %><li><span class="sp"><%= m.name %></span><% if (m.ver) { %><small><%= m.ver %></small><% } %><% if (m.url) { %><a class="pill small" href="<%= m.url %>"<%= ext(m.url) ? ' target="_blank" rel="noopener noreferrer nofollow"' : '' %>><%= ext(m.url) ? 'Öffnen ↗' : 'Hier' %></a><% } %></li><% } %>
+      </ul>
+    </section>
+    <% } %>
+
+    <% if (siblings.length) { %>
+    <section class="card"><h3 class="side-h">Mehr aus <%= parent.title %></h3>
+      <div class="bw-grid two">
+        <% for (const s of siblings) { %><a class="bw" href="<%= s.url %>"><% if (s.cover) { %><img src="<%= s.cover %>" alt="" loading="lazy"><% } else { %><span class="ph emo">🏗️</span><% } %><div><b><%= s.title %></b></div></a><% } %>
+      </div>
+    </section>
+    <% } %>
+  </aside>
+</div>
+<script src="<%= asset('dioramen.js') %>" defer></script>
+<%- include('_foot') %>

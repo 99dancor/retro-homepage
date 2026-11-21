@@ -73,7 +73,7 @@ async function main() {
     });
 
     await step('Öffentliche Seiten laden', async () => {
-      for (const p of ['/', '/desktop', '/downloads', '/duden', '/rezepte', '/finden?q=a', '/blog', '/mods', '/guestbook', '/contact', '/spiele', '/spiele/sudoku', '/spiele/minesweeper', '/forum', '/changelog', '/datenschutz', '/login', '/theme.css', '/static/retro.css', '/static/editor.js', '/musik', '/musik/bibliothek', '/static/sound.js', '/static/music.js', '/static/visualizer.js', '/paint', '/galerie', '/static/paint-core.js']) {
+      for (const p of ['/', '/desktop', '/downloads', '/duden', '/rezepte', '/finden?q=a', '/blog', '/mods', '/guestbook', '/contact', '/spiele', '/dioramen', '/spiele/sudoku', '/spiele/minesweeper', '/forum', '/changelog', '/datenschutz', '/login', '/theme.css', '/static/retro.css', '/static/editor.js', '/musik', '/musik/bibliothek', '/static/sound.js', '/static/music.js', '/static/visualizer.js', '/paint', '/galerie', '/static/paint-core.js']) {
         const r = await guest.req(p);
         assert.equal(r.status, 200, p);
       }
@@ -179,6 +179,61 @@ async function main() {
       const t = await guest.csrf('/contact');
       assert.equal((await guest.form('/contact', { _csrf: t, name: 'Tester', subject: 'Frage', body: 'Hallo!' })).status, 302);
       assert.match((await admin.req('/admin/messages')).text_, /Frage/);
+    });
+
+    await step('Dancors Dioramen: Spielstand mit Bild und Datei, Bauwerk, Download, Seite bearbeiten', async () => {
+      const PIX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+      assert.equal((await guest.req('/dioramen/neu')).status, 302, 'Gast muss sich anmelden');
+      let t = await admin.csrf('/dioramen/neu');
+      let fd = new FormData();
+      for (const [k, v] of [['_csrf', t], ['kind', 'spielstand'], ['title', 'Testhof'], ['game', 'Farming Simulator 25'], ['summary', 'Ein Hof zum Testen'], ['body_md', '**Fett**'], ['version', '1.0'],
+        ['fact_k', 'Spielzeit'], ['fact_v', '12 Stunden'], ['fact_k', ''], ['fact_v', ''], ['mod_name', 'Seasons'], ['mod_ver', '2'], ['mod_url', 'javascript:alert(1)'], ['in_downloads', '1'], ['visibility', 'public']]) fd.append(k, v);
+      fd.append('images', new Blob([PIX], { type: 'image/png' }), 'hof.png');
+      fd.append('new_cap', 'Von oben');
+      fd.append('file', new Blob(['spielstand']), 'testhof.zip');
+      let r = await admin.req('/dioramen/neu', { method: 'POST', body: fd });
+      assert.equal(r.status, 302, r.text_ && r.text_.slice(0, 300));
+      assert.equal(r.headers.get('location'), '/dioramen/testhof?ok=neu');
+      const page = (await guest.req('/dioramen/testhof', { top: true })).text_;
+      assert.match(page, /<h1>Testhof<\/h1>/);
+      assert.match(page, /<strong>Fett<\/strong>/);
+      assert.match(page, /<dt>Spielzeit<\/dt><dd>12 Stunden<\/dd>/);
+      assert.match(page, /<span class="sp">Seasons<\/span><small>2<\/small><\/li>/, 'gefährlicher Link fällt weg');
+      const dl = page.match(/href="(\/dioramen\/dl\/\d+)"/)[1];
+      r = await guest.req(dl);
+      assert.equal(r.status, 200);
+      assert.equal(r.text_, 'spielstand');
+      assert.match(r.headers.get('content-disposition'), /testhof\.zip/);
+      assert.match((await guest.req('/dioramen/testhof')).text_, /1× geladen/);
+      // Bauwerk gehört zum Spielstand
+      t = await admin.csrf('/dioramen/neu?typ=bauwerk');
+      const hofId = page.match(/teil=(\d+)/) ? page.match(/teil=(\d+)/)[1] : (await admin.req('/dioramen/testhof')).text_.match(/teil=(\d+)/)[1];
+      fd = new FormData();
+      for (const [k, v] of [['_csrf', t], ['kind', 'bauwerk'], ['parent_id', hofId], ['title', 'Teststall'], ['visibility', 'public']]) fd.append(k, v);
+      assert.equal((await admin.req('/dioramen/neu', { method: 'POST', body: fd })).status, 302);
+      assert.match((await guest.req('/dioramen/teststall')).text_, /Dieses Bauwerk steckt im Spielstand/);
+      assert.match((await guest.req('/dioramen/testhof')).text_, /Bauwerke in diesem Spielstand[\s\S]*Teststall/);
+      // Übersicht, Startseite, Downloads, Suche
+      const list = (await guest.req('/dioramen')).text_;
+      assert.match(list, /Testhof/);
+      assert.match(list, /Teststall/);
+      assert.match((await guest.req('/', { top: true })).text_, /data-tile="dioramen"/);
+      assert.match((await guest.req('/downloads')).text_, /🏡 Bilder und Details/);
+      assert.match((await guest.req('/finden?q=testhof')).text_, /Diorama/);
+      // Kein Bild im Bildfeld: Meldung statt still wegwerfen
+      t = await admin.csrf('/dioramen/testhof/bearbeiten');
+      fd = new FormData();
+      for (const [k, v] of [['_csrf', t], ['kind', 'spielstand'], ['title', 'Testhof']]) fd.append(k, v);
+      fd.append('images', new Blob(['zip'], { type: 'application/zip' }), 'falsch.zip');
+      r = await admin.req('/dioramen/testhof/bearbeiten', { method: 'POST', body: fd });
+      assert.equal(r.status, 400);
+      assert.match(r.text_, /ist kein Bild/);
+      // Seite bearbeiten nur für den Admin
+      const body = JSON.stringify({ layout: { title: 'Meine Dioramen', hero: 'aus' } });
+      assert.equal((await guest.req('/dioramen/seite', { method: 'POST', body, headers: { 'content-type': 'application/json', 'x-csrf-token': await guest.csrf('/login') } })).status, 403);
+      r = await admin.req('/dioramen/seite', { method: 'POST', body, headers: { 'content-type': 'application/json', 'x-csrf-token': await admin.csrf('/dioramen/neu') } });
+      assert.equal(r.status, 200);
+      assert.match((await guest.req('/dioramen')).text_, /Meine Dioramen/);
     });
 
     await step('Spielstände im Konto speichern und laden', async () => {
@@ -2934,7 +2989,7 @@ async function main() {
       // Kacheln in der Seitenverwaltung: ausblenden, nur Mitglieder, eigene Kachel, Reihenfolge
       const page = (await admin.req('/admin/kacheln')).text_;
       const order = [...page.matchAll(/name="order" value="([^"]+)"/g)].map(m => m[1]);
-      assert.deepEqual(order, ['desktop', 'downloads', 'duden', 'spiele', 'rezepte', 'hub']);
+      assert.deepEqual(order, ['desktop', 'downloads', 'duden', 'spiele', 'rezepte', 'hub', 'dioramen']);
       const t = await admin.csrf('/admin/kacheln');
       const post = extra => {
         const fd = new URLSearchParams({ _csrf: t, portal_name: 'dancor.org', portal_title: 'Hallo Rauch', portal_text: 'Test' });
@@ -2953,7 +3008,7 @@ async function main() {
       assert.equal((await post({ fields: { title_k1: 'Mein Blog', url_k1: 'javascript:alert(1)', icon_k1: '📝', move: 'k1:up' } })).status, 302);
       g = (await guest.req('/', { top: true })).text_;
       assert.match(g, /href="\/" data-tile="k1"[\s\S]*?Mein Blog/, 'unsichere Adresse wird /');
-      assert.ok(g.indexOf('data-tile="k1"') < g.indexOf('data-tile="hub"') || !/data-tile="hub"/.test(g), 'nach oben geschoben');
+      assert.ok(g.indexOf('data-tile="k1"') < g.indexOf('data-tile="dioramen"'), 'nach oben geschoben');
       order.splice(order.indexOf('k1'), 1);
       assert.equal((await post({ fields: { del: 'k1' } })).status, 302);
       assert.doesNotMatch((await guest.req('/', { top: true })).text_, /data-tile="k1"/);

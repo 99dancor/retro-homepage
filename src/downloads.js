@@ -121,7 +121,7 @@ const LAYOUT = {
   start: 'projekte', look: 'gross', more: true, order: [], hidden: [],
 };
 const SORTS = { eigene: 'Empfohlen', neu: 'Zuletzt aktualisiert', beliebt: 'Meiste Downloads', name: 'Name A–Z' };
-const keyOk = k => typeof k === 'string' && /^(p\d{1,9}|hub)$/.test(k);
+const keyOk = k => typeof k === 'string' && /^(p\d{1,9}|d\d{1,9}|hub)$/.test(k);
 function layout() {
   let l = {};
   try { l = JSON.parse(getSetting('dl_layout', 'null')) || {}; } catch { /* Standard */ }
@@ -142,7 +142,7 @@ function saveLayout(input) {
   const l = normalize({ ...layout(), ...input });
   const t = now();
   for (const c of Array.isArray(input.cards) ? input.cards.slice(0, 500) : []) {
-    if (!c || !keyOk(c.key) || c.key === 'hub') continue;
+    if (!c || !keyOk(c.key) || c.key[0] !== 'p') continue;   // Hub und Dioramen ändern hier nur ihren Platz
     const p = byId(c.key.slice(1));
     if (!p) continue;
     const cover = typeof c.cover === 'string' ? (c.cover.match(/^\/media\/([\w.-]+)$/) || [])[1] || (c.cover === '' ? null : p.cover) : p.cover;
@@ -165,7 +165,9 @@ function view(user, node, q, o = {}) {
   const projects = visibleProjects(user).map(p => projectRow(p, user, list)).filter(p => p.count || p.edit);
   const files = looseFiles(user).map(f => fileRow(f, user, list));
   const hub = hubRow(user);
-  const cards = [...projects, ...(hub ? [hub] : [])];
+  let dio = [];
+  try { dio = require('./dioramen').downloadCards(user); } catch { dio = []; }   // Dioramen mit Haken „auch in Downloads zeigen“
+  const cards = [...projects, ...(hub ? [hub] : []), ...dio];
   const all = [...cards, ...files];
   const byCat = {};
   for (const r of all) (byCat[r.cat] ||= []).push(r);

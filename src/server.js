@@ -186,6 +186,8 @@ app.use('/duden', require('./routes/duden'));
 app.use('/rezepte', require('./routes/rezepte'));
 // Dancors Daddelecke: alle Spiele ohne Desktop, dazu mitgebrachte Spiele (src/daddelecke.js)
 app.use('/spiele', require('./routes/daddelecke'));
+// Dancors Dioramen: Spielstände und Bauwerke mit Bildern und Download (src/dioramen.js)
+app.use('/dioramen', require('./routes/dioramen'));
 app.use('/api/schreiben', require('./routes/schreiben'));
 app.use('/', deskRoutes.router);
 app.use('/', require('./routes/notify'));

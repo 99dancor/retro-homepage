@@ -4,7 +4,7 @@
 // Die fünf festen Kacheln zeigen unten kleine Angaben aus ihrem Bereich (Anzahl, das Neueste, Server online).
 const { getSetting, setSetting } = require('./db');
 
-const COLORS = { desk: 'Türkis', dl: 'Blau', du: 'Bernstein', de: 'Rot', fs: 'Grün', x: 'Lila', gray: 'Grau' };
+const COLORS = { desk: 'Türkis', dl: 'Blau', du: 'Bernstein', de: 'Rot', fs: 'Grün', x: 'Lila', di: 'Erde', gray: 'Grau' };
 const SHOW = { all: 'alle', members: 'nur Mitglieder', off: 'ausgeblendet' };
 const BUILTIN = {
   desktop: { kicker: 'Dancors', title: 'Desktop', icon: '🖥️', color: 'desk', url: '/desktop', text: 'Der Retro-Desktop: Kartenspiele, Minesweeper, Messenger, Forum, Mediaplayer, Paint und Pixelpfoten.' },
@@ -13,6 +13,7 @@ const BUILTIN = {
   spiele: { kicker: 'Dancors', title: 'Daddelecke', icon: '🕹️', color: 'x', url: '/spiele', text: 'Sudoku, Minesweeper, Kartentische und mitgebrachte Spiele. Direkt hier spielen, ohne Desktop.' },
   rezepte: { kicker: 'Dancors', title: 'Deliziösitäten', icon: '🍝', color: 'de', url: '/rezepte', text: 'Das Rezeptbuch. Portionen umrechnen, Schritt für Schritt kochen, Zutaten auf die Einkaufsliste.' },
   hub: { kicker: 'Farming Simulator 25', title: 'Dancors Dreschplatz', icon: '🚜', color: 'fs', url: '/farming', text: 'Höfe, Karte, Planer und Preise vom Server. Die Hub-Link-Mod gibt es direkt im Hub.' },
+  dioramen: { kicker: 'Dancors', title: 'Dioramen', icon: '🏡', color: 'di', url: '/dioramen', text: 'Spielstände und Bauwerke zum Anschauen und Herunterladen: Höfe, Ställe, Burgen. Mit Bildern, Steckbrief und Download.' },
 };
 const ORDER = Object.keys(BUILTIN);
 const str = (v, n) => String(v ?? '').trim().replace(/\s+/g, ' ').slice(0, n);
@@ -54,6 +55,7 @@ function meta(key, user) {
     if (key === 'downloads') { const s = require('./downloads').stats(user); return [`${s.count} ${s.count === 1 ? 'Download' : 'Downloads'}`, s.latest && 'neu: ' + s.latest.title]; }
     if (key === 'duden') { const s = require('./duden').stats(user); return [`${s.count} ${s.count === 1 ? 'Eintrag' : 'Einträge'}`, s.latest && 'neu: ' + s.latest.title]; }
     if (key === 'spiele') return require('./daddelecke').meta(user);
+    if (key === 'dioramen') return require('./dioramen').meta(user);
     if (key === 'rezepte') { const s = require('./recipes').stats(user); return [`${s.count} ${s.count === 1 ? 'Rezept' : 'Rezepte'}`, s.latest && 'neu: ' + s.latest.title]; }
     if (key === 'hub') {
       const hub = require('./hub'), st = hub.serverStatus(), out = [];
@@ -98,6 +100,7 @@ function recent(user, limit = 6) {
   try { add('dl', 'Download', require('./downloads').recent(user, limit)); } catch { /* leer */ }
   try { add('du', 'Duden', require('./duden').recent(user, limit)); } catch { /* leer */ }
   try { add('de', 'Rezept', require('./recipes').recent(user, limit)); } catch { /* leer */ }
+  try { add('di', 'Diorama', require('./dioramen').recent(user, limit)); } catch { /* leer */ }
   try { add('blog', 'Beitrag', require('./duden').posts(user, limit).map(p => ({ title: p.title, url: '/duden/beitraege/' + p.slug, at: p.created_at }))); } catch { /* leer */ }
   return out.sort((a, b) => b.at - a.at).slice(0, limit);
 }
@@ -111,7 +114,7 @@ function search(user, q, locals) {
     .slice(0, 6).map(p => ({ kind: 'desk', icon: p.icon, title: p.name, text: 'Programm im Desktop' + (p.group ? ' · ' + p.group : ''), url: p.url }));
   let games = [];
   try { games = require('./daddelecke').search(user, q, locals); } catch { games = []; }
-  return [...require('./downloads').search(user, q), ...require('./duden').search(user, q), ...require('./recipes').search(user, q), ...games, ...progs];
+  return [...require('./downloads').search(user, q), ...require('./duden').search(user, q), ...require('./recipes').search(user, q), ...require('./dioramen').search(user, q), ...games, ...progs];
 }
 
 // Bearbeiten-Modus auf der Startseite (public/v3-edit.js, public/portal-edit.js): Begrüßung und Kacheln in einem Rutsch

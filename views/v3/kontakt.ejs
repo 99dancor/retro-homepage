@@ -1,0 +1,19 @@
+<%- include('_head') %>
+<%# Kontaktformular im Stil der Startseite (POST /contact wie im Desktop) %>
+<section class="v3-hero"><div><h1>Kontakt</h1><p>Eine Frage, ein Wunsch oder ein Fehler gefunden? Schreib einfach.</p></div></section>
+<div class="card" style="margin-top:14px;max-width:760px">
+  <% if (sent) { %><p class="v3-flash" role="status" style="margin-top:0">Danke! Deine Nachricht ist angekommen.</p><% } %>
+  <form method="post" action="/contact" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
+    <div class="grid2">
+      <label class="f">Name <input type="text" name="name" value="<%= user ? user.username : '' %>" maxlength="100"></label>
+      <label class="f">E-Mail <small>für eine Antwort, freiwillig</small><input type="email" name="email" maxlength="200"></label>
+    </div>
+    <label class="f">Betreff <input type="text" name="subject" maxlength="200"></label>
+    <label class="f">Nachricht <textarea name="body" rows="8" required maxlength="10000"></textarea></label>
+    <div class="actions"><button class="pill pri big">✉️ Absenden</button></div>
+  </form>
+  <p class="muted" style="margin:14px 0 0;font-size:13px">Was mit deiner Nachricht passiert, steht unter <a href="/datenschutz#fragen">Datenschutz</a>.</p>
+</div>
+<%- include('_foot') %>

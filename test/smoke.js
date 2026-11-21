@@ -73,7 +73,7 @@ async function main() {
     });
 
     await step('Öffentliche Seiten laden', async () => {
-      for (const p of ['/', '/desktop', '/downloads', '/duden', '/rezepte', '/finden?q=a', '/blog', '/mods', '/guestbook', '/contact', '/apps', '/forum', '/changelog', '/datenschutz', '/login', '/theme.css', '/static/retro.css', '/static/editor.js', '/musik', '/musik/bibliothek', '/static/sound.js', '/static/music.js', '/static/visualizer.js', '/paint', '/galerie', '/static/paint-core.js']) {
+      for (const p of ['/', '/desktop', '/downloads', '/duden', '/rezepte', '/finden?q=a', '/blog', '/mods', '/guestbook', '/contact', '/spiele', '/spiele/sudoku', '/spiele/minesweeper', '/forum', '/changelog', '/datenschutz', '/login', '/theme.css', '/static/retro.css', '/static/editor.js', '/musik', '/musik/bibliothek', '/static/sound.js', '/static/music.js', '/static/visualizer.js', '/paint', '/galerie', '/static/paint-core.js']) {
         const r = await guest.req(p);
         assert.equal(r.status, 200, p);
       }
@@ -129,8 +129,8 @@ async function main() {
       assert.equal(r.status, 302);
       assert.equal(r.headers.get('location'), '/admin');
       for (const p of ['/admin', '/admin/posts', '/admin/posts/new', '/admin/media', '/admin/files', '/admin/mods',
-        '/admin/links', '/admin/guestbook', '/admin/messages', '/admin/users', '/admin/pages', '/admin/pages/new', '/admin/apps',
-        '/admin/apps/new', '/admin/design', '/admin/settings', '/admin/musik', '/admin/statistik', '/admin/programme', '/admin/programme/kartenspiele',
+        '/admin/links', '/admin/guestbook', '/admin/messages', '/admin/users', '/admin/pages', '/admin/pages/new', '/spiele/neu',
+        '/admin/design', '/admin/settings', '/admin/musik', '/admin/statistik', '/admin/programme', '/admin/programme/kartenspiele',
         '/admin/programme/raetsel', '/admin/programme/mediaplayer', '/admin/programme/forum', '/admin/programme/besucherbuch', '/admin/dienste', '/admin/dienste/neu',
         '/admin/dienste/neu?art=jellyfin', '/admin/startseite', '/admin/laufband', '/admin/popups', '/admin/ereignisse', '/admin/info', '/admin/anmelden', '/admin/email',
         '/admin/speicher', '/admin/desktop', '/admin/freigaben']) {
@@ -186,13 +186,16 @@ async function main() {
       const zip = new AdmZip();
       zip.addFile('spiel/index.html', Buffer.from('<!doctype html><title>Spiel</title>'));
       zip.addFile('spiel/index.wasm', Buffer.alloc(200000, 'pax machina '));
-      const t = await admin.csrf('/admin/apps/new');
+      const t = await admin.csrf('/spiele/neu');
       const fd = new FormData();
       fd.append('_csrf', t);
+      fd.append('kind', 'zip');
       fd.append('title', 'Testspiel');
       fd.append('visibility', 'public');
-      fd.append('zip', new Blob([zip.toBuffer()]), 'spiel.zip');
-      assert.equal((await admin.req('/admin/apps/save', { method: 'POST', body: fd })).status, 302);
+      fd.append('datei', new Blob([zip.toBuffer()]), 'spiel.zip');
+      const added = await admin.req('/spiele/neu', { method: 'POST', body: fd });
+      assert.equal(added.status, 302);
+      assert.equal(added.headers.get('location'), '/spiele/testspiel?ok=neu');
       const json = (b, data) => b.req('/api/saves/testspiel/slot_1', { method: 'PUT', body: JSON.stringify({ data }), headers: { 'content-type': 'application/json' } });
 
       assert.equal((await guest.req('/api/saves/testspiel')).status, 401, 'Gast ohne Login');
@@ -248,14 +251,15 @@ async function main() {
       assert.match((await admin.req('/konto')).text_, /<a href="\/haustier\/">Pixelpfoten<\/a>/);
 
       // Eine App namens „Haustier“ bekäme sonst dieselben Spielstände
-      const t = await admin.csrf('/admin/apps/new');
+      const t = await admin.csrf('/spiele/neu');
       const fd = new FormData();
       fd.append('_csrf', t);
+      fd.append('kind', 'link');
       fd.append('title', 'Haustier');
       fd.append('visibility', 'public');
       fd.append('external_url', 'https://example.org/spiel');
-      assert.equal((await admin.req('/admin/apps/save', { method: 'POST', body: fd })).status, 302);
-      assert.match((await guest.req('/apps')).text_, /href="\/apps\/haustier-2"/);
+      assert.equal((await admin.req('/spiele/neu', { method: 'POST', body: fd })).status, 302);
+      assert.match((await guest.req('/spiele')).text_, /href="\/spiele\/haustier-2"/);
     });
 
     await step('Große Spieldateien werden komprimiert ausgeliefert', async () => {
@@ -1460,7 +1464,7 @@ async function main() {
       const { anna, bernd } = members;
       const home = (await guest.req('/desktop', { top: true })).text_;
       // Ein Eintrag für alle Kartenspiele in Spiele und Apps, die einzelnen Spiele führen dorthin
-      assert.match(home, /🎮 Spiele und Apps<\/button><div class="submenu">\s*<a href="\/kartenspiele"><i class="sym sym-karten" aria-hidden="true">🂡<\/i> Kartenspiele<\/a>\s*<a href="\/quiz"/);
+      assert.match(home, /🎮 Spiele und Apps<\/button><div class="submenu">\s*<a href="\/spiele">🕹️ Daddelecke<\/a>\s*<a href="\/kartenspiele"><i class="sym sym-karten" aria-hidden="true">🂡<\/i> Kartenspiele<\/a>\s*<a href="\/quiz"/);
       assert.match(home, /href="\/guestbook">📖 Besucherbuch/);
       for (const g of ['blackjack', 'poker', 'durak', 'uno', 'flip7', 'pilli']) {
         assert.doesNotMatch(home, new RegExp(`href="/${g}"`));
@@ -2930,7 +2934,7 @@ async function main() {
       // Kacheln in der Seitenverwaltung: ausblenden, nur Mitglieder, eigene Kachel, Reihenfolge
       const page = (await admin.req('/admin/kacheln')).text_;
       const order = [...page.matchAll(/name="order" value="([^"]+)"/g)].map(m => m[1]);
-      assert.deepEqual(order, ['desktop', 'downloads', 'duden', 'rezepte', 'hub']);
+      assert.deepEqual(order, ['desktop', 'downloads', 'duden', 'spiele', 'rezepte', 'hub']);
       const t = await admin.csrf('/admin/kacheln');
       const post = extra => {
         const fd = new URLSearchParams({ _csrf: t, portal_name: 'dancor.org', portal_title: 'Hallo Rauch', portal_text: 'Test' });
@@ -2940,7 +2944,7 @@ async function main() {
       };
       assert.equal((await post({ show: { rezepte: 'off', duden: 'members' }, fields: { add: '1' } })).status, 302);
       let g = (await guest.req('/', { top: true })).text_;
-      assert.match(g, /<h1>Hallo Rauch<\/h1>/);
+      assert.match(g, /<h1[^>]*>Hallo Rauch<\/h1>/);
       assert.doesNotMatch(g, /data-tile="rezepte"/, 'ausgeblendet');
       assert.match(g, /href="\/login\?next=%2Fduden" data-tile="duden"[\s\S]*?🔒 für Mitglieder/, 'Gäste sehen das Schloss');
       assert.doesNotMatch(g, /data-tile="k1"/, 'neue Kachel ist erst aus');
@@ -3480,6 +3484,64 @@ async function main() {
         assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM popups').get().n, 0);
         await admin.form('/admin/popups/einstellungen', { _csrf: t, popup_on: '1', popup_first: '30', popup_every: '15', popup_max: '3', popup_audience: 'all', popup_suggest: '1' });
       } finally { sql.close(); }
+    });
+
+    await step('Daddelecke: Übersicht, Spielseiten, Punkte, Bearbeiten-Modus, Fußseiten im neuen Stil', async () => {
+      const top = await guest.req('/spiele', { top: true });
+      assert.equal(top.status, 200);
+      for (const t of ['Sudoku', 'Minesweeper', 'UNO', 'Testspiel']) assert.match(top.text_, new RegExp(t), t);
+      assert.doesNotMatch(top.text_, /data-ed-start/, 'Gäste bearbeiten nicht');
+      const su = await guest.req('/spiele/sudoku', { top: true });
+      assert.match(su.text_, /<iframe src="\/sudoku\?embed&amp;look=modern"/);
+      assert.match((await guest.req('/sudoku?embed&look=modern', { top: true })).text_, /data-look="modern"[\s\S]*play-modern/);
+      assert.match((await guest.req('/spiele/haustier', { top: true })).text_, /<iframe src="\/haustier\/\?embed"/, 'Pixelpfoten bleibt im Pixel-Look');
+      assert.equal((await guest.req('/spiele/gibtsnicht', { top: true })).status, 404);
+      assert.equal((await guest.req('/apps', { top: true })).headers.get('location'), '/spiele');
+      assert.equal((await guest.req('/apps/testspiel', { top: true })).headers.get('location'), '/spiele/testspiel');
+      assert.equal((await guest.req('/admin/apps')).status, 302);
+      assert.match((await guest.req('/spiele/neu', { top: true })).headers.get('location'), /^\/login/);
+
+      // Punkte nur mit Konto, beste zuerst
+      const csrfOf = b => b.jar.get('csrf');
+      const score = (b, n) => b.req('/spiele/testspiel/punkte', { method: 'POST', body: JSON.stringify({ score: n }), headers: { 'content-type': 'application/json', 'x-csrf-token': csrfOf(b) } });
+      await guest.csrf('/contact');
+      assert.equal((await score(guest, 5)).status, 401);
+      assert.equal(JSON.parse((await score(admin, 1)).text_).ok, false, 'ohne Bestenliste keine Punkte');
+      const ed = new FormData();
+      for (const [k, v] of Object.entries({ _csrf: await admin.csrf('/spiele/testspiel/bearbeiten'), title: 'Testspiel', visibility: 'public', score_mode: 'high' })) ed.append(k, v);
+      assert.equal((await admin.req('/spiele/testspiel/bearbeiten', { method: 'POST', body: ed })).headers.get('location'), '/spiele/testspiel?ok=gespeichert');
+      await score(admin, 50);
+      const p1 = await score(admin, 200);
+      assert.equal(p1.status, 200);
+      assert.equal(JSON.parse(p1.text_).board.length, 1);
+      assert.equal(JSON.parse(p1.text_).board[0].value, '200');
+
+      // Seite bearbeiten: nur der Admin, Regale und Texte landen in der Ansicht
+      const json = (b, url, data) => b.req(url, { method: 'POST', body: JSON.stringify(data), headers: { 'content-type': 'application/json', 'x-csrf-token': csrfOf(b) } });
+      assert.equal((await json(guest, '/spiele/seite', { layout: {} })).status, 403);
+      const lay = { title: 'Spielzimmer', text: 'Hier wird gespielt.', today: { daily: true }, shelves: [{ id: 'raetsel', title: 'Knobeln', games: ['minesweeper', 'sudoku'] }, { id: 'n1', title: 'Lieblinge', icon: '⭐', games: ['uno'] }], games: { uno: { title: 'Uno!', color: 'rot' } } };
+      assert.equal((await json(admin, '/spiele/seite', { layout: lay })).status, 200);
+      const after = (await guest.req('/spiele', { top: true })).text_;
+      assert.match(after, /Spielzimmer/);
+      assert.match(after, /Knobeln/);
+      assert.match(after, /Lieblinge/);
+      assert.match(after, /Uno!/);
+      assert.ok(after.indexOf('Minesweeper') < after.indexOf('>Sudoku<'), 'Reihenfolge im Regal');
+      assert.match(after, /Kreuzworträtsel/, 'nicht genannte Spiele bleiben in ihrem Regal');
+
+      // Startseite bearbeiten
+      assert.equal((await json(guest, '/startseite', { title: 'x', tiles: [] })).status, 403);
+      assert.equal((await json(admin, '/startseite', { title: 'Hallo du', text: 'Schön, dass du da bist.' })).status, 200);
+      assert.match((await guest.req('/', { top: true })).text_, /Hallo du/);
+      assert.match((await guest.req('/', { top: true })).text_, /href="\/spiele"/);
+
+      // Fußseiten: direkt aufgerufen im neuen Stil, im Desktop-Fenster wie bisher
+      for (const u of ['/changelog', '/datenschutz', '/contact', '/guestbook']) {
+        const r = await guest.req(u, { top: true });
+        assert.equal(r.status, 200, u);
+        assert.match(r.text_, /class="v3-foot"/, u);
+        assert.doesNotMatch((await guest.req(u)).text_, /class="v3-foot"/, u + ' im Fenster');
+      }
     });
 
     await step('Wartungsmodus: Besucher sehen die Wartungsseite, Admins arbeiten weiter', async () => {

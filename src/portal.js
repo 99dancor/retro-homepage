@@ -10,8 +10,9 @@ const BUILTIN = {
   desktop: { kicker: 'Dancors', title: 'Desktop', icon: '🖥️', color: 'desk', url: '/desktop', text: 'Der Retro-Desktop: Kartenspiele, Minesweeper, Messenger, Forum, Mediaplayer, Paint und Pixelpfoten.' },
   downloads: { kicker: 'Dancors', title: 'Downloads', icon: '📦', color: 'dl', url: '/downloads', text: 'Widget, Tools, Spielstände und mehr. Mit Version, Anleitung und Änderungen.' },
   duden: { kicker: 'Dancors', title: 'Duden', icon: '📚', color: 'du', url: '/duden', text: 'Guides, Wiki und Linksammlungen: Server, Netzwerk, Spiele und was sonst nützt.' },
-  rezepte: { kicker: 'Dancors', title: 'Deliziösitäten', icon: '🍝', color: 'de', url: '/rezepte', text: 'Das Rezeptbuch. Portionen umrechnen, Schritt für Schritt kochen, Zutaten auf die Einkaufsliste.', wide: true },
-  hub: { kicker: 'Farming Simulator 25', title: 'Dancors Dreschplatz', icon: '🚜', color: 'fs', url: '/farming', text: 'Höfe, Karte, Planer und Preise vom Server. Die Hub-Link-Mod gibt es direkt im Hub.', wide: true },
+  spiele: { kicker: 'Dancors', title: 'Daddelecke', icon: '🕹️', color: 'x', url: '/spiele', text: 'Sudoku, Minesweeper, Kartentische und mitgebrachte Spiele. Direkt hier spielen, ohne Desktop.' },
+  rezepte: { kicker: 'Dancors', title: 'Deliziösitäten', icon: '🍝', color: 'de', url: '/rezepte', text: 'Das Rezeptbuch. Portionen umrechnen, Schritt für Schritt kochen, Zutaten auf die Einkaufsliste.' },
+  hub: { kicker: 'Farming Simulator 25', title: 'Dancors Dreschplatz', icon: '🚜', color: 'fs', url: '/farming', text: 'Höfe, Karte, Planer und Preise vom Server. Die Hub-Link-Mod gibt es direkt im Hub.' },
 };
 const ORDER = Object.keys(BUILTIN);
 const str = (v, n) => String(v ?? '').trim().replace(/\s+/g, ' ').slice(0, n);
@@ -52,6 +53,7 @@ function meta(key, user) {
     }
     if (key === 'downloads') { const s = require('./downloads').stats(user); return [`${s.count} ${s.count === 1 ? 'Download' : 'Downloads'}`, s.latest && 'neu: ' + s.latest.title]; }
     if (key === 'duden') { const s = require('./duden').stats(user); return [`${s.count} ${s.count === 1 ? 'Eintrag' : 'Einträge'}`, s.latest && 'neu: ' + s.latest.title]; }
+    if (key === 'spiele') return require('./daddelecke').meta(user);
     if (key === 'rezepte') { const s = require('./recipes').stats(user); return [`${s.count} ${s.count === 1 ? 'Rezept' : 'Rezepte'}`, s.latest && 'neu: ' + s.latest.title]; }
     if (key === 'hub') {
       const hub = require('./hub'), st = hub.serverStatus(), out = [];
@@ -69,10 +71,10 @@ function meta(key, user) {
 const cut = (s, n = 34) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 
 // Kacheln für einen Besucher: ausgeblendete weg, „nur Mitglieder“ für Gäste mit Schloss (führt zur Anmeldung)
-function forViewer(user, locals) {
+function forViewer(user, locals, { edit = false } = {}) {
   const hub = require('./hub');
   const programs = require('./programs'), PROG = { downloads: 'files', duden: 'duden', rezepte: 'rezepte' };
-  return tiles().filter(t => t.show !== 'off').flatMap(t => {
+  return tiles().filter(t => edit || t.show !== 'off').flatMap(t => {
     let locked = t.show === 'members' && !user;
     // Bereiche, die unter Programme ausgeschaltet oder auf Mitglieder gestellt sind
     if (PROG[t.key]) {
@@ -107,12 +109,21 @@ function search(user, q, locals) {
   const k = q.toLowerCase(), programs = require('./programs'), off = programs.off(locals);
   const progs = programs.flat(user).filter(p => !off[p.key] && !(locals.navHidden || []).includes(p.key) && p.name.toLowerCase().includes(k))
     .slice(0, 6).map(p => ({ kind: 'desk', icon: p.icon, title: p.name, text: 'Programm im Desktop' + (p.group ? ' · ' + p.group : ''), url: p.url }));
-  return [...require('./downloads').search(user, q), ...require('./duden').search(user, q), ...require('./recipes').search(user, q), ...progs];
+  let games = [];
+  try { games = require('./daddelecke').search(user, q, locals); } catch { games = []; }
+  return [...require('./downloads').search(user, q), ...require('./duden').search(user, q), ...require('./recipes').search(user, q), ...games, ...progs];
 }
 
+// Bearbeiten-Modus auf der Startseite (public/v3-edit.js, public/portal-edit.js): Begrüßung und Kacheln in einem Rutsch
+function saveEdit(data) {
+  const d = data && typeof data === 'object' ? data : {};
+  if (typeof d.title === 'string') setSetting('portal_title', str(d.title, 80));
+  if (typeof d.text === 'string') setSetting('portal_text', str(d.text, 300));
+  if (Array.isArray(d.tiles)) save(d.tiles.map(t => ({ ...t, key: /^n[0-9a-z]+$/.test(String(t.key)) ? 'k' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 90 + 10) : t.key })));
+}
 const hero = () => ({
   title: getSetting('portal_title', 'Willkommen bei Dancor'),
   text: getSetting('portal_text', 'Such dir einen Bereich aus. Der Retro-Desktop wartet hinter der ersten Kachel.'),
 });
 
-module.exports = { COLORS, SHOW, BUILTIN, tiles, save, normalize, forViewer, recent, search, hero, meta };
+module.exports = { COLORS, SHOW, BUILTIN, tiles, save, saveEdit, normalize, forViewer, recent, search, hero, meta };

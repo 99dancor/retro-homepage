@@ -9,6 +9,7 @@ const router = express.Router();
 
 router.get('/', (req, res, next) => {
   if (res.locals.embed) return next();
+  const admin = !!(req.user && req.user.isAdmin);
   let services = [];
   try { services = require('../services').forViewer(req.user, 'home').slice(0, 4); } catch { services = []; }
   const fromDesk = [];
@@ -20,10 +21,18 @@ router.get('/', (req, res, next) => {
     }
   } catch { /* nur Beiwerk */ }
   res.render('v3/portal', {
-    ...v3.locals(req, res), title: '', hero: portal.hero(), tiles: portal.forViewer(req.user, res.locals),
+    ...v3.locals(req, res), title: '', hero: portal.hero(), tiles: portal.forViewer(req.user, res.locals, { edit: admin }), admin,
+    ok: req.query.ok === 'gespeichert' ? 'Gespeichert.' : null,
     services, recent: portal.recent(req.user, 5).map(r => ({ ...r, when: v3.ago(r.at) })), fromDesk: fromDesk.slice(0, 4),
     description: 'Downloads, Guides, Rezepte, der Retro-Desktop und der FS25 Hub von Dancor.',
   });
+});
+
+// Bearbeiten-Modus der Startseite (nur Admin): Begrüßung und Kacheln
+router.post('/startseite', express.json({ limit: '256kb' }), (req, res) => {
+  if (!req.user || !req.user.isAdmin) return res.status(403).json({ error: 'Nur der Admin bearbeitet die Startseite.' });
+  portal.saveEdit(req.body);
+  res.json({ ok: true });
 });
 
 router.get('/finden', (req, res) => {

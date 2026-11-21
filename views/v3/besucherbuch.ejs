@@ -1,0 +1,33 @@
+<%- include('_head') %>
+<%# Besucherbuch im Stil der Startseite (gleiche Einträge und POST /guestbook wie im Desktop) %>
+<section class="v3-hero"><div><h1>Besucherbuch</h1><p>Schön, dass du da bist! Hinterlass doch einen Gruß. <span class="muted">(<%= total %> <%= total === 1 ? 'Eintrag' : 'Einträge' %>)</span></p></div></section>
+<% if (msg) { %><p class="v3-flash" role="status"><%= msg %></p><% } %>
+<div class="gb-v3">
+  <form method="post" action="/guestbook" class="card stack gb-form">
+    <h2 class="sec-h">Neuer Eintrag</h2>
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
+    <% if (user) { %><p class="muted" style="margin:0">Du schreibst als <b><%= displayName(user) %></b>.</p><% } else { %>
+    <label class="f">Name oder Spitzname <small>leer = anonym</small><input type="text" name="name" maxlength="50"></label><% } %>
+    <label class="f">Nachricht <textarea name="message" rows="5" maxlength="2000" required></textarea></label>
+    <label class="check"><input type="checkbox" name="anonymous" value="1"> Anonym eintragen</label>
+    <div class="actions"><button class="pill pri">✍️ Eintragen</button></div>
+  </form>
+  <div class="gb-list">
+    <% if (!entries.length) { %><div class="list"><div class="empty-state"><span class="e emo">📖</span>Noch leer. Du könntest der Erste sein.</div></div><% } %>
+    <% for (const e of entries) { %>
+    <article class="card gb-card">
+      <header>
+        <% if (e.username) { %><a href="<%= profileUrl(e.username) %>" class="who"><% if (e.avatar) { %><img class="av" src="/avatar/<%= e.avatar %>" alt=""><% } else { %><span class="av emo" aria-hidden="true">👤</span><% } %><%= displayName(e) %></a>
+        <% } else { %><span class="who"><span class="av emo" aria-hidden="true"><%= e.name ? '✍️' : '👻' %></span><%= e.name || 'Anonym' %></span><% } %>
+        <time class="muted"><%= fmtDate(e.created_at, true) %></time>
+      </header>
+      <p><%= e.message %></p>
+    </article>
+    <% } %>
+    <% if (pages > 1) { %>
+    <nav class="actions" aria-label="Seiten"><% for (let i = 1; i <= pages; i++) { %><a class="pill small<%= i === page ? ' pri' : '' %>" href="/guestbook?page=<%= i %>"<%= i === page ? ' aria-current="page"' : '' %>><%= i %></a><% } %></nav>
+    <% } %>
+  </div>
+</div>
+<%- include('_foot') %>

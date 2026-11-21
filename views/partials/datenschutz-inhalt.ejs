@@ -1,0 +1,530 @@
+<%# Inhalt der Datenschutzseite, gemeinsam für den Desktop (views/datenschutz.ejs) und die moderne Seite (views/v3/datenschutz.ejs). %>
+<% const code = (name, note) => include('code', { c: snippets[name], note }); %>
+<% const shot = (file, alt) => `<figure class="shot"><a href="${asset('datenschutz/' + file)}" target="_blank"><img src="${asset('datenschutz/' + file)}" alt="${alt}" loading="lazy"></a><figcaption>${alt}</figcaption></figure>`; %>
+<div class="datenschutz">
+<h1>🔒 Deine Daten auf dieser Seite</h1>
+<p>Hier steht alles, was diese Website über dich speichert, wofür und wie lange. Unter jedem Abschnitt kannst du den
+  passenden Programmcode aufklappen: Er wird direkt aus dem Programm gelesen, das dir gerade diese Seite ausliefert.</p>
+
+<fieldset class="groupbox"><legend>Kurz gesagt</legend>
+<ul>
+  <li>Keine Werbung, keine Tracker, keine Dienste von Google &amp; Co. Nur zwei technische Cookies. Einzige Ausnahme: YouTube-Lieder in Musik-Lobbys, und die erst, wenn du sie ausdrücklich lädst.</li>
+  <li>Deine IP-Adresse speichert die Website nicht.</li>
+  <li>Für ein Konto reichen Benutzername und Passwort, ohne E-Mail-Adresse.</li>
+  <li>Alles liegt auf einem eigenen Server des Betreibers, nicht bei einem Cloud-Anbieter.</li>
+  <li>Was du schreibst, kann der Admin lesen, auch „anonyme“ Forenbeiträge. Nachrichten im Messenger zeigt die Seite ihm nicht an, sie liegen aber unverschlüsselt auf dem Server.</li>
+</ul>
+<p>Springe zu: <a href="#besuch">Besuch</a> · <a href="#cookies">Cookies</a> · <a href="#browser">Im Browser</a> ·
+  <a href="#konto">Konto</a> · <a href="#profil">Profil &amp; Nachrichten</a> · <a href="#schreiben">Schreiben &amp; Hochladen</a> · <a href="#musik">Musik</a> · <a href="#vorschlaege">Link-Vorschläge</a> · <a href="#spiele">Spiele</a> · <a href="#pixelpfoten">Pixelpfoten</a> · <a href="#poker">Poker</a> · <a href="#durak">Durak</a> · <a href="#kartenspiele">UNO, Flip 7, Pilli Pilli</a> · <a href="#ds">DS-Spiele</a> · <a href="#minesweeper">Minesweeper</a> · <a href="#kreuzwortraetsel">Kreuzworträtsel</a> · <a href="#sudoku">Sudoku</a> · <a href="#paint">Paint</a> · <a href="#quiz">Quiz</a> · <a href="#werwolf">Werwolf</a> · <a href="#farming">Farming Simulator</a> · <a href="#dienste">Dienste, Laufband, Popups</a> · <a href="#fragen">Löschen &amp; Fragen</a></p>
+</fieldset>
+
+<h2 id="besuch">👣 Wenn du die Seite besuchst</h2>
+<ul>
+  <li>Für die Besucherstatistik speichert die Seite pro Aufruf: <b>Zeit, aufgerufene Seite, Gerätetyp</b> (Desktop, Mobil oder Tablet)
+    und die <b>Website, von der du kamst</b> (nur der Name, z. B. „google.de“).</li>
+  <li>Dazu kommt ein <b>anonymer Tageswert</b>. Er wird aus IP-Adresse und Browserkennung mit einem Zufallsschlüssel berechnet,
+    der jeden Tag neu erzeugt wird. So kann die Seite Besucher pro Tag zählen, dich aber nicht über mehrere Tage wiedererkennen.</li>
+  <li><b>Bist du angemeldet</b>, wird der Aufruf mit deinem Konto verknüpft. Der Admin sieht dann, wie viele Seiten du aufgerufen hast und wann zuletzt.</li>
+  <li>Bei Downloads kommen die Datei, die übertragene Datenmenge und „fertig“ oder „abgebrochen“ dazu.</li>
+  <li>Gelöscht wird das automatisch nach <b><%= retentionDays %> Tagen</b>. Erkennbare Bots und Suchmaschinen werden gar nicht gezählt.</li>
+  <li>Gegen Passwort-Raten und Spam merkt sich der Server deine IP-Adresse kurz im Arbeitsspeicher (höchstens eine Stunde), nie auf der Festplatte.</li>
+  <li>Die Seite lädt keine Skripte, Schriften oder Tracker von fremden Servern. Nur Bilder, die der Admin aus dem Netz in einen Text einbindet, holt dein Browser von dort, und den YouTube-Player nur, wenn du ihn im Mediaplayer selbst lädst (siehe <a href="#musik">Musik und Videos</a>).</li>
+  <li>Vor der Website läuft ein Weiterleitungsserver (Nginx Proxy Manager). Wie fast jeder Webserver führt er ein technisches
+    Zugriffsprotokoll mit IP-Adresse, Zeit und Adresse. Das dient nur der Fehlersuche. Die Website selbst führt kein solches Protokoll.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('salt', 'Einmal am Tag wird ein neuer Zufallsschlüssel erzeugt und der alte überschrieben.') %>
+  <%- code('hash', 'Aus Schlüssel, IP-Adresse und Browserkennung wird ein Prüfwert (Hash) gebildet. Gespeichert werden nur 24 Zeichen davon, nie die IP selbst.') %>
+  <%- code('pageview', 'Genau diese Spalten landen pro Seitenaufruf in der Datenbank. <code>user_id</code> ist nur gefüllt, wenn du angemeldet bist.') %>
+  <%- code('tracked', 'Ohne Browserkennung oder mit einer Bot-Kennung wird nichts gespeichert.') %>
+  <%- code('cleanup', 'Alle sechs Stunden werden Einträge gelöscht, die älter als die eingestellte Frist sind.') %>
+  <%- code('rateLimit', 'Die Sperre gegen zu viele Versuche zählt pro IP-Adresse, aber nur in einer Liste im Arbeitsspeicher.') %>
+  <%- code('csp', 'Diese Regel verbietet dem Browser, Skripte von anderen Servern zu laden.') %>
+</details>
+<details><summary>👁 So sieht es der Admin</summary>
+  <p><small>Alle Bilder zeigen Beispieldaten.</small></p>
+  <div class="shots"><%- shot('admin-statistik.png', 'Statistik: Gäste tauchen nur als Zahl auf, angemeldete Mitglieder mit Namen und letztem Besuch') %>
+  <%- shot('admin-downloads.png', 'Downloads: Gäste nur als anonymer Tageswert, Mitglieder mit Namen') %></div>
+</details>
+
+<h2 id="cookies">🍪 Cookies</h2>
+<table class="list">
+  <tr><th>Name</th><th>Wofür</th><th>Wie lange</th></tr>
+  <tr><td><code>csrf</code></td><td>Zufallswert, der gefälschte Formulare von fremden Seiten verhindert. Bekommt jeder Besucher.</td><td>Bis du den Browser schließt</td></tr>
+  <tr><td><code>sid</code></td><td>Zufällige Sitzungsnummer, damit du angemeldet bleibst. Nur nach dem Anmelden.</td><td>30 Tage oder bis zum Abmelden</td></tr>
+  <tr><td><code>quiz</code></td><td>Zufallswert, an dem das Quiz dich ohne Konto wiedererkennt, damit du nach einem Neuladen mit deinen Punkten im Raum bleibst. Nur wenn du ohne Anmeldung einem Raum beitrittst oder einen eröffnest.</td><td>30 Tage</td></tr>
+  <tr><td><code>werwolf</code></td><td>Genauso für Werwolf: Zufallswert, an dem dich ein Dorf ohne Konto wiedererkennt, damit du nach einem Neuladen deine Rolle behältst. Nur wenn du ohne Anmeldung beitrittst oder ein Dorf eröffnest.</td><td>30 Tage</td></tr>
+</table>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('session', 'Beim Anmelden entsteht eine zufällige Nummer. Die Datenbank merkt sich nur, zu welchem Konto sie gehört und wann sie abläuft.') %>
+  <%- code('csrf', 'Das Formular-Cookie ist reiner Zufall und enthält nichts über dich.') %>
+  <%- code('quizCookie', 'Das Quiz-Cookie ist ebenfalls nur Zufall. Der Server kennt davon nur eine Prüfsumme, solange ein Raum offen ist.') %>
+  <%- code('wwCookie', 'Das Werwolf-Cookie auch.') %>
+</details>
+
+<h2 id="browser">💻 Nur in deinem Browser</h2>
+<p>Diese Dinge bleiben auf deinem Gerät und werden nicht an den Server geschickt. Du löschst sie, indem du die Websitedaten im Browser löschst.</p>
+<ul>
+  <li>Welche Fenster offen sind und wo sie liegen (bis du den Tab schließt).</li>
+  <li>Deine Darstellung über den 🖥️-Knopf neben der Uhr: Windows 98 oder XP, Farben, Schrift, Hintergrund, Laufband und Popup-Bilder, eigenes CSS und die Größe der Oberfläche. Ein eigenes Hintergrundbild und die Größe bleiben immer im Browser und werden nicht hochgeladen. Mit Konto kannst du die Darstellung zusätzlich <a href="#darstellung">am Konto speichern</a>.</li>
+  <li>Desktop ohne Konto: wohin du Symbole geschoben hast und wie sie sortiert sind. Mit Konto: ob das Widget „Offene Lobbys“ zugeklappt ist.</li>
+  <li>Die gewählte Ansicht im Texteditor.</li>
+  <li>Der Anmeldebildschirm merkt sich das zuletzt angemeldete Konto: Benutzername, Anzeigename, Profilbild und ob es ein Admin-Konto ist, aber kein Kennwort. „Nicht mehr merken“ auf dem Anmeldebildschirm löscht es. Dazu für den laufenden Tab, dass nach dem An- oder Abmelden der Bildschirm einmal übersprungen wird.</li>
+  <li>Pixelpfoten: ohne Konto der ganze Spielstand, mit Konto eine Kopie, damit bei Verbindungsproblemen nichts verloren geht.</li>
+  <li>Paint: deine Palette, eigene Farben, welche Leisten du siehst und die Einstellungen der Werkzeuge. Was du malst, bleibt im Browser, bis du es speicherst. „Als Hintergrund“ legt das Bild als eigenes Hintergrundbild der Darstellung ab, ebenfalls nur im Browser.</li>
+  <li>Minesweeper: Stufe, Marken, Farbe und Sound, ohne Konto auch deine Bestzeiten mit dem eingetragenen Namen.</li>
+  <li>Kreuzworträtsel: welche Buchstaben aufgedeckt wurden, ohne Konto auch deine Eintragungen, Zeit und Hilfen der letzten 40 Tage.</li>
+  <li>Sudoku: die zuletzt gewählte Stufe, deine Notizen und welche Ziffern aufgedeckt wurden, ohne Konto auch deine Ziffern, Zeit und Hilfen der letzten 40 Tage.</li>
+  <li>Quiz ohne Konto: der zuletzt gewählte Name, das Bild und die Farbe, damit du sie beim nächsten Mal nicht neu eingeben musst.</li>
+  <li>Werwolf: ohne Konto der zuletzt gewählte Name und das Bild, außerdem ob der Erzähler auf diesem Gerät vorlesen soll. Die Stimme erzeugt dein Browser bzw. dein Gerät selbst.</li>
+  <li>Modlisten: welche Kategorien einer Liste du zugeklappt hast und, wenn du ohne Konto etwas vorschlägst, den Namen, den du dabei angegeben hast.</li>
+  <li>Laufband oben: ob du es mit × ausgeblendet hast (bis es etwas Neues gibt: dann steht dort ein kurzer Fingerabdruck der Meldungen). Dienste: ohne Konto, ob du das Widget „Dienste“ ausgeblendet hast, und ob es zugeklappt ist; für den Tab, welche Ausfälle du schon als Sprechblase gesehen hast. Popup-Bilder: wann zuletzt eins kam und wie viele es im laufenden Tab waren. Mehr dazu unter <a href="#dienste">Dienste, Laufband und Popup-Bilder</a>.</li>
+  <li>Auf der Startseite und in Downloads, Duden und Rezepten: ob du „hell“, „dunkel“ oder „wie Gerät“ gewählt hast (unten auf der Seite). Im Kochmodus hält die Seite auf Wunsch den Bildschirm an, solange er offen ist; die Wecker laufen nur im offenen Tab.</li>
+  <li>Die Lautstärke für Musik und Effekte (🔊 neben der Uhr), im Mediaplayer die gewählte Visualisierung, ob Videos als Bild oder Visualisierung laufen, Zufall und Wiederholen, die Breite von Aufgabenleiste und Wiedergabeliste und die Höhe des Bilds, das Aussehen (Skin, Seitenleiste, zugeklappte Gruppen, Equalizer; mit Konto zusätzlich am Konto, siehe <a href="#desktop">Einstellungen am Konto</a>), und ob du „YouTube laden“ für diesen Browser merken wolltest. Die eigene Wiedergabeliste liegt nur im offenen Fenster und ist nach dem Schließen weg.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('desk', '<code>sessionStorage</code> vergisst alles, sobald der Tab geschlossen wird.') %>
+  <%- code('deskGuest', 'Ohne Konto merkt sich der Browser die Plätze der Symbole unter <code>desk-pos</code> und die Sortierung unter <code>desk-arrange</code>.') %>
+  <%- code('quizGuest', 'Name, Bild und Farbe für das Quiz liegen unter <code>quiz-gast</code> im Browser.') %>
+  <%- code('wwGuest', 'Name und Bild für Werwolf liegen unter <code>werwolf-gast</code> im Browser.') %>
+  <%- code('display', 'Unter diesen beiden Namen liegen deine Darstellung und ein eigenes Hintergrundbild im <code>localStorage</code> des Browsers.') %>
+  <%- code('displaySave', 'Gespeichert wird nur dort. Die ganze Datei <code>display.js</code> schickt nichts an den Server.') %>
+  <%- code('paintPrefs', 'Unter diesem Namen merkt sich Paint Palette, eigene Farben, Ansicht und Werkzeug-Optionen.') %>
+  <%- code('wallpaper', 'So setzt Paint ein Bild als Hintergrund: Es landet unter <code>darstellung-bild</code> im Browser, nicht auf dem Server.') %>
+  <%- code('guide', 'Die Startseite merkt sich nur, dass du den Rundgang schon gesehen hast.') %>
+  <%- code('logon', 'Das ist alles, was der Anmeldebildschirm im Browser ablegt.') %>
+  <%- code('editor', 'Der Editor merkt sich nur, ob du lieber „Modern“ oder „Markdown“ schreibst.') %>
+  <%- code('pet', 'Unter diesen Namen speichert das Haustier-Spiel im Browser: Spielstand, Einstellungen, eine Kopie der Möbel auf dem Desktop, die Optionen für Tiere auf dem Desktop und welcher Tab sie gerade zeigt.') %>
+  <%- code('volume', 'Die Lautstärke liegt unter diesem Namen im Browser. Mediaplayer und Haustier-Spiel lesen sie von dort.') %>
+  <%- code('musicPrefs', 'Der Mediaplayer merkt sich Visualisierung, Bild oder Visualisierung bei Videos, Zufall, Wiederholen, die Größe der Bereiche, Skin, Seitenleiste und Equalizer.') %>
+  <%- code('modsLocal', 'Unter <code>modliste:&lt;Nummer&gt;</code> liegen die zugeklappten Kategorien einer Modliste, unter <code>modliste-gast</code> dein Name für Vorschläge ohne Konto.') %>
+  <%- code('youtubeKey', 'Hier steht nur „1“, wenn du „Für diesen Browser merken“ angekreuzt hast.') %>
+  <%- code('v3Theme', 'Die neuen Seiten merken sich nur hell oder dunkel unter <code>v3-theme</code>.') %>
+</details>
+
+<h2 id="konto">🔑 Dein Konto</h2>
+<ul>
+  <li>Gespeichert werden <b>Benutzername, Passwort</b> (nur als Hash), Rolle und Rechte, Gruppen, Datum der Registrierung und der <b>letzte Login</b>.</li>
+  <li>Das Passwort wird mit bcrypt unumkehrbar verschlüsselt. Auch der Admin kann es nicht lesen.</li>
+  <li>Keine E-Mail-Adresse, kein echter Name. Anzeigename, Profilbild und „Über mich“ sind freiwillig (siehe <a href="#profil">Profil</a>).</li>
+  <li>Wenn du das Passwort änderst, werden alle anderen Geräte abgemeldet.</li>
+  <li>Freiwillig ein <b>Kennworthinweis</b> (unter Konto und Passwort → Kennwort). Wie früher bei Windows kann ihn jeder auf dem Anmeldebildschirm über „?“ sehen, der deinen Benutzernamen kennt.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('users', 'Das ist die komplette Nutzertabelle. Mehr Spalten gibt es nicht. Die letzten sechs gehören zum Profil.') %>
+  <%- code('password', 'Das Passwort wird mit bcrypt (Stufe 12) gehasht, bevor es gespeichert wird.') %>
+  <%- code('hint', 'So holt der Anmeldebildschirm den Hinweis: nur den Hinweis, nichts sonst über das Konto.') %>
+</details>
+<details><summary>👁 So sieht es der Admin</summary>
+  <div class="shots"><%- shot('admin-nutzer.png', 'Nutzerliste: Name, Rolle, Gruppen, letzter Login') %></div>
+</details>
+
+<h2 id="profil">👥 Profil, Freunde und Messenger (ICU/DSN)</h2>
+<ul>
+  <li><b>Profil:</b> Anzeigename, Profilbild und „Über mich“ (die letzten Spalten der <a href="#konto">Nutzertabelle</a>, dort auch wer dir schreiben darf) trägst du freiwillig unter <a href="/konto">Konto und Passwort</a> ein. Anzeigename und Profilbild stehen an deinen Beiträgen und in Lobbys, auch für Gäste, wo diese mitlesen. Anonyme Forenbeiträge bleiben anonym: Sie bekommen weder Namen noch Bild und zählen im Profil nicht mit.</li>
+  <li><b>Wer dein Profil sieht,</b> bestimmst du: alle Besucher, nur angemeldete Mitglieder (Standard) oder nur deine Freunde. Das Profil zeigt, seit wann du dabei bist, deine Freunde, deine Spielstatistik, wie viele Forenbeiträge, Besucherbuch-Einträge und Musiktitel von dir sichtbar sind, und deine letzten Forenbeiträge. Den letzten Login zeigt es nicht. Gäste finden unter „Mitglieder finden“ nur Profile, die für alle sichtbar sind. Jedes Konto hat eine feste Nummer (10 000 plus die Mitgliedsnummer), die neben dem Namen steht.</li>
+  <li><b>Profilbild:</b> Den quadratischen Ausschnitt wählst du vor dem Hochladen; das Zuschneiden passiert in deinem Browser, hochgeladen werden nur die 256 × 256 Pixel des Ausschnitts (GIFs unverändert). Versteckte Angaben im Bild (EXIF mit Aufnahmeort und Kamera, Textfelder) entfernt die Seite beim Hochladen. Nur die Drehung eines Fotos bleibt. Das Bild kann jeder abrufen, der die Adresse kennt. Ein neues Bild ersetzt das alte, „Entfernen“ löscht die Datei.</li>
+  <li id="statistik"><b>Spielstatistik und Bestenlisten:</b> Unter <a href="/konto?reiter=statistik#statistik">Konto und Passwort → Statistik</a> bestimmst du pro Spiel, wer die Werte in deinem Profil sieht, blendest einzelne Werte aus, wählst bis zu vier für die Vitrine und legst fest, ob du in Bestenlisten mit Namen, anonym oder gar nicht stehst. Ebenso, welche Angaben unter „Auf der Seite“ erscheinen. Gespeichert wird das am Konto (<code>user_settings</code>, siehe <a href="#desktop">Desktop</a>). Ausgeblendetes zählt weiter, es wird nur nicht gezeigt. Anonym heißt: ohne Namen, Bild und Link zum Profil; meldet die Seite jemandem, dass du seinen Rekord geknackt hast, steht dort „Jemand“. Wer sein Profil vor jemandem verbirgt, steht für diesen auch in Bestenlisten nur anonym.</li>
+  <li><b>Links im Profil:</b> Internetverknüpfungen von deinem Desktop, die nicht auf „Nur ich“ stehen, zeigt dein Profil allen, die sie sehen dürfen. Ein Klick öffnet die fremde Seite ohne Angabe, von wo man kam.</li>
+  <li><b>Freunde:</b> Gespeichert werden, wer wen angefragt hat, ob angenommen wurde, wann, und der freiwillige Satz zur Anfrage (bis 200 Zeichen, sieht nur der Angefragte; er verschwindet mit der Anfrage oder Freundschaft). Wer auf deinem Profil ist, sieht deine Freunde. Entfernen oder Ablehnen löscht den Eintrag ganz.</li>
+  <li><b>Freundebuch im Profil:</b> Gespeichert werden, auf wessen Profil, wer, Text und Zeit. Lesen kann es jeder, der das Profil sehen darf. Unter Konto und Passwort → Privatsphäre stellst du ein, wer sich eintragen darf (alle Mitglieder, nur Freunde oder niemand). Löschen können Verfasser, Profilinhaber und Admin.</li>
+  <li><b>Nachrichten im Messenger:</b> Absender, Empfänger, Text, Zeit, wann sie gelesen wurde, und die Art: normale Nachricht, Anstupsen (ohne Text) oder Einladung (mit Name und Adresse des Tisches oder der Lobby). Der Absender sieht „gelesen“. Die Seite zeigt Nachrichten nur euch beiden, auch dem Admin nicht. Sie liegen aber unverschlüsselt in der Datenbank auf dem Server, wer diesen betreibt, könnte sie also lesen. Schick deshalb keine Passwörter oder ähnliches. „Verlauf löschen“ versteckt das Gespräch für dich; haben es beide gelöscht, verschwindet es ganz aus der Datenbank.</li>
+  <li>Unter Konto und Passwort → Privatsphäre stellst du ein, ob dir alle Mitglieder schreiben dürfen oder nur deine Freunde. Wer dir zuerst geschrieben hat, dem kannst du immer antworten.</li>
+  <li id="messenger"><b>Online-Status:</b> Solange der Desktop offen ist, hält er eine Verbindung zum Server. Ob du gerade da bist, weiß nur der Arbeitsspeicher des Servers; nach einem Neustart ist das weg. Gespeichert werden der Status, den du wählst (Online, Abwesend, Nicht stören bzw. Beschäftigt, Unsichtbar), deine Statusnachricht (bis 80 Zeichen) und wann du zuletzt verbunden warst. Andere sehen davon nur ungefähr „zuletzt heute, gestern, vor 3 Tagen“, und nur wenn du das unter <a href="/konto?reiter=privatsphaere#privatsphaere">Konto und Passwort → Privatsphäre</a> nicht ausgeschaltet hast.</li>
+  <li><b>Wer was sieht:</b> Ob du online bist und was du gerade spielst, sehen nach Vorgabe nur deine Freunde; du kannst es auf alle Mitglieder erweitern oder ganz ausschalten. Ebenso stellst du ein, wer dich anfragen und wer dich zu Spielen einladen darf. „Unsichtbar“ zeigt dich allen als offline. Was du spielst, kommt aus den offenen Lobbys und Tischen, gespeichert wird dafür nichts zusätzlich.</li>
+  <li><b>Abwesend:</b> Bewegst du eine Weile weder Maus noch Tastatur (Vorgabe 10 Minuten), meldet der Desktop das dem Server, und du erscheinst als „Abwesend“. Gespeichert wird dabei nichts.</li>
+  <li><b>Ignorieren:</b> Gespeichert wird, wen du ignorierst und seit wann. Ignorierte erfahren das nicht; sie können dir nicht schreiben, dich nicht anfragen oder einladen, nicht in dein Freundebuch schreiben und sehen dich offline.</li>
+  <li><b>Töne und Hinweise</b> des Messengers stellst du unter Konto und Passwort → Benachrichtigungen ein (<code>user_settings</code>). Ist der Messenger offen, kommen neue Nachrichten dort an statt als 🔔 oder Push.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('profileVis', 'Diese Regel entscheidet, wer dein Profil sehen darf. Admin und du selbst sehen es immer.') %>
+  <%- code('profileCounts', 'Die Zahlen im Profil zählen nur Beiträge mit Namen.') %>
+  <%- code('avatarStrip', 'Beim Hochladen eines Profilbilds fallen die Blöcke mit versteckten Angaben weg.') %>
+  <%- code('avatarCrop', 'Der Ausschnitt entsteht im Browser auf einer Zeichenfläche von 256 × 256 Pixeln, nur diese wird hochgeladen.') %>
+  <%- code('boardList', 'So entsteht jede Bestenliste: „Gar nicht“ fällt raus, „Anonym“ verliert Namen, Konto, Bild und Nummer.') %>
+  <%- code('recordName', 'Die Nachricht über einen geknackten Rekord nennt nur, wer mit Namen in der Bestenliste steht.') %>
+  <%- code('profileLinks', 'Links im Profil öffnen die fremde Seite ohne Referrer.') %>
+  <%- code('msgrColumns', 'Was der Messenger am Konto speichert: gewählter Status, Statusnachricht, zuletzt verbunden und wer was sehen darf.') %>
+  <%- code('presenceMemory', 'Wer gerade verbunden ist, steht nur im Arbeitsspeicher.') %>
+  <%- code('presence', 'So sehen andere deinen Status: Unsichtbare und alle, die ihn dir nicht zeigen, erscheinen offline.') %>
+  <%- code('lastSeen', '„Zuletzt online“ gibt es nur grob.') %>
+  <%- code('idle', 'Der Desktop meldet nur „untätig ja oder nein“, keine Mausbewegungen.') %>
+  <%- code('ignores', 'Die Liste der Ignorierten.') %>
+  <%- code('friends', 'Eine Freundschaft ist eine Zeile: wer angefragt hat, wer angefragt wurde, angenommen oder nicht, und wann.') %>
+  <%- code('profileGuestbook', 'Ein Eintrag im Freundebuch eines Profils: für wen, von wem, Text und Zeit.') %>
+  <%- code('pms', 'Diese Spalten speichert die Seite zu jeder Privatnachricht.') %>
+  <%- code('pmDelete', 'Verlauf löschen: erst für dich verstecken, und wenn beide gelöscht haben, endgültig weg.') %>
+</details>
+
+<h2 id="desktop">🖥️ Desktop, eigene Dateien und Suche</h2>
+<ul>
+  <li><b>Ordner, Textdokumente, Verknüpfungen und Internetlinks</b> auf deinem Desktop speichert die Seite mit Name, Ziel, Symbol, Inhalt (bei Textdokumenten), Sichtbarkeit, Platz auf dem Desktop, Ordner und Zeitpunkten. Neues ist erst einmal nur für dich sichtbar („Nur ich“), auch der Admin sieht es nicht. Textdokumente dürfen höchstens <%= deskLimits.chars.toLocaleString('de-DE') %> Zeichen haben und zählen zu deinem Speicher.</li>
+  <li><b>Eigene Dateien:</b> Was du schon hochgeladen hast (Downloads, Musik, Paint-Bilder, Bilder in Beiträgen, Quizze), kannst du in Ordner einsortieren. Gespeichert wird dabei nur, was in welchem Ordner liegt. Wer einen Eintrag sehen darf, ändert sich dadurch nicht.</li>
+  <li><b>Papierkorb:</b> Gelöschtes liegt erst dort, ist für andere nicht mehr sichtbar und lässt sich zurückholen. Nach <%= deskLimits.trashDays %> Tagen löscht die Seite es endgültig, mit „Papierkorb leeren“ sofort.</li>
+  <li><b>Ordner freigeben:</b> Ein freigegebener Ordner bekommt einen zufälligen Link. Wer ihn öffnet, sieht darin nur, was er ohnehin sehen dürfte; Verknüpfungen bleiben immer privat. „Freigabe beenden“ macht den Link ungültig.</li>
+  <li><b>Internetlinks</b> öffnen die fremde Seite in einem neuen Tab, ohne dass sie erfährt, von wo du kamst. Was diese Seite dann speichert, liegt nicht in unserer Hand.</li>
+  <li><b>Einstellungen am Konto</b> (<code>user_settings</code>): ob du die readme.txt gelesen hast, ausgeblendete und verschobene Standardsymbole, Sortierung, ob Lobby-Widget und Suchleiste an sind, deine Wahl zu <a href="#statistik">Statistik und Bestenlisten</a>, deine eigene Ansicht an den <a href="#kartenspiele">Kartentischen</a> (Hintergrund und Tischrand), das Aussehen des Mediaplayers (Skin, Breite der Seitenleiste, zugeklappte Gruppen, Equalizer) und, falls gewählt, die Darstellung.</li>
+  <li id="darstellung"><b>Darstellung am Konto:</b> Nur wenn du unter 🖥️ „Auf allen meinen Geräten“ ankreuzt, schickt der Desktop deine Darstellung an den Server, damit sie auf deinen anderen Geräten gleich aussieht. Die Größe der Oberfläche und ein eigenes Hintergrundbild bleiben trotzdem nur im Browser. Nimmst du den Haken heraus, löscht die Seite die Kopie am Konto.</li>
+  <li><b>Suche:</b> Was du ins Suchfeld tippst, geht an den Server, der damit nur durchsucht, was du auch öffnen darfst. Suchbegriffe werden weder gespeichert noch protokolliert, auch nicht in der Besucherstatistik.</li>
+  <li><b>Offene Lobbys:</b> Das Widget fragt alle 15 Sekunden nach, solange es zu sehen ist. Es zeigt nur Lobbys, die du ohnehin finden würdest, und speichert nichts.</li>
+  <li>Der Admin sieht unter Seitenverwaltung → Desktop, wie viel Speicher jemand belegt, und eine Liste der Ordner, Textdokumente und Links, die Mitglieder für andere sichtbar gemacht haben. Diese kann er privat stellen oder in den Papierkorb legen. Was auf „Nur ich“ steht, erscheint dort nicht.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('deskItems', 'Diese Spalten speichert die Seite zu jedem Ordner, Textdokument, jeder Verknüpfung und jedem Link.') %>
+  <%- code('folderItems', 'Die Zuordnung eigener Dateien zu Ordnern: nur Art, Nummer, Ordner, Platz und Papierkorb.') %>
+  <%- code('deskSee', 'Wer einen Desktop-Eintrag sehen darf. Ordner nie, außer über einen Freigabe-Link.') %>
+  <%- code('deskText', 'Die Grenze für Textdokumente prüft der Server.') %>
+  <%- code('deskShare', 'Was ein Freigabe-Link erlaubt: nicht mehr als die gewählte Freigabe.') %>
+  <%- code('deskTrash', 'Alle paar Stunden wird gelöscht, was länger im Papierkorb liegt.') %>
+  <%- code('externalLink', 'Fremde Seiten öffnen sich ohne Verbindung zurück und ohne Referrer.') %>
+  <%- code('userSettings', 'Alle Einstellungen eines Kontos stehen in einer Zeile. Mit dem Konto verschwindet sie.') %>
+  <%- code('displaySync', 'Nur dieser Teil des Desktops schickt die Darstellung an den Server, und nur mit Haken bei „Auf allen meinen Geräten“; ohne Haken schickt er <code>null</code>, das löscht die Kopie.') %>
+  <%- code('displayAccount', 'Größe der Oberfläche und der Haken selbst gehen nicht mit, das eigene Bild ist gar nicht erst in der Darstellung.') %>
+  <%- code('search', 'Die Suche antwortet nur und schreibt nichts in die Datenbank. Als Antwort im JSON-Format zählt sie auch nicht als Seitenaufruf.') %>
+</details>
+
+<h2 id="schreiben">✍️ Was du schreibst oder hochlädst</h2>
+<ul>
+  <li><b>Besucherbuch:</b> Name (oder dein Benutzername), Text und Zeit, für alle sichtbar. Mit „Anonym eintragen“ wird am Eintrag weder ein Name noch dein Konto gespeichert.</li>
+  <li><b>Forum:</b> Text, Zeit und dein Konto. „Anonym veröffentlichen“ versteckt deinen Namen nur vor anderen. Du selbst und der Admin sehen ihn weiterhin.</li>
+  <li><b>Benachrichtigungen</b> (🔔 neben der Uhr): Für dein Konto gespeichert werden Art, Text, Link, Zeit und ob du sie gelesen hast. Gelesene verschwinden nach 30 Tagen, es bleiben höchstens 100. Was du bekommen willst, stellst du unter <a href="/konto?reiter=benachrichtigungen#benachrichtigungen">Konto und Passwort</a> ein.
+  <details><summary>🔍 Code dazu</summary>
+  <%- code('notifications', 'Diese Spalten hat eine Benachrichtigung.') %></details></li>
+  <li><b>Push auf Handy und Browser</b> (nur wenn du es einschaltest): Gespeichert werden die Adresse, die dein Browser beim Push-Dienst seines Herstellers bekommt (z. B. Google, Mozilla oder Apple), die Schlüssel, mit denen die Seite die Nachricht verschlüsselt, ein Gerätename wie „Firefox auf Windows“ und wann zuletzt etwas geschickt wurde. Der Push-Dienst sieht, dass eine Nachricht kommt, aber nicht ihren Inhalt. Abmelden kannst du jedes Gerät unter Konto und Passwort → Benachrichtigungen.
+  <details><summary>🔍 Code dazu</summary>
+  <%- code('pushSubs', 'So sieht ein angemeldetes Gerät in der Datenbank aus.') %>
+  <%- code('pushEncrypt', 'Jede Nachricht wird für genau dein Gerät verschlüsselt, bevor sie den Server verlässt.') %></details></li>
+  <li><b>Erinnerungen von Pixelpfoten:</b> Alle 15 Minuten rechnet der Server mit den Regeln des Spiels nach, wie es deinen Tieren in deinem gespeicherten Spielstand geht. Für alle Tiere gibt es eine gemeinsame Erinnerung, nachts (22 bis 8 Uhr) keine, dafür morgens einen Gruß, wenn du in der letzten Woche gespielt hast. Gespeichert wird dabei nur die Erinnerung selbst.
+  <details><summary>🔍 Code dazu</summary>
+  <%- code('petwatch', 'Das wird geprüft.') %></details></li>
+  <li><b>Entwürfe:</b> Mit „💾 Entwurf speichern“ legt die Seite Titel, Text und die übrigen Felder des Formulars (z. B. „Anonym“) für dein Konto ab, bis du den Beitrag abschickst oder den Entwurf löschst. Nach dem ersten Speichern sichert das Formular Änderungen nach ein paar Sekunden von selbst. Entwürfe sieht nur du, auch der Admin bekommt sie nicht angezeigt (in der Datenbank liegen sie natürlich).
+  <details><summary>🔍 Code dazu</summary>
+  <%- code('drafts', 'Diese Spalten hat ein Entwurf.') %></details></li>
+  <li><b>Forenabos:</b> Welche Themen du abonniert hast (beim Schreiben passiert das von selbst, „🔔 Abonnieren“ und „🔕 Abo beenden“ steuern es). Das sehen nur du und die Datenbank.
+  <details><summary>🔍 Code dazu</summary>
+  <%- code('boardSubs', 'Mehr als Konto, Thema und Zeitpunkt wird nicht gespeichert.') %></details></li>
+  <li><b>Aufrufe im Forum:</b> Am Thema steht nur eine Zahl. Damit Neuladen nicht mitzählt, merkt sich der Server sechs Stunden lang im Arbeitsspeicher, dass dein Konto bzw. deine IP-Adresse das Thema schon gesehen hat. Nach einem Neustart ist das weg.
+  <details><summary>🔍 Code dazu</summary>
+  <%- code('boardViews', 'So wird gezählt.') %></details></li>
+  <li><b>Modlisten und Vorschläge:</b> Eine Modliste gehört dem Konto, das sie angelegt hat, und ist für die sichtbar, die der Besitzer auswählt. Bei einem Vorschlag werden Mod, Link, Bemerkung, Zeit und dein Name gespeichert: mit Konto dein Name auf der Seite (verlinkt), ohne Konto der Name, den du angibst, mit „(Gast)“ dahinter. Den sieht jeder, der die Liste sehen darf. Damit niemand Vorschläge kaputt machen kann, merkt sich der Verlauf jeder Liste die letzten 50 Änderungen: wer (Name, bei Mitgliedern das Konto), wann, was, und den Stand der Vorschläge davor. Den Verlauf kann jeder ansehen, zurückdrehen nur Besitzer und Admin. Wie oft jemand Vorschläge ändert, zählt der Server nur im Arbeitsspeicher pro IP-Adresse (eine Stunde lang, wie die Sperre gegen zu viele Versuche oben), gespeichert wird die IP-Adresse dabei nicht. Löscht der Besitzer die Liste, sind auch Vorschläge und Verlauf weg. Wird ein Konto gelöscht, steht an seinen Vorschlägen und im Verlauf nur noch „gelöschtes Konto“, seine Listen übernimmt der Admin.
+  <details><summary>🔍 Code dazu</summary>
+  <%- code('modSuggestions', 'Diese Spalten hat ein Vorschlag.') %>
+  <%- code('modLog', 'Und so sieht ein Eintrag im Verlauf aus.') %>
+  <%- code('modActor', 'Mit Konto steht dein Konto am Vorschlag, ohne Konto nur der angegebene Name.') %></details></li>
+  <li><b>Kontakt:</b> Name, E-Mail (freiwillig), Betreff, Text und dein Konto, falls angemeldet. Das sieht nur der Admin. Es bleibt, bis er es löscht.</li>
+  <li><b>Bilder und Dateien</b> (außer Profilbildern) werden unverändert mit ihrem ursprünglichen Dateinamen gespeichert. Fotos können versteckte Angaben wie den Aufnahmeort enthalten. Entferne sie vorher, wenn du das nicht möchtest. Bilder aus dem Forum kann jeder abrufen, der die Adresse kennt. Unter <a href="/eigene-dateien">Dokumente → Eigene Dateien</a> siehst du alles, was du hochgeladen oder gespeichert hast, und kannst es ändern oder löschen. „Nur Freunde“ zeigt eine Datei oder einen Titel nur Mitgliedern, mit denen du befreundet bist.</li>
+  <li><b>E-Mail an den Admin:</b> <% if (mailOn) { %>Ist eingeschaltet. Neue Besucherbuch-Einträge, Nachrichten, Forenthemen und Registrierungen gehen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } else { %>Ist gerade ausgeschaltet. Wird sie eingerichtet, gehen neue Besucherbuch-Einträge, Nachrichten, Forenthemen und Registrierungen zusätzlich als E-Mail über den Mail-Anbieter des Admins.<% } %></li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('guestbook', 'Bei „Anonym“ bleiben Konto und Name leer. Bist du angemeldet und nicht anonym, wird dein Benutzername eingetragen.') %>
+  <%- code('byline', 'Anonyme Forenbeiträge zeigen „Anonym“. Nur der Admin und der Verfasser bekommen den Namen in Klammern dazu.') %>
+  <%- code('contact', 'Diese Felder einer Kontaktnachricht werden gespeichert.') %>
+  <%- code('media', 'Bilder werden mit Originalname, Typ, Größe, Konto und Zeit verzeichnet. Die Datei selbst bekommt einen zufälligen Namen.') %>
+</details>
+<details><summary>👁 So sieht es der Admin</summary>
+  <div class="shots"><%- shot('forum-anonym-andere.png', 'Anonymer Forenbeitrag, wie andere Mitglieder ihn sehen') %>
+  <%- shot('forum-anonym-admin.png', 'Derselbe Beitrag, wie der Admin ihn sieht') %></div>
+</details>
+
+<h2 id="bereiche">📚 Downloads, Duden und Rezepte</h2>
+<ul>
+  <li><b>Duden-Einträge und Rezepte</b> schreiben der Admin und Mitglieder mit dem Recht „Schreiben“. Gespeichert werden Titel, Text, Thema oder Schlagworte, Bild, Sichtbarkeit, Zeit, dein Konto als Autor und, wenn jemand anderes etwas verbessert, auch sein Konto. Beide Namen stehen für alle, die den Eintrag sehen dürfen, am Eintrag. Wie oft ein Eintrag aufgerufen wurde, ist nur eine Zahl. Die Sichtbarkeit stellt nur der Autor (und der Admin) ein.</li>
+  <li><b>Wiki-Links</b> wie <code>[[Titel]]</code> werden nur zu Links, wenn du den Eintrag dahinter sehen darfst. So verrät ein öffentlicher Text nicht, welche Einträge es nur für Mitglieder gibt.</li>
+  <li><b>Favoriten und Einkaufsliste</b> (nur mit Konto): welche Rezepte du dir gemerkt hast, und auf der Einkaufsliste jede Zutat mit Menge, Einheit, aus welchem Rezept und ob sie abgehakt ist. Beides sieht nur du. „Abgehakte entfernen“ und „Liste leeren“ löschen die Einträge sofort, mit deinem Konto verschwinden beide ganz.</li>
+  <li><b>Rezept von einer Seite übernehmen:</b> Die Rezeptseite ruft der Server ab, nicht dein Browser, und nur Seiten im Internet, keine Adressen im Heimnetz. Die Gegenseite sieht die Adresse unseres Anschlusses, über dich geht nichts mit. Gespeichert wird nur, was du danach im Formular speicherst, dazu der Link zum Original.</li>
+  <li><b>Download-Projekte:</b> Name, Beschreibung, Anleitung, Bilder, Versionen mit Änderungen, Sichtbarkeit und das Konto, das das Projekt angelegt hat (sein Name steht auf der Projektseite). Downloads werden wie bisher nur als Zahl gezählt.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('duden', 'Diese Spalten hat ein Eintrag im Duden.') %>
+  <%- code('wikiLinks', 'Wiki-Links zeigen nur auf Einträge, die du sehen darfst.') %>
+  <%- code('recipeFavs', 'Ein Favorit ist nur Konto, Rezept und Zeit.') %>
+  <%- code('shopping', 'So sieht ein Eintrag auf der Einkaufsliste aus.') %>
+  <%- code('recipeImport', 'Vor dem Abruf prüft der Server die Adresse wie bei den Link-Vorschlägen und folgt Weiterleitungen nur nach erneuter Prüfung.') %>
+  <%- code('dlProjects', 'Diese Spalten hat ein Projekt in den Downloads.') %>
+</details>
+
+<h2 id="musik">🎵 Musik und Videos</h2>
+<ul>
+  <li><b>Hochgeladene Musik und Videos:</b> Die Datei mit ihrem ursprünglichen Namen, Titel, Interpret und Album (bei Musik auch aus den Angaben in der Datei, z. B. ID3-Tags), Art (Musik oder Video), Länge, Größe, Sichtbarkeit, Zeit und dein Konto. Neben Titeln von Mitgliedern steht für alle, die den Titel hören oder sehen dürfen, dein Name mit Link zum Profil. Die Datei bleibt unverändert, auch eingebettete Angaben wie ein Cover-Bild oder bei Videos Aufnahmeort und -gerät, falls dein Handy sie hineinschreibt.</li>
+  <li><b>Gespeicherte YouTube-Links:</b> Speicherst du mit Konto einen YouTube-Link in der Bibliothek, liegen dort nur die Video-Kennung, Titel und Kanal, Sichtbarkeit, Zeit und dein Konto, keine Datei. Spielst du einen Link nur in der Wiedergabeliste ab, wird nichts gespeichert.</li>
+  <li>Wie oft ein Titel gespielt wurde, wird nur als Zahl gezählt, nicht wer ihn gehört hat.</li>
+  <li><b>Playlists:</b> Name, Sichtbarkeit, Titel und dein Konto. Private Playlists sehen nur du und der Admin.</li>
+  <li><b>Lobbys:</b> Wer in einer Lobby ist, sieht die Namen der anderen Zuhörer (mit Link zum Profil), wer davon den Player steuern darf, wer ein Lied hinzugefügt hat und die Warteschlange. Lobbys liegen nur im Arbeitsspeicher des Servers und sind nach einem Neustart oder zehn Minuten ohne Zuhörer weg.</li>
+  <li><b>YouTube:</b> Videos von YouTube spielt der eingebettete Player von youtube-nocookie.com, in Lobbys und in der eigenen Wiedergabeliste. Den lädt dein Browser erst, wenn du auf „YouTube laden“ klickst. Ab dann bekommt YouTube (Google) deine IP-Adresse und Angaben zu deinem Browser, und es gelten die Datenschutzregeln von Google. Für die Titel fragt der Server selbst bei YouTube nach, dabei geht nichts über dich mit.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('tracks', 'Diese Spalten speichert die Seite zu jedem Titel, Video und YouTube-Link.') %>
+  <%- code('playlists', 'Eine Playlist gehört genau einem Konto und verschwindet mit ihm.') %>
+  <%- code('plays', 'Der Abspiel-Zähler erhöht nur eine Zahl am Titel.') %>
+  <%- code('lobbyState', 'Das bekommen alle Zuhörer einer Lobby: Name, Gastgeber, Warteschlange, Stelle im Lied und die Namen der Zuhörer.') %>
+  <%- code('oembed', 'Die Titel von YouTube-Videos holt der Server über die öffentliche oEmbed-Adresse, ohne Angaben über dich.') %>
+</details>
+
+<h2 id="vorschlaege">🔗 Link-Vorschläge</h2>
+<ul>
+  <li><b>Was gespeichert wird:</b> Schlägst du einen Link vor, speichert die Seite den Link, die gewählte Art (Musik, Video, Playlist, Datei, Privat), deine Notiz an den Admin, die Sichtbarkeit, den Status mit Fortschritt, einen Ablehnungsgrund und dein Konto. Das sehen nur du (unter „Meine Vorschläge“) und der Admin.</li>
+  <li><b>Wer den Link abruft:</b> Nicht dein Browser und nicht der Server der Seite, sondern JDownloader, ein Download-Programm, das bei uns im Heimnetz läuft. Es fragt erst nach, was hinter dem Link steckt (Namen, Größen, Formate), und lädt erst nach der Freigabe durch den Admin. Die Gegenseite (z. B. YouTube) sieht dabei die Adresse unseres Anschlusses, nicht deine. Über dich geht nichts mit.</li>
+  <li><b>Interne Adressen:</b> Links ins Heimnetz (z. B. 192.168.…, localhost) nimmt die Seite nicht an, damit niemand über sie Geräte im Heimnetz abfragt.</li>
+  <li><b>Was daraus wird:</b> Geladene Titel und Dateien gehören der Seite; in den Eigenschaften steht „vorgeschlagen von“ mit deinem Namen und die Quelle. Eine Playlist gehört dir. Nichts davon zählt auf deinen Speicher. Löschst du dein Konto, verschwindet die Playlist; Titel und Vorschläge bleiben ohne Verbindung zu deinem Konto.</li>
+  <li><b>Privat:</b> Inhalte der Art „Privat“ sehen nur Konten, die der Admin dafür freigeschaltet hat. Sie stehen nur im eigenen Bereich „Privat“ in den Downloads und im Mediaplayer, nie auf der Startseite, in der Suche, im Laufband, in Musik-Lobbys oder im Profil. Gäste sehen sie nie, auch nicht mit Link.</li>
+  <li><b>Benachrichtigungen:</b> Der Admin bekommt eine bei neuen Vorschlägen, du eine, wenn dein Vorschlag fertig geladen oder abgelehnt ist. Abschalten kannst du sie unter Konto und Passwort → Benachrichtigungen.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('linkRequests', 'Diese Spalten speichert die Seite zu jedem Vorschlag.') %>
+  <%- code('linkCheck', 'Nur http(s)-Links ins Internet: Heimnetz-Adressen werden abgewiesen, bevor JDownloader sie sieht.') %>
+  <%- code('privatSql', 'Listen lassen den Bereich Privat weg, außer für freigeschaltete Konten an seiner eigenen Stelle.') %>
+</details>
+
+<h2 id="spiele">🎮 Spielstände und Daddelecke</h2>
+<ul>
+  <li>Mit Konto speichern Browser-Spiele ihre Spielstände auf dem Server: Spiel, Speicherplatz, Inhalt und Zeit. Unter <a href="/konto?reiter=spielstaende#spielstaende">Konto und Passwort → Spielstände</a> siehst und löschst du sie.</li>
+  <li><b>Spielstatistik:</b> Mit Konto zählt die Seite, wie oft du ein Spiel gestartet hast. Spiele können weitere Zahlen melden, etwa Siege oder Höchstpunktzahlen. Pixelpfoten zeigt Werte aus seinem Spielstand (Tiere, höchste Stufe, verdiente Münzen, Besuche). Gespeichert werden nur Spiel, Name der Zahl, Wert und Zeit. Wer dein Profil sehen darf, sieht diese Zahlen.</li>
+  <li><b>Bestenlisten in der Daddelecke:</b> Hat ein mitgebrachtes Spiel eine Bestenliste und du spielst mit Konto, speichert die Seite jede gemeldete Punktzahl mit Spiel, Konto und Zeit. In der Liste neben dem Spiel steht nur dein bester Wert, mit deinem Namen. Ohne Konto wird nichts gespeichert. Die Seite zählt außerdem, wie oft ein Spiel gestartet wurde, als Zahl ohne Namen.</li>
+  <li>Spiele, die der Admin oder Mitglieder mit dem Recht „Schreiben“ in die Daddelecke bringen, sind fremde Programme. Sie dürfen mit anderen Servern sprechen und selbst Daten in deinem Browser ablegen. DOS- und Flash-Spiele laufen in Emulatoren (js-dos, Ruffle), die von dieser Seite kommen; DOS-Spiele merken sich ihren Stand im Browser. Als Adresse eingebundene Spiele sind fremde Seiten mit eigenen Regeln. Spiele von Mitgliedern sieht erst nach einer Freigabe durch den Admin jemand anderes.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('saves', 'Ein Spielstand gehört immer zu genau einem Konto, Spiel und Speicherplatz.') %>
+  <%- code('gameStats', 'Pro Konto, Spiel und Wert eine einzige Zahl, keine Liste einzelner Spiele.') %>
+  <%- code('countStart', 'Beim Start eines Spiels zählt nur der Zähler „Gestartet“ eins hoch, und nur mit Konto.') %>
+  <%- code('ddScores', 'Punkte der Daddelecke: Spiel, Konto, Punktzahl und Zeit, sonst nichts.') %>
+</details>
+
+<h2 id="pixelpfoten">🐾 Pixelpfoten: Besuche und Wettbewerb</h2>
+<ul>
+  <li>Mit Konto können andere Mitglieder deine Pixelpfoten besuchen. Sie sehen dann dein Zimmer, Namen, Aussehen, Stufe und Laune deiner Tiere sowie die letzten Einträge in deinem Besuchsbuch. Münzen, Inventar und alles andere aus deinem Spielstand sehen sie nicht.</li>
+  <li>Wer dich besuchen darf, stellst du im Spiel unter „Besuchen“ ein: alle Mitglieder (Voreinstellung), nur Freunde oder niemand. Die Einstellung steht in deinem Spielstand.</li>
+  <li><b>Besuchsbuch:</b> Was Besucher bei dir tun (vorbeischauen, streicheln, spielen, Futter dalassen, Gruß), wird mit Gastgeber, Besucher, Art, Tier, Gruß oder Futter und Zeit gespeichert, damit dein Spiel es beim nächsten Öffnen einrechnen kann. Nach 30 Tagen werden die Einträge gelöscht, mit deinem Konto auch sofort.</li>
+  <li><b>Tageswettbewerb:</b> Läufst du beim Wettbewerb mit, speichert die Seite deine beste Runde des Tages: Tag, dein Konto, Name, Art und Farbe des Tieres, Punkte, Anzahl der Läufe und Zeit. Die Bestenliste mit deinem Namen und dem deines Tieres sehen alle Mitglieder. Nach 30 Tagen werden die Einträge gelöscht. Ausflüge ohne Wettbewerb bleiben in deinem Spielstand.</li>
+  <li><b>Live-Zimmer:</b> Wer gerade gleichzeitig im selben Zimmer ist, sieht die Tiere der anderen herumlaufen. Dafür schickt das Spiel Position, Aussehen und Gesichtsausdruck der eigenen Tiere an den Server, der sie nur weiterreicht und im Arbeitsspeicher hält, bis du das Zimmer verlässt.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('ppVisits', 'Ein Eintrag im Besuchsbuch: bei wem, von wem, was, welches Tier, Gruß oder Futter, Tag und Zeit, und ob dein Spiel ihn schon abgeholt hat.') %>
+  <%- code('ppAllowed', 'Diese Regel entscheidet, wer deine Tiere besuchen darf.') %>
+  <%- code('ppContest', 'Eine Zeile je Mitglied und Tag: die beste Runde im Wettbewerb mit Tier, Punkten und Zahl der Läufe.') %>
+  <%- code('ppLive', 'Live-Stände werden geprüft, im Arbeitsspeicher gehalten und an die anderen im Zimmer weitergereicht. In die Datenbank kommen sie nicht.') %>
+</details>
+
+<h2 id="kartenspiele">🂡 Kartenspiele und Kasse</h2>
+<ul>
+  <li>Alle Kartenspiele laufen in einem Fenster an <b>Spieltischen</b>. Ein Spieltisch, das gewählte Spiel, Name, Plätze, wer die nächste Runde startet, Tischfarbe und Kartenrücken leben nur im Arbeitsspeicher und sind nach einem Neustart weg. Hintergrund und Tischrand, die du unter 🖼️ Ansicht nur für dich wählst, stehen in deinen <a href="#desktop">Einstellungen am Konto</a>; die anderen am Tisch sehen davon nichts.</li>
+  <li>Für die Spiele mit Geld (Blackjack und Poker) hat jedes Mitglied eine <b>Kasse</b> mit Spielgeld. Gespeichert werden dein Konto, dein Kontostand, wie viel und wie oft du insgesamt eingekauft hast und wann die Kasse angelegt und zuletzt geändert wurde. Angelegt wird sie erst, wenn du die Kartenspiele öffnest.</li>
+  <li>Kontostand, Bilanz und Buy-ins stehen in deinem Profil (sieht, wer dein Profil sehen darf) und in der Bestenliste der Kasse; dort erscheinst du nur für Mitglieder, die dein Profil sehen dürfen.</li>
+  <li>Im <b>Shop</b> kaufst du mit diesem Spielgeld Getränke, Untersetzer, Glücksbringer, Plätze für dein Tier, Holzränder, Filze und Kartenrücken. Gespeichert wird, was du gekauft hast, zu welchem Preis und wann, außerdem in der Kasse, wie viel du im Shop ausgegeben hast und was du gerade an deinen Platz gestellt hast (Getränk, Untersetzer, Glücksbringer).</li>
+  <li>Schmeißt du eine <b>Runde</b>, wird der Preis wie ein Einkauf von deinem Spielgeld abgezogen. Wer das Getränk bekommen hat und von wem, steht nur im Arbeitsspeicher des Spieltischs und im Verlauf am Tisch und ist weg, wenn der Tisch schließt.</li>
+  <li><b>Reaktionen</b>, <b>Anstoßen</b> und <b>Tier streicheln</b> sehen alle, die den Tisch gerade offen haben. Gespeichert wird davon nichts, der Server merkt sich nur für ein paar Sekunden, wann du zuletzt reagiert hast, damit es nicht zu viel wird.</li>
+  <li>Wer an einem Spieltisch sitzt, zeigt allen am Tisch (auch Zuschauern) sein <b>Profilbild</b>, sein Getränk und seinen Glücksbringer. Name und Profilbild stehen außerdem auf der Karte des Tisches in der Tischliste, die alle angemeldeten Mitglieder sehen, außer der Tisch ist versteckt. Hast du Kissen, Körbchen oder Thron hingestellt, sehen sie auch dein Pixelpfoten-Tier mit Namen, Aussehen und Accessoires; dafür liest der Server deinen gespeicherten Pixelpfoten-Spielstand, egal wer dein Tier sonst besuchen darf. Räumst du den Platz fürs Tier weg, ist das Tier nicht mehr zu sehen.</li>
+  <li>Der Admin kann deine Kasse oder die aller Mitglieder zurücksetzen, damit verschwinden auch deine Einkäufe. Löschst du dein Konto, verschwinden Kasse und Einkäufe mit.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('ksWallets', 'Eine Zeile pro Mitglied: Kontostand, was insgesamt eingekauft und im Shop ausgegeben wurde und was am Platz steht. Bilanz = Kontostand + im Shop ausgegeben − eingekauft.') %>
+  <%- code('ksItems', 'Eine Zeile pro gekauftem Artikel aus dem Shop.') %>
+  <%- code('ksMeta', 'Das bekommt das Fenster über einen Spieltisch: Name, Aussehen, gewähltes Spiel, wer Gastgeber ist und was an den Plätzen zu sehen ist.') %>
+  <%- code('ksDeco', 'Das sehen alle am Tisch an deinem Platz: Profilbild, Getränk (oder das aus einer Runde, mit dem Namen, wer sie geschmissen hat), Untersetzer, Glücksbringer und mit Kissen, Körbchen oder Thron dein Tier.') %>
+  <%- code('ksFx', 'Reaktionen, Anstoßen und Streicheln gehen nur an die offenen Fenster am Tisch. Gemerkt wird nur, wann du zuletzt etwas geschickt hast.') %>
+</details>
+
+<h2 id="blackjack">🃏 Blackjack</h2>
+<ul>
+  <li>Gespielt wird mit <b>Spielgeld</b>. Es gibt keine Zahlungen und nichts, was sich in echtes Geld tauschen lässt.</li>
+  <li>Das Geld kommt aus deiner <b>Kasse</b> (siehe oben). <b>Pro Sitzung an einem Tisch</b> speichert der Server außerdem: dein Konto, den Namen des Tisches, deine Chips, wie oft und für wie viel du eingekauft hast, Zahl der Hände, Siege, Niederlagen, Unentschieden und Blackjacks, deinen größten Gewinn in einer Runde, deine längste Siegesserie sowie Beginn, letzte Änderung und Ende. Einzelne Karten und Züge werden nicht gespeichert.</li>
+  <li>Daraus entstehen deine <b>Bilanz</b> und Zahlen im Profil (sieht, wer dein Profil sehen darf) und die <b>Bestenliste</b>. Dort erscheinst du nur für Mitglieder, die dein Profil sehen dürfen.</li>
+  <li>Am Tisch sehen alle, die dort sitzen oder zusehen, deinen Namen, deine Karten, Einsätze, Chips und deine Bilanz an diesem Tisch. Tische selbst leben nur im Arbeitsspeicher und sind nach einem Neustart weg.</li>
+  <li>Der Admin kann deine Bilanz oder die ganze Bestenliste zurücksetzen. Löschst du dein Konto, verschwinden deine Sitzungen mit.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('bjSessions', 'Eine Zeile pro Sitzung an einem Tisch. Die Bilanz ist die Summe aus Chips minus eingekauftem Geld.') %>
+  <%- code('bjState', 'Das bekommen alle am Tisch: die Plätze mit Namen, Chips, Einsatz und Bilanz. Die verdeckte Karte des Dealers bleibt auf dem Server.') %>
+</details>
+
+<h2 id="poker">♠️ Poker</h2>
+<ul>
+  <li>Auch Poker läuft mit <b>Spielgeld</b> und genauso wie Blackjack: <b>pro Sitzung an einem Tisch</b> speichert der Server dein Konto, den Namen des Tisches, deine Chips, wie oft und für wie viel du eingekauft hast, Zahl der Hände, gewonnene Hände und Showdowns, deinen größten Gewinn in einer Hand, dein bestes Blatt im Showdown sowie Beginn, letzte Änderung und Ende. Einzelne Karten, Einsätze und Züge werden nicht gespeichert.</li>
+  <li>Daraus entstehen deine <b>Bilanz</b>, die Zahlen im Profil und die <b>Bestenliste</b>. Dort erscheinst du nur für Mitglieder, die dein Profil sehen dürfen.</li>
+  <li>Am Tisch sehen alle, die dort sitzen oder zusehen, deinen Namen, deine Einsätze, Chips und deine Bilanz an diesem Tisch. Deine zwei Handkarten bekommt nur dein Browser. Die anderen sehen sie erst beim Showdown, wenn du bis zum Schluss dabei bist. Tische leben nur im Arbeitsspeicher und sind nach einem Neustart weg.</li>
+  <li>Der Admin kann deine Bilanz oder die ganze Bestenliste zurücksetzen. Löschst du dein Konto, verschwinden deine Sitzungen mit.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('pkSessions', 'Eine Zeile pro Sitzung an einem Tisch. Die Bilanz ist die Summe aus Chips minus eingekauftem Geld.') %>
+  <%- code('pkState', 'Jeder Browser bekommt seinen eigenen Stand: fremde Karten sind darin leer (<code>null</code>), außer im Showdown.') %>
+</details>
+
+<h2 id="durak">🎴 Durak</h2>
+<ul>
+  <li>Durak läuft <b>ohne Geld</b>. Gespeichert wird nur das <b>Ergebnis jedes Spiels</b>: dein Konto, der Name des Tisches, wie viele mitgespielt haben, dein Platz, ob du der Durak warst oder mitten im Spiel aufgestanden bist, wie viele Angriffe das Spiel hatte und wann es zu Ende war. Einzelne Karten und Züge werden nicht gespeichert.</li>
+  <li>Daraus entstehen die Zahlen im Profil und die <b>Bestenliste</b>. Dort erscheinst du nur für Mitglieder, die dein Profil sehen dürfen.</li>
+  <li>Am Tisch sehen alle, die dort sitzen oder zusehen, deinen Namen, wie viele Karten du hast und was du auf den Tisch legst. Deine Handkarten bekommt nur dein Browser. Tische leben nur im Arbeitsspeicher und sind nach einem Neustart weg.</li>
+  <li>Der Admin kann deine Durak-Zahlen oder die ganze Bestenliste löschen. Löschst du dein Konto, verschwinden deine Ergebnisse mit.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('dkResults', 'Eine Zeile pro Spieler und beendetem Spiel.') %>
+  <%- code('dkState', 'Jeder Browser bekommt seinen eigenen Stand: die eigenen Karten, von allen anderen nur die Anzahl.') %>
+</details>
+
+<h2 id="kartenspiele">🂡 UNO, Flip 7 und Pilli Pilli</h2>
+<ul>
+  <li>Die drei Kartenspiele laufen <b>ohne Geld</b>. Gespeichert wird nur das <b>Ergebnis jedes Spiels</b>: welches Spiel, dein Konto, der Name des Tisches, wie viele mitgespielt haben, dein Platz, ob du gewonnen hast, dein Endstand, deine beste Runde bzw. wie oft du Flip 7 geschafft oder genau angesagt hast, wie viele Runden es waren, ob du mitten im Spiel aufgestanden bist und wann es zu Ende war. Einzelne Karten und Züge werden nicht gespeichert.</li>
+  <li>Daraus entstehen die Zahlen im Profil und die <b>Bestenlisten</b>. Dort erscheinst du nur für Mitglieder, die dein Profil sehen dürfen.</li>
+  <li>Am Tisch sehen alle, die dort sitzen oder zusehen, deinen Namen, deine Punkte und was du legst. Bei UNO und Pilli Pilli bekommt deine Handkarten nur dein Browser; am Ende einer UNO-Runde werden die übrigen Karten aller gezeigt, weil sie gezählt werden, und wer ein Zieh vier anzweifelt, sieht die Hand des anderen. Bei Flip 7 liegen alle Karten offen. Tische leben nur im Arbeitsspeicher und sind nach einem Neustart weg.</li>
+  <li>Der Admin kann deine Zahlen oder eine ganze Bestenliste löschen. Löschst du dein Konto, verschwinden deine Ergebnisse mit.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('cgResults', 'Eine Zeile pro Spieler und beendetem Spiel, für alle drei Spiele in einer Tabelle.') %>
+  <%- code('cgState', 'Jeder Browser bekommt seinen eigenen Stand; was das Spiel dazugibt, steht in den Regeln des Spiels.') %>
+  <%- code('unoView', 'UNO: die eigenen Karten bekommt nur der eigene Browser, von den anderen nur die Anzahl.') %>
+</details>
+
+<h2 id="ds">🎮 DS-Spiele</h2>
+<ul>
+  <li>DS-Spiele gibt es nur für angemeldete Mitglieder. Das Spiel läuft ganz in deinem Browser. Der Server schickt ihm das Spiel und deinen Spielstand und bekommt den Spielstand zurück, sonst nichts: keine Tasten, keine Bilder, keine Spielzeit.</li>
+  <li><b>Gespeichert wird pro Konto und Spiel:</b> der Spielstand, wie ihn der DS auf seinen Speicherchip schreiben würde (bei Animal Crossing 256 KB), wann er kam, eine laufende Nummer der Fassung und die Fassung davor als Sicherung. Die Seite schickt ihn, wenn er sich im Spiel geändert hat (höchstens alle 10 Sekunden) und beim Schließen des Fensters.</li>
+  <li>Was in einem Spielstand steht (z. B. der Name deiner Figur und deiner Stadt), bestimmt das Spiel. Der Admin kann Spielstände herunterladen, die vorige Fassung zurückholen und löschen, um bei Problemen zu helfen. Du selbst löschst deinen unter Konto und Passwort → Spielstände. Löschst du dein Konto, verschwinden deine Spielstände mit.</li>
+  <li>Eine geänderte Tastenbelegung bleibt nur in deinem Browser.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('dsSaves', 'Ein Spielstand pro Mitglied und Spiel, dazu die Fassung davor.') %>
+  <%- code('dsPut', 'Geschrieben wird nur auf die Fassung, die dein Fenster geladen hat, sonst überschreibt ein älteres Fenster nichts.') %>
+  <%- code('dsKeys', 'Die Tastenbelegung liegt unter <code>ds-keys</code> im Browser.') %>
+</details>
+
+<h2 id="minesweeper">💣 Minesweeper</h2>
+<ul>
+  <li>Spielen geht ohne Konto. Dann bleiben deine Einstellungen und Bestzeiten samt dem eingetragenen Namen nur in deinem Browser, wie früher „auf diesem Computer“.</li>
+  <li><b>Mit Konto</b> meldet die Seite beim ersten Klick, dass ein Spiel beginnt (Breite, Höhe und Zahl der Minen). Der Server merkt sich das nur im Arbeitsspeicher, damit eine gemeldete Zeit nicht kürzer sein kann als die echte. Am Ende speichert er pro Spiel: dein Konto, die Stufe, Breite, Höhe, Minen, ob du gewonnen hast, die Zeit in Sekunden und wann. Wo die Minen lagen und wohin du geklickt hast, wird nicht gespeichert.</li>
+  <li>Daraus entstehen die Zahlen im Profil (Spiele, Siege, Bestzeiten, längste Siegesserie; sieht, wer dein Profil sehen darf) und die <b>Bestenliste</b> im Spiel. Dort steht dein Name nur für Besucher, die dein Profil sehen dürfen, für alle anderen „Anonym“.</li>
+  <li>Knackt jemand deinen Rekord, bekommst du eine Benachrichtigung. Der Admin kann deine Minesweeper-Zahlen oder alle Bestzeiten löschen. Löschst du dein Konto, verschwinden deine Spiele mit.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('msGames', 'Eine Zeile pro beendetem Spiel eines Mitglieds.') %>
+  <%- code('msRunning', 'Der Start eines Spiels liegt nur im Arbeitsspeicher und verschwindet mit dem Ende.') %>
+  <%- code('msPrefs', 'Ohne Konto liegen Einstellungen und Bestzeiten unter <code>minesweeper</code> im Browser.') %>
+</details>
+
+<h2 id="kreuzwortraetsel">📰 Kreuzworträtsel</h2>
+<ul>
+  <li>Rätseln geht ohne Konto. Dann bleiben deine Buchstaben, die Zeit und wie oft du Hilfe genutzt hast nur in deinem Browser. Zum Prüfen, Aufdecken und wenn alle Kästchen voll sind, schickt die Seite deine Buchstaben an den Server, weil nur er die Lösung kennt. Ohne Konto merkt er sich davon nichts.</li>
+  <li><b>Mit Konto</b> speichert der Server pro Tag: dein Konto, deine eingetragenen Buchstaben, die Zeit, wie oft du geprüft und aufgedeckt hast, ob du aufgelöst hast, wann du angefangen und zuletzt etwas geändert hast und wann du fertig warst.</li>
+  <li>Daraus entstehen die Zahlen im Profil (gelöste Rätsel, ohne Hilfe, Serie, Bestzeit; sieht, wer dein Profil sehen darf) und die <b>Bestenliste</b> jedes Tages. Dort steht dein Name nur für Besucher, die dein Profil sehen dürfen, für alle anderen „Anonym“.</li>
+  <li>Der Admin kann deinen Stand oder alle Stände löschen. Löschst du dein Konto, verschwindet dein Stand mit.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('cwProgress', 'Eine Zeile pro Mitglied und Tag.') %>
+  <%- code('cwSave', 'Ohne Konto (keine userId) prüft der Server nur, ob das Rätsel gelöst ist, und speichert nichts.') %>
+  <%- code('cwLocal', 'Im Browser liegt alles unter <code>kreuzwortraetsel</code>.') %>
+</details>
+
+<h2 id="sudoku">🔢 Sudoku</h2>
+<ul>
+  <li>Sudoku spielen geht ohne Konto. Dann bleiben deine Ziffern, Notizen, die Zeit und wie oft du Hilfe genutzt hast nur in deinem Browser. Zum Prüfen und wenn alle Felder voll sind, schickt die Seite deine Ziffern an den Server, weil nur er die Lösung kennt. Ohne Konto merkt er sich davon nichts.</li>
+  <li><b>Mit Konto</b> speichert der Server pro Tag und Stufe: dein Konto, deine eingetragenen Ziffern, die Zeit, wie oft du geprüft und aufgedeckt hast, ob du aufgelöst hast, wann du angefangen und zuletzt etwas geändert hast und wann du fertig warst. Deine Notizen bleiben auch dann nur im Browser.</li>
+  <li>Daraus entstehen die Zahlen im Profil (gelöste Sudokus, ohne Hilfe, Serie, Bestzeiten je Stufe; sieht, wer dein Profil sehen darf) und die <b>Bestenliste</b> jedes Tages und jeder Stufe. Dort steht dein Name nur für Besucher, die dein Profil sehen dürfen, für alle anderen „Anonym“.</li>
+  <li>Der Admin kann deinen Stand oder alle Stände löschen. Löschst du dein Konto, verschwindet dein Stand mit.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('sdProgress', 'Eine Zeile pro Mitglied, Tag und Stufe.') %>
+  <%- code('sdSave', 'Ohne Konto (keine userId) prüft der Server nur, ob das Sudoku gelöst ist, und speichert nichts.') %>
+  <%- code('sdLocal', 'Im Browser liegt alles unter <code>sudoku</code>.') %>
+</details>
+
+<h2 id="paint">🎨 Paint und Galerie</h2>
+<ul>
+  <li id="galerie"><b>Fotos in der Galerie</b> (nur mit Konto): Gespeichert werden das Bild, eine kleine Vorschau und bei großen Fotos eine mittlere Größe für den Betrachter, dazu Name, Album, Größe in Pixeln, dein Konto, die Sichtbarkeit, wann du es hochgeladen hast, ob du es gedreht hast, und eine Prüfsumme, damit dasselbe Bild nicht zweimal landet. Die Dateien liegen unter einem Zufallsnamen in <code>data/uploads/galerie</code> und zählen auf deinen Speicher.</li>
+  <li><b>Versteckte Angaben:</b> Beim Hochladen entfernt der Server den EXIF-Block (Aufnahmeort/GPS, Kamera, Seriennummer, Programme), XMP, IPTC und Kommentare aus der Datei; bei JPEG bleibt nur die Drehung. HEIC-Bilder vom iPhone wandelt er in JPG ohne Metadaten um. Das <b>Aufnahmedatum</b> liest er vorher aus und speichert es in der Datenbank, aber nur, wenn beim Hochladen der Haken „Aufnahmedatum behalten“ gesetzt ist. Die Vorschaubilder malt dein Browser selbst, sie enthalten nur Pixel.</li>
+  <li><b>Wer Fotos sieht:</b> Bilder in einem Album sind so sichtbar wie das Album (Öffentlich, Mitglieder, nur Freunde des Albumbesitzers, nur ich), Bilder ohne Album nach deiner Einstellung. Du, der Albumbesitzer und der Admin sehen sie immer. In einem <b>gemeinsamen Album</b> dürfen alle, die es sehen, eigene Bilder hinzufügen; die bleiben ihre Bilder, und der Albumbesitzer bekommt eine Benachrichtigung.</li>
+  <li><b>Kommentare</b> an Fotos speichern Text, dein Konto und die Zeit. Der Besitzer des Bildes bekommt eine Benachrichtigung (abschaltbar unter Konto und Passwort → Benachrichtigungen). Löschen können ihn du, der Besitzer des Bildes und der Admin. Der Albumbesitzer kann Kommentare für sein Album ausschalten.</li>
+  <li>Du löschst Fotos und Alben in der Galerie selbst. Löschst du dein Konto, verschwinden deine Fotos, Alben und Kommentare mit; Bilder anderer in deinen gemeinsamen Alben bleiben bei ihnen (ohne Album).</li>
+  <li>Malen und als Datei auf deinem PC speichern geht ohne Konto. Dabei geht nichts an den Server, auch eingefügte Bilder nicht.</li>
+  <li>Mit Konto kannst du Bilder <b>auf der Seite speichern</b>. Gespeichert werden das Bild und eine kleine Vorschau als PNG, dazu Titel, Größe, dein Konto, die Sichtbarkeit und wann du es gespeichert und zuletzt geändert hast. Eingefügte Fotos sind danach Teil des Bildes. Versteckte Angaben wie der Aufnahmeort kommen nicht mit: Paint speichert nur die Pixel, und der Server entfernt beim Speichern alles andere aus der Datei.</li>
+  <li><b>Wer es sieht</b>, bestimmst du beim Speichern: nur du, alle angemeldeten Mitglieder oder alle (dann auch in der Galerie und auf deinem Profil für Gäste). Der Admin sieht alle Bilder. Stellt er die Freigabe ein, erscheinen öffentliche Bilder erst, wenn er sie freigegeben hat.</li>
+  <li>Du löschst deine Bilder unter Datei → Öffnen. Löschst du dein Konto, verschwinden sie mit.</li>
+  <li><b>Lobbys</b> (gemeinsam malen, nur mit Konto): Deine Änderungen am Bild, wo dein Mauszeiger gerade ist (mit deinem Namen) und was du in der Unterhaltung schreibst, gehen über den Server an alle in der Lobby. Der Server hält das Bild, die letzten 50 Nachrichten und deine letzten 10 Schritte (für Rückgängig) nur im Arbeitsspeicher. Mauszeiger reicht er nur weiter, ohne sie zu behalten. Schließt die Lobby oder startet der Server neu, ist all das weg.</li>
+  <li><b>Entwurf:</b> Jede Minute sichert die Lobby das Bild als privaten Entwurf bei dem, der sie aufgemacht hat, dazu, wer mitgemalt hat und wie viele Änderungen von wem stammen. Wer mitgemalt hat, sieht den Entwurf ebenfalls.</li>
+  <li><b>Mitmaler:</b> Wer ein Lobby-Bild speichert, wählt aus, wer als Mitmaler eingetragen wird. Mitmaler sehen das Bild auch, wenn es privat ist, und stehen in Galerie und Profil mit ihrem Namen daneben (je nach Sichtbarkeit des Bildes). Unter Datei → Öffnen → Gemeinsam gemalt kannst du dich selbst austragen. Löschst du dein Konto, verschwinden deine Einträge als Mitmaler.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('artworks', 'Diese Spalten speichert die Seite zu jedem Bild. Die Bilddatei selbst liegt unter einem Zufallsnamen in <code>data/paint</code>.') %>
+  <%- code('artworkDraft', 'Diese Spalte markiert Entwürfe, die eine Lobby von selbst sichert.') %>
+  <%- code('artworkPainters', 'Hier steht, wer an einem Bild mitgemalt hat.') %>
+  <%- code('artworkSee', 'So entscheidet der Server, wer ein Bild sehen darf.') %>
+  <%- code('galPhotos', 'Diese Spalten speichert die Seite zu jedem Foto in der Galerie.') %>
+  <%- code('galAlbums', 'Und diese zu jedem Album.') %>
+  <%- code('galComments', 'Kommentare an Fotos.') %>
+  <%- code('galStrip', 'Hier liest der Server das Aufnahmedatum (nur mit Haken) und entfernt danach alle versteckten Angaben aus der Datei.') %>
+  <%- code('galSee', 'So entscheidet der Server, wer ein Foto sehen darf.') %>
+  <%- code('paintCursor', 'Mauszeiger und die Vorschau eines Strichs reicht der Server nur an die anderen in der Lobby weiter.') %>
+  <%- code('paintChat', 'Die Unterhaltung: höchstens 300 Zeichen pro Nachricht, nur die letzten 50 bleiben im Arbeitsspeicher.') %>
+</details>
+
+<h2 id="quiz">❓ Quiz</h2>
+<ul>
+  <li><b>Mitspielen</b> geht mit oder ohne Konto. Mit Konto sehen die anderen im Raum deinen Anzeigenamen und dein Profilbild, ohne Konto den Namen, das Emoji und die Farbe, die du gewählt hast, immer mit „(Gast)“ dahinter.</li>
+  <li><b>Während ein Raum offen ist</b>, hält der Server im Arbeitsspeicher, wer dabei ist, die Punkte, deine Antworten auf die aktuelle Frage und wann du gebuzzert hast. Was du in ein Antwortfeld tippst, geht schon beim Tippen an den Spielleiter. Die anderen Spieler sehen es erst bei der Auflösung, außer beim Buzzer: Wer gerade antwortet, dessen Eingabe sehen alle sofort. Schließt der Raum oder startet der Server neu, ist all das weg.</li>
+  <li><b>Fragen</b>, die der Spielleiter anlegt, liegen erst nur im Arbeitsspeicher des Raums. Mit Konto speichert „💾 Speichern“ sie samt Titel in deinem Konto; nur wenn du „Für andere Mitglieder sichtbar“ anhakst, können andere Mitglieder das Quiz mit deinem Benutzernamen sehen und laden. Du kannst deine Quizze jederzeit löschen. „Als Datei“ lädt sie stattdessen auf deinen eigenen Rechner herunter.</li>
+  <li><b>Am Ende eines Quiz</b> (oder wenn der Raum mitten im Quiz schließt) speichert die Seite das Ergebnis: Name des Raums, Spielleiter, wie viele Fragen und Spieler es gab, wann gespielt wurde und pro Spieler Name, Punkte, Platz und richtige Antworten. Bei Mitgliedern steht das Konto dabei, damit die Zahlen im Profil erscheinen; bei Gästen nur ihr gewählter Name. Der Admin kann Ergebnisse löschen.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('quizPlayer', 'Das merkt sich ein Raum über jeden Spieler, solange er offen ist.') %>
+  <%- code('quizInput', 'Getippte Antworten gehen nur an den Spielleiter, beim Buzzer die des Antwortenden an alle.') %>
+  <%- code('quizSaved', 'So liegen gespeicherte Quizze im Konto.') %>
+  <%- code('quizGames', 'Diese Spalten speichert die Seite zu jedem beendeten Quiz.') %>
+  <%- code('quizResults', 'Und diese pro Spieler. Bei Gästen bleibt <code>user_id</code> leer.') %>
+</details>
+
+<h2 id="werwolf">🐺 Werwolf</h2>
+<ul>
+  <li><b>Mitspielen</b> geht mit oder ohne Konto. Mit Konto sehen die anderen im Dorf deinen Anzeigenamen und dein Profilbild, ohne Konto den Namen und das Emoji, das du gewählt hast, mit „(Gast)“ dahinter.</li>
+  <li><b>Während ein Dorf offen ist</b>, hält der Server im Arbeitsspeicher, wer dabei ist, wer welche Rolle hat, was jeder nachts antippt, wer wen bei der Abstimmung wählt und im Online-Modus den Chat (höchstens 300 Zeichen pro Nachricht, die letzten 200 Nachrichten). Deine Rolle sehen nur du, im Rudel die anderen Werwölfe, nach deinem Tod je nach Regel alle und am Ende des Spiels alle. Was du nachts antippst, sieht niemand außer den anderen Werwölfen (beim Wolfsopfer) und, wenn der Gastgeber es erlaubt, Tote, die zuschauen. Den Wolfs-Chat lesen nur Werwölfe und Tote, den Chat der Toten nur Tote. Abstimmungen am Tag sind offen. Schließt das Dorf oder startet der Server neu, ist all das weg.</li>
+  <li><b>Am Ende eines Spiels</b> speichert die Seite für Mitglieder eine Zeile: Name des Dorfs, Modus, Spielerzahl, wie viele Tage es ging, deine Rolle, ob du gewonnen und ob du überlebt hast. Daraus entstehen die Zahlen im Profil. Für Gäste wird nichts gespeichert. Der Admin kann die Ergebnisse löschen.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('wwPlayer', 'Das merkt sich ein Dorf über jeden Spieler, solange es offen ist.') %>
+  <%- code('wwView', 'So entscheidet der Server, wessen Rolle du sehen darfst.') %>
+  <%- code('wwChat', 'Der Chat im Online-Modus: wer wo schreiben darf, steht in <code>channels</code> direkt darüber.') %>
+  <%- code('wwResults', 'Diese Spalten speichert die Seite pro Mitglied und Spiel.') %>
+</details>
+
+<h2 id="farming">🚜 Dancors Dreschplatz (FS25 Hub)</h2>
+<ul>
+  <li><b>Eigenes Projekt:</b> Der Hub ist ein eigenes, offenes Projekt (<a href="https://github.com/99dancor/fs25hub">github.com/99dancor/fs25hub</a>), das hier eingebaut ist. Er nutzt die Konten, die Anmeldung und die Benachrichtigungen dieser Seite und speichert seine Daten in derselben Datenbank.</li>
+  <li><b>Daten vom Spieleserver:</b> Der Hub holt Stand, Spieler, Mods, Felder, Fahrzeuge, Preise und das Kartenbild selbst vom Spieleserver ab (über das Webinterface und, wenn eingerichtet, per FTP aus dem Savegame-Ordner). Dein Browser spricht nie mit dem Spieleserver. Die Adressen mit ihren Codes und das FTP-Passwort stehen nur in der Verwaltung des Hubs, werden dort verdeckt angezeigt und nie an einen Browser geschickt.</li>
+  <li><b>Spielernamen und Online-Zeiten:</b> Der Spieleserver meldet, wer gerade spielt, mit dem Namen im Spiel. Die Seite merkt sich pro Name, wann er auf den Server kam und wann er ging, und zeigt daraus in der Übersicht, wer heute wie lange da war. Die Verwaltung des Hubs zeigt den Admins zusätzlich die Spielzeit der letzten 30 Tage pro Name. Aufgehoben wird das ein halbes Jahr, dann gelöscht. Heißt dein Konto oder dein Anzeigename so wie dein Name im Spiel, verlinkt die Übersicht auf dein Profil.</li>
+  <li><b>Was du im Hub einträgst:</b> zu welchem Hof du gehörst, Hofname und Farbe, Notizen (mit deinem Namen), Aufgaben (wer sie angelegt hat, wem sie zugewiesen sind, wer sie erledigt hat), Anbaupläne, Orte, Vorschläge und deine Stimmen dazu. Das sehen alle, die den Hub sehen dürfen (je nach Einstellung Mitglieder oder alle). Löschst du dein Konto, verschwinden deine Hof-Zugehörigkeit, deine Notizen, Vorschläge und Stimmen; bei Aufgaben und Plänen bleibt der Eintrag ohne deinen Namen stehen.</li>
+  <li><b>Benachrichtigungen:</b> Wird dir eine Aufgabe zugewiesen, ändern sich die Mods auf dem Server oder antwortet der Admin auf deinen Vorschlag, bekommst du eine Nachricht in der Seite. Abschalten kannst du das unter <a href="/konto?reiter=benachrichtigungen#benachrichtigungen">Konto und Passwort → Benachrichtigungen</a>.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('fsSecret', 'So verdeckt die Verwaltung des Hubs Codes in den Adressen. Das FTP-Passwort wird gar nicht erst angezeigt.') %>
+  <%- code('fsSessions', 'So schreibt der Hub die Online-Zeiten mit: neu, wer dazukommt, beendet, wer fehlt, gelöscht nach einem halben Jahr.') %>
+  <%- code('fsSessionTable', 'Mehr steht pro Besuch auf dem Spieleserver nicht in der Datenbank.') %>
+  <%- code('fsMembers', 'Hof-Zugehörigkeit: verschwindet mit deinem Konto.') %>
+</details>
+
+<h2 id="dienste">🗄️ Dienste, Laufband und Popup-Bilder</h2>
+<ul>
+  <li><b>Dienste:</b> Die Seite fragt andere Server des Betreibers selbst ab (z. B. Jellyfin, Nextcloud oder einen Spieleserver), dein Browser verbindet sich dabei mit keinem davon. Du bekommst nur Name, Zustand und eine Kurzinfo wie „3 von 20 Spielern“ oder „2 schauen gerade“, nie Namen von Spielern oder was jemand schaut. Adressen und Zugangsschlüssel bleiben auf dem Server. Welche Dienste du siehst, legt der Admin fest (alle, Mitglieder oder nur er).</li>
+  <li id="jellyfin"><b>Jellyfin im Mediaplayer:</b> Filme und Serien vom Jellyfin-Server des Betreibers holt die Seite für dich ab, auch Cover und Videos laufen über sie. Dein Browser spricht nie direkt mit Jellyfin, und der Jellyfin-Schlüssel der Seite verlässt den Server nicht (er wird sogar aus den Wiedergabelisten der Videos entfernt). Fragst du nach Zugang, speichert die Seite dein Konto, deine Nachricht an den Admin, ob du die App-Zugangsdaten möchtest, und wann gefragt und entschieden wurde; der Admin bekommt eine Benachrichtigung. Gibt er frei, legt die Seite in Jellyfin ein Konto mit deinem Anzeigenamen an (ohne Admin-Rechte, nur die freigegebenen Bibliotheken) oder verknüpft ein vorhandenes. Was du schaust, wo du stehst, „gesehen“ und „Meine Liste“ speichert dann Jellyfin in diesem Konto, nicht die Website; Jellyfin selbst führt dazu wie immer eine eigene Wiedergabe-Übersicht für den Admin. Das App-Passwort zeigt die Seite genau einmal und vergisst es danach. Entzieht der Admin den Zugang oder wird dein Konto hier gelöscht, löscht die Seite auch das Jellyfin-Konto, das sie angelegt hat, samt Fortschritt. Die gewählte Qualität merkt sich dein Browser unter <code>musik-player</code>.</li>
+  <li><b>„Sag Bescheid“:</b> Klickst du bei einem ausgefallenen Dienst darauf, merkt sich die Seite dein Konto und den Dienst. Sobald er wieder läuft, bekommst du eine Benachrichtigung, und der Eintrag ist wieder weg. Nochmal klicken nimmt es sofort zurück.</li>
+  <li><b>Laufband:</b> Die Meldungen schreibt der Admin, dazu kommen automatisch das neueste Update, neue Blogbeiträge, Dienste und (nur für Mitglieder) die Zahl offener Lobbys. Ausblenden und Anhalten merkt sich nur dein Browser.</li>
+  <li id="popups"><b>Popup-Bilder:</b> Ab und zu geht ein kleines Fenster mit einem Bild auf, wie früher die Werbefenster, nur ohne Werbung: Die Bilder stammen vom Admin oder aus der Paint-Galerie der Mitglieder, nichts kommt von fremden Servern. Die Seite zählt pro Bild nur, wie oft es kam, angeklickt oder geschlossen wurde, ohne zu speichern, bei wem. Wann das nächste kommen darf, merkt sich dein Browser. Abschalten kannst du sie im Fenster selbst („Nicht mehr zeigen“) oder unter 🖥️ → Effekte. Schlägst du ein eigenes Paint-Bild vor, steht dein Name beim Vorschlag, bis der Admin ihn annimmt oder ablehnt.</li>
+  <li><b>Ereignisanzeige:</b> Für den Admin protokolliert die Seite, was passiert ist (Dienst ausgefallen, Wartungsmodus an, Einstellungen geändert). Bei Änderungen in der Seitenverwaltung steht dabei, welcher Admin es war; Besucher kommen darin nicht vor, IP-Adressen auch nicht. Nach 90 Tagen fällt alles weg.</li>
+</ul>
+<details><summary>🔍 Code dazu</summary>
+  <%- code('svcViewer', 'Das ist alles, was ein Besucher über einen Dienst erfährt.') %>
+  <%- code('jfAccess', 'Jellyfin-Zugang: Anfrage, Nachricht, Stand, verknüpftes Jellyfin-Konto und (bis zum ersten Anzeigen) das App-Passwort.') %>
+  <%- code('jfStatus', 'Was du in Jellyfin darfst. Abgespielt wird immer mit deinem eigenen Jellyfin-Konto (jfUser).') %>
+  <%- code('jfStrip', 'So kommt der Schlüssel aus jeder Adresse heraus, bevor sie an deinen Browser geht.') %>
+  <%- code('svcWatch', '„Sag Bescheid“: Dienst, Konto und wann du geklickt hast. Mit deinem Konto verschwindet auch das.') %>
+  <%- code('svcLocal', 'Ohne Konto merkt sich der Browser unter <code>dienste-widget</code>, ob du das Widget ausgeblendet hast.') %>
+  <%- code('tickerLocal', 'Unter <code>laufband</code> steht nur, ob und bis wann du das Laufband ausgeblendet hast.') %>
+  <%- code('popupCount', 'Mehr zählt die Seite bei Popup-Bildern nicht: drei Zahlen pro Bild, ohne Bezug zu dir.') %>
+  <%- code('popupLocal', 'Im Browser: wann zuletzt eins kam (<code>popups-zuletzt</code>) und wie viele in diesem Tab (<code>popups-besuch</code>).') %>
+  <%- code('popupSuggest', 'Vorschlagen geht nur mit eigenen, öffentlichen Bildern.') %>
+  <%- code('events', 'Ein Eintrag der Ereignisanzeige: Zeit, Stufe, Quelle, Text und bei Änderungen der Admin.') %>
+</details>
+
+<h2 id="fragen">🗑 Löschen und Fragen</h2>
+<ul>
+  <li>Ein Konto löscht der Admin auf Wunsch. Schreib dafür über das <a href="/contact">Kontaktformular</a>.</li>
+  <li>Gelöscht werden dann Konto, Anmeldungen, Gruppen, Playlists, Spielstände, Spielstatistik, Forenabos, Entwürfe, Benachrichtigungen, Push-Geräte, Kasse und Einkäufe der Kartenspiele, Blackjack- und Poker-Sitzungen, Durak-Ergebnisse, Ergebnisse aus UNO, Flip 7 und Pilli Pilli, Minesweeper-Spiele, Kreuzworträtsel- und Sudoku-Stände, Bilder und Entwürfe aus Paint samt deinen Einträgen als Mitmaler, deine Quiz-Ergebnisse und gespeicherten Quizze, Werwolf-Ergebnisse, Profilbild, Freundschaften, Ignorier-Listen (deine und Einträge anderer über dich), Messenger-Nachrichten (auch die Kopie bei deinen Gesprächspartnern) alle Einträge in deinem und von dir in fremden Profil-Freundebüchern, deine Ordner, Textdokumente, Verknüpfungen und Links vom Desktop und deine Einstellungen am Konto, deine „Sag Bescheid“-Wünsche bei Diensten und dein Jellyfin-Zugang (ein Jellyfin-Konto, das die Seite für dich angelegt hat, samt Fortschritt). Deine Statistik-Einträge verlieren die Verbindung zum Konto. Beiträge, Nachrichten und hochgeladene Musik bleiben ohne Konto stehen: Im Forum steht dann „Gelöschter Nutzer“, im Besucherbuch der Seite bleibt der Name am Eintrag, bei Quizzen, die du geleitet hast, steht „gelöschtes Konto“ als Spielleiter. Sag Bescheid, wenn auch die weg sollen.</li>
+  <li>Du willst wissen, was genau über dich gespeichert ist? Frag einfach, der Admin schaut nach.</li>
+</ul>
+<p><small>Der vollständige Code dieser Website ist öffentlich: <a href="<%= repo %>" target="_blank" rel="noopener"><%= repo.replace('https://', '') %></a></small></p>
+</div>

@@ -1,5 +1,14 @@
 # Changelog
 
+## Update 95 · 21.11.2026 – Dancors Daddelecke: alle Spiele ohne Desktop, eigene Spiele einbetten, Seiten selbst bearbeiten
+
+- **Dancors Daddelecke unter /spiele:** Sudoku, Kreuzworträtsel, Minesweeper, die Kartenspiele, Quiz, Werwolf und Pixelpfoten spielst du jetzt direkt auf der Seite, ohne den Desktop. Oben steht „Heute“ (Sudoku des Tages, ein offener Kartentisch, das neueste Spiel), darunter Regale wie Rätsel, Kartenspiele, Gemeinsam spielen und Mitgebracht. Auf der Startseite hat die Daddelecke eine eigene Kachel, die Suche findet die Spiele auch.
+- **Spielseite:** Das Spiel läuft groß im Rahmen, mit Vollbild. Daneben stehen Bestenliste, Anleitung und bei Kartenspielen die offenen Tische mit „Schnell spielen“. Die Spiele erscheinen hier im Look der Startseite, hell oder dunkel; im Desktop bleiben sie Retro.
+- **Spiele mitbringen:** Mit „＋ Spiel hinzufügen“ lädst du eine HTML-Datei, ein ZIP mit index.html, ein DOS-Spiel (läuft mit js-dos) oder ein Flash-Spiel (läuft mit Ruffle) hoch oder bindest ein Spiel per Link oder Einbettungscode ein (z. B. von itch.io). Dazu kommen Symbol, Farbe, Titelbild, Seitenverhältnis, Steuerung, Anleitung und Sichtbarkeit. Spiele, die Punkte an die Seite schicken, bekommen eine eigene Bestenliste.
+- **Wer darf was:** Spiele bringen der Admin und Mitglieder mit dem Recht „Schreiben“ mit. Spiele von Mitgliedern sieht erst nach der Freigabe durch den Admin jemand anderes, der Admin bekommt dazu eine Benachrichtigung. Die bisherigen „Andere Games“ sind jetzt Teil der Daddelecke, alte Adressen leiten weiter.
+- **Seite bearbeiten:** Auf der Daddelecke und der Startseite schaltet der Admin mit „✏️ Seite bearbeiten“ in einen Bearbeiten-Modus: Texte direkt anklicken und ändern, Spiele, Regale und Kacheln ziehen, mit 🎨 Symbol, Farbe und Bild wählen, mit 🙈 ausblenden, neue Regale und eigene Kacheln anlegen, mit Rückgängig und Abbrechen. Der Modus ist ein Baustein, den weitere Seiten bekommen können.
+- **Changelog, Datenschutz, Kontakt und Besucherbuch** sehen jetzt aus wie die Startseite. Im Desktop bleiben sie als Fenster wie gewohnt. Die Datenschutzseite erklärt die Bestenlisten der Daddelecke.
+
 ## Update 94 · 20.11.2026 – Version 3.0: Startseite mit Kacheln, Downloads, Duden, Rezepte und der Dreschplatz
 
 - **Neue Startseite:** dancor.org öffnet jetzt eine moderne Seite mit Kacheln statt gleich den Desktop: Dancors Desktop, Dancors Downloads, Dancors Duden, Dancors Deliziösitäten und Dancors Dreschplatz. Darunter „Zuletzt neu“ aus allen Bereichen, der Server-Status und das Neueste vom Desktop. Oben sucht ein Feld in allen Bereichen auf einmal (auch nach Programmen des Desktops), rechts meldest du dich einmal für alles an. Hell, dunkel oder wie das Gerät, am Handy wie am PC. Unten stehen Changelog, Besucherbuch, Kontakt und Datenschutz.

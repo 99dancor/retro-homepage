@@ -225,7 +225,11 @@ router.post('/files/upload', auth.requireLogin, (req, res, next) => (req.user.ca
 router.get('/links', (req, res) => res.redirect(301, '/duden/links'));
 
 // ---------- Besucherbuch (früher Freundebuch; Adresse /guestbook) ----------
-function guestbookOn(req, res, next) { return getSetting('guestbook_enabled') === '1' ? next() : res.status(404).render('error', { title: 'Besucherbuch', message: 'Das Besucherbuch ist gerade geschlossen.' }); }
+function guestbookOn(req, res, next) {
+  if (getSetting('guestbook_enabled') === '1') return next();
+  if (!res.locals.embed) return v3.error(req, res, 404, 'Besucherbuch', 'Das Besucherbuch ist gerade geschlossen.');
+  res.status(404).render('error', { title: 'Besucherbuch', message: 'Das Besucherbuch ist gerade geschlossen.' });
+}
 
 router.get('/guestbook', guestbookOn, (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
@@ -233,7 +237,8 @@ router.get('/guestbook', guestbookOn, (req, res) => {
   const total = db.prepare('SELECT COUNT(*) AS n FROM guestbook WHERE approved = 1').get().n;
   const entries = db.prepare(`SELECT g.*, u.username, u.display_name, u.avatar FROM guestbook g LEFT JOIN users u ON u.id = g.user_id
                               WHERE approved = 1 ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`).all(per, (page - 1) * per);
-  res.render('guestbook', { title: 'Besucherbuch', entries, page, pages: Math.max(1, Math.ceil(total / per)), total, msg: req.query.ok ? (req.query.ok === 'mod' ? 'Danke! Dein Eintrag erscheint, sobald er freigeschaltet wurde.' : 'Danke für deinen Eintrag!') : null, err: null });
+  const view = res.locals.embed ? 'guestbook' : 'v3/besucherbuch';
+  res.render(view, { ...(res.locals.embed ? {} : v3.locals(req, res)), title: 'Besucherbuch', entries, page, pages: Math.max(1, Math.ceil(total / per)), total, msg: req.query.ok ? (req.query.ok === 'mod' ? 'Danke! Dein Eintrag erscheint, sobald er freigeschaltet wurde.' : 'Danke für deinen Eintrag!') : null, err: null });
 });
 
 router.post('/guestbook', guestbookOn, auth.rateLimit('gb', 5, 600), (req, res) => {
@@ -255,6 +260,7 @@ router.post('/guestbook', guestbookOn, auth.rateLimit('gb', 5, 600), (req, res) 
 // ---------- Kontakt ----------
 router.get('/contact', (req, res, next) => {
   if (getSetting('contact_enabled') !== '1') return next();
+  if (!res.locals.embed) return res.render('v3/kontakt', { ...v3.locals(req, res), title: 'Kontakt', sent: !!req.query.sent });
   res.render('contact', { title: 'Kontakt', sent: !!req.query.sent });
 });
 router.post('/contact', auth.rateLimit('contact', 5, 600), (req, res, next) => {
@@ -273,23 +279,16 @@ router.post('/contact', auth.rateLimit('contact', 5, 600), (req, res, next) => {
 });
 
 // ---------- Apps & Spiele ----------
-router.get('/apps', (req, res) => {
-  const v = auth.visibilitySql(req.user, 'app', 'a');
-  res.render('apps', { title: 'Andere Games', apps: db.prepare(`SELECT * FROM apps a WHERE ${v.sql} ORDER BY title`).all(...v.params) });
-});
+// Die „Anderen Games“ wohnen jetzt in der Daddelecke (/spiele, src/daddelecke.js). Hier bleiben nur die Dateien der Spiele.
+router.get('/apps', (req, res) => res.redirect(301, '/spiele' + (res.locals.embed ? '?embed' : '')));
 
 function loadApp(req, res, next) {
   const a = db.prepare('SELECT * FROM apps WHERE slug = ?').get(req.params.slug);
-  if (!a || !auth.canSee(req.user, 'app', a)) return res.status(404).render('error', { title: 'Nicht gefunden', message: 'Diese App gibt es nicht.' });
+  if (!a || !require('../daddelecke').canSeeApp(req.user, a)) return res.status(404).render('error', { title: 'Nicht gefunden', message: 'Diese App gibt es nicht.' });
   req.appItem = a;
   next();
 }
-router.get('/apps/:slug', loadApp, (req, res) => {
-  const a = req.appItem;
-  db.prepare('UPDATE apps SET plays = plays + 1 WHERE id = ?').run(a.id);
-  profiles.countStart(req.user, a.slug);   // für die Spielstatistik im Profil
-  res.render('app-play', { title: a.title, app: a, src: a.external_url || `/apps/${a.slug}/play/${a.entry}` });
-});
+router.get('/apps/:slug', (req, res) => res.redirect(301, '/spiele/' + encodeURIComponent(req.params.slug) + (res.locals.embed ? '?embed' : '')));
 // Liefert eine vorkomprimierte Fassung (.br/.gz neben der Datei), wenn der Browser sie annimmt.
 // Fehlt sie noch (z. B. bei Apps von vor diesem Update), wird sie im Hintergrund angelegt.
 function servePrecompressed(req, res, next) {
@@ -346,13 +345,15 @@ router.get('/changelog', (req, res) => {
     try { changelogHtml = changelog.toHtml(md(fs.readFileSync(changelog.FILE, 'utf8').replace(/^# .*\n/, ''))); }
     catch { changelogHtml = '<p>Noch keine Einträge.</p>'; }
   }
-  res.render('changelog', { title: 'Changelog', changelogHtml, latest: changelog.latest() });
+  const data = { title: 'Changelog', changelogHtml, latest: changelog.latest() };
+  if (!res.locals.embed) return res.render('v3/changelog', { ...v3.locals(req, res), ...data });
+  res.render('changelog', data);
 });
 
 // ---------- Datenschutz (Startmenü) ----------
 router.get('/datenschutz', (req, res) => {
-  res.render('datenschutz', {
-    title: 'Datenschutz',
+  res.render(res.locals.embed ? 'datenschutz' : 'v3/datenschutz', {
+    ...(res.locals.embed ? {} : v3.locals(req, res)), title: 'Datenschutz',
     snippets: privacy.snippets(),
     repo: privacy.REPO,
     deskLimits: require('../desk').limits(),

@@ -1,0 +1,129 @@
+<%- include('_head') %>
+<%# Dancors Daddelecke: „Heute“ und Regale (src/daddelecke.js). Der Admin bearbeitet alles direkt hier (public/v3-edit.js, public/daddelecke.js). %>
+<% const cv = g => g.cover ? ` style="background-image:url('${g.cover}')"` : ''; %>
+<% if (ok) { %><p class="v3-flash" role="status"><%= ok %></p><% } %>
+<div data-ed-root>
+<section class="dd-hero">
+  <div>
+    <h1 data-ed-text="title"><%= v.layout.title %></h1>
+    <p data-ed-text="text" data-ed-multiline><%= v.layout.text %></p>
+  </div>
+  <div class="acts" data-ed-off>
+    <% if (admin) { %><button type="button" class="pill" data-ed-start><span class="emo">✏️</span> Seite bearbeiten</button><% } %>
+    <% if (canAdd) { %><a class="pill pri" href="/spiele/neu">＋ Spiel hinzufügen</a><% } %>
+  </div>
+</section>
+
+<% if (admin) { %>
+<div class="card dd-opts" data-ed-only>
+  <b>Oben unter „Heute“:</b>
+  <label class="check"><input type="checkbox" data-ed-field="daily"<%= v.layout.today.daily ? ' checked' : '' %>> Sudoku des Tages</label>
+  <label class="check"><input type="checkbox" data-ed-field="tables"<%= v.layout.today.tables ? ' checked' : '' %>> Offener Kartentisch</label>
+  <label class="check"><input type="checkbox" data-ed-field="fresh"<%= v.layout.today.fresh ? ' checked' : '' %>> Neu dabei</label>
+  <label class="check">⭐ Spiel der Woche
+    <select data-ed-field="pick"><option value="">keins</option>
+      <% for (const g of v.all.values()) { %><option value="<%= g.key %>"<%= v.layout.today.pick === g.key ? ' selected' : '' %>><%= g.title %></option><% } %>
+    </select></label>
+</div>
+<% if (pending.length) { %>
+<div class="card dd-pending" data-ed-off>
+  <h3 class="sec-h">Wartet auf deine Freigabe</h3>
+  <% for (const a of pending) { %><div class="row"><span class="emo"><%= a.icon || '🕹️' %></span> <a href="/spiele/<%= a.slug %>"><%= a.title %></a> <span class="muted">von <%= a.author || 'unbekannt' %></span></div><% } %>
+</div>
+<% } %>
+<% } %>
+
+<% if (today.length) { %>
+<div class="dd-today" data-ed-off>
+  <% for (const t of today) { %>
+  <a class="dd-feat dd-c-<%= t.color %>" href="<%= t.url %>"<%- cv(t) %>>
+    <span class="big emo" aria-hidden="true"><%= t.icon %></span>
+    <small><%= t.kicker %></small>
+    <h2><%= t.title %></h2>
+    <% if (t.text) { %><p><%= t.text %></p><% } %>
+    <% if (t.chips.length) { %><span class="row"><% for (const c of t.chips) { %><span class="chipw"><%= c %></span><% } %></span><% } %>
+  </a>
+  <% } %>
+</div>
+<% } %>
+
+<% if (!v.shelves.length) { %>
+<div class="list" style="margin-top:22px"><div class="empty-state"><span class="e emo">🕹️</span>Hier stehen bald Spiele.</div></div>
+<% } %>
+
+<div data-ed-list="shelves">
+<% for (const s of v.shelves) { %>
+<section class="dd-shelf" data-ed-item data-key="<%= s.id %>" data-ed-val="<%= JSON.stringify({ icon: s.icon }) %>"<%= s.hidden ? ' data-hidden' : '' %><%= s.games.some(g => !g.hidden && !g.off) ? '' : ' data-empty' %> aria-labelledby="sh-<%= s.id %>">
+  <div class="hd">
+    <% if (admin) { %><span class="grip" data-ed-handle data-ed-only title="Regal ziehen" aria-hidden="true">⠿</span><% } %>
+    <h3 id="sh-<%= s.id %>"><span class="emo" data-show="icon"><%= s.icon %></span> <span data-ed-text="title"><%= s.title %></span></h3>
+    <span class="sub" data-ed-text="sub"><%= s.sub %></span>
+    <% if (s.id === 'karten' && live && Object.keys(live).some(k => live[k].tables)) { %><a class="more" href="/spiele/blackjack" data-ed-off>Alle Tische →</a><% } %>
+    <% if (admin) { %>
+    <span class="tools" data-ed-only>
+      <button type="button" class="pill small" data-ed-props title="Symbol">🙂</button>
+      <button type="button" class="pill small" data-ed-up title="Nach oben">↑</button>
+      <button type="button" class="pill small" data-ed-down title="Nach unten">↓</button>
+      <button type="button" class="pill small" data-ed-hide><span class="h-on">🙈 ausblenden</span><span class="h-off">👁️ zeigen</span></button>
+      <button type="button" class="pill small danger" data-ed-del="Regal „<%= s.title %>“ löschen? Die Spiele darin landen wieder in ihrem Standardregal." title="Regal löschen">🗑</button>
+    </span>
+    <% } %>
+  </div>
+  <div class="dd-grid" data-ed-list="games">
+    <% for (const g of s.games) { const lv = live[g.cards || g.key]; %>
+    <div class="gc dd-c-<%= g.color %><%= g.cover ? ' has-cover' : '' %>" data-ed-item data-key="<%= g.key %>"
+       data-ed-val="<%= JSON.stringify({ icon: g.icon, color: g.color, cover: g.cover || '' }) %>"<%= g.hidden ? ' data-hidden' : '' %>>
+      <span class="cv"<%- cv(g) %>>
+        <span class="e emo" data-show="icon" aria-hidden="true"><%= g.icon %></span>
+        <% if (g.key === 'sudoku' && lv && lv.solved) { %><span class="badge2"><%= lv.solved %> von 3 gelöst</span><% } %>
+        <% if (g.cards && lv && lv.tables) { %><span class="live"><i></i><%= lv.tables %> <%= lv.tables === 1 ? 'Tisch' : 'Tische' %> offen</span><% } %>
+        <% if (g.pending) { %><span class="badge2 warn">wartet auf Freigabe</span><% } %>
+        <% if (g.off) { %><span class="badge2">Programm aus</span><% } %>
+        <% if (g.locked) { %><span class="lockc">🔒 Mitglieder</span><% } %>
+      </span>
+      <span class="bd">
+        <b><a class="stretch" href="<%= g.locked ? '/login?next=' + encodeURIComponent(g.playUrl) : g.playUrl %>" data-ed-text="title"><%= g.title %></a></b>
+        <span class="tx" data-ed-text="text" data-ed-multiline><%= g.text %></span>
+        <% if (g.tags && g.tags.length) { %><span class="mt"><% for (const t of g.tags) { %><span class="tag"><%= t %></span><% } %></span><% } %>
+      </span>
+      <% if (admin) { %>
+      <span class="tools" data-ed-only>
+        <span class="grip" title="Ziehen" aria-hidden="true">⠿</span>
+        <button type="button" class="pill small" data-ed-props title="Symbol, Farbe, Bild">🎨</button>
+        <% if (g.app) { %><a class="pill small" href="/spiele/<%= g.key %>/bearbeiten" data-go title="Spiel bearbeiten">⚙️</a><% } %>
+        <button type="button" class="pill small" data-ed-hide title="Ein- oder ausblenden"><span class="h-on">🙈</span><span class="h-off">👁️</span></button>
+      </span>
+      <% } %>
+    </div>
+    <% } %>
+    <% if (canAdd) { %><a class="gc add" href="/spiele/neu?regal=<%= s.id %>" data-ed-only>＋ Spiel in dieses Regal</a><% } %>
+  </div>
+</section>
+<% } %>
+</div>
+<% if (admin) { %>
+<div data-ed-only style="margin-top:18px"><button type="button" class="pill" data-ed-add="tpl-shelf" data-ed-into="[data-ed-list=shelves]">＋ Neues Regal</button></div>
+<% } %>
+</div>
+<% if (admin) { %>
+<template id="tpl-shelf">
+<section class="dd-shelf" data-ed-item data-key="__neu__" data-ed-val='{"icon":"🎲"}'>
+  <div class="hd">
+    <span class="grip" data-ed-handle data-ed-only aria-hidden="true">⠿</span>
+    <h3><span class="emo" data-show="icon">🎲</span> <span data-ed-text="title">Neues Regal</span></h3>
+    <span class="sub" data-ed-text="sub">Beschreibung</span>
+    <span class="tools" data-ed-only>
+      <button type="button" class="pill small" data-ed-props title="Symbol">🙂</button>
+      <button type="button" class="pill small" data-ed-up>↑</button><button type="button" class="pill small" data-ed-down>↓</button>
+      <button type="button" class="pill small" data-ed-hide><span class="h-on">🙈 ausblenden</span><span class="h-off">👁️ zeigen</span></button>
+      <button type="button" class="pill small danger" data-ed-del="Regal löschen?">🗑</button>
+    </span>
+  </div>
+  <div class="dd-grid" data-ed-list="games"><span class="gc add dd-drop">Spiele hierher ziehen</span></div>
+</section>
+</template>
+<script type="application/json" id="dd-edit"><%- JSON.stringify(editData).replace(/</g, '\\u003c') %></script>
+<script src="<%= asset('v3-edit.js') %>" defer></script>
+<% } %>
+<script src="<%= asset('daddelecke.js') %>" defer></script>
+<%- include('_foot') %>

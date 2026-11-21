@@ -826,6 +826,19 @@ for (const t of ['files', 'tracks']) {
 }
 addColumn('playlists', 'source_url', 'TEXT');
 addColumn('playlists', 'privat', 'INTEGER NOT NULL DEFAULT 0');
+// Dancors Daddelecke (src/daddelecke.js): mitgebrachte Spiele mit Art, Aussehen, Steuerung und Freigabe
+for (const [c, def] of [['kind', "TEXT NOT NULL DEFAULT 'zip'"], ['icon', 'TEXT'], ['color', 'TEXT'], ['cover', 'TEXT'], ['howto_md', 'TEXT'],
+  ['controls', 'TEXT'], ['aspect', "TEXT NOT NULL DEFAULT '16:9'"], ['source', 'TEXT'], ['author_id', 'INTEGER REFERENCES users(id) ON DELETE SET NULL'],
+  ['approved', 'INTEGER NOT NULL DEFAULT 1'], ['score_mode', "TEXT NOT NULL DEFAULT ''"], ['dos_cmd', 'TEXT'], ['fresh', 'INTEGER NOT NULL DEFAULT 1']]) addColumn('apps', c, def);
+db.exec("UPDATE apps SET kind = 'link' WHERE external_url IS NOT NULL AND external_url != '' AND kind = 'zip'");
+db.exec(`CREATE TABLE IF NOT EXISTS dd_scores (
+  id INTEGER PRIMARY KEY,
+  app_id INTEGER NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  score REAL NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS dd_scores_app ON dd_scores(app_id, score);`);
 // Seit den Kategorien gibt es keine Felder Version und optional mehr: beides wandert in die Bemerkung
 db.exec(`UPDATE mod_items SET notes = trim(
     CASE WHEN required = 0 THEN 'optional' ELSE '' END ||

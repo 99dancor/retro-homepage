@@ -60,6 +60,13 @@ function checkFile(req, file) {
   return null;
 }
 
+// Titelbild und weitere Bilder müssen Bilder sein. Landet dort eine andere Datei (z. B. die ZIP über „Alle Dateien“),
+// sagen wir das, statt sie still wegzuwerfen.
+function badImages(req) {
+  const wrong = [...(req.files.cover || []), ...(req.files.shots || [])].find(f => !dl.IMAGE_TYPES.includes(f.mimetype));
+  return wrong ? `„${wrong.originalname}“ ist kein Bild. Titelbild und weitere Bilder nehmen PNG, JPG, WebP oder GIF; die Datei zum Herunterladen gehört ins Feld „Datei“ unter „${req.project ? 'Neue Version' : 'Erste Version'}“.` : null;
+}
+
 function formView(req, res, p, extra = {}) {
   return {
     ...loc(req, res), title: p && p.id ? `${p.title} bearbeiten` : 'Neues Projekt', p: p || { icon: '📦', color: 'dl', category: 'Allgemein' },
@@ -73,7 +80,7 @@ router.get('/neues-projekt', needLogin, (req, res) => {
 });
 router.post('/neues-projekt', needLogin, (req, res, next) => (dl.canCreate(req.user) ? next() : res.status(403).end()), formUpload, auth.csrfCheck, (req, res) => {
   const b = req.body, file = (req.files.file || [])[0];
-  const bad = checkFile(req, file);
+  const bad = checkFile(req, file) || badImages(req);
   if (bad) { dropFiles(req); return res.status(400).render('v3/download-edit', formView(req, res, { ...b, id: null }, { err: bad })); }
   let p;
   try { p = dl.create(req.user, b, { visibility: v3.visibility(req.user, b) }); } catch (e) { dropFiles(req); return res.status(400).render('v3/download-edit', formView(req, res, { ...b, id: null }, { err: e.message })); }
@@ -105,14 +112,20 @@ router.get('/:slug', project, (req, res) => {
 });
 router.get('/:slug/bearbeiten', needLogin, project, editor, (req, res) => res.render('v3/download-edit', formView(req, res, req.project)));
 router.post('/:slug/bearbeiten', needLogin, project, editor, formUpload, auth.csrfCheck, (req, res) => {
-  const b = req.body;
+  const b = req.body, file = (req.files.file || [])[0];
+  const bad = checkFile(req, file) || badImages(req);
+  if (bad) { dropFiles(req); return res.status(400).render('v3/download-edit', formView(req, res, { ...req.project, ...b }, { err: bad })); }
   let p;
   try { p = dl.update(req.user, req.project, b, { visibility: v3.visibility(req.user, b) }); } catch (e) { dropFiles(req); return res.status(400).render('v3/download-edit', formView(req, res, { ...req.project, ...b }, { err: e.message })); }
   v3.saveAcl(req.user, 'dl_project', p.id, b);
   const drop = b.drop_shots === undefined ? [] : [].concat(b.drop_shots);
   dl.setImages(p, { cover: dl.takeImage((req.files.cover || [])[0], req.user.id), dropCover: !!b.drop_cover, shots: (req.files.shots || []).map(f => dl.takeImage(f, req.user.id)).filter(Boolean), dropShots: drop });
-  for (const f of req.files.file || []) up.removeQuietly(f.path);
-  res.redirect('/downloads/' + p.slug + '?ok=gespeichert');
+  // Eine Datei beim Bearbeiten ist eine neue Version (früher wurde sie still verworfen)
+  if (file) {
+    dl.addVersion(req.user, dl.byId(p.id), file, b);
+    require('../events').info('Downloads', `Neue Version ${b.version || ''} von „${p.title}“`);
+  }
+  res.redirect('/downloads/' + p.slug + '?ok=' + (file ? 'version#versionen' : 'gespeichert'));
 });
 router.post('/:slug/version', needLogin, project, editor, formUpload, auth.csrfCheck, (req, res) => {
   const file = (req.files.file || [])[0], p = req.project;

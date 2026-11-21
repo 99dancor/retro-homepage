@@ -1,5 +1,10 @@
 # Changelog
 
+## Update 97 · 21.11.2026 – Downloads: neue Version auch beim Bearbeiten hochladen
+
+- **Datei beim Bearbeiten:** „Projekt bearbeiten“ hat jetzt wie das neue Projekt das Feld „Datei“ mit Version und Änderungen. Eine Datei dort wird beim Speichern eine neue Version. Bisher gab es das Feld nur beim Anlegen, und eine Datei beim Bearbeiten ging still verloren.
+- **Falsches Feld:** Landet eine ZIP oder andere Datei im Feld für Titelbild oder weitere Bilder, sagt die Seite das jetzt, statt sie wegzuwerfen.
+
 ## Update 96 · 21.11.2026 – Downloads: Projekte als Startansicht, Karten wie die Titelleiste
 
 - **Projekte zuerst:** Dancors Downloads öffnet jetzt mit den Projekten. Jedes Projekt steht als Karte da wie oben auf seiner Projektseite: Bild, Titel, Kurztext, der große Knopf „⬇ Version …“ mit Größe, dazu Versionen, Details und Bearbeiten, darunter Kategorie, Spiel, Downloads, Stand und von wem. „Alle Dateien“ steht links gleich darunter und zeigt wie bisher die Tabelle, Projekte jetzt mit ihrem kleinen Bild.

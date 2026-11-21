@@ -326,6 +326,6 @@ function assign(fileId, projectId, version, changes) {
 function removeQuietly(p) { try { fs.rmSync(p, { force: true }); } catch { /* egal */ } }
 
 module.exports = {
-  COLORS, NEW_DAYS, SORTS, layout, saveLayout, canCreate, canEdit, canSee, bySlug, byId, versions, view, stats, recent, search, create, update, takeImage, setImages,
+  IMAGE_TYPES, COLORS, NEW_DAYS, SORTS, layout, saveLayout, canCreate, canEdit, canSee, bySlug, byId, versions, view, stats, recent, search, create, update, takeImage, setImages,
   addVersion, removeVersion, remove, assign, parseShots, projectRow, hubRow, all: () => db.prepare('SELECT id, title FROM dl_projects ORDER BY title COLLATE NOCASE').all(),
 };

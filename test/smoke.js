@@ -164,7 +164,7 @@ async function main() {
       assert.equal(dl.text_, 'spielstand');
       assert.match(dl.headers.get('content-disposition'), /Speicherstand%20%C3%A4%C3%B6%C3%BC\.sav/);
       assert.equal((await guest.req('/files/dl/1')).status, 404, 'Gast darf private Datei nicht laden');
-      assert.doesNotMatch((await guest.req('/downloads')).text_, /Speicherstand/);
+      assert.doesNotMatch((await guest.req('/downloads?ort=alle')).text_, /Speicherstand/);
     });
 
     await step('Besucherbuch-Eintrag als Gast', async () => {
@@ -2442,11 +2442,11 @@ async function main() {
       assert.equal((await admin.req('/files/upload', { method: 'POST', body: fd })).status, 200);
       const f = sql.prepare("SELECT * FROM files WHERE title = 'Nur für Freunde'").get();
       assert.equal(f.visibility, 'friends');
-      assert.match((await anna.req('/downloads')).text_, /Nur für Freunde/, 'Freundin sieht die Datei');
+      assert.match((await anna.req('/downloads?ort=alle')).text_, /Nur für Freunde/, 'Freundin sieht die Datei');
       assert.equal((await anna.req('/files/dl/' + f.id)).status, 200);
-      assert.doesNotMatch((await bernd.req('/downloads')).text_, /Nur für Freunde/, 'kein Freund');
+      assert.doesNotMatch((await bernd.req('/downloads?ort=alle')).text_, /Nur für Freunde/, 'kein Freund');
       assert.notEqual((await bernd.req('/files/dl/' + f.id)).status, 200);
-      assert.doesNotMatch((await guest.req('/downloads')).text_, /Nur für Freunde/);
+      assert.doesNotMatch((await guest.req('/downloads?ort=alle')).text_, /Nur für Freunde/);
       // Startmenü: Eigene Dateien unter Dokumente, Info mit Changelog und Datenschutz
       const home = (await anna.req('/desktop', { top: true })).text_;
       assert.match(home, /📂 Dokumente<\/button><div class="submenu">\s*<a href="\/eigene-dateien">/);
@@ -2461,11 +2461,11 @@ async function main() {
       const t3 = await admin.csrf('/eigene-dateien?bib=datei');
       assert.equal((await admin.form('/eigene-dateien/datei/' + f.id, { _csrf: t3, title: 'Für alle', visibility: 'members' })).status, 302);
       assert.equal(sql.prepare('SELECT visibility FROM files WHERE id = ?').get(f.id).visibility, 'members');
-      assert.match((await bernd.req('/downloads')).text_, /Für alle/);
+      assert.match((await bernd.req('/downloads?ort=alle')).text_, /Für alle/);
       // Löschen legt in den Papierkorb: privat, zurückholbar, erst dort endgültig weg
       assert.equal((await admin.form('/eigene-dateien/datei/' + f.id + '/loeschen', { _csrf: t3 })).status, 302);
       assert.equal(sql.prepare('SELECT visibility FROM files WHERE id = ?').get(f.id).visibility, 'private');
-      assert.doesNotMatch((await bernd.req('/downloads')).text_, /Für alle/, 'im Papierkorb sieht es niemand');
+      assert.doesNotMatch((await bernd.req('/downloads?ort=alle')).text_, /Für alle/, 'im Papierkorb sieht es niemand');
       assert.match((await admin.req('/eigene-dateien?ordner=papierkorb')).text_, /Für alle/);
       const api = (method, url, body) => admin.req(url, { method, headers: { 'Content-Type': 'application/json', 'x-csrf-token': admin.jar.get('csrf') }, body: JSON.stringify(body) });
       assert.equal((await api('POST', '/api/desktop/wiederherstellen', { refs: ['datei:' + f.id] })).status, 200);
@@ -2505,7 +2505,7 @@ async function main() {
       assert.equal(sql.prepare("SELECT game FROM files WHERE original_name = 'mein spielstand.sav'").get().game, 'FS25');
       assert.equal(JSON.parse((await send('notiz.txt', { category: 'Gibt es nicht' })).text_).category, 'Allgemein');
       // Explorer: Baum mit Kategorien, Knoten zeigt nur seine Einträge, Suche über alles
-      const all = (await bernd.req('/downloads')).text_;
+      const all = (await bernd.req('/downloads?ort=alle')).text_;
       assert.match(all, /href="\/downloads\?ort=k%3ASpielst%C3%A4nde"><span class="emo">💾<\/span> Spielstände/);
       assert.match(all, /href="\/files\/dl\/\d+"[^>]*>[\s\S]*?mein spielstand\.sav|mein spielstand\.sav[\s\S]*?href="\/files\/dl\/\d+"/);
       const cat = (await bernd.req('/downloads?ort=' + encodeURIComponent('k:Spielstände'))).text_;
@@ -2984,7 +2984,25 @@ async function main() {
       assert.match(page, /<img src="\/media\/[0-9a-f]+\.png"/);
       assert.equal((await guest.req('/files/dl/' + v1)).status, 200, 'alte Version bleibt ladbar');
       const list = (await guest.req('/downloads', { top: true })).text_;
-      assert.match(list, /class="feat"[\s\S]*Rauch Widget/, 'hervorgehoben oben');
+      assert.match(list, /class="pc-list[^"]*"[\s\S]*<article class="pc"[\s\S]*Rauch Widget[\s\S]*📌 Angepinnt/, 'Projekte als Karten, angepinnt');
+      assert.match(list, /⬇ Version 1\.1 <small>/, 'Knopf der neuesten Version');
+      assert.match(list, />Update 96<\/a>|>Update \d+<\/a>/, 'Stand unten rechts');
+      assert.match((await guest.req('/downloads?ort=alle', { top: true })).text_, /class="lr"[\s\S]*Rauch Widget/, 'Alle Dateien als Tabelle');
+      // Bearbeiten-Modus: nur der Admin speichert den Aufbau, Texte und „angepinnt“ gehen ans Projekt
+      const rid = sql.prepare("SELECT id FROM dl_projects WHERE slug = 'rauch-widget'").get().id;
+      const seite = (who, body) => who.req('/downloads/seite', { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json', 'x-csrf-token': who.token } });
+      const tok = async who => (await who.req('/downloads')).text_.match(/data-csrf="([a-f0-9]+)"/)[1];
+      admin.token = await tok(admin);
+      assert.match((await admin.req('/downloads')).text_, /data-ed-root[\s\S]*data-ed-start/);
+      r = await seite(admin, { layout: { title: 'Meine Downloads', look: 'kompakt', order: ['hub', 'p' + rid], hidden: ['hub'], cards: [{ key: 'p' + rid, title: 'Rauch Widget', summary: 'Neu erklärt', pin: false }] } });
+      assert.equal(r.status, 200);
+      assert.deepEqual({ ...sql.prepare('SELECT summary, featured FROM dl_projects WHERE id = ?').get(rid) }, { summary: 'Neu erklärt', featured: 0 });
+      const after = (await guest.req('/downloads', { top: true })).text_;
+      assert.match(after, /<h2 class="page-h"[^>]*>Meine Downloads/);
+      assert.match(after, /pc-list compact/);
+      assert.doesNotMatch(after, /<article class="pc hub"/, 'ausgeblendet');
+      anna.token = await tok(anna);
+      assert.equal((await seite(anna, { layout: { title: 'Gehackt' } })).status, 403);
       // Privat: nur Besitzer und Admin
       r = await send('/downloads/neues-projekt', { title: 'Geheimes Tool', category: 'Allgemein', visibility: 'private' });
       assert.equal(r.status, 302);
@@ -3002,8 +3020,8 @@ async function main() {
       assert.match((await admin.req('/admin/files/' + fid)).text_, /name="project_id"/);
       assert.equal((await admin.form('/admin/files/' + fid, { _csrf: ta, title: 'Alt', category: 'Allgemein', visibility: 'public', project_id: String(pid), version: '0.9', changes: 'Ganz alt' })).status, 302);
       assert.deepEqual({ ...sql.prepare('SELECT project_id, version FROM files WHERE id = ?').get(fid) }, { project_id: pid, version: '0.9' });
-      // Der Hub erscheint als Verweis, die Mod liegt im Hub
-      assert.match((await anna.req('/downloads')).text_, /href="\/farming\/hublink"/);
+      // Der Hub erscheint als Verweis, die Mod liegt im Hub (in der Tabelle auch, wenn die Karte ausgeblendet ist)
+      assert.match((await anna.req('/downloads?ort=alle')).text_, /href="\/farming\/hublink"/);
       sql.close();
     });
 

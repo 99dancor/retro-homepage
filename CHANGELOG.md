@@ -1,5 +1,14 @@
 # Changelog
 
+## Update 96 · 21.11.2026 – Downloads: Projekte als Startansicht, Karten wie die Titelleiste
+
+- **Projekte zuerst:** Dancors Downloads öffnet jetzt mit den Projekten. Jedes Projekt steht als Karte da wie oben auf seiner Projektseite: Bild, Titel, Kurztext, der große Knopf „⬇ Version …“ mit Größe, dazu Versionen, Details und Bearbeiten, darunter Kategorie, Spiel, Downloads, Stand und von wem. „Alle Dateien“ steht links gleich darunter und zeigt wie bisher die Tabelle, Projekte jetzt mit ihrem kleinen Bild.
+- **Plaketten:** Oben rechts auf der Karte steht „📌 Angepinnt“, „🆕 Neu“ (in den letzten 14 Tagen angelegt) oder „⬆ Update auf …“ (neue Version in den letzten 14 Tagen). Angepinnte Projekte stehen ganz oben, der bisherige Extra-Block dafür ist weg.
+- **Suchen, filtern, sortieren:** Über den Karten filtern Chips nach Kategorie, die Sortierung wechselt zwischen Empfohlen, Zuletzt aktualisiert, Meiste Downloads und Name. „Groß“ und „Kompakt“ (zwei Spalten) merkt sich die Seite für jeden Besucher. Einzelne Dateien ohne Projekt stehen als Hinweis unter den Karten.
+- **Der FS25 Hub Link** ist jetzt auch eine Karte, sein Knopf führt mit der aktuellen Versionsnummer in den Hub.
+- **Seite bearbeiten:** Mit „✏️ Seite bearbeiten“ ziehst du die Projekte in deine Reihenfolge, pinnst sie an, blendest sie aus der Projektansicht aus, änderst Überschrift, Text, Titel und Kurztext direkt auf der Seite und wählst mit 🎨 Symbol, Farbe und Bild. Dazu legst du fest, ob die Seite mit Projekten oder allen Dateien startet und ob Groß oder Kompakt der Standard ist.
+- **Stand unten rechts:** Statt „Version 3.0“ steht unten rechts jetzt die Nummer des neuesten Updates, zum Beispiel „Update 96“, und führt zum Changelog.
+
 ## Update 95 · 21.11.2026 – Dancors Daddelecke: alle Spiele ohne Desktop, eigene Spiele einbetten, Seiten selbst bearbeiten
 
 - **Dancors Daddelecke unter /spiele:** Sudoku, Kreuzworträtsel, Minesweeper, die Kartenspiele, Quiz, Werwolf und Pixelpfoten spielst du jetzt direkt auf der Seite, ohne den Desktop. Oben steht „Heute“ (Sudoku des Tages, ein offener Kartentisch, das neueste Spiel), darunter Regale wie Rätsel, Kartenspiele, Gemeinsam spielen und Mitgebracht. Auf der Startseite hat die Daddelecke eine eigene Kachel, die Suche findet die Spiele auch.

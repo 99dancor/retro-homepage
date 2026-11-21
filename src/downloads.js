@@ -1,11 +1,13 @@
 'use strict';
 // Dancors Downloads (Version 3.0, src/routes/downloads.js, views/v3/downloads*.ejs): die Dateien der Seite in einer modernen
-// Ansicht mit Kategorien links, hervorgehobenen Projekten oben und der Liste darunter.
+// Ansicht mit Kategorien links. Startansicht sind die Projekte als Karten im Stil der Titelleiste einer Projektseite (Update 96),
+// „Alle Dateien“ ist die Tabelle mit allem. Reihenfolge, Anpinnen, Ausblenden und die Texte oben legt der Admin im
+// Bearbeiten-Modus fest (Einstellung dl_layout, public/downloads.js).
 // Neu ist das Projekt: ein Download mit Beschreibung, Bildern, Anleitung und mehreren Versionen samt Änderungen. Jede Version
 // ist eine ganz normale Datei (files) mit project_id, version und changes; zählt, lädt und prüft sich also wie bisher.
 const fs = require('node:fs');
 const path = require('node:path');
-const { db, now, UPLOAD_DIR, MEDIA_DIR } = require('./db');
+const { db, now, getSetting, setSetting, UPLOAD_DIR, MEDIA_DIR } = require('./db');
 const auth = require('./auth');
 const cats = require('./filecats');
 const { slugify, fmtSize } = require('./util');
@@ -39,7 +41,7 @@ if (!cols.includes('changes')) db.exec('ALTER TABLE files ADD COLUMN changes TEX
 db.exec('CREATE INDEX IF NOT EXISTS files_project ON files(project_id, created_at)');
 
 const COLORS = { dl: 'Blau', du: 'Bernstein', de: 'Rot', fs: 'Grün', desk: 'Türkis', x: 'Lila', gray: 'Grau' };
-const RESERVED = new Set(['neues-projekt', 'p', 'dl', 'kategorie', 'bild', 'vorschau', 'privat', 'neu', 'alle', 'projekte']);
+const RESERVED = new Set(['neues-projekt', 'p', 'dl', 'kategorie', 'bild', 'vorschau', 'privat', 'neu', 'alle', 'projekte', 'seite']);
 const NEW_DAYS = 14;
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif'];
 
@@ -63,8 +65,11 @@ function versions(user, p) {
 }
 
 function projectRow(p, user, list) {
-  const vs = versions(user, p), latest = vs[0] || null;
+  const vs = versions(user, p), latest = vs[0] || null, since = now() - NEW_DAYS * 86400;
+  const owner = p.owner_id ? db.prepare('SELECT username, display_name FROM users WHERE id = ?').get(p.owner_id) : null;
   return {
+    key: 'p' + p.id, owner: owner ? owner.display_name || owner.username : '', fresh: p.created_at >= since && vs.length <= 1,
+    update: !!latest && vs.length > 1 && latest.created_at >= since, iconRaw: p.icon || '📦', coverName: p.cover || '',
     type: 'project', id: p.id, slug: p.slug, url: '/downloads/' + p.slug, title: p.title, summary: p.summary, icon: p.icon || '📦', color: p.color || 'dl',
     cover: p.cover ? '/media/' + p.cover : null, cat: p.category, catIcon: cats.iconOf(p.category, list), game: p.game || '', featured: !!p.featured,
     version: latest && latest.version, size: latest ? latest.size : 0, sizeText: latest ? fmtSize(latest.size) : '', dl: latest ? '/files/dl/' + latest.id : null,
@@ -87,7 +92,7 @@ function hubRow(user) {
     const hub = require('./hub');
     if (!hub.canView(user)) return null;
     return {
-      type: 'link', title: 'FS25 Hub Link', summary: `Die Mod für den Farming-Simulator-Server, Download und Anleitung im ${hub.title()}`, icon: '🚜', color: 'fs',
+      key: 'hub', featured: false, downloads: 0, type: 'link', title: 'FS25 Hub Link', summary: `Die Mod für den Farming-Simulator-Server, Download und Anleitung im ${hub.title()}`, icon: '🚜', color: 'fs',
       cat: 'Mods', catIcon: cats.iconOf('Mods'), game: 'Farming Simulator 25', version: hub.modVersion(), url: hub.BASE + '/hublink', date: 0, sizeText: '', external: false,
     };
   } catch { return null; }
@@ -110,35 +115,103 @@ function privatTracks(user) {
       size: t.size, sizeText: fmtSize(t.size || 0), date: t.created_at, url: '/musik?titel=' + t.id, dl: '/musik/stream/' + t.id + '?dl=1', vis: t.visibility }));
 }
 
-// Ansicht: node = alle | neu | projekte | privat | k:<Kategorie>; q = Suche
-function view(user, node, q) {
-  const list = cats.list();
+// ---------- Aufbau der Seite (Bearbeiten-Modus) ----------
+const LAYOUT = {
+  title: 'Dancors Downloads', text: 'Projekte mit Versionen, Anleitung und einer Liste der Änderungen. Einzelne Dateien findest du unter „Alle Dateien“.',
+  start: 'projekte', look: 'gross', more: true, order: [], hidden: [],
+};
+const SORTS = { eigene: 'Empfohlen', neu: 'Zuletzt aktualisiert', beliebt: 'Meiste Downloads', name: 'Name A–Z' };
+const keyOk = k => typeof k === 'string' && /^(p\d{1,9}|hub)$/.test(k);
+function layout() {
+  let l = {};
+  try { l = JSON.parse(getSetting('dl_layout', 'null')) || {}; } catch { /* Standard */ }
+  return normalize(l);
+}
+function normalize(l) {
+  l = l && typeof l === 'object' ? l : {};
+  const keys = a => (Array.isArray(a) ? [...new Set(a.filter(keyOk))].slice(0, 500) : []);
+  return {
+    title: str(l.title, 80) || LAYOUT.title, text: str(l.text, 300) || LAYOUT.text,
+    start: l.start === 'alle' ? 'alle' : 'projekte', look: l.look === 'kompakt' ? 'kompakt' : 'gross', more: l.more !== false,
+    order: keys(l.order), hidden: keys(l.hidden),
+  };
+}
+// Speichert den Aufbau; Texte, Symbol, Farbe, Bild und „angepinnt“ gehen direkt an die Projekte
+function saveLayout(input) {
+  input = input && typeof input === 'object' ? input : {};
+  const l = normalize({ ...layout(), ...input });
+  const t = now();
+  for (const c of Array.isArray(input.cards) ? input.cards.slice(0, 500) : []) {
+    if (!c || !keyOk(c.key) || c.key === 'hub') continue;
+    const p = byId(c.key.slice(1));
+    if (!p) continue;
+    const cover = typeof c.cover === 'string' ? (c.cover.match(/^\/media\/([\w.-]+)$/) || [])[1] || (c.cover === '' ? null : p.cover) : p.cover;
+    const next = {
+      title: str(c.title, 120) || p.title, summary: c.summary === undefined ? p.summary : str(c.summary, 240),
+      icon: [...str(c.icon, 8)].slice(0, 2).join('') || p.icon, color: Object.hasOwn(COLORS, c.color) ? c.color : p.color,
+      cover, featured: c.pin === undefined ? p.featured : c.pin ? 1 : 0,
+    };
+    if (Object.keys(next).some(k => String(next[k] ?? '') !== String(p[k] ?? '')))
+      db.prepare('UPDATE dl_projects SET title = ?, summary = ?, icon = ?, color = ?, cover = ?, featured = ?, updated_at = ? WHERE id = ?')
+        .run(next.title, next.summary, next.icon, next.color, next.cover, next.featured, next.title !== p.title || next.summary !== p.summary ? t : p.updated_at, p.id);
+  }
+  setSetting('dl_layout', JSON.stringify(l));
+  return l;
+}
+
+// Ansicht: node = projekte | alle | neu | privat | k:<Kategorie>; q = Suche; o = { sort, kat, nur }
+function view(user, node, q, o = {}) {
+  const list = cats.list(), l = layout();
   const projects = visibleProjects(user).map(p => projectRow(p, user, list)).filter(p => p.count || p.edit);
   const files = looseFiles(user).map(f => fileRow(f, user, list));
   const hub = hubRow(user);
-  const all = [...projects, ...files, ...(hub ? [hub] : [])];
+  const cards = [...projects, ...(hub ? [hub] : [])];
+  const all = [...cards, ...files];
   const byCat = {};
   for (const r of all) (byCat[r.cat] ||= []).push(r);
   const catNodes = list.filter(c => byCat[c.name] && byCat[c.name].length).map(c => ({ key: 'k:' + c.name, icon: c.icon, label: c.name, n: byCat[c.name].length }));
   const since = now() - NEW_DAYS * 86400;
   const fresh = all.filter(r => r.date >= since);
   const privat = user && user.canPrivate ? [...looseFiles(user, true).map(f => fileRow(f, user, list)), ...privatTracks(user)].sort((a, b) => b.date - a.date) : null;
+  const hidden = new Set(l.hidden);
+  for (const c of cards) c.hidden = hidden.has(c.key);
+
+  // Reihenfolge der Karten
+  const sort = Object.hasOwn(SORTS, o.sort) ? o.sort : 'eigene';
+  const pos = new Map(l.order.map((k, i) => [k, i]));
+  const cmp = {
+    eigene: (a, b) => b.featured - a.featured || (pos.has(a.key) ? pos.get(a.key) : 1e6) - (pos.has(b.key) ? pos.get(b.key) : 1e6) || b.date - a.date,
+    neu: (a, b) => b.date - a.date, beliebt: (a, b) => (b.downloads || 0) - (a.downloads || 0) || b.date - a.date,
+    name: (a, b) => a.title.localeCompare(b.title, 'de', { sensitivity: 'base' }),
+  }[sort];
+  const sortCards = rs => [...rs].sort(cmp);
 
   q = str(q, 100).toLowerCase();
-  let rows, title = 'Alle Downloads', icon = '🗂️';
+  if (!['projekte', 'alle', 'neu', 'privat'].includes(node) && !(node && node.startsWith('k:') && byCat[node.slice(2)])) node = l.start;
+  if (node === 'privat' && !privat) node = l.start;
+  let shown = [], rows = [], title = 'Projekte', icon = '⭐', kat = '';
   if (q) {
     const hit = r => [r.title, r.summary, r.cat, r.game, r.version].some(x => x && String(x).toLowerCase().includes(q));
-    rows = all.filter(hit); node = 'suche'; title = `Suche: „${q}“`; icon = '🔍';
-  } else if (node === 'neu') { rows = fresh; title = 'Neu hinzugefügt'; icon = '🆕'; }
-  else if (node === 'projekte') { rows = projects; title = 'Projekte'; icon = '⭐'; }
-  else if (node === 'privat' && privat) { rows = privat; title = 'Privat'; icon = '🔒'; }
-  else if (node && node.startsWith('k:') && byCat[node.slice(2)]) { rows = byCat[node.slice(2)]; title = node.slice(2); icon = cats.iconOf(title, list); }
-  else { node = 'alle'; rows = all; }
-  rows = [...rows].sort((a, b) => (b.type === 'project') - (a.type === 'project') || b.date - a.date);
-  const featured = node === 'alle' ? projects.filter(p => p.featured).slice(0, 4) : [];
+    shown = sortCards(cards.filter(hit)); rows = files.filter(hit); node = 'suche'; title = `Suche: „${q}“`; icon = '🔍';
+  } else if (node === 'projekte') {
+    kat = cats.list().some(c => c.name === o.kat) && cards.some(c => c.cat === o.kat) ? o.kat : '';
+    shown = sortCards(cards.filter(c => (!kat || c.cat === kat) && (!c.hidden || (user && user.isAdmin && !kat && sort === 'eigene'))));
+  } else if (node === 'alle') {
+    title = 'Alle Dateien'; icon = '🗂️';
+    const nur = o.nur === 'projekte' || o.nur === 'dateien' ? o.nur : '';
+    rows = (nur === 'projekte' ? cards : nur === 'dateien' ? files : all);
+    rows = [...rows].sort((a, b) => (b.type !== 'file') - (a.type !== 'file') || b.date - a.date);
+  } else if (node === 'neu') { rows = [...fresh].sort((a, b) => b.date - a.date); title = 'Neu hinzugefügt'; icon = '🆕'; }
+  else if (node === 'privat') { rows = privat; title = 'Privat'; icon = '🔒'; }
+  else {
+    title = node.slice(2); icon = cats.iconOf(title, list);
+    shown = sortCards(byCat[title].filter(r => r.type !== 'file' && !r.hidden)); rows = byCat[title].filter(r => r.type === 'file').sort((a, b) => b.date - a.date);
+  }
+  const chips = list.filter(c => cards.some(r => r.cat === c.name && !r.hidden)).map(c => ({ name: c.name, icon: c.icon }));
   return {
-    node, title, icon, rows, featured, q,
-    tree: { all: all.length, fresh: fresh.length, projects: projects.length, cats: catNodes, privat: privat ? privat.length : null },
+    node, title, icon, cards: shown, rows, q, sort, sorts: SORTS, kat, nur: o.nur || '', chips, layout: l, more: files.length,
+    canArrange: !!(user && user.isAdmin) && node === 'projekte' && !kat && sort === 'eigene',
+    tree: { all: all.length, fresh: fresh.length, projects: cards.filter(c => !c.hidden).length, cats: catNodes, privat: privat ? privat.length : null },
   };
 }
 
@@ -167,7 +240,8 @@ function recent(user, limit = 5) {
 function search(user, q, limit = 20) {
   q = str(q, 100).toLowerCase();
   if (!q) return [];
-  return view(user, 'alle', q).rows.slice(0, limit).map(r => ({ kind: 'dl', icon: r.icon, title: r.title + (r.version ? ' ' + r.version : ''), text: r.summary || r.cat, url: r.type === 'file' ? '/downloads?q=' + encodeURIComponent(r.title) : r.url }));
+  const v = view(user, 'alle', q);
+  return [...v.cards, ...v.rows].slice(0, limit).map(r => ({ kind: 'dl', icon: r.icon, title: r.title + (r.version ? ' ' + r.version : ''), text: r.summary || r.cat, url: r.type === 'file' ? '/downloads?q=' + encodeURIComponent(r.title) : r.url }));
 }
 
 // ---------- Schreiben ----------
@@ -252,6 +326,6 @@ function assign(fileId, projectId, version, changes) {
 function removeQuietly(p) { try { fs.rmSync(p, { force: true }); } catch { /* egal */ } }
 
 module.exports = {
-  COLORS, NEW_DAYS, canCreate, canEdit, canSee, bySlug, byId, versions, view, stats, recent, search, create, update, takeImage, setImages,
+  COLORS, NEW_DAYS, SORTS, layout, saveLayout, canCreate, canEdit, canSee, bySlug, byId, versions, view, stats, recent, search, create, update, takeImage, setImages,
   addVersion, removeVersion, remove, assign, parseShots, projectRow, hubRow, all: () => db.prepare('SELECT id, title FROM dl_projects ORDER BY title COLLATE NOCASE').all(),
 };

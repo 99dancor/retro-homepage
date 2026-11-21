@@ -28,6 +28,12 @@ function isModern(req) {
   return isModernPath(req.path) || modernAuth(req);
 }
 
+// Stand der Seite unten rechts: die Nummer des neuesten Changelog-Eintrags (Update N = PR #N)
+function siteVersion() {
+  const l = require('./changelog').latest();
+  return l && l.no ? 'Update ' + l.no : 'Version 3.0';
+}
+
 // Gemeinsame Werte für das Layout: aktueller Bereich, Rückweg nach der Anmeldung, Fensterbetrieb
 function locals(req, res, area) {
   const framed = !!res.locals.embed;
@@ -36,7 +42,7 @@ function locals(req, res, area) {
   return {
     v3: true, framed, area: area || '', areas: AREAS, here: u.pathname + u.search,
     siteName: getSetting('portal_name', 'dancor.org'),
-    version: '3.0',
+    version: siteVersion(),
   };
 }
 

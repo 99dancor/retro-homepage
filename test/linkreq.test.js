@@ -171,7 +171,7 @@ test('Privat: eigener Bereich, nur mit Recht sichtbar, nicht in Lobby-Listen', a
   assert.ok(dl.view(p, 'privat').rows.some(isIt));
   assert.ok(!dl.view(p, 'neu').rows.some(isIt), 'nicht in Neu hinzugefügt');
   assert.ok(!dl.view(p, 'alle').rows.some(isIt), 'nicht unter Alle');
-  assert.equal(dl.view(other, 'privat').node, 'alle');
+  assert.equal(dl.view(other, 'privat').node, 'projekte', 'ohne Recht die Startansicht');
 });
 
 test('Datei: Quarantäne bei falschem Inhalt, Ablehnen mit Grund', async () => {

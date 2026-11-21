@@ -282,6 +282,6 @@
     // Die Seite meldet sich an: save (Adresse), collect(data) → zu sendendes JSON, props: { gruppe: [Felder] }, applyProps(item, werte),
     // upload (Adresse für Bilder), hint (Text im Balken)
     page: function (p) { page = p; },
-    val: val, setVal: setVal, start: start,
+    val: val, setVal: setVal, start: start, snap: snap,
   };
 })();

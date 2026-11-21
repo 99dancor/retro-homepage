@@ -1,6 +1,7 @@
 'use strict';
 // Dancors Downloads (Version 3.0): Liste mit Kategorien, Projekte mit Versionen. Daten in src/downloads.js.
-//   GET  /downloads?ort=alle|neu|projekte|privat|k:<Kategorie>&q=   Liste
+//   GET  /downloads?ort=projekte|alle|neu|privat|k:<Kategorie>&q=&sort=&kat=&nur=&ansicht=gross|kompakt   Liste
+//   POST /downloads/seite                                             Aufbau speichern (JSON, nur Admin, Bearbeiten-Modus)
 //   GET  /downloads/neues-projekt, POST                               Projekt anlegen (wer hochladen darf)
 //   GET  /downloads/<slug>                                            Projektseite
 //   GET  /downloads/<slug>/bearbeiten, POST                           Projekt ändern (Besitzer, Admin)
@@ -19,11 +20,26 @@ const router = express.Router();
 const loc = (req, res) => v3.locals(req, res, 'downloads');
 
 router.get('/', (req, res) => {
-  const view = dl.view(req.user, String(req.query.ort || ''), req.query.q);
+  const qs = k => String(req.query[k] || '').slice(0, 100);
+  const view = dl.view(req.user, qs('ort'), req.query.q, { sort: qs('sort'), kat: qs('kat'), nur: qs('nur') });
+  // Groß oder Kompakt: Wahl des Besuchers merkt sich ein Cookie, sonst gilt, was der Admin festgelegt hat
+  let look = req.cookies && req.cookies.dl_look;
+  if (req.query.ansicht === 'gross' || req.query.ansicht === 'kompakt') {
+    look = req.query.ansicht;
+    res.cookie('dl_look', look, { maxAge: 365 * 86400e3, sameSite: 'lax', httpOnly: true, secure: req.secure });
+  }
+  if (look !== 'gross' && look !== 'kompakt') look = view.layout.look;
   res.render('v3/downloads', {
-    ...loc(req, res), ...view, title: view.node === 'alle' ? 'Dancors Downloads' : view.title + ' – Downloads', canCreate: dl.canCreate(req.user),
+    ...loc(req, res), ...view, look, heading: view.title, title: view.node === 'projekte' ? view.layout.title : view.title + ' – Downloads', canCreate: dl.canCreate(req.user),
+    isAdmin: !!(req.user && req.user.isAdmin), ok: req.query.ok === 'gespeichert' ? 'Gespeichert.' : '',
+    editData: view.canArrange ? { colors: Object.entries(dl.COLORS) } : null,
     canUpload: !!(req.user && req.user.canUpload), canSuggest: !!req.user && require('../linkreq').canSuggest(req.user), description: 'Widget, Tools, Spielstände und mehr zum Herunterladen, mit Versionen und Anleitung.',
   });
+});
+
+router.post('/seite', express.json({ limit: '1mb' }), (req, res) => {
+  if (!req.user || !req.user.isAdmin) return res.status(403).json({ error: 'Nur der Admin bearbeitet die Seite.' });
+  res.json({ ok: true, layout: dl.saveLayout(req.body && req.body.layout) });
 });
 
 // Ein Formular mit Bildern und einer Datei: alles landet erst bei den Downloads, Bilder ziehen danach in die Medien um

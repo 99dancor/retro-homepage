@@ -2983,6 +2983,16 @@ async function main() {
       assert.match(page, /v1\.1[\s\S]*aktuell[\s\S]*Fehler behoben[\s\S]*v1\.0[\s\S]*Erste Fassung/);
       assert.match(page, /<img src="\/media\/[0-9a-f]+\.png"/);
       assert.equal((await guest.req('/files/dl/' + v1)).status, 200, 'alte Version bleibt ladbar');
+      // Beim Bearbeiten: eine ZIP im Bildfeld gibt eine Meldung, eine Datei im Feld „Datei“ wird eine neue Version
+      r = await send('/downloads/rauch-widget/bearbeiten', { title: 'Rauch Widget', category: 'Allgemein', visibility: 'public' }, { cover: ['setup.zip', 'application/zip', Buffer.from('PK falsch')] });
+      assert.equal(r.status, 400);
+      assert.match(r.text_, /„setup\.zip“ ist kein Bild/);
+      assert.match((await admin.req('/downloads/rauch-widget/bearbeiten')).text_, /<legend>Neue Version/);
+      r = await send('/downloads/rauch-widget/bearbeiten', { title: 'Rauch Widget', summary: 'Für den Rauchtest', category: 'Allgemein', visibility: 'public', featured: '1', version: '1.2', changes: '- Beim Bearbeiten' }, { file: ['widget-1.2.zip', 'application/zip', Buffer.from('PK drei')] });
+      assert.equal(r.headers.get('location'), '/downloads/rauch-widget?ok=version#versionen');
+      const v12 = sql.prepare("SELECT id, version FROM files WHERE original_name = 'widget-1.2.zip'").get();
+      assert.equal(v12.version, '1.2');
+      sql.prepare('DELETE FROM files WHERE id = ?').run(v12.id);
       const list = (await guest.req('/downloads', { top: true })).text_;
       assert.match(list, /class="pc-list[^"]*"[\s\S]*<article class="pc"[\s\S]*Rauch Widget[\s\S]*📌 Angepinnt/, 'Projekte als Karten, angepinnt');
       assert.match(list, /⬇ Version 1\.1 <small>/, 'Knopf der neuesten Version');

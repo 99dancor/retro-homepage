@@ -28,15 +28,13 @@
       <% if (p.cover) { %><label class="check" style="margin-top:10px"><input type="checkbox" name="drop_cover" value="1"> Titelbild entfernen</label><% } %>
       <% if (shots.length) { %><div class="shots"><% for (const s of shots) { %><label style="display:grid;gap:4px;font-size:13px"><img src="/media/<%= s %>" alt=""><span class="check"><input type="checkbox" name="drop_shots" value="<%= s %>"> entfernen</span></label><% } %></div><% } %>
     </fieldset>
-    <% if (!p.id) { %>
-    <fieldset><legend>Erste Version <small class="muted">(geht auch später)</small></legend>
+    <fieldset><legend><%= p.id ? 'Neue Version' : 'Erste Version' %> <small class="muted">(<%= p.id ? 'nur wenn du eine Datei wählst' : 'geht auch später' %>)</small></legend>
       <div class="grid2">
-        <label class="f">Datei <input type="file" name="file"></label>
+        <label class="f">Datei <small>ZIP, Programm, Spielstand …</small><input type="file" name="file"></label>
         <label class="f">Version <input type="text" name="version" maxlength="30" placeholder="1.0"></label>
       </div>
-      <label class="f" style="margin-top:10px">Was ist drin? <textarea name="changes" rows="3"></textarea></label>
+      <label class="f" style="margin-top:10px"><%= p.id ? 'Was ist neu?' : 'Was ist drin?' %> <textarea name="changes" rows="3"></textarea></label>
     </fieldset>
-    <% } %>
     <fieldset><legend>Sichtbarkeit</legend>
       <%- include('_visibility') %>
       <% if (user.isAdmin) { %><label class="check" style="margin-top:10px"><input type="checkbox" name="featured" value="1"<%= p.featured ? ' checked' : '' %>> ⭐ Oben bei den Projekten hervorheben</label><% } %>

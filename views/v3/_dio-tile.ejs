@@ -1,0 +1,67 @@
+<%# Eine Kachel eines Dioramas (src/dioramen.js resolve()). Erwartet r (aufbereitete Kachel), edit (darf gestalten),
+    anchors (Bauwerk → Kachel für „Springen zu“), mapId (erste Karte, für „↑ Zur Karte“), buildings (für die Auswahl). %>
+<% const t = r.t, b = r.b, T = types[t.type];
+   const fmt = s => new Date(s * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+   const size = n => { if (n < 1024) return n + ' B'; const u = ['KB', 'MB', 'GB', 'TB']; let i = -1; do { n /= 1024; i++; } while (n >= 1024 && i < 3); return n.toFixed(n < 10 ? 1 : 0).replace('.', ',') + ' ' + u[i]; };
+   const vno = v => String(v).replace(/^v/i, '');
+   const ext = u => /^https?:/i.test(u); %>
+<div class="kt k-<%= t.type %><%= b ? ' has-bw' : '' %><%= r.empty ? ' empty' : '' %>" id="k-<%= t.id %>" data-id="<%= t.id %>"<% if (b) { %> data-bw="<%= b.id %>"<% } %> style="grid-column:<%= t.x %> / span <%= t.w %>;grid-row:<%= t.y %> / span <%= t.h %>;--ar:<%= r.ar %><%= b ? ';--bwc:' + b.hex : '' %>">
+  <% if (b && anchors.get(b.id) === t.id) { %><span class="anc" id="bw-<%= b.id %>"></span><% } %>
+  <% if (edit) { %>
+  <div class="ktool">
+    <button type="button" class="mv" data-k="move" title="Ziehen zum Verschieben" aria-label="Verschieben">⠿</button>
+    <span class="kty"><%= T.icon %> <%= T.label %></span>
+    <select data-k="bw" aria-label="Gehört zu Bauwerk" class="bwsel"><option value="">○ kein Bauwerk</option><% buildings.forEach((x, i) => { %><option value="<%= x.id %>"<%= t.bw === x.id ? ' selected' : '' %>>● <%= i + 1 %> <%= x.name %></option><% }) %></select>
+    <button type="button" data-k="cfg" title="Inhalt ändern" aria-label="Inhalt ändern">⚙</button>
+    <button type="button" data-k="del" title="Kachel entfernen" aria-label="Kachel entfernen">🗑</button>
+  </div>
+  <span class="rz rz-r" data-rz="r" aria-hidden="true"></span><span class="rz rz-b" data-rz="b" aria-hidden="true"></span><span class="rz rz-c" data-rz="c" aria-hidden="true"></span>
+  <% } %>
+  <% if (b && t.type !== 'head') { %><span class="bwtag"><%= b.no %> · <%= b.name %></span><% } %>
+  <% if (r.empty && edit) { %>
+  <div class="kph"><span class="emo"><%= T.icon %></span><b><%= T.label %></b><small><%= t.type === 'dl' ? (t.bw ? 'Noch keine Datei für dieses Bauwerk. Hochladen unter „Eckdaten und Dateien“.' : 'Noch keine Datei. Hochladen unter „Eckdaten und Dateien“.') : t.type === 'facts' || t.type === 'mods' ? 'Noch leer. Ausfüllen unter „Eckdaten und Dateien“.' : '⚙ anklicken und füllen. Besucher sehen leere Kacheln nicht.' %></small></div>
+  <% } else if (t.type === 'text') { %>
+  <div class="bd"><% if (t.title) { %><h3><%= t.title %></h3><% } %><div class="prose"><%- r.html %></div></div>
+  <% } else if (t.type === 'img') { %>
+  <a class="fill<%= t.fit === 'contain' ? ' contain' : '' %>" href="/media/<%= r.f %>" data-lb data-cap="<%= t.cap %>"><img src="/media/<%= r.f %>" alt="<%= t.cap %>" loading="lazy"></a>
+  <% if (t.cap) { %><span class="kcap"><%= t.cap %></span><% } %>
+  <% } else if (t.type === 'cmp') { %>
+  <div class="cmp" style="--at:50%"><img src="/media/<%= r.before %>" alt="Vorher"><img class="after" src="/media/<%= r.after %>" alt="Nachher"><span class="line" aria-hidden="true"></span><span class="knob" aria-hidden="true">⇔</span><span class="lb1">Vorher</span><span class="lb2">Nachher</span><input type="range" min="0" max="100" value="50" aria-label="Vorher und Nachher vergleichen"></div>
+  <% } else if (t.type === 'gal') { %>
+  <div class="kgal n<%= Math.min(r.imgs.length, 6) %>"><% r.imgs.forEach((g, i) => { %><a href="/media/<%= g.f %>" data-lb data-cap="<%= g.cap %>"<%= i >= 6 ? ' hidden' : '' %>><img src="/media/<%= g.f %>" alt="<%= g.cap %>" loading="lazy"><% if (i === 5 && r.imgs.length > 6) { %><span class="more">+<%= r.imgs.length - 6 %></span><% } %></a><% }) %></div>
+  <% } else if (t.type === 'video') { %>
+  <a class="kvid" href="<%= r.video.url %>" target="_blank" rel="noopener noreferrer nofollow"><% if (r.video.thumb) { %><img src="<%= r.video.thumb %>" alt="" loading="lazy" referrerpolicy="no-referrer"><% } %><span class="play" aria-hidden="true">▶</span><span class="vtx"><%= t.cap || 'Video ansehen' %> ↗</span></a>
+  <% } else if (t.type === 'map') { %>
+  <div class="mapw"><div class="mapin"><img src="/media/<%= r.f %>" alt="Karte">
+    <% for (const p of r.points) { %><a class="mp" href="<%= p.href || '#' %>" style="left:<%= p.x %>%;top:<%= p.y %>%;--bwc:<%= p.hex %>"<% if (p.bw) { %> data-bw="<%= p.bw %>"<% } %> data-to="<%= p.to %>"><i><span><%= p.no %></span></i><% if (p.label) { %><em><%= p.label %></em><% } %></a><% } %>
+  </div></div>
+  <span class="klbl">🗺️ Karte<%= r.points.length ? ' · Punkt anklicken' : '' %></span>
+  <% } else if (t.type === 'head') { %>
+  <span class="no"><%= b.no %></span><div class="hx"><h2><%= b.name %></h2><% if (b.text) { %><small><%= b.text %></small><% } %></div><span class="sp"></span><% if (mapId) { %><a class="pill small tomap" href="#k-<%= mapId %>">↑ Zur Karte</a><% } %>
+  <% } else if (t.type === 'dl') { %>
+  <div class="bd dlbox2">
+    <h3>⬇ <%= b ? 'Download: ' + b.name : 'Download' %></h3>
+    <a class="pill pri big" href="/dioramen/dl/<%= r.latest.id %>">⬇ <%= r.latest.version ? (b ? 'Version ' : 'Spielstand ') + vno(r.latest.version) : 'Herunterladen' %> <small>(<%= size(r.latest.size) %>)</small></a>
+    <div class="sm"><span class="fn"><%= r.latest.original_name %></span><span><%= r.downloads %>× geladen</span></div>
+    <% if (r.files.length > 1 || r.changes[0]) { %>
+    <div class="vers-mini">
+      <% r.files.forEach((f, i) => { %>
+      <div class="vrow"><b><%= f.version ? vno(f.version) : fmt(f.created_at) %></b><span class="sp"><%= fmt(f.created_at) %> · <%= size(f.size) %></span><% if (i === 0) { %><span class="ver">aktuell</span><% } else { %><a class="pill small" href="/dioramen/dl/<%= f.id %>" aria-label="Version <%= f.version || '' %> laden">⬇</a><% } %></div>
+      <% if (r.changes[i]) { %><div class="chg prose"><%- r.changes[i] %></div><% } %>
+      <% }) %>
+    </div>
+    <% } %>
+    <% if (r.howto) { %><details class="note"><summary>📖 So geht’s</summary><div class="prose"><%- r.howto %></div></details><% } %>
+  </div>
+  <% } else if (t.type === 'facts') { %>
+  <div class="bd"><h3>📋 Steckbrief</h3><dl class="facts">
+    <% if (d.game) { %><dt>Spiel</dt><dd><%= d.game %></dd><% } %>
+    <% if (d.world) { %><dt>Karte</dt><dd><%= d.world %></dd><% } %>
+    <% for (const [k, v] of r.facts) { %><dt><%= k %></dt><dd><%= v %></dd><% } %>
+  </dl></div>
+  <% } else if (t.type === 'mods') { %>
+  <div class="bd"><h3>🧩 Benötigte Mods</h3><ul class="mods">
+    <% for (const m of r.mods) { %><li><span class="sp"><%= m.name %></span><% if (m.ver) { %><small><%= m.ver %></small><% } %><% if (m.url) { %><a class="pill small" href="<%= m.url %>"<%= ext(m.url) ? ' target="_blank" rel="noopener noreferrer nofollow"' : '' %>><%= ext(m.url) ? 'Öffnen ↗' : 'Hier' %></a><% } %></li><% } %>
+  </ul></div>
+  <% } %>
+</div>

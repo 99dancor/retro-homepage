@@ -181,12 +181,12 @@ async function main() {
       assert.match((await admin.req('/admin/messages')).text_, /Frage/);
     });
 
-    await step('Dancors Dioramen: Spielstand mit Bild und Datei, Bauwerk, Download, Seite bearbeiten', async () => {
+    await step('Dancors Dioramen: Spielstand mit Bild und Datei, Kacheln und Bauwerk gestalten, Download, Seite bearbeiten', async () => {
       const PIX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
       assert.equal((await guest.req('/dioramen/neu')).status, 302, 'Gast muss sich anmelden');
       let t = await admin.csrf('/dioramen/neu');
       let fd = new FormData();
-      for (const [k, v] of [['_csrf', t], ['kind', 'spielstand'], ['title', 'Testhof'], ['game', 'Farming Simulator 25'], ['summary', 'Ein Hof zum Testen'], ['body_md', '**Fett**'], ['version', '1.0'],
+      for (const [k, v] of [['_csrf', t], ['title', 'Testhof'], ['game', 'Farming Simulator 25'], ['summary', 'Ein Hof zum Testen'], ['body_md', '**Fett**'], ['version', '1.0'],
         ['fact_k', 'Spielzeit'], ['fact_v', '12 Stunden'], ['fact_k', ''], ['fact_v', ''], ['mod_name', 'Seasons'], ['mod_ver', '2'], ['mod_url', 'javascript:alert(1)'], ['in_downloads', '1'], ['visibility', 'public']]) fd.append(k, v);
       fd.append('images', new Blob([PIX], { type: 'image/png' }), 'hof.png');
       fd.append('new_cap', 'Von oben');
@@ -205,25 +205,38 @@ async function main() {
       assert.equal(r.text_, 'spielstand');
       assert.match(r.headers.get('content-disposition'), /testhof\.zip/);
       assert.match((await guest.req('/dioramen/testhof')).text_, /1× geladen/);
-      // Bauwerk gehört zum Spielstand
-      t = await admin.csrf('/dioramen/neu?typ=bauwerk');
-      const hofId = page.match(/teil=(\d+)/) ? page.match(/teil=(\d+)/)[1] : (await admin.req('/dioramen/testhof')).text_.match(/teil=(\d+)/)[1];
-      fd = new FormData();
-      for (const [k, v] of [['_csrf', t], ['kind', 'bauwerk'], ['parent_id', hofId], ['title', 'Teststall'], ['visibility', 'public']]) fd.append(k, v);
-      assert.equal((await admin.req('/dioramen/neu', { method: 'POST', body: fd })).status, 302);
-      assert.match((await guest.req('/dioramen/teststall')).text_, /Dieses Bauwerk steckt im Spielstand/);
-      assert.match((await guest.req('/dioramen/testhof')).text_, /Bauwerke in diesem Spielstand[\s\S]*Teststall/);
+      // Gestalten: Bauwerk mit Überschrift und eigener Text-Kachel, Bild hochladen, Vorschau
+      const json = (who, url, body, tok) => who.req(url, { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json', 'x-csrf-token': tok } });
+      const tiles = { buildings: [{ id: 'b1', name: 'Teststall', text: 'Für Kühe' }], tiles: [
+        { id: 't1', type: 'text', x: 1, y: 1, w: 6, h: 4, md: '**Fett**' }, { id: 't2', type: 'dl', x: 7, y: 1, w: 6, h: 4 },
+        { id: 't3', type: 'head', bw: 'b1', x: 1, y: 5, w: 12, h: 2 }, { id: 't4', type: 'text', bw: 'b1', x: 1, y: 7, w: 12, h: 3, title: 'Im Stall', md: 'Kühe' },
+        { id: 't5', type: 'facts', x: 1, y: 10, w: 6, h: 4 }, { id: 't6', type: 'mods', x: 7, y: 10, w: 6, h: 4 }] };
+      assert.equal((await json(guest, '/dioramen/testhof/kacheln', tiles, await guest.csrf('/login'))).status, 403);
+      t = await admin.csrf('/dioramen/neu');
+      r = await json(admin, '/dioramen/testhof/kacheln/vorschau', { ...tiles, only: ['t3'] }, t);
+      assert.equal(r.status, 200);
+      assert.match(JSON.parse(r.text_).html.t3, /<h2>Teststall<\/h2>/);
+      assert.equal((await json(admin, '/dioramen/testhof/kacheln', tiles, t)).status, 200);
+      fd = new FormData(); fd.append('_csrf', t); fd.append('images', new Blob([PIX], { type: 'image/png' }), 'stall.png');
+      r = await admin.req('/dioramen/testhof/bilder', { method: 'POST', body: fd, headers: { accept: 'application/json' } });
+      assert.equal(r.status, 200, r.text_);
+      assert.equal(JSON.parse(r.text_).images.length, 2);
+      const hof = (await guest.req('/dioramen/testhof')).text_;
+      assert.match(hof, /href="#bw-b1"[^>]*><i>1<\/i>Teststall<\/a>/, 'Springen zu');
+      assert.match(hof, /id="bw-b1"[\s\S]*<h3>Im Stall<\/h3>/);
+      assert.doesNotMatch(hof, /data-k="start"/, 'Gäste gestalten nicht');
+      assert.match((await admin.req('/dioramen/testhof')).text_, /data-k="start"/);
       // Übersicht, Startseite, Downloads, Suche
       const list = (await guest.req('/dioramen')).text_;
       assert.match(list, /Testhof/);
-      assert.match(list, /Teststall/);
+      assert.match(list, /Teststall/, 'Bauwerk als Chip auf der Karte');
       assert.match((await guest.req('/', { top: true })).text_, /data-tile="dioramen"/);
       assert.match((await guest.req('/downloads')).text_, /🏡 Bilder und Details/);
       assert.match((await guest.req('/finden?q=testhof')).text_, /Diorama/);
       // Kein Bild im Bildfeld: Meldung statt still wegwerfen
       t = await admin.csrf('/dioramen/testhof/bearbeiten');
       fd = new FormData();
-      for (const [k, v] of [['_csrf', t], ['kind', 'spielstand'], ['title', 'Testhof']]) fd.append(k, v);
+      for (const [k, v] of [['_csrf', t], ['title', 'Testhof']]) fd.append(k, v);
       fd.append('images', new Blob(['zip'], { type: 'application/zip' }), 'falsch.zip');
       r = await admin.req('/dioramen/testhof/bearbeiten', { method: 'POST', body: fd });
       assert.equal(r.status, 400);

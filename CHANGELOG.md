@@ -1,5 +1,10 @@
 # Changelog
 
+## Update 101 · 22.11.2026 – Hintergrund im dunklen Modus einstellbar
+
+- **Hintergrund bei Dunkel:** Wer die Seite dunkel nutzt, sah im Reiter Hintergrund nur einen Haken und keine Einstellungen. Jetzt stehen dort Art, Bilder und Regler auch im dunklen Modus. Sie gelten für hell und dunkel, bis du „Dunkel eigener Hintergrund“ anhakst.
+- **Hochladen:** Das Feld zum Hochladen eines Bildes heißt jetzt „＋ Hochladen“ statt nur „＋“.
+
 ## Update 100 · 22.11.2026 – Aussehen der Seite: eigenes Symbol, Titelzeile und Hintergründe
 
 - **🎨 Aussehen der Seite:** Als Admin öffnest du auf der Startseite mit „🎨 Aussehen“ (oder im Kontomenü auf jeder Seite) rechts eine Schublade. Die Seite daneben zeigt jede Änderung sofort, erst „Speichern“ macht sie für alle sichtbar. „Rückgängig“ und Strg+Z nehmen Schritte zurück. Das gilt für die Startseite, Downloads, Duden, Rezepte, Daddelecke, Dioramen und die Fußseiten, nicht für den Desktop.

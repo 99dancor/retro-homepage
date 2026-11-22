@@ -189,7 +189,7 @@
       b.appendChild(x);
       w.appendChild(b);
     });
-    var up = el('label', { class: 'up', title: 'Bild hochladen' }, ['＋', el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif,image/avif', multiple: true, hidden: true })]);
+    var up = el('label', { class: 'up', title: 'Bild hochladen' }, [el('span', { text: '＋' }), el('small', { text: 'Hochladen' }), el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif,image/avif', multiple: true, hidden: true })]);
     up.querySelector('input').addEventListener('change', function () { upload(this.files, opts.pick, !opts.order); this.value = ''; });
     w.appendChild(up);
     return w;
@@ -276,7 +276,7 @@
   function cfg() {
     var a = S.bg[area];
     if (!a) return null;
-    if (mode === 'dark') return a.dark;
+    if (mode === 'dark' && a.dark) return a.dark;
     return a.light;
   }
   function tabBg() {
@@ -303,7 +303,7 @@
       out.push(check('Dunkel eigener Hintergrund (sonst wie hell)', function () { return !!S.bg[area].dark; }, function (v) {
         S.bg[area].dark = v ? copy(S.bg[area].light) : null;
       }, true));
-      if (!S.bg[area].dark) return out;
+      if (!S.bg[area].dark) out.push(hint('Dunkel zeigt denselben Hintergrund wie Hell. Was du unten einstellst, gilt für beide.'));
     }
     var b = cfg();
     var kinds = [['gradient', 'Verlauf'], ['color', 'Farbe'], ['image', 'Bild'], ['slides', 'Diashow']];

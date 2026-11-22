@@ -1235,7 +1235,8 @@ body.lk-drawer { padding-right: 420px; }
 .lk-ax .thumbs > * { position: relative; aspect-ratio: 16 / 10; border-radius: 8px; border: 2px solid transparent; box-shadow: 0 0 0 1px var(--line); background: var(--surface-2) center / cover; cursor: pointer; padding: 0; display: grid; place-items: center; font: 600 11px var(--font); color: var(--muted); }
 .lk-ax .thumbs.sq > * { aspect-ratio: 1; }
 .lk-ax .thumbs > .on { border-color: var(--surface); box-shadow: 0 0 0 2px var(--accent); }
-.lk-ax .thumbs .up { border: 2px dashed var(--accent-soft-line); box-shadow: none; color: var(--accent); font-size: 20px; }
+.lk-ax .thumbs .up { border: 2px dashed var(--accent-soft-line); box-shadow: none; color: var(--accent); font-size: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; cursor: pointer; }
+.lk-ax .thumbs .up small { font-size: 11px; font-weight: 600; }
 .lk-ax .thumbs em { position: absolute; left: 4px; top: 4px; background: var(--accent); color: #fff; font: 700 11px/18px var(--font); min-width: 18px; border-radius: 999px; font-style: normal; }
 .lk-ax .thumbs .del { position: absolute; right: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0, 0, 0, .55); color: #fff; font-size: 10px; line-height: 18px; display: none; }
 .lk-ax .thumbs > :hover .del, .lk-ax .thumbs > :focus-within .del { display: block; }

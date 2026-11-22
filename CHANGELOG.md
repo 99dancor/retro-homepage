@@ -1,5 +1,9 @@
 # Changelog
 
+## Update 102 · 22.11.2026 – Dioramen: Vorher/Nachher wieder mit Schieber
+
+- **Schieber zurück:** In der Vorher/Nachher-Kachel liegen die beiden Bilder wieder übereinander, und ein Schieber in der Mitte zeigt links das Vorher und rechts das Nachher. Seit Update 99 standen sie versehentlich untereinander, mit einem kleinen Regler darunter.
+
 ## Update 101 · 22.11.2026 – Hintergrund im dunklen Modus einstellbar
 
 - **Hintergrund bei Dunkel:** Wer die Seite dunkel nutzt, sah im Reiter Hintergrund nur einen Haken und keine Einstellungen. Jetzt stehen dort Art, Bilder und Regler auch im dunklen Modus. Sie gelten für hell und dunkel, bis du „Dunkel eigener Hintergrund“ anhakst.

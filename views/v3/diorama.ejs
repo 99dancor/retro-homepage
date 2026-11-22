@@ -50,6 +50,7 @@
 <% } %>
 
 <div class="kg" id="kg">
+<% for (const f of frames) { %><div class="bwframe" data-frame="<%= f.id %>" style="grid-column:<%= f.x %> / span <%= f.w %>;grid-row:<%= f.y %> / span <%= f.h %>;--bwc:<%= f.hex %>" aria-hidden="true"></div><% } %>
 <% for (const r of tiles) { %><%- include('_dio-tile', { r, ...tileLocals }) %><% } %>
 </div>
 <% if (!tiles.length) { %><div class="list"><div class="empty-state"><span class="e emo">🧱</span>Hier steht noch nichts.<% if (editData) { %> Auf „Gestalten“ tippen und Kacheln hinzufügen.<% } %></div></div><% } %>

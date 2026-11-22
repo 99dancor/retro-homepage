@@ -1,5 +1,10 @@
 # Changelog
 
+## Update 104 · 22.11.2026 – Dioramen: Rahmen ums Bauwerk und eigener Steckbrief
+
+- **Rahmen ums Bauwerk:** Alle Kacheln eines Bauwerks liegen jetzt in einem halbdurchsichtigen Rahmen in seiner Farbe, von der Überschrift bis zur letzten Kachel. Beim Gestalten wächst und schrumpft er mit, wenn du Kacheln verschiebst oder einem Bauwerk zuordnest. Im Bauwerk-Fenster (✎) lässt er sich je Bauwerk abschalten. Auf dem Handy entfällt er, dort stehen die Kacheln ohnehin untereinander.
+- **Steckbrief selbst füllen:** Die Steckbrief-Kachel hat jetzt eine eigene Überschrift und eigene Zeilen (z. B. „Leistung: 2,4 MW“). Die Eckdaten des Spielstands zeigt sie nur noch, wenn du das anhakst. Ohne Bauwerk ist der Haken zuerst gesetzt, bei einem Bauwerk nicht. So bekommt jedes Bauwerk seinen eigenen Steckbrief.
+
 ## Update 103 · 22.11.2026 – Bilder öffnen sich überall wie bei den Dioramen
 
 - **Bilder groß ansehen:** Vorschaubilder bei den Downloads öffneten sich in einem neuen Tab. Jetzt öffnen sich Bilder auf allen modernen Seiten wie bei den Dioramen in einem dunklen Fenster über der Seite. Mit den Pfeilen, den Pfeiltasten oder Wischen blätterst du durch alle Bilder der Seite, mit ✕, Esc oder einem Klick daneben schließt du es.

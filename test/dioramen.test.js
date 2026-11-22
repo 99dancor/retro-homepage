@@ -56,6 +56,24 @@ test('Anlegen: Adresse, Startkacheln mit dem ersten Text', () => {
   assert.equal(t[0].md, 'Hallo');
 });
 
+test('Steckbrief mit eigenen Zeilen und Bauwerk-Rahmen', () => {
+  const blds = dio.normBuildings([{ id: 'b1', name: 'Stall' }, { id: 'b2', name: 'Silo', frame: false }]);
+  assert.equal(blds[0].frame, true); assert.equal(blds[1].frame, false);
+  const t = dio.normTiles([
+    { id: 't1', type: 'facts', x: 1, y: 1, w: 4, h: 4, title: 'Daten', rows: [['Baujahr', 'Jahr 3'], ['', 'weg'], 'quatsch'] },
+    { id: 't2', type: 'facts', x: 5, y: 1, w: 4, h: 4, bw: 'b1' },
+    { id: 't3', type: 'facts', x: 9, y: 1, w: 4, h: 4, bw: 'b1', base: true },
+    { id: 't4', type: 'text', x: 1, y: 8, w: 6, h: 3, bw: 'b1' },
+    { id: 't5', type: 'text', x: 1, y: 12, w: 6, h: 3, bw: 'b2' },
+  ], blds);
+  assert.equal(t[0].title, 'Daten');
+  assert.deepEqual(t[0].rows, [['Baujahr', 'Jahr 3']]);
+  assert.equal(t[0].base, true, 'ohne Bauwerk: Eckdaten an');
+  assert.equal(t[1].base, false, 'mit Bauwerk: Eckdaten aus');
+  assert.equal(t[2].base, true);
+  assert.deepEqual(dio.frames(t, blds), [{ id: 'b1', hex: dio.COLORS[blds[0].color], x: 1, y: 1, w: 12, h: 10 }], 'Rahmen umschließt alle Kacheln, b2 ohne Rahmen');
+});
+
 test('Kacheln: Raster, Arten, Bauwerke, Kartenziele', () => {
   const blds = dio.normBuildings([{ id: 'b1', name: 'Stall', color: 'lila' }, { id: 'b1', name: 'doppelt' }, { id: 'x', name: 'falsch' }, { id: 'b2', name: '  ' }, { id: 'b3', name: 'Silo', color: 'quatsch' }]);
   assert.deepEqual(blds.map(b => b.id), ['b1', 'b3']);

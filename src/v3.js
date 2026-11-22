@@ -44,6 +44,8 @@ function locals(req, res, area) {
     v3: true, framed, area: area || '', areas: AREAS, here: u.pathname + u.search,
     siteName: getSetting('portal_name', 'dancor.org'),
     version: siteVersion(),
+    // Update 100: Aussehen (Symbol, Titel, Hintergrund des Bereichs, Stil, Extras), src/look.js
+    ...require('./look').forPage(req.user, area, req.path),
   };
 }
 

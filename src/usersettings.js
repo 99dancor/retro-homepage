@@ -4,6 +4,7 @@
 //   desk:    Desktop (readme.txt gelesen, Widgets „Offene Lobbys“ und „Dienste“, Suche, ausgeblendete Standardsymbole und ihre Plätze)
 //   stats:   wer welche Spielwerte im Profil sieht, ob und wie man in Bestenlisten steht, Vitrine
 //   cards:   eigene Ansicht am Kartentisch (Hintergrund und Tischrand, nur für einen selbst)
+//   look:    eigener Hintergrund der modernen Seiten (Update 100)
 //   icu:     Messenger (ICU/DSN): Töne, Hinweis „ist jetzt online“, automatisch abwesend, beim Anmelden öffnen
 const { db, now } = require('./db');
 const { FONTS } = require('./themes');
@@ -137,7 +138,10 @@ function cleanPlayer(p) {
   };
 }
 
-const CLEAN = { display: cleanDisplay, desk: cleanDesk, stats: cleanStats, cards: cleanCards, icu: cleanIcu, player: cleanPlayer };
+// Update 100: eigener Hintergrund der modernen Seiten (ein Bild aus der Bildauswahl des Admins, src/look.js)
+const cleanLook = p => ({ bg: p && /^[a-f0-9]{32}\.(png|jpe?g|gif|webp|avif)$/.test(String(p.bg || '')) ? p.bg : '' });
+
+const CLEAN = { look: cleanLook, display: cleanDisplay, desk: cleanDesk, stats: cleanStats, cards: cleanCards, icu: cleanIcu, player: cleanPlayer };
 
 function readAll(userId) {
   const r = db.prepare('SELECT data FROM user_settings WHERE user_id = ?').get(userId);

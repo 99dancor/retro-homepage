@@ -2975,7 +2975,7 @@ async function main() {
     await step('Version 3.0: Startseite mit Kacheln, Suche, Anmeldung, Desktop unter /desktop, alte Adressen', async () => {
       const home = await guest.req('/', { top: true });
       assert.equal(home.status, 200);
-      assert.match(home.text_, /<body class="v3"/);
+      assert.match(home.text_, /<body class="v3 lk-a-home/);
       for (const k of ['desktop', 'downloads', 'duden', 'rezepte']) assert.match(home.text_, new RegExp(`data-tile="${k}"`), k);
       assert.doesNotMatch(home.text_, /class="startmenu"|id="logon"/, 'kein Desktop auf der Startseite');
       assert.match(home.text_, /href="\/login\?next=%2F"/);
@@ -3580,6 +3580,75 @@ async function main() {
         assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM popups').get().n, 0);
         await admin.form('/admin/popups/einstellungen', { _csrf: t, popup_on: '1', popup_first: '30', popup_every: '15', popup_max: '3', popup_audience: 'all', popup_suggest: '1' });
       } finally { sql.close(); }
+    });
+
+    await step('Update 100: Aussehen der Seite: Symbol, Titel, Hintergründe je Bereich, Stil, Extras, Mein Hintergrund', async () => {
+      const json = (b, url, body, tk) => b.req(url, { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json', 'x-csrf-token': tk } });
+      const anna = members.anna;
+      const tk = await admin.csrf('/admin/users');
+      const gtk = await guest.csrf('/login');
+      assert.equal((await guest.req('/aussehen/daten')).status, 403, 'Gäste lesen keine Einstellungen');
+      assert.equal((await json(guest, '/aussehen', { head: { title: 'Gehackt' } }, gtk)).status, 403, 'Gäste speichern nicht');
+      // Bild in die Bildauswahl: nur echte Bilder
+      const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+      let fd = new FormData(); fd.append('_csrf', tk); fd.append('image', new Blob(['<svg/>'], { type: 'image/png' }), 'falsch.png');
+      assert.equal((await admin.req('/aussehen/bild', { method: 'POST', body: fd, headers: { 'x-csrf-token': tk } })).status, 400, 'kein Bild');
+      fd = new FormData(); fd.append('_csrf', tk); fd.append('image', new Blob([PNG], { type: 'image/png' }), 'wiese.png');
+      let r = await admin.req('/aussehen/bild', { method: 'POST', body: fd, headers: { 'x-csrf-token': tk } });
+      assert.equal(r.status, 200, r.text_);
+      const img = JSON.parse(r.text_).f;
+      assert.match(img, /^[a-f0-9]{32}\.png$/);
+      // Speichern: eigenes Symbol, Titel, Startseite mit Bild, Daddelecke dunkel eigen, Vorlage, Extras
+      const data = JSON.parse((await admin.req('/aussehen/daten')).text_);
+      const orig = JSON.parse(JSON.stringify(data.look)), L = data.look;
+      L.head.icon = { ...L.head.icon, kind: 'letters', letters: 'DE', favicon: true };
+      L.head.title = 'Dancors Ecke'; L.head.sub = 'Daddeln & Bauern';
+      L.bg.home.light = { ...L.bg.home.light, kind: 'image', image: img, glass: 70, blur: 4, veil: 20 };
+      L.bg.spiele = { light: { ...data.bgDefault, kind: 'color', color: '#112233' }, dark: { ...data.bgDefault, kind: 'image', image: img } };
+      L.bg.duden = { light: { ...data.bgDefault, kind: 'image', image: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png' }, dark: null };
+      L.style = { ...L.style, preset: 'wiese', accent: '#2f8f3a', tile: 'glass', cols: '4' };
+      L.extras = { ...L.extras, greet: true, foot: 'Mit Kaffee gebaut', notice: { on: true, text: 'Wartung <heute>', until: '', tone: 'warn' } };
+      assert.equal((await json(admin, '/aussehen', L, tk)).status, 200);
+      // Vorschau liefert CSS aus ungespeicherten Werten
+      r = await json(admin, '/aussehen/vorschau', { ...L, style: { ...L.style, accent: '#123456' } }, tk);
+      assert.match(r.text_, /--accent:#123456/);
+      const home = (await guest.req('/', { top: true })).text_;
+      assert.match(home, /<span class="mk lk-k-letters"[^>]*>DE<\/span><span class="tt"><b>Dancors Ecke<\/b><small>Daddeln &amp; Bauern<\/small>/);
+      assert.match(home, /<title>Dancors Ecke<\/title>/, 'Titel ist auch der Name der Seite');
+      assert.match(home, /<body class="v3 lk-a-home lk-tile-glass lk-cols-4/);
+      assert.match(home, new RegExp(`--lk-img:url\\("/media/${img}"\\)`));
+      assert.match(home, /--lk-card:color-mix\(in srgb, var\(--surface\) 70%, transparent\)/);
+      assert.match(home, /<link rel="icon" href="\/aussehen\/symbol\.svg\?v=/);
+      assert.match(home, /class="lk-notice t-warn"[^>]*><span>Wartung &lt;heute&gt;<\/span>/, 'Hinweis ist maskiert');
+      assert.match(home, /<span class="lk-own">Mit Kaffee gebaut<\/span>/);
+      assert.match(home, /class="lk-greet"[^>]*><span class="emo">[^<]+<\/span> (Hallo!|Guten Morgen!|Guten Abend!|Gute Nacht!)/);
+      assert.match(home, /class="v3-quick"/);
+      assert.doesNotMatch(home, /aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/, 'nur Bilder aus der Bildauswahl');
+      const games = (await guest.req('/spiele', { top: true })).text_;
+      assert.match(games, /<body class="v3 lk-a-spiele/);
+      assert.match(games, /body\.v3\.lk-a-spiele\{[^}]*--lk-img:linear-gradient\(#112233, #112233\)/);
+      assert.match(games, /:root\[data-theme="dark"\] :is\(body\.v3\.lk-a-spiele\) \{--lk-img:initial/);
+      const svg = await guest.req('/aussehen/symbol.svg');
+      assert.equal(svg.status, 200);
+      assert.match(svg.text_, /<svg[^>]*>[\s\S]*>DE<\/text>/);
+      assert.match((await guest.req('/manifest.webmanifest')).text_, /\/aussehen\/symbol\.svg/);
+      // Der Desktop bleibt, wie er ist
+      assert.doesNotMatch((await guest.req('/desktop', { top: true })).text_, /lk-style|v3-look/);
+      // Mein Hintergrund: nur Bilder aus der Auswahl, nur für das eigene Konto
+      const atk = await anna.csrf('/konto');
+      assert.equal((await json(anna, '/aussehen/mein', { bg: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png' }, atk)).status, 200);
+      assert.doesNotMatch((await anna.req('/duden', { top: true })).text_, /<body class="v3 [^"]*lk-mine/);
+      assert.equal(JSON.parse((await json(anna, '/aussehen/mein', { bg: img }, atk)).text_).bg, img);
+      const mine = (await anna.req('/duden', { top: true })).text_;
+      assert.match(mine, /<body class="v3 lk-a-duden[^"]* lk-mine/);
+      assert.match(mine, /data-lk-mine/);
+      assert.doesNotMatch((await guest.req('/duden', { top: true })).text_, /<body class="v3 [^"]*lk-mine/);
+      // Bild in Gebrauch lässt sich nicht aus der Auswahl nehmen
+      assert.equal((await json(admin, '/aussehen/bild/loeschen', { f: img }, tk)).status, 409);
+      // Zurück auf die Vorgaben, damit die übrigen Prüfungen das gewohnte Aussehen sehen
+      assert.equal((await json(anna, '/aussehen/mein', { bg: '' }, atk)).status, 200);
+      assert.equal((await json(admin, '/aussehen', { ...orig, head: { ...orig.head, title: 'dancor.org' } }, tk)).status, 200);
+      assert.equal((await json(admin, '/aussehen/bild/loeschen', { f: img }, tk)).status, 200);
     });
 
     await step('Daddelecke: Übersicht, Spielseiten, Punkte, Bearbeiten-Modus, Fußseiten im neuen Stil', async () => {

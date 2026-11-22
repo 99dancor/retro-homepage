@@ -71,12 +71,22 @@ router.get('/sw.js', (req, res) => {
   res.set({ 'Cache-Control': 'no-cache', 'Service-Worker-Allowed': '/' });
   res.sendFile(path.join(__dirname, '..', '..', 'public', 'sw.js'));
 });
+// Update 100: eigenes Symbol aus „Aussehen der Seite“ auch als App-Symbol, wenn dort angehakt
+function lookIcons() {
+  const std = [{ src: '/static/icon.png', sizes: '256x256', type: 'image/png' }, { src: '/static/icon.svg', sizes: 'any', type: 'image/svg+xml' }];
+  try {
+    const ic = require('../look').get().head.icon;
+    if (!ic.favicon || ic.kind === 'none') return std;
+    if (ic.kind === 'image' && ic.image) return [{ src: '/media/' + ic.image, sizes: 'any', type: /\.png$/.test(ic.image) ? 'image/png' : /\.webp$/.test(ic.image) ? 'image/webp' : 'image/jpeg' }, ...std];
+    return [{ src: '/aussehen/symbol.svg', sizes: 'any', type: 'image/svg+xml' }, std[0]];
+  } catch { return std; }
+}
 // Damit sich die Seite auf dem Handy zum Startbildschirm hinzufügen lässt (auf dem iPhone Voraussetzung für Push)
 router.get('/manifest.webmanifest', (req, res) => {
   res.type('application/manifest+json').json({
     name: getSetting('site_title'), short_name: getSetting('site_title'), start_url: '/', scope: '/', display: 'standalone',
     background_color: '#008080', theme_color: '#000080',
-    icons: [{ src: '/static/icon.png', sizes: '256x256', type: 'image/png' }, { src: '/static/icon.svg', sizes: 'any', type: 'image/svg+xml' }],
+    icons: lookIcons(),
     // Teilen vom Handy (z. B. YouTube-App → Teilen): öffnet „Link vorschlagen“ mit dem Link (src/routes/linkreq.js)
     share_target: { action: '/files/teilen', method: 'GET', params: { title: 'title', text: 'text', url: 'url' } },
   });

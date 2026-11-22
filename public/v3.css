@@ -921,6 +921,10 @@ body.editing .dc p:empty { min-height: 1.4em; }
 .kg { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: 40px; gap: 14px; margin-top: 18px; position: relative; }
 .kt { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; min-width: 0; min-height: 0; scroll-margin-top: 140px; transition: box-shadow .3s; }
 .kt.has-bw { border-top: 4px solid var(--bwc); }
+.kg > .kt { z-index: 1; }
+/* Rahmen um alle Kacheln eines Bauwerks (halbdurchsichtig in seiner Farbe) */
+.bwframe { margin: -7px; border: 2px solid color-mix(in srgb, var(--bwc) 55%, transparent); background: color-mix(in srgb, var(--bwc) 12%, transparent); border-radius: 22px; pointer-events: none; z-index: 0; }
+.bwframe + .bwframe { margin: -7px; }
 .kt > .bd { padding: 14px 16px; flex: 1; min-height: 0; overflow: auto; }
 .kt.has-bw > .bd { padding-top: 34px; }
 .kt h3 { margin: 0 0 8px; font: 800 17px var(--font-display); color: var(--heading, var(--text)); }
@@ -1050,6 +1054,8 @@ body.dio-ed .jump, body.dio-ed .di-hero .row > :not([data-k]) { pointer-events: 
 .kpick .up2 input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .kpick .up2:hover { border-color: var(--accent); color: var(--accent); }
 .kmap { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.krows { display: grid; grid-template-columns: 1fr 1.4fr 34px; gap: 6px; align-items: center; }
+.krows input { min-width: 0; }
 .kmap .box { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); cursor: crosshair; line-height: 0; }
 .kmap .box img { width: 100%; display: block; user-select: none; -webkit-user-drag: none; }
 .kmap .box .mp { cursor: grab; touch-action: none; }
@@ -1067,6 +1073,7 @@ body.dio-ed .jump, body.dio-ed .di-hero .row > :not([data-k]) { pointer-events: 
 @media (max-width: 1100px) { body.dio-ed .dio-wrap { grid-template-columns: minmax(0, 1fr) 210px; } }
 @media (max-width: 760px) {
   .kg { display: flex; flex-direction: column; gap: 12px; }
+  .bwframe { display: none; }
   .kt { min-height: 0; }
   .k-img, .k-cmp, .k-gal, .k-video, .k-map { aspect-ratio: var(--ar); max-height: 75vh; }
   .k-head { padding: 12px 14px; }

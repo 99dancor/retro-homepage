@@ -116,7 +116,7 @@ function normBuildings(list) {
     const name = str(b.name, 80);
     if (!name) continue;
     seen.add(b.id);
-    out.push({ id: b.id, name, text: str(b.text, 160), color: Object.hasOwn(COLORS, b.color) ? b.color : Object.keys(COLORS)[out.length % 8] });
+    out.push({ id: b.id, name, text: str(b.text, 160), color: Object.hasOwn(COLORS, b.color) ? b.color : Object.keys(COLORS)[out.length % 8], frame: b.frame !== false });
     if (out.length >= MAX_BUILDINGS) break;
   }
   return out;
@@ -141,6 +141,12 @@ function normTiles(list, blds) {
     if (t.type === 'cmp') { k.before = mediaName(t.before); k.after = mediaName(t.after); }
     if (t.type === 'gal') k.imgs = asArray(t.imgs).map(mediaName).filter(Boolean).slice(0, 40);
     if (t.type === 'video') { const v = videoInfo(t.url); k.url = v ? v.url : ''; k.cap = str(t.cap, 160); }
+    // Steckbrief: eigene Zeilen, wahlweise mit den Eckdaten des Spielstands (ohne Angabe: ja, wenn die Kachel keinem Bauwerk gehört)
+    if (t.type === 'facts') {
+      k.title = str(t.title, 60);
+      k.rows = asArray(t.rows).filter(r => Array.isArray(r) && str(r[0], 40)).slice(0, 30).map(r => [str(r[0], 40), str(r[1], 160)]);
+      k.base = t.base === undefined || t.base === null ? !k.bw : !!t.base;
+    }
     if (t.type === 'map') {
       k.f = mediaName(t.f);
       k.points = [];
@@ -338,10 +344,27 @@ function resolve(d, list, blds, o = {}) {
       r.downloads = own.reduce((n, f) => n + f.downloads, 0);
       r.empty = !own.length;
     }
-    if (t.type === 'facts') { r.facts = facts(d); r.empty = !r.facts.length && !d.game && !d.world; }
+    if (t.type === 'facts') {
+      r.facts = t.base ? facts(d) : [];
+      r.game = t.base ? d.game : ''; r.world = t.base ? d.world : '';
+      r.empty = !t.rows.length && !r.facts.length && !r.game && !r.world;
+    }
     if (t.type === 'mods') { r.mods = mods(d); r.empty = !r.mods.length; }
     return r;
   });
+}
+// Farbige Rahmen: je Bauwerk (mit Rahmen) ein Feld um alle seine Kacheln
+function frames(list, blds) {
+  const out = [];
+  for (const b of blds) {
+    if (!b.frame) continue;
+    const own = list.filter(t => t.bw === b.id);
+    if (!own.length) continue;
+    const x1 = Math.min(...own.map(t => t.x)), y1 = Math.min(...own.map(t => t.y));
+    const x2 = Math.max(...own.map(t => t.x + t.w)), y2 = Math.max(...own.map(t => t.y + t.h));
+    out.push({ id: b.id, hex: COLORS[b.color], x: x1, y: y1, w: x2 - x1, h: y2 - y1 });
+  }
+  return out;
 }
 // Für jedes Bauwerk die Kachel, zu der „Springen zu“ führt: seine Überschrift, sonst seine erste Kachel
 function anchors(list, blds) {
@@ -362,7 +385,7 @@ function page(user, d) {
   const author = d.author_id ? db.prepare('SELECT username, display_name FROM users WHERE id = ?').get(d.author_id) : null;
   const bRows = blds.map((b, i) => ({ ...b, no: i + 1, hex: COLORS[b.color], count: list.filter(t => t.bw === b.id).length, anchor: anc.get(b.id) || null }));
   return {
-    d, tiles: shown, anchors: anc, buildings: bRows, latest: main[0] || null, cover: d.cover || (imgs[0] && imgs[0].f) || null,
+    d, tiles: shown, anchors: anc, buildings: bRows, frames: frames(shown.map(r => r.t), blds), latest: main[0] || null, cover: d.cover || (imgs[0] && imgs[0].f) || null,
     author: author ? author.display_name || author.username : '', fresh: d.created_at >= now() - NEW_DAYS * 86400,
     editData: edit ? {
       tiles: list, buildings: blds, colors: COLORS, types: TYPES,
@@ -613,6 +636,6 @@ migrate();
 
 module.exports = {
   KINDS, SORTS, IMAGE_TYPES, NEW_DAYS, COLORS, TYPES, canWrite, canSee, canEdit, bySlug, byId, moved, files, fileById, images, facts, mods, buildings, tiles,
-  normTiles, normBuildings, settle, nextId, bottom, row, view, page, resolve, layout, saveLayout, normalize, stats, meta, recent, search, downloadCards,
+  normTiles, normBuildings, settle, frames, nextId, bottom, row, view, page, resolve, layout, saveLayout, normalize, stats, meta, recent, search, downloadCards,
   create, update, saveTiles, takeImage, setImages, addImages, addFile, removeFile, remove, knownGames, factsFrom, modsFrom, uniqueSlug, migrate, starterTiles, videoInfo,
 };

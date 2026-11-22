@@ -19,7 +19,7 @@
   <% } %>
   <% if (b && t.type !== 'head') { %><span class="bwtag"><%= b.no %> · <%= b.name %></span><% } %>
   <% if (r.empty && edit) { %>
-  <div class="kph"><span class="emo"><%= T.icon %></span><b><%= T.label %></b><small><%= t.type === 'dl' ? (t.bw ? 'Noch keine Datei für dieses Bauwerk. Hochladen unter „Eckdaten und Dateien“.' : 'Noch keine Datei. Hochladen unter „Eckdaten und Dateien“.') : t.type === 'facts' || t.type === 'mods' ? 'Noch leer. Ausfüllen unter „Eckdaten und Dateien“.' : '⚙ anklicken und füllen. Besucher sehen leere Kacheln nicht.' %></small></div>
+  <div class="kph"><span class="emo"><%= T.icon %></span><b><%= T.label %></b><small><%= t.type === 'dl' ? (t.bw ? 'Noch keine Datei für dieses Bauwerk. Hochladen unter „Eckdaten und Dateien“.' : 'Noch keine Datei. Hochladen unter „Eckdaten und Dateien“.') : t.type === 'facts' ? '⚙ anklicken und eigene Zeilen eintragen, wahlweise mit den Eckdaten des Spielstands.' : t.type === 'mods' ? 'Noch leer. Ausfüllen unter „Eckdaten und Dateien“.' : '⚙ anklicken und füllen. Besucher sehen leere Kacheln nicht.' %></small></div>
   <% } else if (t.type === 'text') { %>
   <div class="bd"><% if (t.title) { %><h3><%= t.title %></h3><% } %><div class="prose"><%- r.html %></div></div>
   <% } else if (t.type === 'img') { %>
@@ -54,10 +54,11 @@
     <% if (r.howto) { %><details class="note"><summary>📖 So geht’s</summary><div class="prose"><%- r.howto %></div></details><% } %>
   </div>
   <% } else if (t.type === 'facts') { %>
-  <div class="bd"><h3>📋 Steckbrief</h3><dl class="facts">
-    <% if (d.game) { %><dt>Spiel</dt><dd><%= d.game %></dd><% } %>
-    <% if (d.world) { %><dt>Karte</dt><dd><%= d.world %></dd><% } %>
+  <div class="bd"><h3>📋 <%= t.title || 'Steckbrief' %></h3><dl class="facts">
+    <% if (r.game) { %><dt>Spiel</dt><dd><%= r.game %></dd><% } %>
+    <% if (r.world) { %><dt>Karte</dt><dd><%= r.world %></dd><% } %>
     <% for (const [k, v] of r.facts) { %><dt><%= k %></dt><dd><%= v %></dd><% } %>
+    <% for (const [k, v] of t.rows) { %><dt><%= k %></dt><dd><%= v %></dd><% } %>
   </dl></div>
   <% } else if (t.type === 'mods') { %>
   <div class="bd"><h3>🧩 Benötigte Mods</h3><ul class="mods">

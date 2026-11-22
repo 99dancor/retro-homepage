@@ -17,7 +17,7 @@
   var clone = function (o) { return JSON.parse(JSON.stringify(o)); };
   var state = { tiles: clone(D.tiles), buildings: clone(D.buildings) };
   var saved = JSON.stringify(state), undo = [], on = false, busy = false;
-  var CONTENT = { text: 1, img: 1, cmp: 1, gal: 1, map: 1, video: 1 };
+  var CONTENT = { text: 1, img: 1, cmp: 1, gal: 1, map: 1, video: 1, facts: 1 };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var tile = function (id) { for (var i = 0; i < state.tiles.length; i++) if (state.tiles[i].id === id) return state.tiles[i]; return null; };
   var bld = function (id) { for (var i = 0; i < state.buildings.length; i++) if (state.buildings[i].id === id) return state.buildings[i]; return null; };
@@ -38,7 +38,25 @@
     });
   };
   var place = function (el, t) { el.style.gridColumn = t.x + ' / span ' + t.w; el.style.gridRow = t.y + ' / span ' + t.h; };
-  var applyAll = function (skip) { state.tiles.forEach(function (t) { var el = elOf(t.id); if (el && t.id !== skip) place(el, t); }); };
+  // Farbiger Rahmen je Bauwerk: umschließt alle seine Kacheln (wie frames() im Server)
+  var updateFrames = function () {
+    var want = {};
+    state.buildings.forEach(function (b) {
+      if (b.frame === false) return;
+      var ts = state.tiles.filter(function (t) { return t.bw === b.id; });
+      if (!ts.length) return;
+      var x0 = 99, y0 = 1e9, x1 = 0, y1 = 0;
+      ts.forEach(function (t) { x0 = Math.min(x0, t.x); y0 = Math.min(y0, t.y); x1 = Math.max(x1, t.x + t.w); y1 = Math.max(y1, t.y + t.h); });
+      want[b.id] = { x: x0, y: y0, w: x1 - x0, h: y1 - y0, hex: D.colors[b.color] };
+    });
+    grid.querySelectorAll('.bwframe').forEach(function (f) { if (!want[f.getAttribute('data-frame')]) f.remove(); });
+    Object.keys(want).forEach(function (id) {
+      var f = grid.querySelector('.bwframe[data-frame="' + id + '"]');
+      if (!f) { f = document.createElement('div'); f.className = 'bwframe'; f.setAttribute('data-frame', id); f.setAttribute('aria-hidden', 'true'); grid.insertBefore(f, grid.firstChild); }
+      place(f, want[id]); f.style.setProperty('--bwc', want[id].hex);
+    });
+  };
+  var applyAll = function (skip) { state.tiles.forEach(function (t) { var el = elOf(t.id); if (el && t.id !== skip) place(el, t); }); updateFrames(); };
 
   // ---------- Zustand, Rückgängig, Speichern ----------
   var stateText = bar && bar.querySelector('.dio-state');
@@ -196,7 +214,7 @@
   });
 
   // ---------- Neue Kacheln aus der Leiste ----------
-  var DEFAULTS = { text: { title: '', md: '' }, img: { f: null, cap: '', fit: 'cover' }, cmp: { before: null, after: null }, gal: { imgs: [] }, map: { f: null, points: [] }, video: { url: '', cap: '' } };
+  var DEFAULTS = { text: { title: '', md: '' }, img: { f: null, cap: '', fit: 'cover' }, cmp: { before: null, after: null }, gal: { imgs: [] }, map: { f: null, points: [] }, video: { url: '', cap: '' }, facts: { title: '', rows: [] } };
   var TYPES = D.types;
   var newTile = function (type, extra) {
     var T = TYPES[type], t = { id: nextId(state.tiles, 't'), type: type, x: 1, y: bottom(), w: T.w, h: T.h, bw: null };
@@ -334,8 +352,33 @@
       ok = function () { t.url = body.querySelector('[name=url]').value.trim(); t.cap = body.querySelector('[name=cap]').value; };
     } else if (t.type === 'map') return mapDialog(t);
     else if (t.type === 'head') return editBuilding(t.bw);
-    else {
-      var what = { dl: 'Die Dateien', facts: 'Den Steckbrief', mods: 'Die Mods' }[t.type];
+    else if (t.type === 'facts') {
+      var rows = clone(t.rows || []);
+      body = html(field('Überschrift', '<input type="text" name="title" maxlength="60" placeholder="Steckbrief">', 'freiwillig')
+        + '<label class="check"><input type="checkbox" name="base"> Eckdaten des Spielstands mit anzeigen (Spiel, Karte und was unter „Eckdaten und Dateien“ steht)</label>'
+        + '<div class="f"><b style="font-size:14px">Eigene Zeilen</b><div class="krows"></div><button type="button" class="pill small" data-radd style="justify-self:start">＋ Zeile</button></div>');
+      var box = body.querySelector('.krows');
+      var drawRows = function () {
+        box.innerHTML = rows.map(function (r, i) {
+          return '<input type="text" data-i="' + i + '" data-c="0" maxlength="40" placeholder="z. B. Baujahr" value="' + esc(r[0]) + '" aria-label="Bezeichnung"><input type="text" data-i="' + i + '" data-c="1" maxlength="160" placeholder="z. B. Frühjahr Jahr 3" value="' + esc(r[1]) + '" aria-label="Wert"><button type="button" class="pill small" data-rdel="' + i + '" aria-label="Zeile löschen">🗑</button>';
+        }).join('') || '<p class="muted" style="margin:0;grid-column:1/-1">Noch keine eigenen Zeilen.</p>';
+      };
+      box.addEventListener('input', function (e) { var i = e.target.getAttribute('data-i'); if (i !== null) rows[Number(i)][Number(e.target.getAttribute('data-c'))] = e.target.value; });
+      body.addEventListener('click', function (e) {
+        if (e.target.closest('[data-radd]')) { if (rows.length < 30) { rows.push(['', '']); drawRows(); var ins = box.querySelectorAll('input'); ins[ins.length - 2].focus(); } }
+        var d = e.target.closest('[data-rdel]'); if (d) { rows.splice(Number(d.getAttribute('data-rdel')), 1); drawRows(); }
+      });
+      if (!rows.length) rows.push(['', '']);
+      drawRows();
+      body.querySelector('[name=title]').value = t.title || '';
+      body.querySelector('[name=base]').checked = t.base !== undefined && t.base !== null ? !!t.base : !t.bw;
+      ok = function () {
+        t.title = body.querySelector('[name=title]').value.trim();
+        t.base = body.querySelector('[name=base]').checked;
+        t.rows = rows.map(function (r) { return [r[0].trim(), r[1].trim()]; }).filter(function (r) { return r[0]; });
+      };
+    } else {
+      var what = { dl: 'Die Dateien', mods: 'Die Mods' }[t.type];
       body = html('<p style="margin:0">' + what + ' trägst du unter <b>⚙ Eckdaten und Dateien</b> ein. Diese Kachel zeigt sie an.'
         + (t.type === 'dl' ? ' Gehört die Kachel zu einem Bauwerk, zeigt sie nur dessen Dateien (beim Hochladen „Gehört zu“ wählen).' : '')
         + '</p><p class="muted" style="margin:0">Speichere zuerst mit „Fertig“, sonst gehen die Änderungen hier verloren.</p>');
@@ -444,17 +487,19 @@
     var body = html(field('Name', '<input type="text" name="name" maxlength="80" required placeholder="z. B. Kuhstall „Zur Weide“">')
       + field('Kurztext', '<input type="text" name="text" maxlength="160" placeholder="z. B. Laufstall für 120 Kühe">', 'steht unter dem Namen')
       + '<div class="f"><b style="font-size:14px">Farbe</b><div class="kcolors">' + keys.map(function (k) { return '<label style="--c:' + D.colors[k] + '" title="' + k + '"><input type="radio" name="color" value="' + k + '"' + (k === color ? ' checked' : '') + '></label>'; }).join('') + '</div></div>'
+      + '<label class="check"><input type="checkbox" name="frame"> farbiger Rahmen um alle Kacheln des Bauwerks</label>'
       + (b ? '' : '<p class="muted" style="margin:0">Unten auf dem Raster kommt eine Überschrift-Kachel dazu. Danach wählst du oben an anderen Kacheln dieses Bauwerk aus.</p>'));
     body.querySelector('[name=name]').value = b ? b.name : '';
     body.querySelector('[name=text]').value = b ? b.text : '';
+    body.querySelector('[name=frame]').checked = !b || b.frame !== false;
     dialog(b ? '🏗️ Bauwerk ändern' : '🏗️ Neues Bauwerk', body, function () {
       var name = body.querySelector('[name=name]').value.trim();
       if (!name) return false;
       snap();
       var c = body.querySelector('[name=color]:checked');
-      if (b) { b.name = name; b.text = body.querySelector('[name=text]').value.trim(); b.color = c ? c.value : b.color; render(); }
+      if (b) { b.name = name; b.text = body.querySelector('[name=text]').value.trim(); b.color = c ? c.value : b.color; b.frame = body.querySelector('[name=frame]').checked; render(); }
       else {
-        var nb = { id: nextId(state.buildings, 'b'), name: name, text: body.querySelector('[name=text]').value.trim(), color: c ? c.value : color };
+        var nb = { id: nextId(state.buildings, 'b'), name: name, text: body.querySelector('[name=text]').value.trim(), color: c ? c.value : color, frame: body.querySelector('[name=frame]').checked };
         state.buildings.push(nb);
         var t = newTile('head', { bw: nb.id });
         settleIn(state.tiles, null); applyAll();

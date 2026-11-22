@@ -8,7 +8,7 @@
 <div class="v3-page">
   <div class="v3-content">
     <section class="card proj-head">
-      <span class="art big c-<%= p.color %>"><% if (p.cover) { %><img src="/media/<%= p.cover %>" alt=""><% } else { %><span class="emo"><%= p.icon %></span><% } %></span>
+      <span class="art big c-<%= p.color %>"><% if (p.cover) { %><a href="/media/<%= p.cover %>" data-lb data-cap="<%= p.title %>" class="lb-cover" style="display:contents"><img src="/media/<%= p.cover %>" alt=""></a><% } else { %><span class="emo"><%= p.icon %></span><% } %></span>
       <div class="info">
         <h1><%= p.title %></h1>
         <% if (p.summary) { %><p class="lead"><%= p.summary %></p><% } %>
@@ -29,7 +29,7 @@
     </section>
 
     <% if (shots.length) { %>
-    <div class="shots" aria-label="Bilder"><% for (const s of shots) { %><a href="/media/<%= s %>" target="_blank" rel="noopener"><img src="/media/<%= s %>" alt="" loading="lazy"></a><% } %></div>
+    <div class="shots" aria-label="Bilder"><% for (const s of shots) { %><a href="/media/<%= s %>" data-lb data-cap="<%= p.title %>"><img src="/media/<%= s %>" alt="" loading="lazy"></a><% } %></div>
     <% } %>
 
     <% if (p.body_md.trim()) { %><section class="card" style="margin-top:14px"><h2 class="sec-h">Beschreibung</h2><div class="prose"><%- body %></div></section><% } %>

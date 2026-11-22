@@ -45,49 +45,13 @@
     });
   }
 
-  // ---------- Bilder groß ansehen (alle Bilder der Seite der Reihe nach, auch neue Kacheln) ----------
+  // Bilder groß ansehen: macht public/v3-bilder.js für alle Seiten (auch neue Kacheln)
   var editing = function () { return document.body.classList.contains('dio-ed'); };
-  var gal = [], box = null, at = 0;
-  var show = function (i) {
-    at = (i + gal.length) % gal.length;
-    var a = gal[at];
-    box.querySelector('img').src = a.getAttribute('href');
-    box.querySelector('figcaption').textContent = (a.getAttribute('data-cap') || '') + (gal.length > 1 ? '  ·  ' + (at + 1) + ' / ' + gal.length : '');
-  };
-  var open = function (i) {
-    if (!box) {
-      box = document.createElement('dialog');
-      box.className = 'di-lb';
-      box.innerHTML = '<figure><img alt=""><figcaption></figcaption></figure>'
-        + '<button type="button" class="nav prev" aria-label="Vorheriges Bild">‹</button><button type="button" class="nav next" aria-label="Nächstes Bild">›</button>'
-        + '<button type="button" class="close" aria-label="Schließen">✕</button>';
-      document.body.appendChild(box);
-      box.querySelector('.prev').addEventListener('click', function () { show(at - 1); });
-      box.querySelector('.next').addEventListener('click', function () { show(at + 1); });
-      box.querySelector('.close').addEventListener('click', function () { box.close(); });
-      box.addEventListener('click', function (e) { if (e.target === box || e.target.tagName === 'FIGURE') box.close(); });
-      box.addEventListener('keydown', function (e) { if (e.key === 'ArrowLeft') show(at - 1); if (e.key === 'ArrowRight') show(at + 1); });
-      var x0 = null;
-      box.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
-      box.addEventListener('touchend', function (e) { if (x0 === null) return; var dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) show(at + (dx < 0 ? 1 : -1)); x0 = null; });
-    }
-    box.classList.toggle('one', gal.length < 2);
-    show(i);
-    box.showModal();
-  };
-  document.addEventListener('click', function (e) {
-    var a = e.target.closest && e.target.closest('[data-lb]');
-    if (!a || editing()) return;
-    e.preventDefault();
-    gal = Array.prototype.slice.call(document.querySelectorAll('[data-lb]'));
-    open(gal.indexOf(a));
-  });
   // Großes Bild oben: öffnet das erste Bild
   var hero = document.querySelector('[data-lb-hero]');
   if (hero) hero.addEventListener('click', function (e) {
     if (e.target.closest('a, button') || editing()) return;
-    gal = Array.prototype.slice.call(document.querySelectorAll('[data-lb]'));
-    if (gal.length) open(0);
+    if (window.V3Bilder) window.V3Bilder.open(0);
   });
 
   // ---------- Vorher/Nachher ----------

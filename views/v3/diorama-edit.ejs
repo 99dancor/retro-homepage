@@ -1,12 +1,13 @@
 <%- include('_head') %>
-<%# Formular für einen Dioramen-Eintrag (src/routes/dioramen.js). Bilder ordnen, Titelbild, neue Bilder mit Vorschau,
-    Steckbrief- und Mod-Zeilen, Lageplan-Nummern setzen: public/diorama-edit.js %>
+<%# Eckdaten und Dateien eines Spielstands (src/routes/dioramen.js). Was auf der Seite wo steht, ordnen die Kacheln
+    (Gestalten auf der Seite). Bilder ordnen, Titelbild, neue Bilder mit Vorschau, Steckbrief- und Mod-Zeilen: public/diorama-edit.js %>
 <% const back = isNew ? '/dioramen' : '/dioramen/' + d.slug;
    const fmt = t => new Date(t * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
    const size = n => { if (n < 1024) return n + ' B'; const u = ['KB', 'MB', 'GB', 'TB']; let i = -1; do { n /= 1024; i++; } while (n >= 1024 && i < 3); return n.toFixed(n < 10 ? 1 : 0).replace('.', ',') + ' ' + u[i]; };
    const coverName = d.cover || (images[0] && images[0].f) || ''; %>
-<p class="crumbs"><a href="/dioramen">Dancors Dioramen</a> › <% if (!isNew) { %><a href="<%= back %>"><%= d.title %></a> › Bearbeiten<% } else { %>Neuer Eintrag<% } %></p>
-<h1 class="page-h" style="margin-top:8px"><%= isNew ? 'Neuer Eintrag' : d.title + ' bearbeiten' %></h1>
+<p class="crumbs"><a href="/dioramen">Dancors Dioramen</a> › <% if (!isNew) { %><a href="<%= back %>"><%= d.title %></a> › Eckdaten und Dateien<% } else { %>Neuer Spielstand<% } %></p>
+<h1 class="page-h" style="margin-top:8px"><%= isNew ? 'Neuer Spielstand' : d.title + ': Eckdaten und Dateien' %></h1>
+<% if (!isNew) { %><p class="page-sub">Was wo auf der Seite steht, ordnest du direkt auf der Seite mit <a href="<%= back %>">✏️ Gestalten</a>. Hier stehen Titel, Bilder, Dateien, Steckbrief und Mods.</p><% } %>
 <% if (err) { %><p class="v3-flash err" role="alert"><%= err %></p><% } %>
 <% if (ok) { %><p class="v3-flash" role="status"><%= ok %></p><% } %>
 
@@ -14,14 +15,6 @@
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <div class="di-main">
     <section class="card stack">
-      <div class="typsel" role="radiogroup" aria-label="Art">
-        <% for (const [k, K] of Object.entries(KINDS)) { %>
-        <label><input type="radio" name="kind" value="<%= k %>"<%= d.kind === k ? ' checked' : '' %>><span class="emo"><%= K.icon %></span><span><b><%= K.label %></b><small><%= k === 'spielstand' ? 'ein ganzer Spielstand' : 'ein Gebäude, eine Anlage, ein Platz' %></small></span></label>
-        <% } %>
-      </div>
-      <label class="f" data-only="bauwerk">Teil von <small>freiwillig: zu welchem Spielstand gehört das Bauwerk?</small>
-        <select name="parent_id"><option value="">– keinem –</option><% for (const p of parents) { %><option value="<%= p.id %>"<%= Number(d.parent_id) === p.id ? ' selected' : '' %>><%= p.title %><%= p.game ? ' (' + p.game + ')' : '' %></option><% } %></select>
-      </label>
       <div class="grid2">
         <label class="f">Titel <input type="text" name="title" value="<%= d.title || '' %>" required maxlength="120" placeholder="Hof Lindenau"></label>
         <label class="f">Adresse <small>/dioramen/…, leer = aus dem Titel</small><input type="text" name="slug" value="<%= d.slug || '' %>" maxlength="80"></label>
@@ -32,8 +25,8 @@
       </div>
       <datalist id="di-games"><% for (const g of games) { %><option value="<%= g %>"><% } %></datalist>
       <label class="f">Kurztext <small>steht auf der Karte und im Bild oben</small><input type="text" name="summary" value="<%= d.summary || '' %>" maxlength="240"></label>
-      <div class="f" style="display:grid;gap:5px"><b style="font-size:14px">Beschreibung <small class="muted" style="font-weight:500">Markdown, wie im Duden</small></b>
-        <%- include('../partials/md-editor', { name: 'body_md', value: d.body_md || '', uploadUrl: '/api/schreiben/bild', previewUrl: '/api/schreiben/vorschau', libraryUrl: null, compact: true }) %></div>
+      <% if (isNew) { %><div class="f" style="display:grid;gap:5px"><b style="font-size:14px">Erster Text <small class="muted" style="font-weight:500">freiwillig, kommt in die erste Text-Kachel (Markdown)</small></b>
+        <%- include('../partials/md-editor', { name: 'body_md', value: d.body_md || '', uploadUrl: '/api/schreiben/bild', previewUrl: '/api/schreiben/vorschau', libraryUrl: null, compact: true }) %></div><% } %>
     </section>
 
     <section class="card">
@@ -50,51 +43,22 @@
         <% } %>
         <label class="drop2" id="di-drop"><input type="file" name="images" accept="image/png,image/jpeg,image/webp,image/gif" multiple><span>📥 <b>Bilder hierher ziehen</b><br>oder klicken<br><small>mehrere auf einmal, JPG, PNG, WebP</small></span></label>
       </div>
-      <p class="muted small-note">★ macht ein Bild zum Titelbild, ⠿ zum Sortieren ziehen, ✕ entfernt es von der Seite (die Datei bleibt in der Bibliothek).</p>
+      <p class="muted small-note">★ macht ein Bild zum Titelbild, ⠿ zum Sortieren ziehen, ✕ nimmt es aus der Auswahl (die Datei bleibt in der Bibliothek; Kacheln, die es zeigen, behalten es). Bilder für Kacheln kannst du auch direkt beim Gestalten hochladen.</p>
     </section>
 
-    <section class="card">
-      <h2 class="sec-h">↔️ Vorher / Nachher <small class="muted" style="font-weight:500;text-transform:none;letter-spacing:0">freiwillig</small></h2>
-      <div class="grid2">
-        <% for (const [k, col, label] of [['before', 'before_img', 'Vorher'], ['after', 'after_img', 'Nachher']]) { %>
-        <div class="f single"><b><%= label %></b>
-          <% if (d[col]) { %><img src="/media/<%= d[col] %>" alt=""><label class="check"><input type="checkbox" name="drop_<%= k %>" value="1"> entfernen</label><% } %>
-          <input type="file" name="<%= k %>" accept="image/png,image/jpeg,image/webp,image/gif">
-        </div>
-        <% } %>
-      </div>
-      <p class="muted small-note">Am besten zwei Bilder aus demselben Blickwinkel. Auf der Seite erscheint dann ein Regler.</p>
-    </section>
-
-    <section class="card" data-only="spielstand">
-      <h2 class="sec-h">📍 Lageplan <small class="muted" style="font-weight:500;text-transform:none;letter-spacing:0">freiwillig</small></h2>
-      <div class="grid2">
-        <div class="f single"><b>Bild von oben <small>z. B. die Karte aus dem Spiel</small></b>
-          <% if (d.plan) { %><label class="check"><input type="checkbox" name="drop_plan" value="1"> Lageplan entfernen</label><% } %>
-          <input type="file" name="plan" accept="image/png,image/jpeg,image/webp,image/gif">
-        </div>
-        <div class="note" style="margin:0"><% if (!kids.length) { %>Lege zuerst Bauwerke an, die „Teil von“ diesem Spielstand sind. Dann setzt du sie hier als Nummern auf den Plan.<% } else if (!d.plan) { %>Nach dem Speichern setzt du hier deine Bauwerke als Nummern auf den Plan.<% } else { %>Bauwerk wählen, dann auf den Plan klicken. Nochmal auf dieselbe Stelle des Knopfs klicken nimmt die Nummer weg.<% } %></div>
-      </div>
-      <% if (d.plan && kids.length) { %>
-      <input type="hidden" name="pins" value="<%= JSON.stringify(pins) %>" id="di-pins">
-      <div class="pin-pick" id="di-pick"><% kids.forEach((k, i) => { %><button type="button" class="pill small" data-kid="<%= k.id %>"><span class="no"><%= i + 1 %></span> <%= k.title %> <span class="set"<%= pins[k.id] ? '' : ' hidden' %>>✔</span></button><% }) %></div>
-      <div class="lage edit" id="di-plan"><img src="/media/<%= d.plan %>" alt="Lageplan">
-        <% kids.forEach((k, i) => { const p = pins[k.id]; %><span class="mpin" data-pin="<%= k.id %>" style="left:<%= p ? p[0] : 0 %>%;top:<%= p ? p[1] : 0 %>%"<%= p ? '' : ' hidden' %>><i><span><%= i + 1 %></span></i><em><%= k.title %></em></span><% }) %>
-      </div>
-      <% } %>
-    </section>
   </div>
 
   <aside class="di-side">
     <section class="card dlbox stack" id="download">
       <h3 class="side-h">⬇ Download</h3>
       <% if (files.length) { %>
-      <div class="vers-mini"><% files.forEach((f, i) => { %><div class="vrow"><b><%= f.version || fmt(f.created_at) %></b><span class="sp"><%= size(f.size) %> · <%= f.downloads %>×</span><% if (i === 0) { %><span class="ver">aktuell</span><% } %><button class="pill small danger" form="del-<%= f.id %>" title="Datei löschen" aria-label="Datei löschen">🗑</button></div><% }) %></div>
+      <div class="vers-mini"><% files.forEach((f, i) => { const fb = f.bw && buildings.find(b => b.id === f.bw); %><div class="vrow"><b><%= f.version || fmt(f.created_at) %></b><span class="sp"><%= fb ? '🏗️ ' + fb.name + ' · ' : '' %><%= size(f.size) %> · <%= f.downloads %>×</span><% if (i === 0) { %><span class="ver">aktuell</span><% } %><button class="pill small danger" form="del-<%= f.id %>" title="Datei löschen" aria-label="Datei löschen">🗑</button></div><% }) %></div>
       <% } %>
       <label class="f"><%= files.length ? 'Neue Version' : 'Datei' %> <small><%= maxMb ? 'höchstens ' + maxMb + ' MB' : 'ZIP, Spielstand, Vorlage …' %></small><input type="file" name="file"></label>
+      <% if (buildings.length) { %><label class="f">Gehört zu <small>der ganze Spielstand oder nur ein Bauwerk</small><select name="file_bw"><option value="">💾 der ganze Spielstand</option><% buildings.forEach((b, i) => { %><option value="<%= b.id %>">🏗️ <%= i + 1 %> <%= b.name %></option><% }) %></select></label><% } %>
       <label class="f">Version <input type="text" name="version" maxlength="30" placeholder="<%= files[0] && files[0].version ? files[0].version : '1.0' %>"></label>
       <label class="f">Was ist neu? <small>freiwillig</small><textarea name="changes" rows="2" placeholder="- Jahr 4, Herbst"></textarea></label>
-      <label class="f">Anleitung <small>steht im Download-Kasten (Markdown)</small><textarea name="howto_md" rows="4" placeholder="ZIP entpacken und den Ordner savegame1 nach Dokumente › My Games › FarmingSimulator2025 kopieren."><%= d.howto_md || '' %></textarea></label>
+      <label class="f">Anleitung <small>steht in der Download-Kachel des Spielstands (Markdown)</small><textarea name="howto_md" rows="4" placeholder="ZIP entpacken und den Ordner savegame1 nach Dokumente › My Games › FarmingSimulator2025 kopieren."><%= d.howto_md || '' %></textarea></label>
       <label class="check"><input type="checkbox" name="in_downloads" value="1"<%= d.in_downloads ? ' checked' : '' %>> auch in Dancors Downloads zeigen</label>
     </section>
 
@@ -104,7 +68,7 @@
         <% for (const f of facts.concat(facts.length ? [] : [['', ''], ['', '']])) { %><div class="kv"><input type="text" name="fact_k" value="<%= f[0] %>" maxlength="40" placeholder="z. B. Spielzeit" aria-label="Angabe"><input type="text" name="fact_v" value="<%= f[1] %>" maxlength="120" placeholder="212 Stunden" aria-label="Wert"><button type="button" class="x" data-row-del aria-label="Zeile entfernen">✕</button></div><% } %>
       </div>
       <button type="button" class="pill small" data-row-add="di-facts">＋ Zeile</button>
-      <p class="muted small-note">Spiel, Karte und „Teil von“ stehen von selbst darin.</p>
+      <p class="muted small-note">Spiel und Karte stehen von selbst darin.</p>
     </section>
 
     <section class="card">
@@ -124,8 +88,8 @@
 </form>
 <% if (!isNew) { %>
 <% for (const f of files) { %><form method="post" action="/dioramen/<%= d.slug %>/datei/<%= f.id %>/loeschen" id="del-<%= f.id %>" data-confirm="Datei <%= f.version || f.original_name %> wirklich löschen?" hidden><input type="hidden" name="_csrf" value="<%= csrf %>"></form><% } %>
-<form method="post" action="/dioramen/<%= d.slug %>/loeschen" data-confirm="„<%= d.title %>“ mit allen Dateien löschen? Bauwerke darin bleiben erhalten." class="actions" style="margin-top:18px">
-  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="pill danger">🗑 Eintrag löschen</button>
+<form method="post" action="/dioramen/<%= d.slug %>/loeschen" data-confirm="„<%= d.title %>“ mit allen Kacheln, Bauwerken und Dateien löschen?" class="actions" style="margin-top:18px">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="pill danger">🗑 Spielstand löschen</button>
 </form>
 <% } %>
 <script src="<%= asset('diorama-edit.js') %>" defer></script>

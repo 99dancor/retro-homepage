@@ -1,5 +1,15 @@
 # Changelog
 
+## Update 99 · 22.11.2026 – Dioramen: Spielstände frei aus Kacheln gestalten, Bauwerke im Spielstand
+
+- **Kacheln statt fester Seite:** Ein Spielstand besteht jetzt aus Kacheln auf einem Raster mit 12 Spalten. Kacheln stehen neben- und untereinander, wie du willst. Mit „✏️ Gestalten“ verschiebst du sie am ⠿, ziehst sie an den blauen Griffen breiter, schmaler, höher oder niedriger, und neue Kacheln ziehst du aus der Leiste rechts aufs Raster (oder tippst sie an, dann kommen sie unten dazu). Kacheln, die im Weg sind, rutschen nach unten. „Rückgängig“ und Strg+Z nehmen Schritte zurück, „Fertig“ speichert.
+- **Kachelarten:** Text (mit Überschrift und Markdown), Bild (zuschneiden oder ganz zeigen, mit Unterschrift), Vorher/Nachher mit Regler, Karte mit Punkten, Galerie, Video-Link (YouTube mit Vorschaubild), Download, Steckbrief, Mods und die Bauwerk-Überschrift. Über ⚙ wählst du die Bilder, auch direkt neu hochgeladene. Leere Kacheln sehen Besucher nicht.
+- **Bauwerke gehören in den Spielstand:** Bauwerke sind keine eigenen Einträge mehr, sondern farbige Gruppen im Spielstand. Rechts legst du sie an, benennst sie um, gibst ihnen eine Farbe oder löschst sie. Oben an jeder Kachel wählst du ihr Bauwerk; sie bekommt dann dessen Farbe und eine kleine Plakette. Jedes Bauwerk hat eine Überschrift-Kachel, oben auf der Seite steht „Springen zu“ mit allen Bauwerken.
+- **Karte mit Sprungpunkten:** Auf einer Karten-Kachel setzt du per Klick Punkte, verschiebst sie mit der Maus und wählst je Punkt das Ziel: ein ganzes Bauwerk oder eine einzelne Kachel. Ein Klick auf den Punkt springt hin, die Kacheln leuchten kurz in der Farbe des Bauwerks, und „Zurück zur Karte“ führt wieder hoch.
+- **Umzug:** Die bisherigen Bauwerk-Einträge sind automatisch in ihren Spielstand gewandert, mit Bildern, Text, Steckbrief, Vorher/Nachher und Datei; der Lageplan ist eine Karte mit den Punkten geworden. Alte Adressen von Bauwerken führen zu ihrem Abschnitt. Ein Bauwerk ohne Spielstand ist ein eigener Spielstand mit diesem einen Bauwerk geworden.
+- **Übersicht und Suche:** Die Übersicht zeigt nur noch Spielstände, ihre Bauwerke stehen als farbige Nummern auf der Karte. Die Suche findet auch Bauwerke und Texte aus den Kacheln und springt direkt zum Bauwerk.
+- **Eckdaten und Dateien:** Titel, Bilder, Steckbrief, Mods und Dateien bearbeitest du unter „⚙ Eckdaten und Dateien“. Eine Datei kann einem Bauwerk gehören, dessen Download-Kachel zeigt dann nur sie.
+
 ## Update 98 · 22.11.2026 – Dancors Dioramen: Spielstände und Bauwerke zeigen
 
 - **Neue Kachel „Dancors Dioramen“:** Auf der Startseite gibt es einen neuen Bereich unter /dioramen für Spielstände und einzelne Bauwerke aus Spielständen, zum Beispiel aus dem Farming Simulator. Die Übersicht ist eine Bildergalerie: jede Karte mit Titelbild, 💾 Spielstand oder 🏗️ Bauwerk, Spiel und Karte, Kurztext und Downloads. Oben steht ein Eintrag groß mit dem Knopf „Spielstand laden“. Chips filtern nach Spiel, ein Schalter nach Spielständen oder Bauwerken, dazu Sortierung und Suche.

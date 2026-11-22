@@ -1,19 +1,9 @@
-// Formular eines Dioramas (views/v3/diorama-edit.ejs): Felder je Art zeigen, Bilder sortieren und entfernen, neue Bilder mit
-// Vorschau (auch per Hineinziehen), Steckbrief- und Mod-Zeilen, Nummern auf dem Lageplan setzen.
+// Eckdaten eines Spielstands (views/v3/diorama-edit.ejs): Bilder sortieren und entfernen, neue Bilder mit Vorschau
+// (auch per Hineinziehen), Steckbrief- und Mod-Zeilen.
 (function () {
   'use strict';
   var form = document.getElementById('di-form');
   if (!form) return;
-
-  // ---------- Art: Spielstand oder Bauwerk ----------
-  var kind = function () { var r = form.querySelector('input[name=kind]:checked'); return r ? r.value : 'spielstand'; };
-  var showKind = function () {
-    var k = kind();
-    form.querySelectorAll('[data-only]').forEach(function (el) { el.hidden = el.getAttribute('data-only') !== k; });
-    form.querySelectorAll('.typsel label').forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); });
-  };
-  form.querySelectorAll('input[name=kind]').forEach(function (r) { r.addEventListener('change', showKind); });
-  showKind();
 
   // ---------- Zeilen für Steckbrief und Mods ----------
   form.addEventListener('click', function (e) {
@@ -107,41 +97,4 @@
   });
   grid.addEventListener('dragend', function () { if (dragging) dragging.classList.remove('dragging'); dragging = null; });
 
-  // ---------- Lageplan: Nummern setzen ----------
-  var plan = document.getElementById('di-plan'), pinsInput = document.getElementById('di-pins'), pick = document.getElementById('di-pick');
-  if (plan && pinsInput && pick) {
-    var pins = {};
-    try { pins = JSON.parse(pinsInput.value || '{}') || {}; } catch (x) { pins = {}; }
-    var current = null;
-    var choose = function (id) {
-      current = id;
-      pick.querySelectorAll('[data-kid]').forEach(function (b) { b.classList.toggle('pri', b.getAttribute('data-kid') === id); });
-      plan.classList.toggle('armed', !!id);
-    };
-    var draw = function (id) {
-      var el = plan.querySelector('[data-pin="' + id + '"]'), p = pins[id];
-      el.hidden = !p;
-      if (p) { el.style.left = p[0] + '%'; el.style.top = p[1] + '%'; }
-      pick.querySelector('[data-kid="' + id + '"] .set').hidden = !p;
-      pinsInput.value = JSON.stringify(pins);
-    };
-    pick.addEventListener('click', function (e) {
-      var b = e.target.closest('[data-kid]');
-      if (!b) return;
-      var id = b.getAttribute('data-kid');
-      if (current === id && pins[id]) { delete pins[id]; draw(id); choose(null); return; }
-      choose(id);
-    });
-    plan.addEventListener('click', function (e) {
-      if (!current) return;
-      var img = plan.querySelector('img'), r = img.getBoundingClientRect();
-      var x = (e.clientX - r.left) / r.width * 100, y = (e.clientY - r.top) / r.height * 100;
-      if (x < 0 || x > 100 || y < 0 || y > 100) return;
-      pins[current] = [Math.round(x * 10) / 10, Math.round(y * 10) / 10];
-      draw(current);
-      // Weiter zum nächsten Bauwerk ohne Nummer
-      var next = Array.prototype.find.call(pick.querySelectorAll('[data-kid]'), function (b) { return !pins[b.getAttribute('data-kid')]; });
-      choose(next ? next.getAttribute('data-kid') : null);
-    });
-  }
 })();

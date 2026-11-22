@@ -82,8 +82,8 @@
 
     <% if (cards.length) { %>
     <div class="pc-list<%= look === 'kompakt' ? ' compact' : '' %>"<%= canArrange ? ' data-ed-list=cards' : '' %>>
-      <% for (const p of cards) { const isHub = p.type === 'link'; %>
-      <article class="pc<%= isHub ? ' hub' : '' %>"<% if (canArrange) { %> data-ed-item data-key="<%= p.key %>" data-ed-val="<%= JSON.stringify(isHub ? { pin: false } : { pin: p.featured, icon: p.iconRaw, color: p.color, cover: p.cover || '' }) %>"<%= p.hidden ? ' data-hidden' : '' %><% } %>>
+      <% for (const p of cards) { const isHub = p.type === 'link', isDio = !!p.dio; %>
+      <article class="pc<%= isHub && !isDio ? ' hub' : '' %>"<% if (canArrange) { %> data-ed-item data-key="<%= p.key %>" data-ed-val="<%= JSON.stringify(isHub ? { pin: false } : { pin: p.featured, icon: p.iconRaw, color: p.color, cover: p.cover || '' }) %>"<%= p.hidden ? ' data-hidden' : '' %><% } %>>
         <% if (canArrange) { %><span class="grip" data-ed-handle data-ed-only title="Ziehen" aria-hidden="true">⠿</span><% } %>
         <a class="art-l" href="<%= p.url %>" tabindex="-1" aria-hidden="true"><%- art(p) %></a>
         <div class="info">
@@ -94,17 +94,18 @@
           </span></h3>
           <% if (p.summary || canArrange) { %><p class="lead"<%= isHub ? '' : ' data-ed-text=summary data-ed-multiline' %>><%= p.summary %></p><% } %>
           <div class="cta">
-            <% if (isHub) { %><a class="pill pri" href="<%= p.url %>">🚜 <%= p.version ? 'Version ' + vno(p.version) + ' im Hub' : 'Zum Hub' %></a>
+            <% if (isDio) { %><a class="pill pri" href="<%= p.dl %>">⬇ <%= p.version ? 'Version ' + vno(p.version) : 'Herunterladen' %> <small>(<%= p.sizeText %>)</small></a>
+            <% } else if (isHub) { %><a class="pill pri" href="<%= p.url %>">🚜 <%= p.version ? 'Version ' + vno(p.version) + ' im Hub' : 'Zum Hub' %></a>
             <% } else if (p.dl) { %><a class="pill pri" href="<%= p.dl %>">⬇ <%= p.version ? 'Version ' + vno(p.version) : 'Herunterladen' %> <small>(<%= p.sizeText %>)</small></a>
             <% } else { %><span class="muted">Noch keine Version.</span><% } %>
             <% if (p.count > 1) { %><a class="pill opt-c" href="<%= p.url %>#versionen"><%= p.count %> Versionen</a><% } %>
-            <a class="pill opt-c" href="<%= p.url %>"><%= isHub ? 'Anleitung' : 'Details' %></a>
+            <a class="pill opt-c" href="<%= p.url %>"><%= isDio ? '🏡 Bilder und Details' : isHub ? 'Anleitung' : 'Details' %></a>
             <% if (p.edit && !isHub) { %><a class="pill opt-c" href="<%= p.url %>/bearbeiten">✎ Bearbeiten</a><% } %>
           </div>
           <div class="tags">
             <span class="tag"><%= p.catIcon %> <%= p.cat %></span>
             <% if (p.game) { %><span class="tag opt-c">🎮 <%= p.game %></span><% } %>
-            <% if (!isHub) { %><span class="tag">⬇ <%= p.downloads %> Downloads</span><% } %>
+            <% if (!isHub || isDio) { %><span class="tag">⬇ <%= p.downloads %> Downloads</span><% } %>
             <% if (p.date) { %><span class="tag">Stand <%= fmt(p.date) %></span><% } %>
             <% if (p.vis && p.vis !== 'public') { %><span class="tag">🔒 <%= ({ members: 'Mitglieder', friends: 'Freunde', groups: 'Gruppen', private: 'privat' })[p.vis] %></span><% } %>
             <% if (p.owner) { %><span class="tag opt-c">von <%= p.owner %></span><% } %>
@@ -148,6 +149,7 @@
         <span class="mu opt"><%= r.date ? fmt(r.date) : '' %></span>
         <span class="act">
           <% if (r.type === 'project') { %><a class="pill small" href="<%= r.url %>">Ansehen</a><% if (r.dl) { %><a class="pill small pri" href="<%= r.dl %>" aria-label="<%= r.title %> herunterladen">⬇</a><% } %>
+          <% } else if (r.type === 'link' && r.dio) { %><a class="pill small" href="<%= r.url %>">Ansehen</a><a class="pill small pri" href="<%= r.dl %>" aria-label="<%= r.title %> herunterladen">⬇</a>
           <% } else if (r.type === 'link') { %><a class="pill small pri" href="<%= r.url %>">Zum Hub</a>
           <% } else if (r.type === 'track') { %><a class="pill small" href="<%= r.url %>">▶ Abspielen</a><a class="pill small pri" href="<%= r.dl %>" aria-label="<%= r.title %> herunterladen">⬇</a>
           <% } else { %><% if (r.edit) { %><a class="pill small ghost" href="<%= r.edit %>" title="Bearbeiten">✎</a><% } %><a class="pill small pri" href="<%= r.dl %>">⬇ Download</a><% } %>

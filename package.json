@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning src/server.js",
     "dev": "node --watch --disable-warning=ExperimentalWarning src/server.js",
-    "test": "node --disable-warning=ExperimentalWarning test/smoke.js && node --test --disable-warning=ExperimentalWarning test/blackjack.test.js test/poker.test.js test/durak.test.js test/cardgames.test.js test/kartenspiele.test.js test/crossword.test.js test/sudoku.test.js test/quiz.test.js test/werwolf.test.js test/paint.test.js test/paintlobby.test.js test/webpush.test.js test/services.test.js test/linkreq.test.js test/radio.test.js test/gallery.test.js test/jellyfin.test.js test/recipes.test.js test/daddelecke.test.js games/haustier/test/*.test.js",
+    "test": "node --disable-warning=ExperimentalWarning test/smoke.js && node --test --disable-warning=ExperimentalWarning test/blackjack.test.js test/poker.test.js test/durak.test.js test/cardgames.test.js test/kartenspiele.test.js test/crossword.test.js test/sudoku.test.js test/quiz.test.js test/werwolf.test.js test/paint.test.js test/paintlobby.test.js test/webpush.test.js test/services.test.js test/linkreq.test.js test/radio.test.js test/gallery.test.js test/jellyfin.test.js test/recipes.test.js test/daddelecke.test.js test/dioramen.test.js games/haustier/test/*.test.js",
     "ds-core": "sh tools/ds-core.sh"
   },
   "license": "UNLICENSED",

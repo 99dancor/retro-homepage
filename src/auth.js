@@ -87,7 +87,7 @@ function requireAdmin(req, res, next) {
 }
 
 // Sichtbarkeit: public | members | groups | private, bei Dateien, Titeln und Playlists auch friends (nur Freunde des Besitzers)
-const OWNER = { file: 'uploader_id', track: 'uploader_id', playlist: 'user_id', modlist: 'owner_id', dl_project: 'owner_id', duden: 'author_id', recipe: 'author_id' };
+const OWNER = { file: 'uploader_id', track: 'uploader_id', playlist: 'user_id', modlist: 'owner_id', dl_project: 'owner_id', duden: 'author_id', recipe: 'author_id', dio: 'author_id' };
 function isFriend(a, b) {
   return !!a && !!b && !!db.prepare('SELECT 1 FROM friends WHERE accepted = 1 AND ((user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?))').get(a, b, b, a);
 }

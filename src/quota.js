@@ -8,6 +8,7 @@ const PARTS = {
   tracks: ['🎵 Mediaplayer', 'SELECT COALESCE(SUM(size), 0) AS n FROM tracks WHERE uploader_id = ? AND source_url IS NULL'],
   galerie: ['🖼️ Galerie-Fotos', 'SELECT COALESCE(SUM(size), 0) AS n FROM gal_photos WHERE owner_id = ?'],
   artworks: ['🎨 Paint-Bilder', 'SELECT COALESCE(SUM(size), 0) AS n FROM artworks WHERE owner_id = ?'],
+  dioramen: ['🏡 Dioramen-Downloads', 'SELECT COALESCE(SUM(size), 0) AS n FROM dio_files WHERE uploader_id = ?'],
   media: ['🖼️ Bilder in Beiträgen', 'SELECT COALESCE(SUM(size), 0) AS n FROM media WHERE uploader_id = ?'],
   texts: ['🗒️ Textdokumente', "SELECT COALESCE(SUM(length(CAST(body AS BLOB))), 0) AS n FROM desk_items WHERE user_id = ? AND kind = 'text'"],
 };
@@ -17,7 +18,9 @@ function limitBytes(user) {
   return Math.max(0, Number(getSetting('user_quota_mb', '2048')) || 0) * 1024 * 1024;
 }
 function breakdown(userId) {
-  return Object.entries(PARTS).map(([key, [label, sql]]) => ({ key, label, bytes: db.prepare(sql).get(userId).n }));
+  // Ein Bereich, dessen Tabelle (noch) fehlt, zählt 0 (z. B. Dioramen, wenn src/dioramen.js nicht geladen ist)
+  const bytes = sql => { try { return db.prepare(sql).get(userId).n; } catch { return 0; } };
+  return Object.entries(PARTS).map(([key, [label, sql]]) => ({ key, label, bytes: bytes(sql) }));
 }
 function usedBytes(userId) { return breakdown(userId).reduce((n, p) => n + p.bytes, 0); }
 // Passt noch so viel hinein? (add in Bytes; bei Ersetzen den alten Stand vorher abziehen)

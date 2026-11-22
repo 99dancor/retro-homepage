@@ -10,8 +10,9 @@ const AREAS = [
   { key: 'duden', url: '/duden', icon: '📚', name: 'Duden' },
   { key: 'rezepte', url: '/rezepte', icon: '🍝', name: 'Deliziösitäten' },
   { key: 'spiele', url: '/spiele', icon: '🕹️', name: 'Daddelecke' },
+  { key: 'dioramen', url: '/dioramen', icon: '🏡', name: 'Dioramen' },
 ];
-const MODERN = /^\/(downloads|duden|rezepte|spiele|finden|changelog|datenschutz|contact|guestbook)(\/|$)/;
+const MODERN = /^\/(downloads|duden|rezepte|spiele|dioramen|finden|changelog|datenschutz|contact|guestbook)(\/|$)/;
 const localPath = v => (typeof v === 'string' && /^\/(?![/\\])/.test(v) ? v : null);
 
 // Gehört die Adresse zu einer eigenen Seite (ohne Desktop)? Der Hub (/farming) bringt sein Aussehen selbst mit.

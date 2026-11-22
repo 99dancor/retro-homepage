@@ -10,17 +10,22 @@
 <% if (typeof description === 'string' && description) { %><meta name="description" content="<%= description %>"><% } %>
 <script src="<%= asset('v3-theme.js') %>"></script>
 <link rel="stylesheet" href="<%= asset('v3.css') %>">
-<link rel="icon" href="<%= asset('favicon.svg') %>">
+<link rel="icon" href="<%= lookFavicon || asset('favicon.svg') %>">
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="apple-touch-icon" href="<%= asset('icon.png') %>">
+<link rel="apple-touch-icon" href="<%= lookFavicon && /^\/media\//.test(lookFavicon) ? lookFavicon : asset('icon.png') %>">
+<style id="lk-style"><%- lookCss.replace(/<\//g, '<\\/') %></style>
 <meta name="theme-color" content="#1d5fd1">
 <script src="<%= asset('v3.js') %>" defer></script>
 </head>
-<body class="v3<%= framed ? ' framed embed' : '' %><%= typeof bodyClass === 'string' ? ' ' + bodyClass : '' %>" data-user="<%= user ? user.id : '' %>" data-csrf="<%= csrf %>">
+<body class="v3 <%= lookClass %><%= framed ? ' framed embed' : '' %><%= typeof bodyClass === 'string' ? ' ' + bodyClass : '' %>" data-user="<%= user ? user.id : '' %>" data-csrf="<%= csrf %>"<% if (lookSeason) { %> data-lk-season="<%= lookSeason %>"<% } %><% if (user && user.isAdmin) { %> data-lk-admin="<%= asset('v3-look-edit.js') %>"<% } %>>
+<div class="lk-bg" aria-hidden="true"><i class="base"></i></div>
 <% if (!framed) { %>
+<% if (lookNotice) { %><div class="lk-notice t-<%= lookNotice.tone %>" role="status" data-lk-notice="<%= lookNotice.id %>"><span><%= lookNotice.text %></span><button type="button" aria-label="Hinweis schließen" title="Ausblenden">✕</button></div><% } %>
 <header class="v3-top">
-  <a class="v3-logo" href="/" aria-label="<%= siteName %> – Startseite"><span class="mk emo" aria-hidden="true">🪟</span><span><%= siteName %></span></a>
-  <% if (_area) { %><span class="v3-crumb" aria-hidden="true">/ <a href="<%= _area.url %>">Dancors <b><%= _area.name %></b></a></span><% } %>
+  <% const _lh = lookHead, _ic = siteLook.head.icon; %>
+  <a class="v3-logo" href="/" aria-label="<%= _lh.title %> – Startseite"><% if (_lh.kind !== 'none') { %><span class="mk lk-k-<%= _lh.kind %><%= _ic.shape === 'frei' ? ' lk-free' : '' %><%= _lh.kind === 'emoji' ? ' emo' : '' %>" aria-hidden="true"><% if (_lh.kind === 'image' && _lh.image) { %><img src="<%= _lh.image %>" alt=""><% } else if (_lh.kind === 'letters') { %><%= _lh.letters %><% } else { %><%= _lh.emoji %><% } %></span><% } %><span class="tt"><b><%= _lh.title %></b><% if (_lh.sub) { %><small><%= _lh.sub %></small><% } %></span></a>
+  <% if (lookQuick) { %><nav class="v3-quick" aria-label="Bereiche"><% for (const a of areas) { %><a href="<%= a.url %>" title="<%= a.name %>"<%= a.key === area ? ' class="on" aria-current="page"' : '' %>><span class="emo" aria-hidden="true"><%= a.icon %></span><span class="qn"> <%= a.name %></span></a><% } %></nav>
+  <% } else if (_area) { %><span class="v3-crumb" aria-hidden="true">/ <a href="<%= _area.url %>">Dancors <b><%= _area.name %></b></a></span><% } %>
   <form class="v3-search" action="/finden" role="search">
     <label class="vh" for="v3q">Suchen</label>
     <input type="search" id="v3q" name="q" value="<%= _q %>" placeholder="Spiele, Downloads, Duden und Rezepte durchsuchen …" autocomplete="off" maxlength="100">
@@ -38,9 +43,11 @@
       <a href="/messenger"><span class="emo">🌼</span> Messenger<% if (unreadPm) { %> <span class="badge"><%= unreadPm %></span><% } %></a>
       <a href="/rezepte/einkauf"><span class="emo">🛒</span> Einkaufsliste</a>
       <a href="/konto"><span class="emo">🔑</span> Konto und Passwort</a>
+      <% if (lookMemberBg) { %><button type="button" data-lk-mine><span class="emo">🖼️</span> Mein Hintergrund</button><% } %>
       <hr>
       <a href="/desktop"><span class="emo">🖥️</span> Zum Desktop</a>
-      <% if (user.isAdmin) { %><a href="/admin"><span class="emo">⚙️</span> Seitenverwaltung</a><% } %>
+      <% if (user.isAdmin) { %><button type="button" data-lk-edit><span class="emo">🎨</span> Aussehen der Seite</button>
+      <a href="/admin"><span class="emo">⚙️</span> Seitenverwaltung</a><% } %>
       <hr>
       <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="next" value="<%= here %>"><button><span class="emo">🚪</span> Abmelden</button></form>
     </div>

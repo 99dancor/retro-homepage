@@ -22,7 +22,7 @@ router.get('/', (req, res, next) => {
   } catch { /* nur Beiwerk */ }
   res.render('v3/portal', {
     ...v3.locals(req, res), title: '', hero: portal.hero(), tiles: portal.forViewer(req.user, res.locals, { edit: admin }), admin,
-    ok: req.query.ok === 'gespeichert' ? 'Gespeichert.' : null,
+    ok: req.query.ok === 'gespeichert' ? 'Gespeichert.' : null, greeting: require('../look').greeting(req.user),
     services, recent: portal.recent(req.user, 5).map(r => ({ ...r, when: v3.ago(r.at) })), fromDesk: fromDesk.slice(0, 4),
     description: 'Downloads, Guides, Rezepte, der Retro-Desktop und der FS25 Hub von Dancor.',
   });

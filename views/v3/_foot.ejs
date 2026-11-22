@@ -1,6 +1,7 @@
 </main>
 <% if (!framed) { %>
 <footer class="v3-foot">
+  <% if (lookFoot) { %><span class="lk-own"><%= lookFoot %></span><% } %>
   <a href="/changelog">Changelog</a>
   <% if (guestbookEnabled) { %><a href="/guestbook">Besucherbuch</a><% } %>
   <% if (contactEnabled) { %><a href="/contact">Kontakt</a><% } %>
@@ -8,11 +9,13 @@
   <a href="/desktop">Zum Desktop</a>
   <span class="right">
     <a href="/changelog" class="ver-link"><%= version %></a>
+    <label class="lk-fx" hidden title="Schnee, Laub, Diashow">✨ Effekte <input type="checkbox" data-lk-fx checked></label>
     <label>Aussehen <select data-theme-pick aria-label="Hell oder dunkel">
       <option value="">wie Gerät</option><option value="light">hell</option><option value="dark">dunkel</option>
     </select></label>
   </span>
 </footer>
 <% } %>
+<script src="<%= asset('v3-look.js') %>" defer></script>
 </body>
 </html>

@@ -180,6 +180,7 @@ app.use('/galerie', require('./routes/gallery'));
 app.use('/galerie', paintRoutes.gallery);
 app.use('/einstellungen', settingsRoutes.router);
 // Version 3.0: Startseite mit Kacheln und die neuen Bereiche
+app.use('/aussehen', require('./routes/look'));
 app.use('/', require('./routes/portal'));
 app.use('/downloads', require('./routes/downloads'));
 app.use('/duden', require('./routes/duden'));

@@ -3,10 +3,11 @@
 <div data-ed-root>
 <section class="v3-hero">
   <div>
+    <% if (siteLook.extras.greet || admin) { const _g = greeting; %><div class="lk-greet" data-lk-greet<%= siteLook.extras.greet ? '' : ' hidden' %>><span class="emo"><%= _g.emoji %></span> <%= _g.text %></div><% } %>
     <h1 data-ed-text="title"><%= hero.title %></h1>
     <% if (hero.text || admin) { %><p data-ed-text="text" data-ed-multiline><%= hero.text %></p><% } %>
   </div>
-  <% if (admin) { %><button type="button" class="pill ed-start" data-ed-start data-ed-off><span class="emo">✏️</span> Seite bearbeiten</button><% } %>
+  <% if (admin) { %><span class="ed-start-wrap"><button type="button" class="pill ed-start" data-lk-edit data-ed-off><span class="emo">🎨</span> Aussehen</button> <button type="button" class="pill ed-start" data-ed-start data-ed-off><span class="emo">✏️</span> Seite bearbeiten</button></span><% } %>
   <% if (services.length) { %>
   <div class="now" aria-label="Dienste">
     <% for (const s of services) { %>

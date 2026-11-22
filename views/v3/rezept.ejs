@@ -34,7 +34,7 @@
         <% if (source) { %> · nach einem Rezept von <a href="<%= r.source_url %>" target="_blank" rel="noopener nofollow"><%= source %></a><% } %>
       </p>
     </div>
-    <div class="ph <%= tint(r) %>"><% if (r.image) { %><img src="/media/<%= r.image %>" alt="<%= r.title %>"><% } else { %><span class="emo"><%= r.icon || '🍽️' %></span><% } %></div>
+    <div class="ph <%= tint(r) %>"><% if (r.image) { %><a href="/media/<%= r.image %>" data-lb data-cap="<%= r.title %>" class="lb-cover" style="display:contents"><img src="/media/<%= r.image %>" alt="<%= r.title %>"></a><% } else { %><span class="emo"><%= r.icon || '🍽️' %></span><% } %></div>
   </div>
 
   <div class="rz-body">

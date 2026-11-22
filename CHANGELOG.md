@@ -1,5 +1,10 @@
 # Changelog
 
+## Update 103 · 22.11.2026 – Bilder öffnen sich überall wie bei den Dioramen
+
+- **Bilder groß ansehen:** Vorschaubilder bei den Downloads öffneten sich in einem neuen Tab. Jetzt öffnen sich Bilder auf allen modernen Seiten wie bei den Dioramen in einem dunklen Fenster über der Seite. Mit den Pfeilen, den Pfeiltasten oder Wischen blätterst du durch alle Bilder der Seite, mit ✕, Esc oder einem Klick daneben schließt du es.
+- **Gilt für:** Projektbild und Vorschaubilder bei den Downloads, das Rezeptbild, Bilder in Texten (Duden, Beschreibungen, Anleitungen) und alle Bilder bei den Dioramen.
+
 ## Update 102 · 22.11.2026 – Dioramen: Vorher/Nachher wieder mit Schieber
 
 - **Schieber zurück:** In der Vorher/Nachher-Kachel liegen die beiden Bilder wieder übereinander, und ein Schieber in der Mitte zeigt links das Vorher und rechts das Nachher. Seit Update 99 standen sie versehentlich untereinander, mit einem kleinen Regler darunter.

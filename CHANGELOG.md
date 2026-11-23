@@ -1,5 +1,10 @@
 # Changelog
 
+## Update 105 · 23.11.2026 – Server stürzt nicht mehr ab
+
+- **Absturz behoben:** Manchmal wurde eine Seite doppelt beantwortet. Das beendete den ganzen Server, die Seite zeigte „502 Bad Gateway“, und der Container stand in Unraid auf gestoppt. Jetzt verwirft der Server die zweite Antwort und läuft weiter.
+- **Spur für die Ursache:** Jede verworfene Antwort steht in der Ereignisanzeige (Seitenverwaltung, Quelle „System“), mit Adresse und Seite. So lässt sich die eigentliche Stelle finden.
+
 ## Update 104 · 22.11.2026 – Dioramen: Rahmen ums Bauwerk und eigener Steckbrief
 
 - **Rahmen ums Bauwerk:** Alle Kacheln eines Bauwerks liegen jetzt in einem halbdurchsichtigen Rahmen in seiner Farbe, von der Überschrift bis zur letzten Kachel. Beim Gestalten wächst und schrumpft er mit, wenn du Kacheln verschiebst oder einem Bauwerk zuordnest. Im Bauwerk-Fenster (✎) lässt er sich je Bauwerk abschalten. Auf dem Handy entfällt er, dort stehen die Kacheln ohnehin untereinander.

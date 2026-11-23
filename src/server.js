@@ -118,6 +118,29 @@ const v3 = require('./v3');
 // Desktop: Seiten laufen als Fenster (iframes) auf einem Win98-Desktop. Direkt aufgerufen
 // liefert jede öffentliche Seite den Desktop mit ihr als Fenster, im Fenster selbst den
 // schlanken Inhalt ohne Rahmen. Der Browser verrät per Sec-Fetch-Dest, ob er ein iframe lädt.
+//
+// Schutz vor doppelten Antworten: Express liefert eine gerenderte Seite erst im nächsten Tick aus. Antwortet in der
+// Zwischenzeit schon etwas anderes, warf res.send „ERR_HTTP_HEADERS_SENT“ außerhalb jeder Fehlerbehandlung und beendete
+// den ganzen Server (Absturz mit 502, 23.11.2026). Jetzt wird die zweite Antwort verworfen und in der Ereignisanzeige notiert.
+app.use((req, res, next) => {
+  const render = res.render.bind(res);
+  res.render = (view, opts, cb) => {
+    if (typeof opts === 'function') { cb = opts; opts = undefined; }
+    return render(view, opts, (err, html) => {
+      if (cb) return cb(err, html);
+      if (res.headersSent) {
+        const msg = `Doppelte Antwort verworfen: ${req.method} ${req.originalUrl} (Seite ${view}${res.firstView ? ', zuerst ' + res.firstView : ''})${err ? ': ' + err.message : ''}`;
+        console.error(msg);
+        try { require('./events').warn('System', msg); } catch { /* nur Protokoll */ }
+        return;
+      }
+      if (err) return req.next(err);
+      res.firstView = view;
+      res.send(html);
+    });
+  };
+  next();
+});
 app.use((req, res, next) => {
   res.vary('Sec-Fetch-Dest');
   const embed = req.get('sec-fetch-dest') === 'iframe' || 'embed' in req.query;

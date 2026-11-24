@@ -226,7 +226,7 @@ function libEntry(kind, r, fi) {
     icon: kind === 'datei' || kind === 'medien' ? fileIcon(r.mime, r.original_name) : kind === 'titel' && r.kind === 'video' ? '🎬' : kind === 'titel' && r.kind === 'youtube' ? '▶️' : L.icon,
     size: r.size || 0, date: r[L.date], vis: kind === 'quiz' ? (r.shared ? 'members' : 'private') : kind === 'medien' ? 'link' : r.visibility,
     folder: fi ? fi.folder_id : null, x: fi ? fi.pos_x : null, y: fi ? fi.pos_y : null,
-    thumb: kind === 'bild' ? `/paint/bild/${r.id}/vorschau.png?v=${r.updated_at}` : kind === 'medien' && r.mime !== 'model/gltf-binary' ? '/media/' + r.stored_name : null,
+    thumb: kind === 'bild' ? `/paint/bild/${r.id}/vorschau.png?v=${r.updated_at}` : kind === 'medien' && /^image\//.test(r.mime || '') ? '/media/' + r.stored_name : null,
     ...(fi && fi.trashed_at ? { deleted: fi.trashed_at } : {}),
   };
 }

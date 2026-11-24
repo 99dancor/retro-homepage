@@ -108,6 +108,20 @@
       sc.type = 'module'; sc.src = '/vendor/model-viewer/model-viewer.min.js';
       document.head.appendChild(sc);
     }
+    // 3D-Kachel mit 360°-Hintergrund: das Rundumbild folgt der Kamera (waagerecht einmal rundherum, senkrecht ein Stück)
+    (root || document).querySelectorAll('model-viewer[data-pano]').forEach(function (m) {
+      if (m.hasAttribute('data-ready')) return;
+      m.setAttribute('data-ready', '');
+      var bg = m.parentNode.querySelector('.k3bg.b-pano');
+      if (!bg) return;
+      m.addEventListener('camera-change', function () {
+        if (!m.getCameraOrbit) return;
+        var o = m.getCameraOrbit(), h = bg.clientHeight * 1.5, w = h * 2;
+        var x = ((o.theta / (2 * Math.PI)) * w) % w;
+        var y = Math.max(0, Math.min(100, (o.phi / Math.PI) * 100));
+        bg.style.backgroundPosition = x.toFixed(1) + 'px ' + y.toFixed(1) + '%';
+      });
+    });
     (root || document).querySelectorAll('.kpano').forEach(function (p) {
       if (p.hasAttribute('data-ready')) return;
       p.setAttribute('data-ready', '');

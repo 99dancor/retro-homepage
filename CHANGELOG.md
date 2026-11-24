@@ -1,5 +1,12 @@
 # Changelog
 
+## Update 108 · 24.11.2026 – Dancors Dioramas: Download-Kacheln und Hintergründe für 3D
+
+- **Neue Kachel „Datei-Download“:** Eine kleine Kachel für eine beliebige Datei, z. B. ein KSP-Raumschiff (.craft), eine Blaupause, einen Mod oder ein PDF. Titel, Text, Symbol oder Bild, Knopf-Text und Farbe stellst du selbst ein, dazu auf Wunsch einen zweiten Knopf, der zu einer anderen Kachel springt (z. B. „🚀 in 3D ansehen“). Heruntergeladen wird mit dem Originalnamen.
+- **KSP-Raumschiffe erkannt:** Bei einer .craft liest die Seite Schiffsname, Anzahl der Teile, Hangar (VAB/SPH), Höhe, KSP-Version und die Beschreibung aus dem Spiel selbst aus.
+- **Hintergrund für 3D-Modelle:** Die 3D-Kachel hat jetzt einen einstellbaren Hintergrund: Standard, hell, dunkel, Weltall mit Sternen, eigene Farbe, ein Bild oder ein 360°-Rundumbild, das beim Drehen mitwandert.
+- **Sicher abgelegt:** Hochgeladene Dateien liegen unter einem neutralen Namen und werden immer nur als Download ausgeliefert, nie als Webseite.
+
 ## Update 107 · 24.11.2026 – Dancors Dioramas: 3D-Modelle
 
 - **Neue Kachel „3D-Modell“:** Lädt eine GLB-Datei (glTF 2.0, höchstens 100 MB) und zeigt sie als echtes 3D-Modell. Besucher drehen es mit Maus oder Finger und zoomen mit Mausrad oder zwei Fingern. Auf Wunsch dreht es sich langsam von selbst, dazu gibt es eine Unterschrift und ein freiwilliges Vorschaubild, das steht, bis das Modell geladen ist. Gedacht z. B. für KSP-Raumschiffe, die mit dem Werkzeug „KSP zu 3D“ zur GLB-Datei werden.

@@ -112,10 +112,19 @@ const TYPES = {
   pano: { icon: '🌐', label: '360°-Panorama', w: 12, h: 8 },
   // Update 107
   model: { icon: '🚀', label: '3D-Modell', w: 6, h: 8 },
+  // Update 108
+  file: { icon: '📎', label: 'Datei-Download', w: 3, h: 7 },
 };
 // 3D-Modelle: eine einzelne glTF-Binärdatei (.glb), z. B. ein KSP-Raumschiff aus Blender
 const MODEL_MAX_MB = 100;
 const modelName = s => (mediaName(s) && /\.glb$/i.test(s) ? s : null);
+// Hintergrund der 3D-Kachel (Update 108): Verlauf wie bisher, hell, dunkel, Weltall, eigene Farbe, Bild oder 360°-Panorama rundherum
+const MODEL_BGS = ['standard', 'hell', 'dunkel', 'weltall', 'farbe', 'bild', 'pano'];
+// Datei-Download (Update 108): beliebige Datei, liegt als <hex>.bin unter den Medien (nie als Webseite o. ä. ausgeliefert).
+// Eine KSP-.craft wird erkannt und zeigt Name, Teile und Größe des Raumschiffs.
+const FILE_MAX_MB = 200;
+const FILE_MIME = 'application/x-dio-datei';
+const fileName = s => (mediaName(s) && /^[a-f0-9]{32}\.bin$/.test(s) ? s : null);
 const COLS = 12, MAX_H = 40, MAX_Y = 2000, MAX_TILES = 200, MAX_BUILDINGS = 40, MAX_POINTS = 60;
 
 const str = (v, n) => String(v ?? '').trim().replace(/\s+/g, ' ').slice(0, n);
@@ -193,7 +202,17 @@ function normTiles(list, blds) {
       k.steps = asArray(t.steps).filter(x => x && mediaName(x.f)).slice(0, 30).map(x => ({ f: mediaName(x.f), when: str(x.when, 40), text: str(x.text, 300) }));
     }
     if (t.type === 'pano') { k.f = mediaName(t.f); k.cap = str(t.cap, 160); k.spin = t.spin === undefined ? true : !!t.spin; }
-    if (t.type === 'model') { k.f = modelName(t.f); k.poster = mediaName(t.poster); k.cap = str(t.cap, 160); k.spin = t.spin === undefined ? true : !!t.spin; }
+    if (t.type === 'model') {
+      k.f = modelName(t.f); k.poster = mediaName(t.poster); k.cap = str(t.cap, 160); k.spin = t.spin === undefined ? true : !!t.spin;
+      k.bg = MODEL_BGS.includes(t.bg) ? t.bg : 'standard';
+      k.color = hexColor(t.color, '#1b2236');
+      k.bgf = mediaName(t.bgf);
+    }
+    if (t.type === 'file') {
+      k.f = fileName(t.f); k.poster = mediaName(t.poster); k.title = str(t.title, 80); k.cap = str(t.cap, 300);
+      k.icon = str(t.icon, 8); k.btn = str(t.btn, 40); k.color = Object.hasOwn(COLORS, t.color) ? t.color : '';
+      k.to = typeof t.to === 'string' && /^t\d{1,6}$/.test(t.to) ? t.to : ''; k.toLabel = str(t.toLabel, 40);
+    }
     if (t.type === 'map') {
       k.f = mediaName(t.f);
       k.points = [];
@@ -210,6 +229,8 @@ function normTiles(list, blds) {
   }
   // Ziele der Kartenpunkte: nur vorhandene Bauwerke und Kacheln
   for (const k of out) if (k.points) for (const p of k.points) if (p.to && !(p.to[0] === 'b' ? bIds.has(p.to) : seen.has(p.to))) p.to = '';
+  // Datei-Kachel: Verweis nur auf eine Kachel, die es gibt (nicht auf sich selbst)
+  for (const k of out) if (k.type === 'file' && k.to && (k.to === k.id || !seen.has(k.to))) k.to = '';
   return out.sort((a, b) => a.y - b.y || a.x - b.x);
 }
 // Kacheln, die sich überdecken, rutschen nach unten (wie im Browser beim Ziehen); Lücken bleiben, wie gestaltet
@@ -365,7 +386,7 @@ function resolve(d, list, blds, o = {}) {
   const caps = new Map(images(d).map(i => [i.f, i.cap]));
   const fl = o.files || files(d);
   const known = new Set();
-  const names = list.flatMap(t => [t.f, t.poster, t.before, t.after, ...(t.imgs || []), ...(t.steps || []).map(x => x.f)]).filter(Boolean);
+  const names = list.flatMap(t => [t.f, t.poster, t.bgf, t.before, t.after, ...(t.imgs || []), ...(t.steps || []).map(x => x.f)]).filter(Boolean);
   if (names.length) for (const r of db.prepare(`SELECT stored_name FROM media WHERE stored_name IN (${names.map(() => '?').join(',')})`).all(...names)) known.add(r.stored_name);
   const img = f => (f && known.has(f) ? f : null);
   const ar = (w, h) => ((w * 96 - 14) / (h * 54 - 14)).toFixed(3);   // Seitenverhältnis am Handy (Kacheln untereinander)
@@ -383,7 +404,25 @@ function resolve(d, list, blds, o = {}) {
     if (t.type === 'hot') { r.f = img(t.f); r.empty = !r.f; }
     if (t.type === 'time') { r.steps = t.steps.filter(x => img(x.f)); r.empty = !r.steps.length; }
     if (t.type === 'pano') { r.f = img(t.f); r.empty = !r.f; }
-    if (t.type === 'model') { r.f = img(t.f); r.poster = img(t.poster); r.empty = !r.f; }
+    if (t.type === 'model') {
+      r.f = img(t.f); r.poster = img(t.poster); r.empty = !r.f;
+      r.bg = t.bg || 'standard'; r.bgf = img(t.bgf);
+      if ((r.bg === 'bild' || r.bg === 'pano') && !r.bgf) r.bg = 'standard';
+    }
+    if (t.type === 'file') {
+      r.f = img(t.f); r.poster = img(t.poster);
+      r.file = r.f ? fileInfo(r.f) : null;
+      r.empty = !r.file;
+      if (r.file) {
+        const c = r.file.craft, to = t.to ? tMap.get(t.to) : null;
+        r.title = t.title || (c ? c.ship : r.file.name.replace(/\.[^.]{1,10}$/, ''));
+        r.text = t.cap || (c ? c.desc : '');
+        r.icon = t.icon || (c ? '🛰️' : fileIcon(r.file.ext));
+        r.hex = t.color ? COLORS[t.color] : '';
+        r.btn = t.btn || (c ? '.craft' : r.file.ext ? '.' + r.file.ext : 'Herunterladen');
+        r.to = to ? { href: '#k-' + to.id, label: t.toLabel || (to.type === 'model' ? '🚀 in 3D ansehen' : '↪ ' + (TYPES[to.type] ? TYPES[to.type].label : 'Mehr dazu')) } : null;
+      }
+    }
     if (t.type === 'map') {
       r.f = img(t.f); r.empty = !r.f;
       r.points = t.points.map(p => {
@@ -446,7 +485,7 @@ function page(user, d) {
     author: author ? author.display_name || author.username : '', fresh: d.created_at >= now() - NEW_DAYS * 86400,
     editData: edit ? {
       tiles: list, buildings: blds, colors: COLORS, types: typesFor(d), group: kindOf(d).group, groups: kindOf(d).groups,
-      images: imgs, files: fl.map(f => ({ id: f.id, bw: f.bw || null, name: f.original_name, version: f.version || '' })), models: models(list),
+      images: imgs, files: fl.map(f => ({ id: f.id, bw: f.bw || null, name: f.original_name, version: f.version || '' })), models: models(list), tileFiles: tileFiles(list),
     } : null,
   };
 }
@@ -620,6 +659,59 @@ function takeModel(file, userId) {
   db.prepare('INSERT INTO media(stored_name, original_name, mime, size, uploader_id, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(file.filename, file.originalname, 'model/gltf-binary', file.size, userId, now());
   return file.filename;
 }
+// KSP-Raumschiff (.craft): reiner Text, vorne „ship = …“ und mindestens ein PART-Block. Ausgelesen werden nur ein paar Kopfzeilen.
+function readCraft(text) {
+  if (typeof text !== 'string' || text.includes('\0')) return null;
+  const head = {}, lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
+  for (const line of lines.slice(0, 40)) {
+    if (/^\s*PART\s*$/.test(line)) break;
+    const m = /^([A-Za-z]+)\s*=\s*(.*)$/.exec(line);
+    if (m && !(m[1] in head)) head[m[1]] = m[2].trim();
+  }
+  const parts = lines.filter(l => /^PART\s*$/.test(l)).length;
+  if (!head.ship || !parts) return null;
+  const size = String(head.size || '').split(',').map(Number);
+  const dims = size.length === 3 && size.every(n => Number.isFinite(n) && n >= 0 && n < 1e5) ? size : null;
+  return {
+    ship: str(head.ship, 80), version: /^\d+(\.\d+){1,3}$/.test(head.version || '') ? head.version : '',
+    desc: str(String(head.description || '').replace(/¨/g, ' '), 300), hangar: head.type === 'SPH' ? 'SPH' : head.type === 'VAB' ? 'VAB' : '',
+    kind: str(head.vesselType, 30), parts, dims: dims ? dims.map(n => Math.round(n * 10) / 10) : null,
+  };
+}
+const FILE_ICONS = { zip: '📦', rar: '📦', '7z': '📦', gz: '📦', pdf: '📕', glb: '🚀', gltf: '🚀', craft: '🛰️', png: '🖼️', jpg: '🖼️', jpeg: '🖼️', webp: '🖼️', txt: '📄', md: '📄', json: '🧾', xml: '🧾', cfg: '🧾', mp3: '🎵', ogg: '🎵', mp4: '🎬', exe: '💿', sh: '💻' };
+const fileIcon = ext => FILE_ICONS[ext] || '📄';
+// Datei aus dem Gestalten-Modus übernehmen: unter einem neutralen Namen (.bin) in die Medien, Originalname bleibt für den Download
+function takeFile(file, userId) {
+  if (!file || !file.size || file.size > FILE_MAX_MB * 1024 * 1024) { if (file) removeQuietly(file.path); return null; }
+  const stored = path.basename(file.filename).replace(/\.[^.]*$/, '') + '.bin';
+  if (!/^[a-f0-9]{32}\.bin$/.test(stored)) { removeQuietly(file.path); return null; }
+  const dest = path.join(MEDIA_DIR, stored);
+  try { fs.renameSync(file.path, dest); } catch { fs.copyFileSync(file.path, dest); removeQuietly(file.path); }
+  db.prepare('INSERT INTO media(stored_name, original_name, mime, size, uploader_id, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(stored, str(file.originalname, 200) || 'datei', FILE_MIME, file.size, userId, now());
+  return stored;
+}
+// Angaben zu einer Datei (für die Kachel): Originalname, Größe, Endung, bei .craft die Kopfzeilen. Gemerkt, weil sich Medien nie ändern.
+const infoCache = new Map();
+function fileInfo(f) {
+  if (!fileName(f)) return null;
+  if (infoCache.has(f)) return infoCache.get(f);
+  const m = db.prepare('SELECT original_name, size FROM media WHERE stored_name = ? AND mime = ?').get(f, FILE_MIME);
+  let info = null;
+  if (m) {
+    const ext = (/\.([a-z0-9]{1,10})$/i.exec(m.original_name) || [])[1];
+    info = { name: m.original_name, size: m.size, ext: ext ? ext.toLowerCase() : '', craft: null };
+    if (info.ext === 'craft' && m.size <= 20 * 1024 * 1024) { try { info.craft = readCraft(fs.readFileSync(path.join(MEDIA_DIR, f), 'utf8')); } catch { info.craft = null; } }
+  }
+  if (infoCache.size > 500) infoCache.clear();
+  infoCache.set(f, info);
+  return info;
+}
+// Die Dateien in den Kacheln (für die Auswahl beim Gestalten)
+function tileFiles(list) {
+  const names = [...new Set(list.filter(t => t.type === 'file' && t.f).map(t => t.f))];
+  if (!names.length) return [];
+  return db.prepare(`SELECT stored_name AS f, original_name AS name, size FROM media WHERE mime = ? AND stored_name IN (${names.map(() => '?').join(',')})`).all(FILE_MIME, ...names);
+}
 // Die 3D-Modelle, die in den Kacheln stecken (für die Auswahl beim Gestalten): Name und Größe
 function models(list) {
   const names = [...new Set(list.filter(t => t.type === 'model' && t.f).map(t => t.f))];
@@ -764,7 +856,7 @@ migrate();
 unifyGames();
 
 module.exports = {
-  KINDS, kindOf, typesFor, normBg, bgOf, bgRaw, SORTS, IMAGE_TYPES, NEW_DAYS, COLORS, TYPES, MODEL_MAX_MB, isGlb, takeModel, models, canWrite, canSee, canEdit, bySlug, byId, moved, files, fileById, images, facts, mods, buildings, tiles,
+  KINDS, kindOf, typesFor, normBg, bgOf, bgRaw, SORTS, IMAGE_TYPES, NEW_DAYS, COLORS, TYPES, MODEL_MAX_MB, MODEL_BGS, isGlb, takeModel, models, FILE_MAX_MB, FILE_MIME, readCraft, takeFile, fileInfo, tileFiles, canWrite, canSee, canEdit, bySlug, byId, moved, files, fileById, images, facts, mods, buildings, tiles,
   normTiles, normBuildings, settle, frames, nextId, bottom, row, view, page, resolve, layout, saveLayout, normalize, stats, meta, recent, search, downloadCards,
   create, update, saveTiles, takeImage, setImages, addImages, addFile, removeFile, remove, knownGames, gameKey, unifyGames, factsFrom, modsFrom, uniqueSlug, migrate, starterTiles, videoInfo,
 };

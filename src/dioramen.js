@@ -110,7 +110,12 @@ const TYPES = {
   hot: { icon: '📌', label: 'Bild mit Hinweisen', w: 8, h: 9 },
   time: { icon: '📅', label: 'Zeitleiste', w: 12, h: 10 },
   pano: { icon: '🌐', label: '360°-Panorama', w: 12, h: 8 },
+  // Update 107
+  model: { icon: '🚀', label: '3D-Modell', w: 6, h: 8 },
 };
+// 3D-Modelle: eine einzelne glTF-Binärdatei (.glb), z. B. ein KSP-Raumschiff aus Blender
+const MODEL_MAX_MB = 100;
+const modelName = s => (mediaName(s) && /\.glb$/i.test(s) ? s : null);
 const COLS = 12, MAX_H = 40, MAX_Y = 2000, MAX_TILES = 200, MAX_BUILDINGS = 40, MAX_POINTS = 60;
 
 const str = (v, n) => String(v ?? '').trim().replace(/\s+/g, ' ').slice(0, n);
@@ -188,6 +193,7 @@ function normTiles(list, blds) {
       k.steps = asArray(t.steps).filter(x => x && mediaName(x.f)).slice(0, 30).map(x => ({ f: mediaName(x.f), when: str(x.when, 40), text: str(x.text, 300) }));
     }
     if (t.type === 'pano') { k.f = mediaName(t.f); k.cap = str(t.cap, 160); k.spin = t.spin === undefined ? true : !!t.spin; }
+    if (t.type === 'model') { k.f = modelName(t.f); k.poster = mediaName(t.poster); k.cap = str(t.cap, 160); k.spin = t.spin === undefined ? true : !!t.spin; }
     if (t.type === 'map') {
       k.f = mediaName(t.f);
       k.points = [];
@@ -359,7 +365,7 @@ function resolve(d, list, blds, o = {}) {
   const caps = new Map(images(d).map(i => [i.f, i.cap]));
   const fl = o.files || files(d);
   const known = new Set();
-  const names = list.flatMap(t => [t.f, t.before, t.after, ...(t.imgs || []), ...(t.steps || []).map(x => x.f)]).filter(Boolean);
+  const names = list.flatMap(t => [t.f, t.poster, t.before, t.after, ...(t.imgs || []), ...(t.steps || []).map(x => x.f)]).filter(Boolean);
   if (names.length) for (const r of db.prepare(`SELECT stored_name FROM media WHERE stored_name IN (${names.map(() => '?').join(',')})`).all(...names)) known.add(r.stored_name);
   const img = f => (f && known.has(f) ? f : null);
   const ar = (w, h) => ((w * 96 - 14) / (h * 54 - 14)).toFixed(3);   // Seitenverhältnis am Handy (Kacheln untereinander)
@@ -377,6 +383,7 @@ function resolve(d, list, blds, o = {}) {
     if (t.type === 'hot') { r.f = img(t.f); r.empty = !r.f; }
     if (t.type === 'time') { r.steps = t.steps.filter(x => img(x.f)); r.empty = !r.steps.length; }
     if (t.type === 'pano') { r.f = img(t.f); r.empty = !r.f; }
+    if (t.type === 'model') { r.f = img(t.f); r.poster = img(t.poster); r.empty = !r.f; }
     if (t.type === 'map') {
       r.f = img(t.f); r.empty = !r.f;
       r.points = t.points.map(p => {
@@ -439,7 +446,7 @@ function page(user, d) {
     author: author ? author.display_name || author.username : '', fresh: d.created_at >= now() - NEW_DAYS * 86400,
     editData: edit ? {
       tiles: list, buildings: blds, colors: COLORS, types: typesFor(d), group: kindOf(d).group, groups: kindOf(d).groups,
-      images: imgs, files: fl.map(f => ({ id: f.id, bw: f.bw || null, name: f.original_name, version: f.version || '' })),
+      images: imgs, files: fl.map(f => ({ id: f.id, bw: f.bw || null, name: f.original_name, version: f.version || '' })), models: models(list),
     } : null,
   };
 }
@@ -595,6 +602,30 @@ function takeImage(file, userId) {
   db.prepare('INSERT INTO media(stored_name, original_name, mime, size, uploader_id, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(file.filename, file.originalname, file.mimetype, file.size, userId, now());
   return file.filename;
 }
+// Ein hochgeladenes 3D-Modell (.glb) zieht in die Medien um. Geprüft wird der Dateikopf: „glTF“, Version 2, Länge passt.
+function isGlb(file) {
+  if (!file || !/\.glb$/i.test(file.originalname || '') || !file.size || file.size > MODEL_MAX_MB * 1024 * 1024) return false;
+  let fd;
+  try {
+    fd = fs.openSync(file.path, 'r');
+    const head = Buffer.alloc(12);
+    if (fs.readSync(fd, head, 0, 12, 0) < 12) return false;
+    return head.toString('latin1', 0, 4) === 'glTF' && head.readUInt32LE(4) === 2 && head.readUInt32LE(8) === file.size;
+  } catch { return false; } finally { if (fd !== undefined) fs.closeSync(fd); }
+}
+function takeModel(file, userId) {
+  if (!isGlb(file)) { if (file) removeQuietly(file.path); return null; }
+  const dest = path.join(MEDIA_DIR, file.filename);
+  try { fs.renameSync(file.path, dest); } catch { fs.copyFileSync(file.path, dest); removeQuietly(file.path); }
+  db.prepare('INSERT INTO media(stored_name, original_name, mime, size, uploader_id, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(file.filename, file.originalname, 'model/gltf-binary', file.size, userId, now());
+  return file.filename;
+}
+// Die 3D-Modelle, die in den Kacheln stecken (für die Auswahl beim Gestalten): Name und Größe
+function models(list) {
+  const names = [...new Set(list.filter(t => t.type === 'model' && t.f).map(t => t.f))];
+  if (!names.length) return [];
+  return db.prepare(`SELECT stored_name AS f, original_name AS name, size FROM media WHERE stored_name IN (${names.map(() => '?').join(',')})`).all(...names);
+}
 // Bilder aus dem Formular: die behaltenen in der neuen Reihenfolge (img = Namen, cap_<Name> = Unterschrift), dazu neue,
 // Titelbild per Name (cover) oder „new:<n>“ für das n-te neue Bild.
 function setImages(d, b, added) {
@@ -733,7 +764,7 @@ migrate();
 unifyGames();
 
 module.exports = {
-  KINDS, kindOf, typesFor, normBg, bgOf, bgRaw, SORTS, IMAGE_TYPES, NEW_DAYS, COLORS, TYPES, canWrite, canSee, canEdit, bySlug, byId, moved, files, fileById, images, facts, mods, buildings, tiles,
+  KINDS, kindOf, typesFor, normBg, bgOf, bgRaw, SORTS, IMAGE_TYPES, NEW_DAYS, COLORS, TYPES, MODEL_MAX_MB, isGlb, takeModel, models, canWrite, canSee, canEdit, bySlug, byId, moved, files, fileById, images, facts, mods, buildings, tiles,
   normTiles, normBuildings, settle, frames, nextId, bottom, row, view, page, resolve, layout, saveLayout, normalize, stats, meta, recent, search, downloadCards,
   create, update, saveTiles, takeImage, setImages, addImages, addFile, removeFile, remove, knownGames, gameKey, unifyGames, factsFrom, modsFrom, uniqueSlug, migrate, starterTiles, videoInfo,
 };

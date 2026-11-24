@@ -105,6 +105,43 @@ test('Neue Kacheln: Zahlen, Bild mit Hinweisen, Zeitleiste, Panorama', () => {
   assert.equal(t[3].spin, false);
 });
 
+test('3D-Kachel: nur .glb, Kopf wird geprüft, Vorschaubild und Drehen', () => {
+  const t = dio.normTiles([
+    { id: 't1', type: 'model', x: 1, y: 1, f: 'abc.glb', poster: 'p.png', cap: 'Duna 1' },
+    { id: 't2', type: 'model', x: 1, y: 10, f: 'bild.png', spin: false },
+    { id: 't3', type: 'model', x: 1, y: 20, f: '../x.glb' },
+  ], []);
+  assert.deepEqual([t[0].f, t[0].poster, t[0].cap, t[0].spin], ['abc.glb', 'p.png', 'Duna 1', true]);
+  assert.equal(t[1].f, null, 'nur .glb'); assert.equal(t[1].spin, false);
+  assert.equal(t[2].f, null, 'kein Pfad');
+  assert.equal(dio.TYPES.model.label, '3D-Modell');
+
+  const glb = (name, body, lie) => {
+    const stored = 'm' + Math.random().toString(36).slice(2) + '.glb', file = path.join(UPLOAD_DIR, stored);
+    const head = Buffer.alloc(12); head.write('glTF', 0, 'latin1'); head.writeUInt32LE(2, 4); head.writeUInt32LE(12 + body + (lie || 0), 8);
+    fs.writeFileSync(file, Buffer.concat([head, Buffer.alloc(body)]));
+    return { originalname: name, filename: stored, path: file, size: 12 + body, mimetype: 'application/octet-stream' };
+  };
+  assert.equal(dio.isGlb(glb('schiff.glb', 20)), true);
+  assert.equal(dio.isGlb(glb('schiff.png', 20)), false, 'Endung muss .glb sein');
+  assert.equal(dio.isGlb(glb('schiff.glb', 20, 5)), false, 'Länge im Kopf passt nicht');
+  const fake = { ...fakeFile('kaputt.glb', 30), path: null };
+  fake.path = path.join(UPLOAD_DIR, fake.filename);
+  assert.equal(dio.takeModel(fake, admin.id), null, 'kein glTF-Kopf');
+  assert.equal(fs.existsSync(fake.path), false, 'abgelehnte Datei wird gelöscht');
+
+  const f = dio.takeModel(glb('Duna 1.glb', 40), admin.id);
+  assert.ok(f && f.endsWith('.glb'));
+  const m = db.prepare('SELECT mime, original_name FROM media WHERE stored_name = ?').get(f);
+  assert.deepEqual({ ...m }, { mime: 'model/gltf-binary', original_name: 'Duna 1.glb' });
+  const list = dio.normTiles([{ id: 't1', type: 'model', x: 1, y: 1, f }, { id: 't2', type: 'model', x: 1, y: 10, f: 'fehlt.glb' }], []);
+  assert.deepEqual(dio.models(list).map(x => x.name), ['Duna 1.glb']);
+  const d = { id: 0, howto_md: '', images: '[]' };
+  const r = dio.resolve(d, list, [], { files: [] });
+  assert.equal(r[0].f, f); assert.equal(r[0].empty, false); assert.equal(r[0].poster, null);
+  assert.equal(r[1].empty, true, 'unbekannte Datei: leere Kachel');
+});
+
 test('Steckbrief mit eigenen Zeilen und Bauwerk-Rahmen', () => {
   const blds = dio.normBuildings([{ id: 'b1', name: 'Stall' }, { id: 'b2', name: 'Silo', frame: false }]);
   assert.equal(blds[0].frame, true); assert.equal(blds[1].frame, false);

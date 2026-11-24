@@ -1,5 +1,10 @@
 # Changelog
 
+## Update 107 · 24.11.2026 – Dancors Dioramas: 3D-Modelle
+
+- **Neue Kachel „3D-Modell“:** Lädt eine GLB-Datei (glTF 2.0, höchstens 100 MB) und zeigt sie als echtes 3D-Modell. Besucher drehen es mit Maus oder Finger und zoomen mit Mausrad oder zwei Fingern. Auf Wunsch dreht es sich langsam von selbst, dazu gibt es eine Unterschrift und ein freiwilliges Vorschaubild, das steht, bis das Modell geladen ist. Gedacht z. B. für KSP-Raumschiffe, die mit dem Werkzeug „KSP zu 3D“ zur GLB-Datei werden.
+- **Ohne fremde Server:** Der Viewer (<model-viewer>) kommt von dieser Seite und wird nur auf Seiten mit einer 3D-Kachel geladen. Modelle liegen wie Bilder unter den Medien und erscheinen in der Bilder-Liste der Verwaltung als 🚀.
+
 ## Update 106 · 24.11.2026 – Dancors Dioramas: Arten, eigene Hintergründe, neue Kacheln
 
 - **Neuer Name:** Die Seite heißt jetzt „Dancors Dioramas“, Untertitel „Spielstände, Bauprojekte und mehr“. Hast du Titel oder Text selbst geändert, bleibt deine Fassung.

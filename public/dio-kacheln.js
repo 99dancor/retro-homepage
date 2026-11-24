@@ -18,7 +18,7 @@
   var clone = function (o) { return JSON.parse(JSON.stringify(o)); };
   var state = { tiles: clone(D.tiles), buildings: clone(D.buildings) };
   var saved = JSON.stringify(state), undo = [], on = false, busy = false;
-  var CONTENT = { text: 1, img: 1, cmp: 1, gal: 1, map: 1, video: 1, facts: 1, num: 1, hot: 1, time: 1, pano: 1 };
+  var CONTENT = { text: 1, img: 1, cmp: 1, gal: 1, map: 1, video: 1, facts: 1, num: 1, hot: 1, time: 1, pano: 1, model: 1 };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var tile = function (id) { for (var i = 0; i < state.tiles.length; i++) if (state.tiles[i].id === id) return state.tiles[i]; return null; };
   var bld = function (id) { for (var i = 0; i < state.buildings.length; i++) if (state.buildings[i].id === id) return state.buildings[i]; return null; };
@@ -215,7 +215,7 @@
   });
 
   // ---------- Neue Kacheln aus der Leiste ----------
-  var DEFAULTS = { text: { title: '', md: '' }, img: { f: null, cap: '', fit: 'cover' }, cmp: { before: null, after: null }, gal: { imgs: [] }, map: { f: null, points: [] }, video: { url: '', cap: '' }, facts: { title: '', rows: [] }, num: { title: '', items: [] }, hot: { f: null, cap: '', pts: [] }, time: { title: '', steps: [] }, pano: { f: null, cap: '', spin: true } };
+  var DEFAULTS = { text: { title: '', md: '' }, img: { f: null, cap: '', fit: 'cover' }, cmp: { before: null, after: null }, gal: { imgs: [] }, map: { f: null, points: [] }, video: { url: '', cap: '' }, facts: { title: '', rows: [] }, num: { title: '', items: [] }, hot: { f: null, cap: '', pts: [] }, time: { title: '', steps: [] }, pano: { f: null, cap: '', spin: true }, model: { f: null, poster: null, cap: '', spin: true } };
   var TYPES = D.types;
   var newTile = function (type, extra) {
     var T = TYPES[type], t = { id: nextId(state.tiles, 't'), type: type, x: 1, y: bottom(), w: T.w, h: T.h, bw: null };
@@ -382,6 +382,42 @@
       body.querySelector('[name=cap]').value = t.cap || '';
       body.querySelector('[name=spin]').checked = t.spin !== false;
       ok = function () { t.f = pp.get()[0] || null; t.cap = body.querySelector('[name=cap]').value; t.spin = body.querySelector('[name=spin]').checked; };
+    } else if (t.type === 'model') {
+      // 3D-Modell: eine .glb hochladen oder ein schon hochgeladenes wählen, dazu wahlweise ein Vorschaubild
+      D.models = D.models || [];
+      var cur3 = t.f;
+      var mb = function (n) { return (n / 1048576).toFixed(n < 10485760 ? 1 : 0).replace('.', ',') + ' MB'; };
+      body = html('<p class="muted" style="margin:0">Eine GLB-Datei (glTF 2.0, alles in einer Datei, höchstens 100 MB). Besucher drehen das Modell mit Maus oder Finger und zoomen mit dem Mausrad oder zwei Fingern. Ein KSP-Raumschiff wird mit dem Werkzeug „KSP zu 3D“ zur GLB-Datei.</p>'
+        + '<div class="f"><b style="font-size:14px">Modell</b><div class="k3dlist"></div><div class="k3dup"><label class="pill small up2"><input type="file" accept=".glb,model/gltf-binary"><span>📥 GLB hochladen</span></label><small class="muted" data-st></small></div></div>');
+      var list3 = body.querySelector('.k3dlist'), st3 = body.querySelector('[data-st]');
+      var draw3 = function () {
+        list3.innerHTML = D.models.map(function (m) {
+          return '<button type="button" class="pill small' + (m.f === cur3 ? ' on' : '') + '" data-m="' + esc(m.f) + '">🚀 ' + esc(m.name) + ' <small>' + mb(m.size) + '</small></button>';
+        }).join('') || '<small class="muted">Noch kein Modell hochgeladen.</small>';
+      };
+      list3.addEventListener('click', function (e) { var b = e.target.closest('[data-m]'); if (b) { cur3 = b.getAttribute('data-m'); draw3(); } });
+      body.querySelector('.k3dup input').addEventListener('change', function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (!/\.glb$/i.test(file.name)) { st3.textContent = '⚠ Bitte eine .glb-Datei wählen.'; return; }
+        var fd = new FormData(); fd.append('_csrf', csrf); fd.append('model', file);
+        st3.textContent = 'Lädt hoch … (' + mb(file.size) + ')';
+        fetch(base + '/modell', { method: 'POST', body: fd, credentials: 'same-origin', headers: { Accept: 'application/json' } })
+          .then(function (r) { return r.json().then(function (j) { if (!r.ok || !j.ok) throw new Error(j.error || 'Hochladen fehlgeschlagen'); return j; }); })
+          .then(function (j) { D.models.push(j.model); cur3 = j.model.f; st3.textContent = '✔ hochgeladen'; draw3(); })
+          .catch(function (err) { st3.textContent = '⚠ ' + err.message; });
+        e.target.value = '';
+      });
+      draw3();
+      var pp3 = picker(false, [t.poster]);
+      var pl = html('<div class="f"><b style="font-size:14px">Vorschaubild <small class="muted" style="font-weight:500">freiwillig, steht da, bis das Modell geladen ist</small></b></div>');
+      pl.firstChild.appendChild(pp3.el);
+      while (pl.firstChild) body.appendChild(pl.firstChild);
+      var mf = html(field('Unterschrift', '<input type="text" name="cap" maxlength="160">', 'freiwillig') + '<label class="check"><input type="checkbox" name="spin"> dreht sich langsam von selbst</label>');
+      while (mf.firstChild) body.appendChild(mf.firstChild);
+      body.querySelector('[name=cap]').value = t.cap || '';
+      body.querySelector('[name=spin]').checked = t.spin !== false;
+      ok = function () { t.f = cur3 || null; t.poster = pp3.get()[0] || null; t.cap = body.querySelector('[name=cap]').value; t.spin = body.querySelector('[name=spin]').checked; };
     } else if (t.type === 'time') {
       var known = {};
       (t.steps || []).forEach(function (x) { known[x.f] = { when: x.when, text: x.text }; });

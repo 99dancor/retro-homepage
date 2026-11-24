@@ -18,7 +18,7 @@
   var clone = function (o) { return JSON.parse(JSON.stringify(o)); };
   var state = { tiles: clone(D.tiles), buildings: clone(D.buildings) };
   var saved = JSON.stringify(state), undo = [], on = false, busy = false;
-  var CONTENT = { text: 1, img: 1, cmp: 1, gal: 1, map: 1, video: 1, facts: 1, num: 1, hot: 1, time: 1, pano: 1, model: 1 };
+  var CONTENT = { text: 1, img: 1, cmp: 1, gal: 1, map: 1, video: 1, facts: 1, num: 1, hot: 1, time: 1, pano: 1, model: 1, file: 1 };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var tile = function (id) { for (var i = 0; i < state.tiles.length; i++) if (state.tiles[i].id === id) return state.tiles[i]; return null; };
   var bld = function (id) { for (var i = 0; i < state.buildings.length; i++) if (state.buildings[i].id === id) return state.buildings[i]; return null; };
@@ -215,7 +215,7 @@
   });
 
   // ---------- Neue Kacheln aus der Leiste ----------
-  var DEFAULTS = { text: { title: '', md: '' }, img: { f: null, cap: '', fit: 'cover' }, cmp: { before: null, after: null }, gal: { imgs: [] }, map: { f: null, points: [] }, video: { url: '', cap: '' }, facts: { title: '', rows: [] }, num: { title: '', items: [] }, hot: { f: null, cap: '', pts: [] }, time: { title: '', steps: [] }, pano: { f: null, cap: '', spin: true }, model: { f: null, poster: null, cap: '', spin: true } };
+  var DEFAULTS = { text: { title: '', md: '' }, img: { f: null, cap: '', fit: 'cover' }, cmp: { before: null, after: null }, gal: { imgs: [] }, map: { f: null, points: [] }, video: { url: '', cap: '' }, facts: { title: '', rows: [] }, num: { title: '', items: [] }, hot: { f: null, cap: '', pts: [] }, time: { title: '', steps: [] }, pano: { f: null, cap: '', spin: true }, model: { f: null, poster: null, cap: '', spin: true, bg: 'standard', color: '#1b2236', bgf: null }, file: { f: null, poster: null, title: '', cap: '', icon: '', btn: '', color: '', to: '', toLabel: '' } };
   var TYPES = D.types;
   var newTile = function (type, extra) {
     var T = TYPES[type], t = { id: nextId(state.tiles, 't'), type: type, x: 1, y: bottom(), w: T.w, h: T.h, bw: null };
@@ -417,7 +417,79 @@
       while (mf.firstChild) body.appendChild(mf.firstChild);
       body.querySelector('[name=cap]').value = t.cap || '';
       body.querySelector('[name=spin]').checked = t.spin !== false;
-      ok = function () { t.f = cur3 || null; t.poster = pp3.get()[0] || null; t.cap = body.querySelector('[name=cap]').value; t.spin = body.querySelector('[name=spin]').checked; };
+      // Hintergrund (Update 108): Verlauf, hell, dunkel, Weltall, eigene Farbe, Bild oder 360°-Panorama rundherum
+      var BGS = [['standard', 'Standard'], ['hell', 'Hell'], ['dunkel', 'Dunkel'], ['weltall', 'Weltall'], ['farbe', 'Farbe'], ['bild', 'Bild'], ['pano', '360°']];
+      var bg3 = t.bg || 'standard';
+      var bgEl = html('<div class="f"><b style="font-size:14px">Hintergrund</b><div class="k3bgpick">' + BGS.map(function (b) { return '<button type="button" class="b-' + b[0] + '" data-bg="' + b[0] + '">' + b[1] + '</button>'; }).join('') + '</div>'
+        + '<div class="k3bgopt" data-o="farbe"><label class="check"><input type="color" name="color"> eigene Farbe</label></div>'
+        + '<div class="k3bgopt" data-o="bild"><small class="muted">Ein Bild hinter dem Modell, füllt die Kachel.</small></div>'
+        + '<div class="k3bgopt" data-o="pano"><small class="muted">Ein Rundumbild (2:1, z. B. ein 360°-Screenshot). Es liegt rund um das Modell und wandert beim Drehen mit.</small></div></div>');
+      var ppBg = picker(false, [t.bgf]);
+      bgEl = bgEl.firstChild;   // der Block selbst, er zieht gleich in den Dialog um
+      bgEl.querySelector('[name=color]').value = t.color || '#1b2236';
+      var drawBg = function () {
+        Array.prototype.forEach.call(bgEl.querySelectorAll('[data-bg]'), function (b) { b.classList.toggle('on', b.getAttribute('data-bg') === bg3); });
+        Array.prototype.forEach.call(bgEl.querySelectorAll('[data-o]'), function (o) { var m = o.getAttribute('data-o'); o.hidden = m !== bg3; });
+        var host = bgEl.querySelector('[data-o="' + bg3 + '"]');
+        if (bg3 === 'bild' || bg3 === 'pano') host.appendChild(ppBg.el);
+      };
+      bgEl.querySelector('.k3bgpick').addEventListener('click', function (e) { var b = e.target.closest('[data-bg]'); if (b) { bg3 = b.getAttribute('data-bg'); drawBg(); } });
+      drawBg();
+      body.appendChild(bgEl);
+      ok = function () {
+        t.f = cur3 || null; t.poster = pp3.get()[0] || null; t.cap = body.querySelector('[name=cap]').value; t.spin = body.querySelector('[name=spin]').checked;
+        t.bg = bg3; t.color = body.querySelector('[name=color]').value; t.bgf = bg3 === 'bild' || bg3 === 'pano' ? ppBg.get()[0] || null : t.bgf || null;
+      };
+    } else if (t.type === 'file') {
+      // Datei-Download: eine beliebige Datei hochladen oder eine schon hochgeladene wählen; Titel, Text, Symbol oder Bild,
+      // Knopf, Farbe und ein Verweis auf eine andere Kachel sind frei. Eine KSP-.craft füllt Titel und Eckdaten selbst.
+      D.tileFiles = D.tileFiles || [];
+      var curF = t.f;
+      var kb = function (n) { return n < 1048576 ? Math.max(1, Math.round(n / 1024)) + ' KB' : (n / 1048576).toFixed(1).replace('.', ',') + ' MB'; };
+      var others = state.tiles.filter(function (x) { return x.id !== t.id && x.type !== 'head'; });
+      var ckeys = Object.keys(D.colors);
+      body = html('<p class="muted" style="margin:0">Eine Datei zum Herunterladen, z. B. ein KSP-Raumschiff (.craft), eine Blaupause, ein Mod oder ein PDF. Bei einer .craft liest die Seite Name, Teile und Größe selbst aus.</p>'
+        + '<div class="f"><b style="font-size:14px">Datei</b><div class="k3dlist"></div><div class="k3dup"><label class="pill small up2"><input type="file"><span>📥 Datei hochladen</span></label><small class="muted" data-st></small></div></div>'
+        + field('Titel', '<input type="text" name="title" maxlength="80">', 'freiwillig, sonst der Dateiname bzw. Schiffsname')
+        + field('Text', '<input type="text" name="cap" maxlength="300">', 'freiwillig, bei .craft sonst die Beschreibung aus dem Spiel')
+        + '<div class="kfrow">' + field('Symbol', '<input type="text" name="icon" maxlength="8" placeholder="📎">', 'ein Emoji') + field('Knopf', '<input type="text" name="btn" maxlength="40" placeholder="Herunterladen">', 'Text auf dem Knopf') + '</div>'
+        + '<div class="f"><b style="font-size:14px">Farbe</b><div class="kcolors"><label style="--c:var(--accent)" title="Standard"><input type="radio" name="fcolor" value=""></label>' + ckeys.map(function (k) { return '<label style="--c:' + D.colors[k] + '" title="' + k + '"><input type="radio" name="fcolor" value="' + k + '"></label>'; }).join('') + '</div></div>');
+      var listF = body.querySelector('.k3dlist'), stF = body.querySelector('[data-st]');
+      var drawF = function () {
+        listF.innerHTML = D.tileFiles.map(function (m) {
+          return '<button type="button" class="pill small' + (m.f === curF ? ' on' : '') + '" data-m="' + esc(m.f) + '">📎 ' + esc(m.name) + ' <small>' + kb(m.size) + '</small></button>';
+        }).join('') || '<small class="muted">Noch keine Datei hochgeladen.</small>';
+      };
+      listF.addEventListener('click', function (e) { var b = e.target.closest('[data-m]'); if (b) { curF = b.getAttribute('data-m'); drawF(); } });
+      body.querySelector('.k3dup input').addEventListener('change', function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (!file) return;
+        var fd = new FormData(); fd.append('_csrf', csrf); fd.append('datei', file);
+        stF.textContent = 'Lädt hoch … (' + kb(file.size) + ')';
+        fetch(base + '/datei', { method: 'POST', body: fd, credentials: 'same-origin', headers: { Accept: 'application/json' } })
+          .then(function (r) { return r.json().then(function (j) { if (!r.ok || !j.ok) throw new Error(j.error || 'Hochladen fehlgeschlagen'); return j; }); })
+          .then(function (j) {
+            D.tileFiles.push(j.file); curF = j.file.f; drawF();
+            stF.textContent = '✔ ' + (j.craft ? 'KSP-Raumschiff „' + j.craft.ship + '“, ' + j.craft.parts + ' Teile' : 'hochgeladen');
+          })
+          .catch(function (err) { stF.textContent = '⚠ ' + err.message; });
+        e.target.value = '';
+      });
+      drawF();
+      var ppF = picker(false, [t.poster]);
+      var plF = html('<div class="f"><b style="font-size:14px">Bild <small class="muted" style="font-weight:500">freiwillig, statt des Symbols, z. B. das Vorschaubild von „KSP zu 3D“</small></b></div>');
+      plF.firstChild.appendChild(ppF.el);
+      while (plF.firstChild) body.appendChild(plF.firstChild);
+      var tf = html('<div class="kfrow">' + field('Zweiter Knopf führt zu', '<select name="to"><option value="">– keiner –</option>' + others.map(function (m) { return '<option value="' + esc(m.id) + '">' + esc(TYPES[m.type].icon + ' ' + labelOf(m)) + '</option>'; }).join('') + '</select>', 'freiwillig, z. B. zur 3D-Kachel')
+        + field('Text dafür', '<input type="text" name="toLabel" maxlength="40" placeholder="🚀 in 3D ansehen">', 'freiwillig') + '</div>');
+      while (tf.firstChild) body.appendChild(tf.firstChild);
+      ['title', 'cap', 'icon', 'btn', 'to', 'toLabel'].forEach(function (n) { body.querySelector('[name=' + n + ']').value = t[n] || ''; });
+      var fc = body.querySelector('[name=fcolor][value="' + (t.color || '') + '"]'); if (fc) fc.checked = true;
+      ok = function () {
+        t.f = curF || null; t.poster = ppF.get()[0] || null;
+        ['title', 'cap', 'icon', 'btn', 'to', 'toLabel'].forEach(function (n) { t[n] = body.querySelector('[name=' + n + ']').value.trim(); });
+        var c = body.querySelector('[name=fcolor]:checked'); t.color = c ? c.value : '';
+      };
     } else if (t.type === 'time') {
       var known = {};
       (t.steps || []).forEach(function (x) { known[x.f] = { when: x.when, text: x.text }; });

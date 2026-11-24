@@ -9,6 +9,8 @@
 //   POST /dioramen/<slug>/kacheln/vorschau                         Kacheln als HTML für den Gestalten-Modus (JSON)
 //   POST /dioramen/<slug>/bilder                                   Bilder hochladen (Gestalten-Modus, antwortet JSON)
 //   POST /dioramen/<slug>/modell                                   3D-Modell (.glb) hochladen (Gestalten-Modus, antwortet JSON)
+//   POST /dioramen/<slug>/datei                                    Datei für eine Download-Kachel hochladen (Gestalten-Modus, antwortet JSON)
+//   GET  /dioramen/<slug>/datei/<name>                             Datei aus einer Download-Kachel herunterladen (mit Originalnamen)
 //   POST /dioramen/<slug>/datei/<id>/loeschen, /dioramen/<slug>/loeschen
 //   GET  /dioramen/dl/<id>                                         Download (zählt mit, prüft die Sichtbarkeit)
 const fs = require('node:fs');
@@ -19,7 +21,7 @@ const up = require('../uploads');
 const v3 = require('../v3');
 const dio = require('../dioramen');
 const cats = require('../filecats');
-const { db, UPLOAD_DIR } = require('../db');
+const { db, UPLOAD_DIR, MEDIA_DIR } = require('../db');
 const { mdBlocks } = require('../util');
 const ejs = require('ejs');
 const TILE_VIEW = path.join(__dirname, '..', '..', 'views', 'v3', '_dio-tile.ejs');
@@ -188,6 +190,34 @@ router.post('/:slug/modell', needLogin, entry, editorJson, modelUpload, auth.csr
   const stored = dio.takeModel(f, req.user.id);
   if (!stored) return res.status(400).json({ error: 'Hochladen fehlgeschlagen.' });
   res.json({ ok: true, model: { f: stored, name: f.originalname, size: f.size } });
+});
+
+// Datei für die Kachel „Datei-Download“ (Update 108): beliebige Datei, z. B. ein KSP-Raumschiff (.craft)
+const fileUpload1 = (req, res, next) => up.fileUpload.single('datei')(req, res, err => {
+  if (!err) return next();
+  if (req.file) up.removeQuietly(req.file.path);
+  res.status(413).json({ error: err.code === 'LIMIT_FILE_SIZE' ? `Die Datei ist zu groß (höchstens ${up.MAX_MB} MB).` : 'Hochladen fehlgeschlagen.' });
+});
+router.post('/:slug/datei', needLogin, entry, editorJson, fileUpload1, auth.csrfCheck, (req, res) => {
+  const f = req.file, quota = require('../quota');
+  const bad = !f || !f.size ? 'Keine Datei gewählt (oder sie ist leer).'
+    : f.size > dio.FILE_MAX_MB * 1024 * 1024 ? `„${f.originalname}“ ist zu groß (höchstens ${dio.FILE_MAX_MB} MB).`
+      : !req.user.isAdmin && !quota.fits(req.user, f.size) ? quota.fullMessage(req.user) : null;
+  if (bad) { if (f) up.removeQuietly(f.path); return res.status(400).json({ error: bad }); }
+  const stored = dio.takeFile(f, req.user.id);
+  if (!stored) return res.status(400).json({ error: 'Hochladen fehlgeschlagen.' });
+  const info = dio.fileInfo(stored);
+  res.json({ ok: true, file: { f: stored, name: info.name, size: info.size }, craft: info.craft });
+});
+// Herunterladen nur, was in einer Download-Kachel dieses Dioramas liegt; Dateiname wie hochgeladen
+router.get('/:slug/datei/:f', entry, (req, res, next) => {
+  const f = req.params.f;
+  if (!dio.tiles(req.dio).some(t => t.type === 'file' && t.f === f)) return next();
+  const info = dio.fileInfo(f);
+  if (!info) return next();
+  res.set('Content-Security-Policy', "default-src 'none'");
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.download(path.join(MEDIA_DIR, f), info.name, { headers: { 'Content-Type': 'application/octet-stream' } }, err => err && !res.headersSent && next());
 });
 
 router.get('/:slug/bearbeiten', needLogin, entry, editor, (req, res) => res.render('v3/diorama-edit', formView(req, res, req.dio)));

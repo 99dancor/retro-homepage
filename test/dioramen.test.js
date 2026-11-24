@@ -5,6 +5,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 
@@ -140,6 +141,51 @@ test('3D-Kachel: nur .glb, Kopf wird geprüft, Vorschaubild und Drehen', () => {
   const r = dio.resolve(d, list, [], { files: [] });
   assert.equal(r[0].f, f); assert.equal(r[0].empty, false); assert.equal(r[0].poster, null);
   assert.equal(r[1].empty, true, 'unbekannte Datei: leere Kachel');
+});
+
+test('3D-Kachel: Hintergrund wählbar, Bild/Panorama nur mit Bild', () => {
+  const t = dio.normTiles([
+    { id: 't1', type: 'model', x: 1, y: 1, f: 'a.glb', bg: 'weltall' },
+    { id: 't2', type: 'model', x: 1, y: 10, f: 'a.glb', bg: 'farbe', color: '#AABBCC' },
+    { id: 't3', type: 'model', x: 1, y: 20, f: 'a.glb', bg: 'quatsch', color: 'red;}' },
+    { id: 't4', type: 'model', x: 1, y: 30, f: 'a.glb', bg: 'pano', bgf: '../x.png' },
+  ], []);
+  assert.deepEqual(t.map(x => x.bg), ['weltall', 'farbe', 'standard', 'pano']);
+  assert.equal(t[1].color, '#aabbcc'); assert.equal(t[2].color, '#1b2236', 'nur #rrggbb');
+  assert.equal(t[3].bgf, null);
+  assert.deepEqual(dio.MODEL_BGS, ['standard', 'hell', 'dunkel', 'weltall', 'farbe', 'bild', 'pano']);
+});
+
+test('Datei-Download: beliebige Datei als .bin, .craft wird ausgelesen, Felder geprüft', () => {
+  const craft = 'ship = Duna 1\nversion = 1.12.5\ndescription = Aufklärung¨und Mapping\ntype = VAB\nsize = 4.06,7.84,4.06\nvesselType = Probe\nPART\n{\n\tpart = probeCoreOcto\n}\nPART\n{\n\tpart = x\n}\n';
+  assert.deepEqual(dio.readCraft(craft), { ship: 'Duna 1', version: '1.12.5', desc: 'Aufklärung und Mapping', hangar: 'VAB', kind: 'Probe', parts: 2, dims: [4.1, 7.8, 4.1] });
+  assert.equal(dio.readCraft('hallo welt'), null);
+  assert.equal(dio.readCraft('ship = X\n'), null, 'ohne Teile kein Raumschiff');
+  const up = (name, body) => {
+    const stored = crypto.randomBytes(16).toString('hex') + path.extname(name), file = path.join(UPLOAD_DIR, stored);
+    fs.writeFileSync(file, body);
+    return { originalname: name, filename: stored, path: file, size: Buffer.byteLength(body), mimetype: 'application/octet-stream' };
+  };
+  const f1 = dio.takeFile(up('Duna 1.craft', craft), admin.id), f2 = dio.takeFile(up('seite.html', '<script>alert(1)</script>'), admin.id);
+  assert.match(f1, /^[a-f0-9]{32}\.bin$/); assert.match(f2, /^[a-f0-9]{32}\.bin$/, 'nie als .html ablegen');
+  assert.equal(dio.fileInfo(f1).craft.ship, 'Duna 1'); assert.equal(dio.fileInfo(f2).name, 'seite.html'); assert.equal(dio.fileInfo(f2).craft, null);
+  assert.equal(dio.takeFile(up('leer.txt', ''), admin.id), null, 'leere Datei');
+
+  const list = dio.normTiles([
+    { id: 't1', type: 'file', x: 1, y: 1, f: f1, to: 't2', color: 'blau', icon: '🛰️🛰️🛰️🛰️🛰️', btn: 'Raumschiff' },
+    { id: 't2', type: 'model', x: 4, y: 1, f: 'a.glb' },
+    { id: 't3', type: 'file', x: 1, y: 10, f: f2, to: 't3', color: 'neon', title: 'Bauplan' },
+    { id: 't4', type: 'file', x: 1, y: 20, f: 'x.html', to: 't99' },
+  ], []);
+  const [a, , c, e] = list;
+  assert.equal(a.to, 't2'); assert.equal(a.color, 'blau'); assert.equal(a.btn, 'Raumschiff');
+  assert.equal(c.to, '', 'nicht auf sich selbst'); assert.equal(c.color, ''); assert.equal(e.f, null, 'nur eigene .bin'); assert.equal(e.to, '');
+  assert.deepEqual(dio.tileFiles(list).map(x => x.name).sort(), ['Duna 1.craft', 'seite.html']);
+  const r = dio.resolve({ id: 0, howto_md: '', images: '[]' }, list, [], { files: [] });
+  assert.equal(r[0].title, 'Duna 1'); assert.equal(r[0].text, 'Aufklärung und Mapping'); assert.equal(r[0].to.label, '🚀 in 3D ansehen');
+  assert.equal(r[0].hex, dio.COLORS.blau);
+  assert.equal(r[2].title, 'Bauplan'); assert.equal(r[2].btn, '.html'); assert.equal(r[2].icon, '📄'); assert.equal(r[2].to, null);
+  assert.equal(r[3].empty, true);
 });
 
 test('Steckbrief mit eigenen Zeilen und Bauwerk-Rahmen', () => {

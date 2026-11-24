@@ -78,9 +78,21 @@
   <div class="kpano<%= t.spin ? ' spin' : '' %>" style="--pano:url('/media/<%= r.f %>')" tabindex="0" aria-label="360°-Panorama<%= t.cap ? ': ' + t.cap : '' %>, mit Maus, Finger oder Pfeiltasten drehen"><span class="pv" aria-hidden="true">🌐 360° · ziehen zum Umsehen</span></div>
   <% if (t.cap) { %><span class="kcap"><%= t.cap %></span><% } %>
   <% } else if (t.type === 'model') { %>
-  <model-viewer class="k3d" src="/media/<%= r.f %>"<% if (r.poster) { %> poster="/media/<%= r.poster %>"<% } %> alt="3D-Modell<%= t.cap ? ': ' + t.cap : '' %>" camera-controls<%= t.spin ? ' auto-rotate' : '' %> auto-rotate-delay="2000" rotation-per-second="18deg" interaction-prompt="none" touch-action="pan-y" shadow-intensity="0.7" exposure="1.05" loading="lazy" reveal="auto"></model-viewer>
+  <% if (r.bg !== 'standard') { %><span class="k3bg b-<%= r.bg %>" aria-hidden="true"<% if (r.bg === 'farbe') { %> style="--mbg:<%= t.color %>"<% } else if (r.bg === 'bild' || r.bg === 'pano') { %> style="--mbg:url('/media/<%= r.bgf %>')"<% } %>></span><% } %>
+  <model-viewer class="k3d" src="/media/<%= r.f %>"<% if (r.poster) { %> poster="/media/<%= r.poster %>"<% } %><% if (r.bg === 'pano') { %> data-pano<% } %> alt="3D-Modell<%= t.cap ? ': ' + t.cap : '' %>" camera-controls<%= t.spin ? ' auto-rotate' : '' %> auto-rotate-delay="2000" rotation-per-second="18deg" interaction-prompt="none" touch-action="pan-y" shadow-intensity="0.7" exposure="1.05" loading="lazy" reveal="auto"></model-viewer>
   <span class="pv" aria-hidden="true">🚀 3D · ziehen zum Drehen</span>
   <% if (t.cap) { %><span class="kcap"><%= t.cap %></span><% } %>
+  <% } else if (t.type === 'file') { const c = r.file.craft; %>
+  <div class="kfile"<% if (r.hex) { %> style="--fc:<%= r.hex %>"<% } %>>
+    <div class="fpic<%= r.poster ? ' img' : '' %>"><% if (r.poster) { %><img src="/media/<%= r.poster %>" alt="" loading="lazy"><% } else { %><span aria-hidden="true"><%= r.icon %></span><% } %></div>
+    <div class="fbd">
+      <h3 title="<%= r.title %>"><% if (r.poster) { %><span aria-hidden="true"><%= r.icon %></span> <% } %><%= r.title %></h3>
+      <div class="fmeta"><% if (c) { %><span><%= c.parts %> <%= c.parts === 1 ? 'Teil' : 'Teile' %></span><% if (c.hangar) { %><span><%= c.hangar %></span><% } %><% if (c.dims) { %><span title="Höhe des Raumschiffs"><%= String(c.dims[1]).replace('.', ',') %> m hoch</span><% } %><% if (c.version) { %><span>KSP <%= c.version %></span><% } %><% } else { %><span class="fn" title="<%= r.file.name %>"><%= r.file.name %></span><% } %></div>
+      <% if (r.text) { %><p class="fdesc"><%= r.text %></p><% } %>
+      <a class="pill pri" href="/dioramen/<%= d.slug %>/datei/<%= r.f %>" download="<%= r.file.name %>">⬇ <%= r.btn %> <small>(<%= size(r.file.size) %>)</small></a>
+      <% if (r.to) { %><a class="pill small fto" href="<%= r.to.href %>"><%= r.to.label %></a><% } %>
+    </div>
+  </div>
   <% } else if (t.type === 'mods') { %>
   <div class="bd"><h3>🧩 Benötigte Mods</h3><ul class="mods">
     <% for (const m of r.mods) { %><li><span class="sp"><%= m.name %></span><% if (m.ver) { %><small><%= m.ver %></small><% } %><% if (m.url) { %><a class="pill small" href="<%= m.url %>"<%= ext(m.url) ? ' target="_blank" rel="noopener noreferrer nofollow"' : '' %>><%= ext(m.url) ? 'Öffnen ↗' : 'Hier' %></a><% } %></li><% } %>

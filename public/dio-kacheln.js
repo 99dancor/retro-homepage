@@ -408,12 +408,16 @@
       var b = to && to.charAt(0) === 'b' ? bld(to) : to ? (tile(to) && tile(to).bw && bld(tile(to).bw)) : null;
       return b ? D.colors[b.color] : '#5b6a85';
     };
+    var numOf = function (to) {
+      var b = to && to.charAt(0) === 'b' ? bld(to) : to ? (tile(to) && tile(to).bw && bld(tile(to).bw)) : null;
+      return b ? state.buildings.indexOf(b) + 1 : '•';
+    };
     var draw = function () {
       if (!f) { wrap.innerHTML = '<p class="muted">Wähle oben ein Kartenbild, z. B. die Karte aus dem Spiel oder ein Bild von oben.</p>'; return; }
       wrap.innerHTML = '<div class="box"><img src="/media/' + esc(f) + '" alt="Karte">' + pts.map(function (p, i) {
-        return '<span class="mp' + (i === cur ? ' on' : '') + '" data-i="' + i + '" style="left:' + p.x + '%;top:' + p.y + '%;--bwc:' + colorOf(p.to) + '"><i><span>' + (i + 1) + '</span></i>' + (p.label ? '<em>' + esc(p.label) + '</em>' : '') + '</span>';
+        return '<span class="mp' + (i === cur ? ' on' : '') + '" data-i="' + i + '" style="left:' + p.x + '%;top:' + p.y + '%;--bwc:' + colorOf(p.to) + '"><i><span>' + numOf(p.to) + '</span></i>' + (p.label ? '<em>' + esc(p.label) + '</em>' : '') + '</span>';
       }).join('') + '</div><div><p class="muted" style="margin:0 0 8px;font-size:13px">Klick in die Karte setzt einen Punkt. Punkte lassen sich mit der Maus verschieben.</p><div class="kpts">' + pts.map(function (p, i) {
-        return '<div class="kpt' + (i === cur ? ' on' : '') + '" data-i="' + i + '" style="--bwc:' + colorOf(p.to) + '"><div class="r"><i>' + (i + 1) + '</i><input type="text" data-f="label" maxlength="60" placeholder="Name (leer = Name des Bauwerks)" value="' + esc(p.label) + '"><button type="button" class="pill small" data-del aria-label="Punkt löschen">🗑</button></div>'
+        return '<div class="kpt' + (i === cur ? ' on' : '') + '" data-i="' + i + '" style="--bwc:' + colorOf(p.to) + '"><div class="r"><i>' + numOf(p.to) + '</i><input type="text" data-f="label" maxlength="60" placeholder="Name (leer = Name des Bauwerks)" value="' + esc(p.label) + '"><button type="button" class="pill small" data-del aria-label="Punkt löschen">🗑</button></div>'
           + '<div class="r">Springt zu <select data-f="to">' + targets() + '</select></div></div>';
       }).join('') + (pts.length ? '' : '<p class="muted">Noch keine Punkte.</p>') + '</div></div>';
       wrap.querySelectorAll('.kpt select').forEach(function (s, i) { s.value = pts[i].to || ''; });
@@ -459,7 +463,7 @@
     bwBox.innerHTML = state.buildings.map(function (b, i) {
       var n = state.tiles.filter(function (t) { return t.bw === b.id; }).length;
       var head = state.tiles.some(function (t) { return t.bw === b.id && t.type === 'head'; });
-      return '<div class="r" style="--bwc:' + D.colors[b.color] + '"><i>' + (i + 1) + '</i><span class="nm" title="' + esc(b.name) + '">' + esc(b.name) + '</span><small>' + n + ' K.</small>'
+      return '<div class="r" style="--bwc:' + D.colors[b.color] + '"><span class="ord"><button type="button" data-bwm="' + b.id + '" data-d="-1" title="Nach oben (Nummer kleiner)" aria-label="Nach oben"' + (i ? '' : ' disabled') + '>▲</button><button type="button" data-bwm="' + b.id + '" data-d="1" title="Nach unten (Nummer größer)" aria-label="Nach unten"' + (i < state.buildings.length - 1 ? '' : ' disabled') + '>▼</button></span><i>' + (i + 1) + '</i><span class="nm" title="' + esc(b.name) + '">' + esc(b.name) + '</span><small>' + n + ' K.</small>'
         + (head ? '' : '<button type="button" data-bwh="' + b.id + '" title="Überschrift-Kachel dazu">＋🏗️</button>')
         + '<button type="button" data-bwe="' + b.id + '" title="Umbenennen, Farbe" aria-label="Bauwerk ändern">✎</button><button type="button" data-bwd="' + b.id + '" title="Bauwerk löschen" aria-label="Bauwerk löschen">🗑</button></div>';
     }).join('') || '<p class="muted small-note" style="margin:0">Noch keine Bauwerke.</p>';
@@ -467,6 +471,13 @@
   if (bwBox) bwBox.addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b || !on) return;
     if (b.hasAttribute('data-bwe')) editBuilding(b.getAttribute('data-bwe'));
+    if (b.hasAttribute('data-bwm')) {
+      var from = state.buildings.indexOf(bld(b.getAttribute('data-bwm'))), to = from + Number(b.getAttribute('data-d'));
+      if (from < 0 || to < 0 || to >= state.buildings.length) return;
+      snap();
+      state.buildings.splice(to, 0, state.buildings.splice(from, 1)[0]);
+      render(); mark();
+    }
     if (b.hasAttribute('data-bwh')) { snap(); var t = newTile('head', { bw: b.getAttribute('data-bwh') }); settleIn(state.tiles, null); applyAll(); render([t.id]); mark(); }
     if (b.hasAttribute('data-bwd')) {
       var id = b.getAttribute('data-bwd'), x = bld(id);

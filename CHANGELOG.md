@@ -1,5 +1,10 @@
 # Changelog
 
+## Update 106 · 24.11.2026 – Dioramen: Bauwerke umsortieren
+
+- **Reihenfolge ändern:** Beim Gestalten stehen in der Bauwerk-Liste rechts neben jeder Nummer ▲ und ▼. Damit schiebst du ein Bauwerk nach oben oder unten, und seine Nummer ändert sich mit. Das gilt überall: Überschrift, „Springen zu“, Kachel-Schildchen und Karte.
+- **Kartenpunkte:** Ein Punkt trägt jetzt die Nummer seines Bauwerks statt einer laufenden Nummer. Punkte zu einer Kachel ohne Bauwerk zeigen „•“.
+
 ## Update 105 · 23.11.2026 – Server stürzt nicht mehr ab
 
 - **Absturz behoben:** Manchmal wurde eine Seite doppelt beantwortet. Das beendete den ganzen Server, die Seite zeigte „502 Bad Gateway“, und der Container stand in Unraid auf gestoppt. Jetzt verwirft der Server die zweite Antwort und läuft weiter.

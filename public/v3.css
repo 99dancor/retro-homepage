@@ -1010,6 +1010,9 @@ body.dio-ed .dio-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 260
 .bwlist small { color: var(--muted); }
 .bwlist button { border: 0; background: none; cursor: pointer; padding: 2px 4px; border-radius: 6px; color: var(--text-2); }
 .bwlist button:hover { background: var(--surface); }
+.bwlist .ord { display: grid; flex: none; margin: -3px 0; }
+.bwlist .ord button { padding: 0 4px; font-size: 11px; line-height: 1.2; }
+.bwlist .ord button:disabled { opacity: .25; cursor: default; background: none; }
 body.dio-ed .kg { background-image: linear-gradient(to right, color-mix(in srgb, var(--accent) 16%, transparent) 1px, transparent 1px); background-size: calc((100% + 14px) / 12) 100%; outline: 2px dashed color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: 6px; border-radius: 6px; min-height: 300px; padding-bottom: 54px; }
 body.dio-ed .kt { user-select: none; }
 body.dio-ed .kt > .bd { padding-top: 42px; }

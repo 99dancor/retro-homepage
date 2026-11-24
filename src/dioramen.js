@@ -329,10 +329,10 @@ function resolve(d, list, blds, o = {}) {
     if (t.type === 'head') r.empty = !b;
     if (t.type === 'map') {
       r.f = img(t.f); r.empty = !r.f;
-      r.points = t.points.map((p, i) => {
+      r.points = t.points.map(p => {
         const to = p.to[0] === 'b' ? bMap.get(p.to) : tMap.get(p.to);
         const pb = p.to[0] === 'b' ? to : to && to.bw ? bMap.get(to.bw) : null;
-        return { ...p, no: i + 1, label: p.label || (p.to[0] === 'b' && to ? to.name : ''), href: !to ? '' : p.to[0] === 'b' ? '#bw-' + p.to : '#k-' + p.to, hex: pb ? pb.hex : '#5b6a85', bw: pb ? pb.id : '' };
+        return { ...p, no: pb ? pb.no : '•', label: p.label || (p.to[0] === 'b' && to ? to.name : ''), href: !to ? '' : p.to[0] === 'b' ? '#bw-' + p.to : '#k-' + p.to, hex: pb ? pb.hex : '#5b6a85', bw: pb ? pb.id : '' };
       });
     }
     if (t.type === 'dl') {

@@ -97,4 +97,20 @@
   });
   grid.addEventListener('dragend', function () { if (dragging) dragging.classList.remove('dragging'); dragging = null; });
 
+  // ---------- Art und Hintergrund (Update 106) ----------
+  var groupIn = form.querySelector('[name=group_name]'), groupDef = form.querySelector('[data-group-def]');
+  form.addEventListener('change', function (e) {
+    if (e.target.name === 'kind' && groupIn) { var g = e.target.getAttribute('data-group'); groupIn.placeholder = g; if (groupDef) groupDef.textContent = g; }
+    if (e.target.name === 'bg_mode') bgShow();
+  });
+  form.addEventListener('input', function (e) {
+    var out = form.querySelector('[data-out="' + e.target.name + '"]');
+    if (out) out.textContent = e.target.value + (e.target.name === 'bg_blur' ? ' px' : ' %');
+  });
+  function bgShow() {
+    var m = form.querySelector('[name=bg_mode]:checked');
+    m = m ? m.value : 'aus';
+    form.querySelectorAll('[data-bg-for]').forEach(function (el) { el.hidden = el.getAttribute('data-bg-for').split(' ').indexOf(m) < 0; });
+  }
+  bgShow();
 })();

@@ -5,13 +5,15 @@
    const vno = v => String(v).replace(/^v/i, '');
    const mapTile = tiles.find(r => r.t.type === 'map' && !r.empty);
    const mapId = mapTile ? mapTile.t.id : null;
-   const tileLocals = { types, anchors, mapId, buildings, d, edit: !!editData }; %>
-<p class="crumbs"><a href="/dioramen">Dancors Dioramen</a><% if (d.game) { %> › <a href="/dioramen?spiel=<%= encodeURIComponent(d.game) %>"><%= d.game %></a><% } %> › <%= d.title %></p>
+   const tileLocals = { types, anchors, mapId, buildings, d, K, edit: !!editData };
+   const bgStyle = bg.mode === 'farbe' ? `background:linear-gradient(160deg,${bg.c1},${bg.c2})` : bg.mode !== 'aus' ? `background-image:url('/media/${bg.f}')` : ''; %>
+<% if (bg.mode !== 'aus') { %><div class="dio-bg<%= bg.fixed ? '' : ' scroll' %>" aria-hidden="true" style="<%= bgStyle %>;--bgblur:<%= bg.blur %>px;--bgdim:<%= bg.dim / 100 %>"></div><% } %>
+<p class="crumbs"><a href="/dioramen">Dancors Dioramas</a><% if (d.game) { %> › <a href="/dioramen?spiel=<%= encodeURIComponent(d.game) %>"><%= d.game %></a><% } %> › <%= d.title %></p>
 <% if (ok) { %><p class="v3-flash" role="status"><%= ok %></p><% } %>
 
 <% if (editData) { %>
 <div class="edit-bar dio-bar" role="toolbar" aria-label="Gestalten" hidden>
-  <b><span class="emo">✏️</span> Spielstand gestalten</b>
+  <b><span class="emo">✏️</span> <%= K.label %> gestalten</b>
   <span class="hint">Am ⠿ verschieben, an den blauen Griffen Größe ändern, rechts neue Kacheln holen.</span>
   <span class="sp"></span>
   <span class="dio-state" aria-live="polite"></span>
@@ -30,15 +32,15 @@
     <% if (fresh) { %><span class="flag-b new">🆕 Neu</span><% } %>
   </span>
   <div class="tx">
-    <span class="kick">💾 Spielstand<% if (d.game) { %> · <%= d.game %><% } %><% if (d.world) { %> · <%= d.world %><% } %></span>
+    <span class="kick"><%= K.icon %> <%= K.label %><% if (d.game) { %> · <%= d.game %><% } %><% if (d.world) { %> · <%= d.world %><% } %></span>
     <h1><%= d.title %></h1>
     <% if (d.summary) { %><p><%= d.summary %></p><% } %>
     <div class="row">
-      <% if (buildings.length) { %><span class="tag">🏗️ <%= buildings.length %> <%= buildings.length === 1 ? 'Bauwerk' : 'Bauwerke' %></span><% } %>
+      <% if (buildings.length) { %><span class="tag">🏗️ <%= buildings.length %> <%= buildings.length === 1 ? K.group : K.groups %></span><% } %>
       <span class="tag">Stand <%= fmt(Math.max(d.updated_at, latest ? latest.created_at : 0)) %></span>
       <% if (author) { %><span class="tag">von <%= author %></span><% } %>
       <% if (d.visibility !== 'public') { %><span class="tag">🔒 <%= ({ members: 'Mitglieder', friends: 'Freunde', groups: 'Gruppen', private: 'privat' })[d.visibility] %></span><% } %>
-      <% if (latest) { %><a class="pill small pri" href="/dioramen/dl/<%= latest.id %>">⬇ Spielstand<%= latest.version ? ' ' + vno(latest.version) : '' %> laden</a><% } %>
+      <% if (latest) { %><a class="pill small pri" href="/dioramen/dl/<%= latest.id %>">⬇ <%= K.dl %><%= latest.version ? ' ' + vno(latest.version) : '' %> laden</a><% } %>
       <% if (editData) { %><button type="button" class="pill small" data-k="start">✏️ Gestalten</button><a class="pill small" href="/dioramen/<%= d.slug %>/bearbeiten">⚙ Eckdaten und Dateien</a><% } %>
     </div>
   </div>
@@ -46,10 +48,10 @@
 
 <% const jump = buildings.filter(b => b.anchor); %>
 <% if (jump.length) { %>
-<nav class="jump" aria-label="Bauwerke">Springen zu: <% for (const b of jump) { %><a href="#bw-<%= b.id %>" data-bw="<%= b.id %>" style="--bwc:<%= b.hex %>"><i><%= b.no %></i><%= b.name %></a><% } %></nav>
+<nav class="jump" aria-label="<%= K.groups %>">Springen zu: <% for (const b of jump) { %><a href="#bw-<%= b.id %>" data-bw="<%= b.id %>" style="--bwc:<%= b.hex %>"><i><%= b.no %></i><%= b.name %></a><% } %></nav>
 <% } %>
 
-<div class="kg" id="kg">
+<div class="kg<%= bg.mode !== 'aus' && bg.glass ? ' glass' : '' %>" id="kg">
 <% for (const f of frames) { %><div class="bwframe" data-frame="<%= f.id %>" style="grid-column:<%= f.x %> / span <%= f.w %>;grid-row:<%= f.y %> / span <%= f.h %>;--bwc:<%= f.hex %>" aria-hidden="true"></div><% } %>
 <% for (const r of tiles) { %><%- include('_dio-tile', { r, ...tileLocals }) %><% } %>
 </div>
@@ -62,10 +64,10 @@
     <p class="muted small-note" style="margin:0 0 8px">Aufs Raster ziehen oder antippen (kommt dann unten dazu).</p>
     <div class="pal"><% for (const [k, T] of Object.entries(types)) { if (k === 'head') continue; %><button type="button" data-add="<%= k %>"><b class="emo"><%= T.icon %></b><%= T.label %></button><% } %></div>
   </section>
-  <section class="card"><h3 class="side-h">🏗️ Bauwerke</h3>
+  <section class="card"><h3 class="side-h">🏗️ <%= K.groups %></h3>
     <div class="bwlist" id="dio-bws"></div>
-    <button type="button" class="pill small" data-k="bw-add" style="margin-top:8px">＋ Neues Bauwerk</button>
-    <p class="muted small-note">Oben an jeder Kachel wählst du, zu welchem Bauwerk sie gehört. Sie bekommt dann seine Farbe, und Kartenpunkte springen zu ihr.</p>
+    <button type="button" class="pill small" data-k="bw-add" style="margin-top:8px">＋ <%= K.group %> dazu</button>
+    <p class="muted small-note">Oben an jeder Kachel wählst du, zu welchem <%= K.group === K.groups ? 'Abschnitt' : K.group %> sie gehört. Sie bekommt dann seine Farbe, und Kartenpunkte springen zu ihr.</p>
   </section>
 </aside>
 <% } %>

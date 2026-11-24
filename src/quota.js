@@ -8,7 +8,7 @@ const PARTS = {
   tracks: ['🎵 Mediaplayer', 'SELECT COALESCE(SUM(size), 0) AS n FROM tracks WHERE uploader_id = ? AND source_url IS NULL'],
   galerie: ['🖼️ Galerie-Fotos', 'SELECT COALESCE(SUM(size), 0) AS n FROM gal_photos WHERE owner_id = ?'],
   artworks: ['🎨 Paint-Bilder', 'SELECT COALESCE(SUM(size), 0) AS n FROM artworks WHERE owner_id = ?'],
-  dioramen: ['🏡 Dioramen-Downloads', 'SELECT COALESCE(SUM(size), 0) AS n FROM dio_files WHERE uploader_id = ?'],
+  dioramen: ['🏡 Dioramas-Downloads', 'SELECT COALESCE(SUM(size), 0) AS n FROM dio_files WHERE uploader_id = ?'],
   media: ['🖼️ Bilder in Beiträgen', 'SELECT COALESCE(SUM(size), 0) AS n FROM media WHERE uploader_id = ?'],
   texts: ['🗒️ Textdokumente', "SELECT COALESCE(SUM(length(CAST(body AS BLOB))), 0) AS n FROM desk_items WHERE user_id = ? AND kind = 'text'"],
 };

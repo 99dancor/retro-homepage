@@ -1089,6 +1089,102 @@ body.dio-ed .jump, body.dio-ed .di-hero .row > :not([data-k]) { pointer-events: 
 }
 
 /* ==========================================================================================================
+   Update 106: Arten, eigener Hintergrund je Diorama, neue Kacheln (Zahlen, Bild mit Hinweisen, Zeitleiste, 360°-Panorama)
+   ========================================================================================================== */
+.di-kinds, .di-bgmodes { display: flex; flex-wrap: wrap; gap: 6px; }
+.di-kinds label, .di-bgmodes label { position: relative; cursor: pointer; }
+.di-kinds input, .di-bgmodes input, .di-bgpick input { position: absolute; opacity: 0; pointer-events: none; }
+.di-kinds span, .di-bgmodes span { display: inline-flex; gap: 6px; align-items: center; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); font: 600 13.5px var(--font); }
+.di-kinds input:checked + span, .di-bgmodes input:checked + span { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent); }
+.di-kinds input:focus-visible + span, .di-bgmodes input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.di-bgopt { display: grid; gap: 8px; }
+.di-bgopt[hidden] { display: none; }
+.di-bgpick { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.di-bgpick label { position: relative; cursor: pointer; border-radius: 10px; overflow: hidden; border: 3px solid transparent; aspect-ratio: 4 / 3; }
+.di-bgpick img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.di-bgpick label:has(input:checked) { border-color: var(--accent); }
+.di-bgpick label:has(input:focus-visible) { outline: 2px solid var(--accent); }
+
+/* Eigener Hintergrund: liegt hinter der Seite, wahlweise unscharf und abgedunkelt */
+.dio-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; background-size: cover; background-position: center; }
+.dio-bg.scroll { position: absolute; height: 100%; min-height: 100vh; }
+.dio-bg[style*="--bgblur:0px"] { filter: none; }
+.dio-bg:not([style*="--bgblur:0px"]) { inset: calc(var(--bgblur) * -2); filter: blur(var(--bgblur)); }
+.dio-bg::after { content: ""; position: absolute; inset: 0; background: rgb(0 0 0 / var(--bgdim)); }
+body:has(.dio-bg) .crumbs, body:has(.dio-bg) .jump { background: var(--glass, rgba(255, 255, 255, .8)); backdrop-filter: blur(10px); border-radius: 999px; padding: 6px 14px; width: fit-content; max-width: 100%; }
+.kg.glass .kt { background: color-mix(in srgb, var(--surface) 72%, transparent); backdrop-filter: blur(14px) saturate(1.2); }
+.kg.glass .k-head { background: linear-gradient(90deg, color-mix(in srgb, var(--bwc) 22%, transparent), color-mix(in srgb, var(--surface) 70%, transparent) 70%); }
+
+/* Zahlen */
+.knum { display: flex; flex-direction: column; justify-content: center; }
+.knum .nums { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 10px; }
+.knum .nums.n1 { --n: 1; } .knum .nums.n2 { --n: 2; } .knum .nums.n4 { --n: 4; } .knum .nums.n5 { --n: 5; } .knum .nums.n6 { --n: 6; }
+.knum .nums > div { display: grid; justify-items: center; text-align: center; gap: 2px; padding: 8px 4px; border-radius: 12px; background: color-mix(in srgb, var(--bwc, var(--accent)) 9%, transparent); }
+.knum b { font: 800 clamp(22px, 3.2vw, 36px)/1.05 var(--font-display); color: var(--bwc, var(--accent)); font-variant-numeric: tabular-nums; }
+.knum span { font-size: 13px; color: var(--text-2); }
+.kt.has-bw > .knum { padding-top: 34px; }
+
+/* Bild mit Hinweisen */
+.k-hot { container-type: size; }
+.khot { position: absolute; inset: 0; display: grid; place-items: center; background: var(--surface-2); }
+.khot .hin { position: relative; line-height: 0; }
+.khot img { display: block; max-width: 100cqw; max-height: 100cqh; }
+.khot .hp { position: absolute; transform: translate(-50%, -50%); width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff; background: var(--bwc, var(--accent)); color: #fff; font: 800 13px var(--font); display: grid; place-items: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0, 0, 0, .4); z-index: 2; padding: 0; }
+.khot .hp::before { content: ""; position: absolute; inset: -7px; border-radius: 50%; border: 2px solid #fff; opacity: .7; animation: hp-pulse 2.2s ease-out infinite; }
+.khot .hp[aria-expanded=true] { transform: translate(-50%, -50%) scale(1.15); }
+@keyframes hp-pulse { from { transform: scale(.8); opacity: .8; } to { transform: scale(1.5); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .khot .hp::before { animation: none; } }
+.khot .hbub { position: absolute; left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); transform: translate(-50%, 22px); z-index: 3; width: max-content; max-width: min(260px, 80cqw); line-height: 1.4; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-lg); padding: 9px 12px; font-size: 13.5px; text-align: left; }
+.khot .hbub.left { transform: translate(calc(-100% + 20px), 22px); }
+.khot .hbub.right { transform: translate(-20px, 22px); }
+.khot .hbub.up { transform: translate(-50%, calc(-100% - 22px)); }
+.khot .hbub.up.left { transform: translate(calc(-100% + 20px), calc(-100% - 22px)); }
+.khot .hbub.up.right { transform: translate(-20px, calc(-100% - 22px)); }
+.khot .hbub b { display: block; font-size: 14px; margin-bottom: 2px; }
+.khot .hbub p { margin: 0; color: var(--text-2); }
+.kmap .hp2 i { border-radius: 50%; transform: none; background: var(--accent); }
+.kmap .hp2 i span { transform: none; }
+.kmap .hp2 { transform: translate(-50%, -50%); }
+.kpt textarea { width: 100%; margin-top: 6px; font: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--surface); color: var(--text); resize: vertical; }
+
+/* Zeitleiste */
+.ktime { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--surface-2); }
+.ktime .tview { position: relative; flex: 1; min-height: 0; }
+.ktime .tstep { position: absolute; inset: 0; margin: 0; opacity: 0; transition: opacity .45s; }
+.ktime .tstep.on { opacity: 1; }
+.ktime .tstep img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ktime figcaption { position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 20px); background: rgba(0, 0, 0, .66); color: #fff; font-size: 13px; border-radius: 10px; padding: 5px 10px; }
+.ktime figcaption b { margin-right: 6px; }
+.ktime .ttl { position: absolute; left: 10px; top: 10px; background: rgba(0, 0, 0, .62); color: #fff; font: 700 12.5px var(--font); border-radius: 999px; padding: 3px 10px; }
+.kt.has-bw .ktime .ttl { top: 34px; }
+.ktime .tline { display: flex; gap: 0; padding: 10px 14px 8px; overflow-x: auto; position: relative; background: var(--surface); }
+.ktime .tline::before { content: ""; position: absolute; left: 24px; right: 24px; top: 17px; height: 3px; background: var(--line); border-radius: 2px; }
+.ktime .tline button { position: relative; flex: 1 0 70px; display: grid; justify-items: center; gap: 4px; background: none; border: 0; cursor: pointer; padding: 0 4px; color: var(--muted); font: 600 12px var(--font); }
+.ktime .tline i { width: 14px; height: 14px; border-radius: 50%; background: var(--surface); border: 3px solid var(--line); transition: transform .2s; }
+.ktime .tline button[aria-selected=true] { color: var(--text); }
+.ktime .tline button[aria-selected=true] i { border-color: var(--bwc, var(--accent)); background: var(--bwc, var(--accent)); transform: scale(1.25); }
+.ktime .tline span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+.ksteps { display: grid; gap: 8px; margin-top: 10px; }
+.kst { display: grid; grid-template-columns: 64px 22px 1fr 1.6fr; gap: 8px; align-items: center; }
+.kst img { width: 64px; height: 44px; object-fit: cover; border-radius: 6px; }
+.kst .n { font: 800 13px var(--font); color: var(--muted); }
+.kst input { min-width: 0; }
+
+/* 360°-Panorama: Bild läuft endlos rundherum */
+.kpano { position: absolute; inset: 0; background: var(--pano) repeat-x 0 50% / auto 100%; cursor: grab; touch-action: pan-y; outline-offset: -3px; }
+.kpano.grab { cursor: grabbing; }
+.kpano .pv { position: absolute; right: 10px; top: 10px; background: rgba(0, 0, 0, .6); color: #fff; font: 700 12px var(--font); border-radius: 999px; padding: 3px 10px; pointer-events: none; }
+.kt.has-bw .kpano .pv { top: 34px; }
+
+@media (max-width: 760px) {
+  .k-hot, .k-time, .k-pano { aspect-ratio: var(--ar); max-height: 75vh; }
+  .k-time { min-height: 300px; }
+  .knum .nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kst { grid-template-columns: 54px 1fr; }
+  .kst .n { display: none; }
+}
+
+/* ==========================================================================================================
    Update 100: Aussehen der Seite (src/look.js schreibt die Variablen, public/v3-look.js und v3-look-edit.js)
    Ohne Einstellungen bleibt alles wie vorher: jede Variable hat den bisherigen Wert als Ersatz.
    ========================================================================================================== */

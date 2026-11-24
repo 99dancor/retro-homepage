@@ -1,7 +1,11 @@
 # Changelog
 
-## Update 106 · 24.11.2026 – Dioramen: Bauwerke umsortieren, ein Eintrag je Spiel
+## Update 106 · 24.11.2026 – Dancors Dioramas: Arten, eigene Hintergründe, neue Kacheln
 
+- **Neuer Name:** Die Seite heißt jetzt „Dancors Dioramas“, Untertitel „Spielstände, Bauprojekte und mehr“. Hast du Titel oder Text selbst geändert, bleibt deine Fassung.
+- **Arten von Einträgen:** Ein Diorama ist jetzt ein Spielstand, ein Bauprojekt, ein Projekt, eine Sammlung, ein Ort oder etwas Freies. Je nach Art heißen die Gruppen anders (Bauwerke, Bauabschnitte, Schritte, Stücke, Stationen …), und neue Einträge starten mit passenden Kacheln. Den Gruppennamen kannst du auch selbst festlegen. In der Übersicht gibt es Chips je Art.
+- **Eigener Hintergrund:** Jedes Diorama kann einen eigenen Hintergrund haben: das Titelbild, ein anderes Bild oder einen Farbverlauf. Unschärfe und Abdunkeln stellst du mit Reglern ein, dazu Kacheln aus Glas und einen Hintergrund, der beim Scrollen stehen bleibt.
+- **Neue Kacheln:** „Zahlen“ (bis zu sechs große Werte, die beim Hinscrollen hochzählen), „Bild mit Hinweisen“ (Punkte auf ein Bild klicken, beim Antippen erscheint ein Text), „Zeitleiste“ (Bilder mit Datum und Text, durchklicken wie ein Baufortschritt) und „360°-Panorama“ (ein breites Rundum-Bild zum Ziehen, auf Wunsch dreht es sich von selbst).
 - **Reihenfolge ändern:** Beim Gestalten stehen in der Bauwerk-Liste rechts neben jeder Nummer ▲ und ▼. Damit schiebst du ein Bauwerk nach oben oder unten, und seine Nummer ändert sich mit. Das gilt überall: Überschrift, „Springen zu“, Kachel-Schildchen und Karte.
 - **Kartenpunkte:** Ein Punkt trägt jetzt die Nummer seines Bauwerks statt einer laufenden Nummer. Punkte zu einer Kachel ohne Bauwerk zeigen „•“.
 - **Ein Spiel, ein Eintrag:** Stand ein Spiel in leicht anderer Schreibweise da (groß/klein, doppelte oder unsichtbare Leerzeichen), gab es oben in der Übersicht mehrere Einträge „Farming Simulator 25“. Jetzt zählen sie als ein Spiel. Beim Speichern wird die schon bekannte Schreibweise übernommen, und vorhandene Einträge werden beim Start vereinheitlicht.

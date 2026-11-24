@@ -13,7 +13,7 @@ const BUILTIN = {
   spiele: { kicker: 'Dancors', title: 'Daddelecke', icon: '🕹️', color: 'x', url: '/spiele', text: 'Sudoku, Minesweeper, Kartentische und mitgebrachte Spiele. Direkt hier spielen, ohne Desktop.' },
   rezepte: { kicker: 'Dancors', title: 'Deliziösitäten', icon: '🍝', color: 'de', url: '/rezepte', text: 'Das Rezeptbuch. Portionen umrechnen, Schritt für Schritt kochen, Zutaten auf die Einkaufsliste.' },
   hub: { kicker: 'Farming Simulator 25', title: 'Dancors Dreschplatz', icon: '🚜', color: 'fs', url: '/farming', text: 'Höfe, Karte, Planer und Preise vom Server. Die Hub-Link-Mod gibt es direkt im Hub.' },
-  dioramen: { kicker: 'Dancors', title: 'Dioramen', icon: '🏡', color: 'di', url: '/dioramen', text: 'Spielstände und Bauwerke zum Anschauen und Herunterladen: Höfe, Ställe, Burgen. Mit Bildern, Steckbrief und Download.' },
+  dioramen: { kicker: 'Dancors', title: 'Dioramas', icon: '🏡', color: 'di', url: '/dioramen', text: 'Spielstände, Bauprojekte, Sammlungen und mehr zum Anschauen: mit Bildern, Steckbrief und Download.' },
 };
 const ORDER = Object.keys(BUILTIN);
 const str = (v, n) => String(v ?? '').trim().replace(/\s+/g, ' ').slice(0, n);
@@ -21,11 +21,14 @@ const okUrl = u => (/^\/(?![/\\])/.test(u) || /^https:\/\//i.test(u) ? u : '');
 
 function normalize(list) {
   const seen = new Set(), out = [];
-  for (const t of Array.isArray(list) ? list : []) {
+  for (let t of Array.isArray(list) ? list : []) {
     const key = str(t && t.key, 40);
     if (!key || seen.has(key) || (!BUILTIN[key] && !/^k\d+$/.test(key))) continue;
     seen.add(key);
     const b = BUILTIN[key] || {};
+    // Update 106: alte Standardnamen der Dioramas-Kachel werden zum neuen (selbst geschriebene bleiben)
+    if (key === 'dioramen' && t.title === 'Dioramen') t = { ...t, title: b.title };
+    if (key === 'dioramen' && t.text === 'Spielstände und Bauwerke zum Anschauen und Herunterladen: Höfe, Ställe, Burgen. Mit Bildern, Steckbrief und Download.') t = { ...t, text: b.text };
     out.push({
       key, builtin: !!BUILTIN[key],
       kicker: str(t.kicker, 40) || (t.kicker === '' ? '' : b.kicker || ''), title: str(t.title, 60) || b.title || 'Kachel',

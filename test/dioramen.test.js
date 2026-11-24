@@ -34,7 +34,9 @@ test('Aufbau: Vorgaben, nur gültige Schlüssel, Texte gekürzt', () => {
   assert.equal(l.sort, 'neu');
   assert.deepEqual(l.order, ['d1', 'd22']);
   assert.deepEqual(l.hidden, ['d5']);
-  assert.equal(dio.normalize(null).title, 'Dancors Dioramen');
+  assert.equal(dio.normalize(null).title, 'Dancors Dioramas');
+  assert.equal(dio.normalize({ title: 'Dancors Dioramen' }).title, 'Dancors Dioramas', 'alter Standardname wird zum neuen');
+  assert.equal(dio.normalize({ title: 'Meine Welt' }).title, 'Meine Welt');
 });
 
 test('Steckbrief und Mods: leere Zeilen weg, Links nur http(s) oder hier', () => {
@@ -68,6 +70,39 @@ test('Spiele: gleiche Spiele in anderer Schreibweise stehen nur einmal in der Au
   assert.equal(v.games.filter(g => dio.gameKey(g.name) === 'hof sim 25').length, 1);
   assert.equal(v.games.find(g => dio.gameKey(g.name) === 'hof sim 25').n, 2);
   assert.deepEqual(v.cards.map(c => c.id).filter(id => id === a.id || id === b.id).sort(), [a.id, b.id].sort());
+});
+
+test('Arten, Gruppen-Name und Hintergrund', () => {
+  const p = dio.create(admin, { title: 'Modellbahn', kind: 'projekt', game: '3D-Druck', group_name: '', bg_mode: 'farbe', bg_c1: '#112233', bg_c2: 'rot', bg_blur: '99', bg_dim: '40', bg_glass: '1' });
+  const d = dio.byId(p.id);
+  assert.equal(d.kind, 'projekt');
+  assert.equal(dio.kindOf(d).group, 'Schritt');
+  assert.equal(dio.typesFor(d).head.label, 'Schritt-Überschrift');
+  assert.deepEqual(dio.tiles(d).map(t => t.type), ['text', 'num', 'gal', 'dl'], 'Startkacheln je Art');
+  const bg = dio.bgOf(d);
+  assert.deepEqual([bg.mode, bg.c1, bg.c2, bg.blur, bg.dim, bg.glass, bg.fixed], ['farbe', '#112233', '#0d1b2a', 30, 40, true, true]);
+  const u = dio.update(admin, d, { title: 'Modellbahn', kind: 'quatsch', group_name: 'Wagen', bg_mode: 'titel', bg_scroll: '1' });
+  assert.equal(u.kind, 'spielstand', 'unbekannte Art wird Spielstand');
+  assert.equal(dio.kindOf(u).group, 'Wagen');
+  assert.equal(dio.bgOf(u).mode, 'aus', 'Titelbild ohne Bild: kein Hintergrund');
+  assert.equal(dio.bgRaw(u).fixed, false);
+  const v = dio.view(admin, { art: 'projekt' });
+  assert.ok(v.kinds.some(k => k.key === 'spielstand'));
+  assert.equal(v.art, '', 'Art ohne Einträge zählt nicht');
+});
+
+test('Neue Kacheln: Zahlen, Bild mit Hinweisen, Zeitleiste, Panorama', () => {
+  const t = dio.normTiles([
+    { id: 't1', type: 'num', x: 1, y: 1, title: 'Hof', items: [{ v: '38', l: 'Felder' }, { v: '', l: '' }, 'x', ...Array(9).fill({ v: '1', l: 'a' })] },
+    { id: 't2', type: 'hot', x: 1, y: 5, f: 'a.png', pts: [{ x: 10, y: 120, title: 'Silo', text: 'Hier' }, { x: 'x', y: 1 }] },
+    { id: 't3', type: 'time', x: 1, y: 20, steps: [{ f: 'a.png', when: 'Jahr 1' }, { f: '../x', when: 'b' }, { when: 'ohne Bild' }] },
+    { id: 't4', type: 'pano', x: 1, y: 40, f: 'p.png', spin: false },
+  ], []);
+  assert.equal(t[0].items.length, 6);
+  assert.deepEqual(t[0].items[0], { v: '38', l: 'Felder' });
+  assert.deepEqual(t[1].pts, [{ x: 10, y: 100, title: 'Silo', text: 'Hier' }]);
+  assert.deepEqual(t[2].steps, [{ f: 'a.png', when: 'Jahr 1', text: '' }]);
+  assert.equal(t[3].spin, false);
 });
 
 test('Steckbrief mit eigenen Zeilen und Bauwerk-Rahmen', () => {

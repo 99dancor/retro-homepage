@@ -13,7 +13,7 @@ const { db, getSetting, setSetting } = require('./db');
 
 const BG_AREAS = {
   home: { icon: '🏠', name: 'Startseite' }, downloads: { icon: '📦', name: 'Downloads' }, duden: { icon: '📚', name: 'Duden' },
-  rezepte: { icon: '🍝', name: 'Rezepte' }, spiele: { icon: '🕹️', name: 'Daddelecke' }, dioramen: { icon: '🏡', name: 'Dioramen' },
+  rezepte: { icon: '🍝', name: 'Rezepte' }, spiele: { icon: '🕹️', name: 'Daddelecke' }, dioramen: { icon: '🏡', name: 'Dioramas' },
   footer: { icon: '📄', name: 'Fußseiten' },
 };
 const FONTS = {

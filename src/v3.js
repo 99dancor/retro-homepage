@@ -10,7 +10,7 @@ const AREAS = [
   { key: 'duden', url: '/duden', icon: '📚', name: 'Duden' },
   { key: 'rezepte', url: '/rezepte', icon: '🍝', name: 'Deliziösitäten' },
   { key: 'spiele', url: '/spiele', icon: '🕹️', name: 'Daddelecke' },
-  { key: 'dioramen', url: '/dioramen', icon: '🏡', name: 'Dioramen' },
+  { key: 'dioramen', url: '/dioramen', icon: '🏡', name: 'Dioramas' },
 ];
 const MODERN = /^\/(downloads|duden|rezepte|spiele|dioramen|finden|changelog|datenschutz|contact|guestbook)(\/|$)/;
 const localPath = v => (typeof v === 'string' && /^\/(?![/\\])/.test(v) ? v : null);

@@ -68,9 +68,25 @@ addColumn('dioramen', 'tiles', "TEXT NOT NULL DEFAULT '[]'");        // Kacheln:
 addColumn('dioramen', 'buildings', "TEXT NOT NULL DEFAULT '[]'");    // Bauwerke: JSON [{ id, name, text, color }]
 addColumn('dioramen', 'tiles_v', 'INTEGER NOT NULL DEFAULT 0');      // 1 = aus den alten Feldern in Kacheln umgezogen
 addColumn('dio_files', 'bw', 'TEXT');                                // Datei gehört zu diesem Bauwerk (sonst zum Spielstand)
+addColumn('dioramen', 'group_name', "TEXT NOT NULL DEFAULT ''");     // eigener Name der Gruppen (leer = der Name der Art, z. B. „Bauwerk“)
+addColumn('dioramen', 'bg', "TEXT NOT NULL DEFAULT '{}'");          // eigener Hintergrund: JSON { mode, f, c1, c2, blur, dim, fixed, glass }
 
-const KINDS = { spielstand: { icon: '💾', label: 'Spielstand', plural: 'Spielstände' } };
-const RESERVED = new Set(['neu', 'seite', 'dl', 'bild', 'spiel']);
+// Arten von Einträgen (Update 106): Symbol, Namen, wie die farbigen Gruppen heißen, Beschriftung des Downloads und die Startkacheln
+const KINDS = {
+  spielstand: { icon: '💾', label: 'Spielstand', plural: 'Spielstände', group: 'Bauwerk', groups: 'Bauwerke', dl: 'Spielstand', theme: 'Spiel', world: 'Karte' },
+  bauprojekt: { icon: '🏗️', label: 'Bauprojekt', plural: 'Bauprojekte', group: 'Bauabschnitt', groups: 'Bauabschnitte', dl: 'Bauplan', theme: 'Spiel oder Thema', world: 'Welt oder Ort' },
+  projekt: { icon: '🧰', label: 'Projekt', plural: 'Projekte', group: 'Schritt', groups: 'Schritte', dl: 'Dateien', theme: 'Thema', world: 'Werkstoff oder Ort' },
+  sammlung: { icon: '🖼️', label: 'Sammlung', plural: 'Sammlungen', group: 'Exponat', groups: 'Exponate', dl: 'Dateien', theme: 'Thema', world: 'Ort' },
+  ort: { icon: '📍', label: 'Ort oder Reise', plural: 'Orte und Reisen', group: 'Station', groups: 'Stationen', dl: 'Dateien', theme: 'Thema', world: 'Gegend' },
+  frei: { icon: '✨', label: 'Ausstellung', plural: 'Ausstellungen', group: 'Abschnitt', groups: 'Abschnitte', dl: 'Dateien', theme: 'Thema', world: 'Ort' },
+};
+// Die Art eines Eintrags mit seinem eigenen Gruppen-Namen (Mehrzahl: „Bauwerke“, bei eigenem Namen „Name (Anzahl)“ wird nicht gebraucht)
+function kindOf(d) {
+  const key = d && Object.hasOwn(KINDS, d.kind) ? d.kind : 'spielstand', k = KINDS[key];
+  const own = d && str(d.group_name, 30);
+  return { key, ...k, group: own || k.group, groups: own ? own : k.groups };
+}
+const RESERVED = new Set(['neu', 'seite', 'dl', 'bild', 'spiel', 'art']);
 const NEW_DAYS = 14;
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif'];
 const MAX_IMAGES = 200;
@@ -89,6 +105,11 @@ const TYPES = {
   facts: { icon: '📋', label: 'Steckbrief', w: 4, h: 5 },
   mods: { icon: '🧩', label: 'Mods', w: 4, h: 5 },
   video: { icon: '▶️', label: 'Video', w: 6, h: 7 },
+  // Update 106
+  num: { icon: '🔢', label: 'Zahlen', w: 12, h: 3 },
+  hot: { icon: '📌', label: 'Bild mit Hinweisen', w: 8, h: 9 },
+  time: { icon: '📅', label: 'Zeitleiste', w: 12, h: 10 },
+  pano: { icon: '🌐', label: '360°-Panorama', w: 12, h: 8 },
 };
 const COLS = 12, MAX_H = 40, MAX_Y = 2000, MAX_TILES = 200, MAX_BUILDINGS = 40, MAX_POINTS = 60;
 
@@ -149,6 +170,24 @@ function normTiles(list, blds) {
       k.rows = asArray(t.rows).filter(r => Array.isArray(r) && str(r[0], 40)).slice(0, 30).map(r => [str(r[0], 40), str(r[1], 160)]);
       k.base = t.base === undefined || t.base === null ? !k.bw : !!t.base;
     }
+    if (t.type === 'num') {
+      k.title = str(t.title, 80);
+      k.items = asArray(t.items).filter(i => i && typeof i === 'object' && (str(i.v, 20) || str(i.l, 40))).slice(0, 6).map(i => ({ v: str(i.v, 20), l: str(i.l, 40) }));
+    }
+    if (t.type === 'hot') {
+      k.f = mediaName(t.f); k.cap = str(t.cap, 160);
+      k.pts = [];
+      for (const p of asArray(t.pts).slice(0, 30)) {
+        const px = p && pct(p.x), py = p && pct(p.y);
+        if (px === null || py === null || px === undefined) continue;
+        k.pts.push({ x: px, y: py, title: str(p.title, 60), text: str(p.text, 400) });
+      }
+    }
+    if (t.type === 'time') {
+      k.title = str(t.title, 80);
+      k.steps = asArray(t.steps).filter(x => x && mediaName(x.f)).slice(0, 30).map(x => ({ f: mediaName(x.f), when: str(x.when, 40), text: str(x.text, 300) }));
+    }
+    if (t.type === 'pano') { k.f = mediaName(t.f); k.cap = str(t.cap, 160); k.spin = t.spin === undefined ? true : !!t.spin; }
     if (t.type === 'map') {
       k.f = mediaName(t.f);
       k.points = [];
@@ -210,7 +249,7 @@ function row(d, user, ctx = {}) {
   const latest = fs_[0] || null, since = now() - NEW_DAYS * 86400;
   const imgs = images(d), blds = buildings(d), tl = json(d.tiles, []);
   return {
-    key: 'd' + d.id, id: d.id, slug: d.slug, url: '/dioramen/' + d.slug, kind: 'spielstand', kindIcon: '💾', kindLabel: 'Spielstand',
+    key: 'd' + d.id, id: d.id, slug: d.slug, url: '/dioramen/' + d.slug, kind: kindOf(d).key, kindIcon: kindOf(d).icon, kindLabel: kindOf(d).label, groupLabel: kindOf(d).group, dlLabel: kindOf(d).dl,
     title: d.title, summary: d.summary, game: d.game, world: d.world, cover: d.cover ? '/media/' + d.cover : imgs[0] ? '/media/' + imgs[0].f : null,
     imageCount: imgs.length, tileCount: Array.isArray(tl) ? tl.length : 0,
     buildings: blds.map((b, i) => ({ no: i + 1, id: b.id, name: b.name, color: COLORS[b.color], url: '/dioramen/' + d.slug + '#bw-' + b.id })),
@@ -233,17 +272,19 @@ function context(list) {
 
 // ---------- Aufbau der Übersicht (Bearbeiten-Modus) ----------
 const LAYOUT = {
-  title: 'Dancors Dioramen', text: 'Spielstände aus meinen Spielen, mit allen Bauwerken darin. Anschauen, nachbauen oder einfach herunterladen.',
+  title: 'Dancors Dioramas', text: 'Spielstände, Bauprojekte und mehr. Anschauen, nachbauen oder einfach herunterladen.',
   hero: 'pin', sort: 'eigene', order: [], hidden: [],
 };
-const OLD_TEXT = 'Spielstände und einzelne Bauwerke aus meinen Spielen. Anschauen, nachbauen oder einfach herunterladen.';
+// Frühere Standardtexte werden zum aktuellen (selbst geschriebene bleiben)
+const OLD_TEXTS = ['Spielstände und einzelne Bauwerke aus meinen Spielen. Anschauen, nachbauen oder einfach herunterladen.', 'Spielstände aus meinen Spielen, mit allen Bauwerken darin. Anschauen, nachbauen oder einfach herunterladen.'];
+const OLD_TITLES = ['Dancors Dioramen'];
 const keyOk = k => typeof k === 'string' && /^d\d{1,9}$/.test(k);
 function normalize(l) {
   l = l && typeof l === 'object' ? l : {};
   const keys = a => (Array.isArray(a) ? [...new Set(a.filter(keyOk))].slice(0, 1000) : []);
   const text = str(l.text, 300);
   return {
-    title: str(l.title, 80) || LAYOUT.title, text: text && text !== OLD_TEXT ? text : LAYOUT.text,
+    title: !str(l.title, 80) || OLD_TITLES.includes(str(l.title, 80)) ? LAYOUT.title : str(l.title, 80), text: text && !OLD_TEXTS.includes(text) ? text : LAYOUT.text,
     hero: ['pin', 'neu', 'aus'].includes(l.hero) ? l.hero : 'pin', sort: l.sort === 'neu' ? 'neu' : 'eigene',
     order: keys(l.order), hidden: keys(l.hidden),
   };
@@ -280,6 +321,9 @@ function view(user, o = {}) {
   for (const r of all) if (r.game && !r.hidden) { const k = gameKey(r.game), g = games.find(x => x.key === k); if (g) g.n++; else games.push({ key: k, name: r.game, n: 1 }); }
   games.sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'de'));
   const sg = games.find(g => g.key === gameKey(o.spiel)), spiel = sg ? sg.name : '';
+  // Arten (Update 106): Auswahl nur, wenn es mehr als eine gibt
+  const kinds = Object.entries(KINDS).map(([key, k]) => ({ key, icon: k.icon, name: k.plural, n: all.filter(r => !r.hidden && r.kind === key).length })).filter(k => k.n);
+  const art = kinds.some(k => k.key === o.art) ? o.art : '';
   const sort = Object.hasOwn(SORTS, o.sort) ? o.sort : l.sort;
   const q = str(o.q, 100).toLowerCase();
   // Eigene Reihenfolge: angepinnt zuerst, dann noch nicht einsortierte (neue) Spielstände, dann die gezogene Reihenfolge
@@ -289,9 +333,9 @@ function view(user, o = {}) {
     neu: (a, b) => b.created - a.created, beliebt: (a, b) => b.downloads - a.downloads || b.date - a.date,
     name: (a, b) => a.title.localeCompare(b.title, 'de', { sensitivity: 'base' }),
   }[sort];
-  const filtered = !!(spiel || q);
+  const filtered = !!(spiel || q || art);
   const arrange = isAdmin && !filtered && sort === 'eigene';
-  let cards = all.filter(r => (!r.hidden || arrange) && (!spiel || gameKey(r.game) === sg.key) && (!q || r.hay.includes(q)));
+  let cards = all.filter(r => (!r.hidden || arrange) && (!spiel || gameKey(r.game) === sg.key) && (!art || r.kind === art) && (!q || r.hay.includes(q)));
   cards.sort(cmp);
   // Oben groß: der erste angepinnte oder der neueste Spielstand, nur in der ungefilterten Ansicht
   let hero = null;
@@ -302,7 +346,7 @@ function view(user, o = {}) {
   }
   const shown = all.filter(r => !r.hidden);
   return {
-    layout: l, cards, hero, games, spiel, sort, sorts: SORTS, q: o.q ? str(o.q, 100) : '', canArrange: arrange, filtered,
+    layout: l, cards, hero, games, spiel, kinds, art, sort, sorts: SORTS, q: o.q ? str(o.q, 100) : '', canArrange: arrange, filtered,
     counts: { spielstand: shown.length, bauwerk: shown.reduce((n, r) => n + r.buildings.length, 0) },
   };
 }
@@ -315,7 +359,7 @@ function resolve(d, list, blds, o = {}) {
   const caps = new Map(images(d).map(i => [i.f, i.cap]));
   const fl = o.files || files(d);
   const known = new Set();
-  const names = list.flatMap(t => [t.f, t.before, t.after, ...(t.imgs || [])]).filter(Boolean);
+  const names = list.flatMap(t => [t.f, t.before, t.after, ...(t.imgs || []), ...(t.steps || []).map(x => x.f)]).filter(Boolean);
   if (names.length) for (const r of db.prepare(`SELECT stored_name FROM media WHERE stored_name IN (${names.map(() => '?').join(',')})`).all(...names)) known.add(r.stored_name);
   const img = f => (f && known.has(f) ? f : null);
   const ar = (w, h) => ((w * 96 - 14) / (h * 54 - 14)).toFixed(3);   // Seitenverhältnis am Handy (Kacheln untereinander)
@@ -329,6 +373,10 @@ function resolve(d, list, blds, o = {}) {
     if (t.type === 'gal') { r.imgs = t.imgs.map(img).filter(Boolean).map(f => ({ f, cap: caps.get(f) || '' })); r.empty = !r.imgs.length; }
     if (t.type === 'video') { r.video = videoInfo(t.url); r.empty = !r.video; }
     if (t.type === 'head') r.empty = !b;
+    if (t.type === 'num') r.empty = !t.items.length;
+    if (t.type === 'hot') { r.f = img(t.f); r.empty = !r.f; }
+    if (t.type === 'time') { r.steps = t.steps.filter(x => img(x.f)); r.empty = !r.steps.length; }
+    if (t.type === 'pano') { r.f = img(t.f); r.empty = !r.f; }
     if (t.type === 'map') {
       r.f = img(t.f); r.empty = !r.f;
       r.points = t.points.map(p => {
@@ -387,10 +435,10 @@ function page(user, d) {
   const author = d.author_id ? db.prepare('SELECT username, display_name FROM users WHERE id = ?').get(d.author_id) : null;
   const bRows = blds.map((b, i) => ({ ...b, no: i + 1, hex: COLORS[b.color], count: list.filter(t => t.bw === b.id).length, anchor: anc.get(b.id) || null }));
   return {
-    d, tiles: shown, anchors: anc, buildings: bRows, frames: frames(shown.map(r => r.t), blds), latest: main[0] || null, cover: d.cover || (imgs[0] && imgs[0].f) || null,
+    d, K: kindOf(d), bg: bgOf(d), tiles: shown, anchors: anc, buildings: bRows, frames: frames(shown.map(r => r.t), blds), latest: main[0] || null, cover: d.cover || (imgs[0] && imgs[0].f) || null,
     author: author ? author.display_name || author.username : '', fresh: d.created_at >= now() - NEW_DAYS * 86400,
     editData: edit ? {
-      tiles: list, buildings: blds, colors: COLORS, types: TYPES,
+      tiles: list, buildings: blds, colors: COLORS, types: typesFor(d), group: kindOf(d).group, groups: kindOf(d).groups,
       images: imgs, files: fl.map(f => ({ id: f.id, bw: f.bw || null, name: f.original_name, version: f.version || '' })),
     } : null,
   };
@@ -401,13 +449,16 @@ function stats(user) {
   const list = visible(user), l = layout(), hidden = new Set(l.hidden);
   const shown = list.filter(d => !hidden.has('d' + d.id));
   const latest = shown[0] || null;
-  return { spielstand: shown.length, bauwerk: shown.reduce((n, d) => n + buildings(d).length, 0), latest: latest && { title: latest.title, url: '/dioramen/' + latest.slug } };
+  const ks = [...new Set(shown.map(d => kindOf(d).key))];
+  return { spielstand: shown.length, bauwerk: shown.reduce((n, d) => n + buildings(d).length, 0), kind: ks.length === 1 ? ks[0] : '', latest: latest && { title: latest.title, url: '/dioramen/' + latest.slug } };
 }
 function meta(user) {
   const s = stats(user), out = [];
   if (!s.spielstand) return ['Noch leer'];
-  out.push(`${s.spielstand} ${s.spielstand === 1 ? 'Spielstand' : 'Spielstände'}`);
-  if (s.bauwerk) out.push(`${s.bauwerk} ${s.bauwerk === 1 ? 'Bauwerk' : 'Bauwerke'}`);
+  // Nur eine Art: ihre Namen („3 Spielstände · 9 Bauwerke“), sonst allgemein
+  const k = s.kind ? KINDS[s.kind] : null;
+  out.push(`${s.spielstand} ${k ? (s.spielstand === 1 ? k.label : k.plural) : 'Dioramas'}`);
+  if (s.bauwerk && k) out.push(`${s.bauwerk} ${s.bauwerk === 1 ? k.group : k.groups}`);
   if (s.latest) out.push('neu: ' + s.latest.title);
   return out;
 }
@@ -420,12 +471,12 @@ function search(user, q, limit = 20) {
   if (!q) return [];
   const out = [];
   for (const d of visible(user)) {
-    const where = ['Spielstand', d.game, d.world].filter(Boolean).join(' · ');
+    const K = kindOf(d), where = [K.label, d.game, d.world].filter(Boolean).join(' · ');
     if (haystack(d).includes(q)) {
       const hitB = buildings(d).filter(b => [b.name, b.text].some(x => x && x.toLowerCase().includes(q)));
       const own = [d.title, d.summary, d.game, d.world].some(x => x && x.toLowerCase().includes(q));
-      if (own || !hitB.length) out.push({ kind: 'di', icon: '💾', title: d.title, text: where, url: '/dioramen/' + d.slug });
-      for (const b of hitB) out.push({ kind: 'di', icon: '🏗️', title: b.name, text: 'Bauwerk in ' + d.title, url: '/dioramen/' + d.slug + '#bw-' + b.id });
+      if (own || !hitB.length) out.push({ kind: 'di', icon: K.icon, title: d.title, text: where, url: '/dioramen/' + d.slug });
+      for (const b of hitB) out.push({ kind: 'di', icon: '🏗️', title: b.name, text: K.group + ' in ' + d.title, url: '/dioramen/' + d.slug + '#bw-' + b.id });
     }
     if (out.length >= limit) break;
   }
@@ -461,36 +512,62 @@ function modsFrom(b) {
   for (let i = 0; i < n.length && out.length < 40; i++) if (str(n[i], 80)) out.push({ name: str(n[i], 80), ver: str(ver[i], 20), url: link(url[i]) });
   return out;
 }
+// Eigener Hintergrund (Update 106): aus | eigenes Bild | Titelbild | Farbe/Verlauf, dazu Unschärfe, Abdunkeln, Milchglas-Kacheln
+const BG_MODES = ['aus', 'bild', 'titel', 'farbe'];
+const hexColor = (v, def) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : def);
+function normBg(b) {
+  b = b && typeof b === 'object' ? b : {};
+  const src = b.bg && typeof b.bg === 'object' ? b.bg : b;   // Formular (bg_mode …) oder fertiges Objekt
+  const g = k => src['bg_' + k] !== undefined ? src['bg_' + k] : src[k];
+  return {
+    mode: BG_MODES.includes(g('mode')) ? g('mode') : 'aus', f: mediaName(g('f')), c1: hexColor(g('c1'), '#1d3b2a'), c2: hexColor(g('c2'), '#0d1b2a'),
+    blur: int(g('blur'), 0, 30, 0), dim: int(g('dim'), 0, 85, 25),
+    // Formular: Haken „mitscrollen“ (fehlt = steht fest); Objekt: fixed (fehlt = steht fest)
+    fixed: src.bg_mode !== undefined ? !src.bg_scroll : src.fixed === undefined ? true : !!src.fixed, glass: !!g('glass') && g('glass') !== '0',
+  };
+}
+// Kachel-Arten mit dem Gruppen-Namen dieses Eintrags („Bauwerk-Überschrift“, „Exponat-Überschrift“ …)
+const typesFor = d => ({ ...TYPES, head: { ...TYPES.head, label: kindOf(d).group + '-Überschrift' } });
+const bgRaw = d => normBg(json(d && d.bg, {}));
+function bgOf(d) {
+  const b = normBg(json(d.bg, {}));
+  if (b.mode === 'titel') b.f = d.cover || (images(d)[0] && images(d)[0].f) || null;
+  if ((b.mode === 'bild' || b.mode === 'titel') && !b.f) b.mode = 'aus';
+  return b;
+}
 function fields(b) {
   return {
+    kind: Object.hasOwn(KINDS, b.kind) ? b.kind : 'spielstand', group_name: str(b.group_name, 30), bg: JSON.stringify(normBg(b)),
     title: str(b.title, 120), game: sameGame(str(b.game, 80)), world: str(b.world, 80), summary: str(b.summary, 240),
     howto_md: String(b.howto_md || '').slice(0, 20000), facts: JSON.stringify(factsFrom(b)), mods: JSON.stringify(modsFrom(b)), in_downloads: b.in_downloads ? 1 : 0,
   };
 }
 // Neue Spielstände beginnen mit Text, Download, Steckbrief und Mods
-function starterTiles(md = '') {
-  return [
-    { id: 't1', type: 'text', x: 1, y: 1, w: 7, h: 6, bw: null, title: 'Über den Spielstand', md },
-    { id: 't2', type: 'dl', x: 8, y: 1, w: 5, h: 6, bw: null },
-    { id: 't3', type: 'facts', x: 1, y: 7, w: 6, h: 5, bw: null },
-    { id: 't4', type: 'mods', x: 7, y: 7, w: 6, h: 5, bw: null },
-  ];
+function starterTiles(md = '', kind = 'spielstand') {
+  const about = 'Über ' + ({ spielstand: 'den Spielstand', bauprojekt: 'das Bauprojekt', projekt: 'das Projekt', sammlung: 'die Sammlung', ort: 'den Ort' }[kind] || 'die Ausstellung');
+  const t = (id, type, x, y, w, h, more = {}) => ({ id, type, x, y, w, h, bw: null, ...more });
+  if (kind === 'bauprojekt') return [t('t1', 'text', 1, 1, 7, 6, { title: about, md }), t('t2', 'facts', 8, 1, 5, 6), t('t3', 'time', 1, 7, 12, 10, { title: 'Baufortschritt', steps: [] }), t('t4', 'dl', 1, 17, 6, 6)];
+  if (kind === 'projekt') return [t('t1', 'text', 1, 1, 7, 6, { title: about, md }), t('t2', 'num', 8, 1, 5, 6, { title: '', items: [] }), t('t3', 'gal', 1, 7, 12, 7, { imgs: [] }), t('t4', 'dl', 1, 14, 6, 6)];
+  if (kind === 'sammlung') return [t('t1', 'text', 1, 1, 7, 6, { title: about, md }), t('t2', 'num', 8, 1, 5, 6, { title: '', items: [] }), t('t3', 'gal', 1, 7, 12, 8, { imgs: [] })];
+  if (kind === 'ort') return [t('t1', 'text', 1, 1, 7, 6, { title: about, md }), t('t2', 'facts', 8, 1, 5, 6), t('t3', 'map', 1, 7, 8, 10, { f: null, points: [] }), t('t4', 'gal', 9, 7, 4, 10, { imgs: [] })];
+  if (kind === 'frei') return [t('t1', 'text', 1, 1, 12, 6, { title: about, md })];
+  return [t('t1', 'text', 1, 1, 7, 6, { title: about, md }), t('t2', 'dl', 8, 1, 5, 6), t('t3', 'facts', 1, 7, 6, 5), t('t4', 'mods', 7, 7, 6, 5)];
 }
 function create(user, b, extra = {}) {
   const f = fields(b);
-  if (!f.title) throw new Error('Bitte gib dem Spielstand einen Titel.');
+  if (!f.title) throw new Error('Bitte gib dem Eintrag einen Titel.');
   const t = now();
-  const id = Number(db.prepare(`INSERT INTO dioramen(slug, kind, title, game, world, summary, howto_md, facts, mods, in_downloads, pinned, visibility, author_id, created_at, updated_at, tiles, tiles_v)
-    VALUES (?, 'spielstand', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`).run(uniqueSlug(b.slug || f.title), f.title, f.game, f.world, f.summary, f.howto_md,
-    f.facts, f.mods, f.in_downloads, user.isAdmin && b.pinned ? 1 : 0, extra.visibility || 'public', user.id, t, t, JSON.stringify(starterTiles(String(b.body_md || '').slice(0, 20000)))).lastInsertRowid);
+  const id = Number(db.prepare(`INSERT INTO dioramen(slug, kind, group_name, bg, title, game, world, summary, howto_md, facts, mods, in_downloads, pinned, visibility, author_id, created_at, updated_at, tiles, tiles_v)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`).run(uniqueSlug(b.slug || f.title), f.kind, f.group_name, f.bg, f.title, f.game, f.world, f.summary, f.howto_md,
+    f.facts, f.mods, f.in_downloads, user.isAdmin && b.pinned ? 1 : 0, extra.visibility || 'public', user.id, t, t, JSON.stringify(normTiles(starterTiles(String(b.body_md || '').slice(0, 20000), f.kind), []))).lastInsertRowid);
   return byId(id);
 }
 function update(user, d, b, extra = {}) {
   const f = fields(b);
-  if (!f.title) throw new Error('Bitte gib dem Spielstand einen Titel.');
+  if (!f.title) throw new Error('Bitte gib dem Eintrag einen Titel.');
   const slug = b.slug && slugify(b.slug) !== d.slug ? uniqueSlug(b.slug, d.id) : d.slug;
-  db.prepare(`UPDATE dioramen SET slug = ?, title = ?, game = ?, world = ?, summary = ?, howto_md = ?, facts = ?, mods = ?, in_downloads = ?,
-    pinned = ?, visibility = ?, updated_at = ? WHERE id = ?`).run(slug, f.title, f.game, f.world, f.summary, f.howto_md, f.facts, f.mods, f.in_downloads,
+  db.prepare(`UPDATE dioramen SET slug = ?, kind = ?, group_name = ?, bg = ?, title = ?, game = ?, world = ?, summary = ?, howto_md = ?, facts = ?, mods = ?, in_downloads = ?,
+    pinned = ?, visibility = ?, updated_at = ? WHERE id = ?`).run(slug, f.kind, f.group_name, f.bg, f.title, f.game, f.world, f.summary, f.howto_md, f.facts, f.mods, f.in_downloads,
     user.isAdmin ? (b.pinned ? 1 : 0) : d.pinned, extra.visibility || d.visibility, now(), d.id);
   return byId(d.id);
 }
@@ -656,7 +733,7 @@ migrate();
 unifyGames();
 
 module.exports = {
-  KINDS, SORTS, IMAGE_TYPES, NEW_DAYS, COLORS, TYPES, canWrite, canSee, canEdit, bySlug, byId, moved, files, fileById, images, facts, mods, buildings, tiles,
+  KINDS, kindOf, typesFor, normBg, bgOf, bgRaw, SORTS, IMAGE_TYPES, NEW_DAYS, COLORS, TYPES, canWrite, canSee, canEdit, bySlug, byId, moved, files, fileById, images, facts, mods, buildings, tiles,
   normTiles, normBuildings, settle, frames, nextId, bottom, row, view, page, resolve, layout, saveLayout, normalize, stats, meta, recent, search, downloadCards,
   create, update, saveTiles, takeImage, setImages, addImages, addFile, removeFile, remove, knownGames, gameKey, unifyGames, factsFrom, modsFrom, uniqueSlug, migrate, starterTiles, videoInfo,
 };

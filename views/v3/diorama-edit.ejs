@@ -5,8 +5,8 @@
    const fmt = t => new Date(t * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
    const size = n => { if (n < 1024) return n + ' B'; const u = ['KB', 'MB', 'GB', 'TB']; let i = -1; do { n /= 1024; i++; } while (n >= 1024 && i < 3); return n.toFixed(n < 10 ? 1 : 0).replace('.', ',') + ' ' + u[i]; };
    const coverName = d.cover || (images[0] && images[0].f) || ''; %>
-<p class="crumbs"><a href="/dioramen">Dancors Dioramen</a> › <% if (!isNew) { %><a href="<%= back %>"><%= d.title %></a> › Eckdaten und Dateien<% } else { %>Neuer Spielstand<% } %></p>
-<h1 class="page-h" style="margin-top:8px"><%= isNew ? 'Neuer Spielstand' : d.title + ': Eckdaten und Dateien' %></h1>
+<p class="crumbs"><a href="/dioramen">Dancors Dioramas</a> › <% if (!isNew) { %><a href="<%= back %>"><%= d.title %></a> › Eckdaten und Dateien<% } else { %>Neues Diorama<% } %></p>
+<h1 class="page-h" style="margin-top:8px"><%= isNew ? 'Neues Diorama' : d.title + ': Eckdaten und Dateien' %></h1>
 <% if (!isNew) { %><p class="page-sub">Was wo auf der Seite steht, ordnest du direkt auf der Seite mit <a href="<%= back %>">✏️ Gestalten</a>. Hier stehen Titel, Bilder, Dateien, Steckbrief und Mods.</p><% } %>
 <% if (err) { %><p class="v3-flash err" role="alert"><%= err %></p><% } %>
 <% if (ok) { %><p class="v3-flash" role="status"><%= ok %></p><% } %>
@@ -15,14 +15,18 @@
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <div class="di-main">
     <section class="card stack">
+      <div class="f"><b style="font-size:14px">Art <small class="muted" style="font-weight:500">bestimmt Beschriftungen<%= isNew ? ' und die ersten Kacheln' : '' %></small></b>
+        <div class="di-kinds"><% for (const [k, x] of Object.entries(KINDS)) { %><label><input type="radio" name="kind" value="<%= k %>" data-group="<%= x.group %>"<%= K.key === k ? ' checked' : '' %>><span><b class="emo"><%= x.icon %></b><%= x.label %></span></label><% } %></div>
+      </div>
       <div class="grid2">
         <label class="f">Titel <input type="text" name="title" value="<%= d.title || '' %>" required maxlength="120" placeholder="Hof Lindenau"></label>
         <label class="f">Adresse <small>/dioramen/…, leer = aus dem Titel</small><input type="text" name="slug" value="<%= d.slug || '' %>" maxlength="80"></label>
       </div>
       <div class="grid2">
-        <label class="f">Spiel <small>aus der Liste oder neu</small><input type="text" name="game" value="<%= d.game || '' %>" maxlength="80" list="di-games" placeholder="Farming Simulator 25"></label>
-        <label class="f">Karte / Welt <input type="text" name="world" value="<%= d.world || '' %>" maxlength="80" placeholder="Riverbend Springs"></label>
+        <label class="f">Spiel oder Thema <small>aus der Liste oder neu</small><input type="text" name="game" value="<%= d.game || '' %>" maxlength="80" list="di-games" placeholder="Farming Simulator 25"></label>
+        <label class="f">Karte, Welt oder Ort <input type="text" name="world" value="<%= d.world || '' %>" maxlength="80" placeholder="Riverbend Springs"></label>
       </div>
+      <label class="f">Name der Gruppen <small>die farbigen Abschnitte, leer = „<span data-group-def><%= KINDS[K.key].group %></span>“</small><input type="text" name="group_name" value="<%= d.group_name || '' %>" maxlength="30" placeholder="<%= KINDS[K.key].group %>"></label>
       <datalist id="di-games"><% for (const g of games) { %><option value="<%= g %>"><% } %></datalist>
       <label class="f">Kurztext <small>steht auf der Karte und im Bild oben</small><input type="text" name="summary" value="<%= d.summary || '' %>" maxlength="240"></label>
       <% if (isNew) { %><div class="f" style="display:grid;gap:5px"><b style="font-size:14px">Erster Text <small class="muted" style="font-weight:500">freiwillig, kommt in die erste Text-Kachel (Markdown)</small></b>
@@ -46,6 +50,29 @@
       <p class="muted small-note">★ macht ein Bild zum Titelbild, ⠿ zum Sortieren ziehen, ✕ nimmt es aus der Auswahl (die Datei bleibt in der Bibliothek; Kacheln, die es zeigen, behalten es). Bilder für Kacheln kannst du auch direkt beim Gestalten hochladen.</p>
     </section>
 
+    <section class="card stack" id="hintergrund">
+      <h2 class="sec-h">🎨 Hintergrund</h2>
+      <div class="di-bgmodes">
+        <% for (const [k, label] of [['aus', 'Wie die Seite'], ['titel', 'Titelbild'], ['bild', 'Eigenes Bild'], ['farbe', 'Farbverlauf']]) { %><label><input type="radio" name="bg_mode" value="<%= k %>"<%= bg.mode === k ? ' checked' : '' %>><span><%= label %></span></label><% } %>
+      </div>
+      <div class="di-bgopt" data-bg-for="bild">
+        <b style="font-size:14px">Bild</b>
+        <div class="di-bgpick"><% for (const im of images) { %><label><input type="radio" name="bg_f" value="<%= im.f %>"<%= bg.f === im.f ? ' checked' : '' %>><img src="/media/<%= im.f %>" alt=""></label><% } %></div>
+        <p class="muted small-note" style="margin:0"><%= images.length ? 'Aus den Bildern oben. Neue Bilder erst oben hochladen und speichern.' : 'Lade oben zuerst Bilder hoch und speichere.' %></p>
+      </div>
+      <div class="grid2 di-bgopt" data-bg-for="farbe">
+        <label class="f">Farbe oben <input type="color" name="bg_c1" value="<%= bg.c1 %>"></label>
+        <label class="f">Farbe unten <input type="color" name="bg_c2" value="<%= bg.c2 %>"></label>
+      </div>
+      <div class="grid2 di-bgopt" data-bg-for="bild titel farbe">
+        <label class="f">Unschärfe <small data-out="bg_blur"><%= bg.blur %> px</small><input type="range" name="bg_blur" min="0" max="30" value="<%= bg.blur %>"></label>
+        <label class="f">Abdunkeln <small data-out="bg_dim"><%= bg.dim %> %</small><input type="range" name="bg_dim" min="0" max="85" value="<%= bg.dim %>"></label>
+      </div>
+      <div class="di-bgopt" data-bg-for="bild titel farbe">
+        <label class="check"><input type="checkbox" name="bg_glass" value="1"<%= bg.glass ? ' checked' : '' %>> Kacheln wie Milchglas (Hintergrund scheint leicht durch)</label>
+        <label class="check"><input type="checkbox" name="bg_scroll" value="1"<%= bg.fixed ? '' : ' checked' %>> Hintergrund scrollt mit (sonst steht er fest)</label>
+      </div>
+    </section>
   </div>
 
   <aside class="di-side">
@@ -55,10 +82,10 @@
       <div class="vers-mini"><% files.forEach((f, i) => { const fb = f.bw && buildings.find(b => b.id === f.bw); %><div class="vrow"><b><%= f.version || fmt(f.created_at) %></b><span class="sp"><%= fb ? '🏗️ ' + fb.name + ' · ' : '' %><%= size(f.size) %> · <%= f.downloads %>×</span><% if (i === 0) { %><span class="ver">aktuell</span><% } %><button class="pill small danger" form="del-<%= f.id %>" title="Datei löschen" aria-label="Datei löschen">🗑</button></div><% }) %></div>
       <% } %>
       <label class="f"><%= files.length ? 'Neue Version' : 'Datei' %> <small><%= maxMb ? 'höchstens ' + maxMb + ' MB' : 'ZIP, Spielstand, Vorlage …' %></small><input type="file" name="file"></label>
-      <% if (buildings.length) { %><label class="f">Gehört zu <small>der ganze Spielstand oder nur ein Bauwerk</small><select name="file_bw"><option value="">💾 der ganze Spielstand</option><% buildings.forEach((b, i) => { %><option value="<%= b.id %>">🏗️ <%= i + 1 %> <%= b.name %></option><% }) %></select></label><% } %>
+      <% if (buildings.length) { %><label class="f">Gehört zu <small>der ganze Eintrag oder nur eine Gruppe</small><select name="file_bw"><option value="">💾 der ganze Eintrag</option><% buildings.forEach((b, i) => { %><option value="<%= b.id %>">🏗️ <%= i + 1 %> <%= b.name %></option><% }) %></select></label><% } %>
       <label class="f">Version <input type="text" name="version" maxlength="30" placeholder="<%= files[0] && files[0].version ? files[0].version : '1.0' %>"></label>
       <label class="f">Was ist neu? <small>freiwillig</small><textarea name="changes" rows="2" placeholder="- Jahr 4, Herbst"></textarea></label>
-      <label class="f">Anleitung <small>steht in der Download-Kachel des Spielstands (Markdown)</small><textarea name="howto_md" rows="4" placeholder="ZIP entpacken und den Ordner savegame1 nach Dokumente › My Games › FarmingSimulator2025 kopieren."><%= d.howto_md || '' %></textarea></label>
+      <label class="f">Anleitung <small>steht in der Download-Kachel (Markdown)</small><textarea name="howto_md" rows="4" placeholder="ZIP entpacken und den Ordner savegame1 nach Dokumente › My Games › FarmingSimulator2025 kopieren."><%= d.howto_md || '' %></textarea></label>
       <label class="check"><input type="checkbox" name="in_downloads" value="1"<%= d.in_downloads ? ' checked' : '' %>> auch in Dancors Downloads zeigen</label>
     </section>
 
@@ -68,7 +95,7 @@
         <% for (const f of facts.concat(facts.length ? [] : [['', ''], ['', '']])) { %><div class="kv"><input type="text" name="fact_k" value="<%= f[0] %>" maxlength="40" placeholder="z. B. Spielzeit" aria-label="Angabe"><input type="text" name="fact_v" value="<%= f[1] %>" maxlength="120" placeholder="212 Stunden" aria-label="Wert"><button type="button" class="x" data-row-del aria-label="Zeile entfernen">✕</button></div><% } %>
       </div>
       <button type="button" class="pill small" data-row-add="di-facts">＋ Zeile</button>
-      <p class="muted small-note">Spiel und Karte stehen von selbst darin.</p>
+      <p class="muted small-note">Diese Zeilen zeigt die Steckbrief-Kachel, dazu Spiel oder Thema und Ort.</p>
     </section>
 
     <section class="card">
@@ -88,8 +115,8 @@
 </form>
 <% if (!isNew) { %>
 <% for (const f of files) { %><form method="post" action="/dioramen/<%= d.slug %>/datei/<%= f.id %>/loeschen" id="del-<%= f.id %>" data-confirm="Datei <%= f.version || f.original_name %> wirklich löschen?" hidden><input type="hidden" name="_csrf" value="<%= csrf %>"></form><% } %>
-<form method="post" action="/dioramen/<%= d.slug %>/loeschen" data-confirm="„<%= d.title %>“ mit allen Kacheln, Bauwerken und Dateien löschen?" class="actions" style="margin-top:18px">
-  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="pill danger">🗑 Spielstand löschen</button>
+<form method="post" action="/dioramen/<%= d.slug %>/loeschen" data-confirm="„<%= d.title %>“ mit allen Kacheln, Gruppen und Dateien löschen?" class="actions" style="margin-top:18px">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="pill danger">🗑 Eintrag löschen</button>
 </form>
 <% } %>
 <script src="<%= asset('diorama-edit.js') %>" defer></script>

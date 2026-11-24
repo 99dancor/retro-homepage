@@ -26,14 +26,14 @@ const TILE_VIEW = path.join(__dirname, '..', '..', 'views', 'v3', '_dio-tile.ejs
 const router = express.Router();
 const loc = (req, res) => v3.locals(req, res, 'dioramen');
 const needLogin = (req, res, next) => (req.user ? next() : res.redirect('/login?next=' + encodeURIComponent(req.originalUrl)));
-const writer = (req, res, next) => (dio.canWrite(req.user) ? next() : v3.error(req, res, 403, 'Kein Schreibrecht', 'Dioramen legen der Admin und Mitglieder mit dem Recht „Schreiben“ an.'));
-const OK = { neu: 'Spielstand angelegt. Mit „Gestalten“ ordnest du die Kacheln.', gespeichert: 'Gespeichert.', datei: 'Die Datei ist online.', geloescht: 'Datei gelöscht.' };
+const writer = (req, res, next) => (dio.canWrite(req.user) ? next() : v3.error(req, res, 403, 'Kein Schreibrecht', 'Dioramas legen der Admin und Mitglieder mit dem Recht „Schreiben“ an.'));
+const OK = { neu: 'Angelegt. Mit „Gestalten“ ordnest du die Kacheln.', gespeichert: 'Gespeichert.', datei: 'Die Datei ist online.', geloescht: 'Datei gelöscht.' };
 
 router.get('/', (req, res) => {
   const qs = k => String(req.query[k] || '').slice(0, 100);
-  const view = dio.view(req.user, { spiel: qs('spiel'), sort: qs('sort'), q: qs('q') });
+  const view = dio.view(req.user, { spiel: qs('spiel'), art: qs('art'), sort: qs('sort'), q: qs('q') });
   res.render('v3/dioramen', {
-    ...loc(req, res), ...view, title: view.layout.title, description: 'Spielstände aus Spielen wie dem Farming Simulator mit allen Bauwerken darin: Bilder, Karte, Steckbrief und Download.',
+    ...loc(req, res), ...view, title: view.layout.title, description: 'Spielstände, Bauprojekte, Sammlungen und mehr: mit Bildern, Karte, Steckbrief und Download.',
     KINDS: dio.KINDS, canWrite: dio.canWrite(req.user), isAdmin: !!(req.user && req.user.isAdmin), ok: req.query.ok === 'gespeichert' ? 'Gespeichert.' : '',
   });
 });
@@ -78,7 +78,7 @@ function formView(req, res, d, extra = {}) {
   const isNew = !d || !d.id;
   const cur = d || {};
   return {
-    ...loc(req, res), title: isNew ? 'Neuer Spielstand' : `${cur.title}: Eckdaten und Dateien`, d: cur, isNew,
+    ...loc(req, res), title: isNew ? 'Neues Diorama' : `${cur.title}: Eckdaten und Dateien`, d: cur, isNew, KINDS: dio.KINDS, K: dio.kindOf(cur), bg: cur.bg_mode !== undefined ? dio.normBg(cur) : dio.bgRaw(cur),
     images: isNew ? [] : dio.images(cur).concat(cur.cover && !dio.images(cur).some(i => i.f === cur.cover) ? [{ f: cur.cover, cap: '' }] : []),
     facts: extra.facts || (isNew ? [] : dio.facts(cur)), mods: extra.mods || (isNew ? [] : dio.mods(cur)), files: isNew ? [] : dio.files(cur),
     buildings: isNew ? [] : dio.buildings(cur), games: dio.knownGames(),
@@ -105,7 +105,7 @@ router.post('/neu', needLogin, writer, formUpload, auth.csrfCheck, (req, res) =>
   try { d = dio.create(req.user, req.body, { visibility: v3.visibility(req.user, req.body) }); } catch (e) { dropFiles(req); return again(req, res, {}, e.message); }
   v3.saveAcl(req.user, 'dio', d.id, req.body);
   saveExtras(req, d);
-  require('../events').info('Dioramen', `Spielstand „${d.title}“ angelegt von ${req.user.username}`);
+  require('../events').info('Dioramas', `${dio.kindOf(d).label} „${d.title}“ angelegt von ${req.user.username}`);
   res.redirect('/dioramen/' + d.slug + '?ok=neu');
 });
 
@@ -116,17 +116,17 @@ function entry(req, res, next) {
     const m = dio.moved(req.params.slug);
     if (m && dio.canSee(req.user, m.d)) return res.redirect(301, '/dioramen/' + m.d.slug + (m.bw ? '#bw-' + m.bw : ''));
   }
-  if (!d || !dio.canSee(req.user, d)) return v3.error(req, res, 404, 'Nicht gefunden', 'Diesen Spielstand gibt es nicht (oder du darfst ihn nicht sehen).');
+  if (!d || !dio.canSee(req.user, d)) return v3.error(req, res, 404, 'Nicht gefunden', 'Diesen Eintrag gibt es nicht (oder du darfst ihn nicht sehen).');
   req.dio = d;
   next();
 }
-const editor = (req, res, next) => (dio.canEdit(req.user, req.dio) ? next() : v3.error(req, res, 403, 'Kein Zugriff', 'Nur wer den Spielstand angelegt hat und der Admin dürfen ihn ändern.'));
-const editorJson = (req, res, next) => (dio.canEdit(req.user, req.dio) ? next() : res.status(403).json({ error: 'Nur wer den Spielstand angelegt hat und der Admin dürfen ihn gestalten.' }));
+const editor = (req, res, next) => (dio.canEdit(req.user, req.dio) ? next() : v3.error(req, res, 403, 'Kein Zugriff', 'Nur wer den Eintrag angelegt hat und der Admin dürfen ihn ändern.'));
+const editorJson = (req, res, next) => (dio.canEdit(req.user, req.dio) ? next() : res.status(403).json({ error: 'Nur wer den Eintrag angelegt hat und der Admin dürfen ihn gestalten.' }));
 
 router.get('/:slug', entry, (req, res) => {
   const d = req.dio, pg = dio.page(req.user, d);
   res.render('v3/diorama', {
-    ...loc(req, res), ...pg, types: dio.TYPES, title: d.title, description: d.summary || `Spielstand aus ${d.game || 'einem Spiel'}`,
+    ...loc(req, res), ...pg, types: dio.typesFor(d), title: d.title, description: d.summary || `${dio.kindOf(d).label}${d.game ? ' · ' + d.game : ''}`,
     ok: OK[req.query.ok] || null,
   });
 });
@@ -146,7 +146,7 @@ router.post('/:slug/kacheln/vorschau', express.json({ limit: '2mb' }), entry, ed
     const anchors = new Map();
     for (const x of blds) { const own = list.filter(t => t.bw === x.id); const tgt = own.find(t => t.type === 'head') || own[0]; if (tgt) anchors.set(x.id, tgt.id); }
     const map = rows.find(r => r.t.type === 'map' && !r.empty);
-    const locals = { types: dio.TYPES, anchors, mapId: map ? map.t.id : null, buildings: blds, d, edit: true };
+    const locals = { types: dio.typesFor(d), K: dio.kindOf(d), anchors, mapId: map ? map.t.id : null, buildings: blds, d, edit: true };
     const html = {};
     for (const r of rows) if (want.has(r.t.id)) html[r.t.id] = await ejs.renderFile(TILE_VIEW, { ...locals, r });
     res.json({ ok: true, html, tiles: list, buildings: blds });
@@ -175,7 +175,7 @@ router.post('/:slug/bearbeiten', needLogin, entry, editor, formUpload, auth.csrf
   try { d = dio.update(req.user, req.dio, req.body, { visibility: v3.visibility(req.user, req.body) }); } catch (e) { dropFiles(req); return again(req, res, req.dio, e.message); }
   v3.saveAcl(req.user, 'dio', d.id, req.body);
   const file = saveExtras(req, d);
-  if (file) require('../events').info('Dioramen', `Neue Datei ${req.body.version || ''} für „${d.title}“`);
+  if (file) require('../events').info('Dioramas', `Neue Datei ${req.body.version || ''} für „${d.title}“`);
   res.redirect('/dioramen/' + d.slug + '?ok=' + (file ? 'datei' : 'gespeichert'));
 });
 router.post('/:slug/datei/:id/loeschen', needLogin, entry, editor, (req, res) => {

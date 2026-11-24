@@ -1,4 +1,4 @@
-// Dancors Dioramen (views/v3/dioramen.ejs, diorama.ejs): Sortierung, Bearbeiten-Modus der Übersicht (über public/v3-edit.js),
+// Dancors Dioramas (views/v3/dioramen.ejs, diorama.ejs): Sortierung, Bearbeiten-Modus der Übersicht (über public/v3-edit.js),
 // Bilder groß ansehen mit Blättern, Vorher/Nachher-Regler, Kartenpunkte und „Springen zu“ mit Aufleuchten der Kacheln.
 (function () {
   'use strict';
@@ -65,8 +65,90 @@
       range.addEventListener('input', function () { set(range.value); });
     });
   };
+  // ---------- Neue Kacheln (Update 106): Zahlen zählen hoch, 360°-Panorama dreht ----------
+  var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // „38“, „2,4 MW“, „1.200 €“: die erste Zahl zählt hoch, der Rest bleibt stehen
+  var countUp = function (el) {
+    var raw = el.getAttribute('data-count') || '', m = /^(\D*?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?(.*)$/.exec(raw);
+    if (!m || still) return;
+    var target = Number(m[2].replace(/\./g, '') + (m[3] ? '.' + m[3] : '')), dec = m[3] ? m[3].length : 0, t0 = null;
+    var fmt = function (n) { return m[1] + n.toLocaleString('de-DE', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + m[4]; };
+    var step = function (ts) {
+      if (t0 === null) t0 = ts;
+      var k = Math.min(1, (ts - t0) / 1100), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = fmt(target * e);
+      if (k < 1) requestAnimationFrame(step); else el.textContent = raw;
+    };
+    requestAnimationFrame(step);
+  };
+  var io = 'IntersectionObserver' in window ? new IntersectionObserver(function (list) {
+    list.forEach(function (en) { if (en.isIntersecting) { io.unobserve(en.target); countUp(en.target); } });
+  }, { threshold: 0.4 }) : null;
+  var initPano = function (p) {
+    var pos = 0, drag = null, last = 0, auto = p.classList.contains('spin') && !still, raf = 0;
+    var set = function () { p.style.backgroundPositionX = pos + 'px'; };
+    var tick = function (ts) { if (auto && !drag) { pos -= (ts - (last || ts)) * 0.02; set(); } last = ts; raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+    p.addEventListener('pointerdown', function (e) { drag = { x: e.clientX, p: pos }; auto = false; p.setPointerCapture(e.pointerId); p.classList.add('grab'); });
+    p.addEventListener('pointermove', function (e) { if (!drag) return; pos = drag.p + (e.clientX - drag.x); set(); });
+    var end = function () { drag = null; p.classList.remove('grab'); };
+    p.addEventListener('pointerup', end); p.addEventListener('pointercancel', end);
+    p.addEventListener('keydown', function (e) { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); auto = false; pos += e.key === 'ArrowLeft' ? 60 : -60; set(); } });
+  };
+  var initTiles = function (root) {
+    (root || document).querySelectorAll('.knum b[data-count]').forEach(function (b) {
+      if (b.hasAttribute('data-ready')) return;
+      b.setAttribute('data-ready', '');
+      if (io && !editing()) io.observe(b);
+    });
+    (root || document).querySelectorAll('.kpano').forEach(function (p) {
+      if (p.hasAttribute('data-ready')) return;
+      p.setAttribute('data-ready', '');
+      initPano(p);
+    });
+  };
+  // Hinweispunkte: Antippen öffnet die Erklärung daneben, ein Klick woanders schließt sie
+  var closeHot = function (except) {
+    document.querySelectorAll('.khot .hp[aria-expanded=true]').forEach(function (b) {
+      if (b === except) return;
+      b.setAttribute('aria-expanded', 'false'); b.nextElementSibling.hidden = true;
+    });
+  };
+  document.addEventListener('click', function (e) {
+    var hp = e.target.closest && e.target.closest('.khot .hp');
+    if (!hp) { if (!(e.target.closest && e.target.closest('.hbub'))) closeHot(null); return; }
+    if (editing()) return;
+    var bub = hp.nextElementSibling, open = hp.getAttribute('aria-expanded') !== 'true';
+    closeHot(hp);
+    hp.setAttribute('aria-expanded', String(open));
+    bub.hidden = !open;
+    if (open) {
+      var x = Number(getComputedStyle(bub).getPropertyValue('--x')), y = Number(getComputedStyle(bub).getPropertyValue('--y'));
+      bub.classList.toggle('left', x > 60); bub.classList.toggle('right', x < 40); bub.classList.toggle('up', y > 60);
+    }
+  });
+  // Zeitleiste: Punkt antippen oder Pfeiltasten zeigen den Stand
+  var showStep = function (box, i) {
+    var steps = box.querySelectorAll('.tstep'), tabs = box.querySelectorAll('.tline button');
+    i = Math.max(0, Math.min(steps.length - 1, i));
+    steps.forEach(function (s, k) { s.classList.toggle('on', k === i); });
+    tabs.forEach(function (b, k) { b.setAttribute('aria-selected', String(k === i)); });
+    return tabs[i];
+  };
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('.ktime .tline button');
+    if (b && !editing()) showStep(b.closest('.ktime'), Number(b.getAttribute('data-i')));
+  });
+  document.addEventListener('keydown', function (e) {
+    var b = e.target.closest && e.target.closest('.ktime .tline button');
+    if (!b || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    e.preventDefault();
+    var t = showStep(b.closest('.ktime'), Number(b.getAttribute('data-i')) + (e.key === 'ArrowLeft' ? -1 : 1));
+    if (t) t.focus();
+  });
   initCmp();
-  window.DioUI = { initCmp: initCmp };
+  initTiles();
+  window.DioUI = { initCmp: function (root) { initCmp(root); initTiles(root); } };
 
   // ---------- Kartenpunkte und „Springen zu“: hinspringen, Kacheln des Bauwerks leuchten kurz ----------
   var toast = document.querySelector('.dio-toast'), toastTimer = null, glowTimer = null;

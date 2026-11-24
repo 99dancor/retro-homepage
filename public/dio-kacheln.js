@@ -1,4 +1,4 @@
-// Dioramen: Spielstand gestalten (views/v3/diorama.ejs, _dio-tile.ejs; Speichern über POST /dioramen/<slug>/kacheln).
+// Dioramas: Eintrag gestalten (views/v3/diorama.ejs, _dio-tile.ejs; Speichern über POST /dioramen/<slug>/kacheln).
 // Kacheln am ⠿ verschieben, an den Griffen Breite und Höhe ändern, aus der Leiste neue Kacheln aufs Raster ziehen oder antippen,
 // Inhalt über ⚙, Bauwerke anlegen, umbenennen, einfärben und löschen, Punkte auf Karten setzen. Rückgängig über einen Stapel.
 // Das Raster hat 12 Spalten und Reihen zu 40 px (+14 px Abstand). Kacheln, die sich überdecken, rutschen nach unten,
@@ -10,6 +10,7 @@
   var grid = document.getElementById('kg');
   if (!dataEl || !grid) return;
   var D = JSON.parse(dataEl.textContent);
+  var G = D.group || 'Bauwerk', GS = D.groups || 'Bauwerke';   // wie die Gruppen bei dieser Art heißen
   var csrf = document.body.getAttribute('data-csrf') || '';
   var base = '/dioramen/' + D.slug;
   var bar = document.querySelector('.dio-bar'), pal = document.querySelector('.dio-pal'), bwBox = document.getElementById('dio-bws');
@@ -17,7 +18,7 @@
   var clone = function (o) { return JSON.parse(JSON.stringify(o)); };
   var state = { tiles: clone(D.tiles), buildings: clone(D.buildings) };
   var saved = JSON.stringify(state), undo = [], on = false, busy = false;
-  var CONTENT = { text: 1, img: 1, cmp: 1, gal: 1, map: 1, video: 1, facts: 1 };
+  var CONTENT = { text: 1, img: 1, cmp: 1, gal: 1, map: 1, video: 1, facts: 1, num: 1, hot: 1, time: 1, pano: 1 };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var tile = function (id) { for (var i = 0; i < state.tiles.length; i++) if (state.tiles[i].id === id) return state.tiles[i]; return null; };
   var bld = function (id) { for (var i = 0; i < state.buildings.length; i++) if (state.buildings[i].id === id) return state.buildings[i]; return null; };
@@ -96,7 +97,7 @@
     on = true;
     document.body.classList.add('dio-ed');
     bar.hidden = false; pal.hidden = false;
-    if (narrow()) bar.querySelector('.hint').textContent = 'Am Handy änderst du Inhalte und Bauwerke. Verschieben und Größe ändern gehen am großen Bildschirm.';
+    if (narrow()) bar.querySelector('.hint').textContent = 'Am Handy änderst du Inhalte und ' + GS + '. Verschieben und Größe ändern gehen am großen Bildschirm.';
     renderBws();
     mark();
   };
@@ -135,7 +136,7 @@
     var s = e.target.closest('select[data-k=bw]');
     if (!s) return;
     var t = tile(s.closest('.kt').getAttribute('data-id'));
-    if (t.type === 'head' && !s.value) { s.value = t.bw; say('Eine Überschrift gehört immer zu einem Bauwerk.'); return; }
+    if (t.type === 'head' && !s.value) { s.value = t.bw; say('Eine Überschrift gehört immer zu einer Gruppe (' + G + ').'); return; }
     snap();
     t.bw = s.value || null;
     render();
@@ -214,7 +215,7 @@
   });
 
   // ---------- Neue Kacheln aus der Leiste ----------
-  var DEFAULTS = { text: { title: '', md: '' }, img: { f: null, cap: '', fit: 'cover' }, cmp: { before: null, after: null }, gal: { imgs: [] }, map: { f: null, points: [] }, video: { url: '', cap: '' }, facts: { title: '', rows: [] } };
+  var DEFAULTS = { text: { title: '', md: '' }, img: { f: null, cap: '', fit: 'cover' }, cmp: { before: null, after: null }, gal: { imgs: [] }, map: { f: null, points: [] }, video: { url: '', cap: '' }, facts: { title: '', rows: [] }, num: { title: '', items: [] }, hot: { f: null, cap: '', pts: [] }, time: { title: '', steps: [] }, pano: { f: null, cap: '', spin: true } };
   var TYPES = D.types;
   var newTile = function (type, extra) {
     var T = TYPES[type], t = { id: nextId(state.tiles, 't'), type: type, x: 1, y: bottom(), w: T.w, h: T.h, bw: null };
@@ -352,10 +353,60 @@
       ok = function () { t.url = body.querySelector('[name=url]').value.trim(); t.cap = body.querySelector('[name=cap]').value; };
     } else if (t.type === 'map') return mapDialog(t);
     else if (t.type === 'head') return editBuilding(t.bw);
-    else if (t.type === 'facts') {
+    else if (t.type === 'hot') return hotDialog(t);
+    else if (t.type === 'num') {
+      var items = clone(t.items || []);
+      body = html(field('Überschrift', '<input type="text" name="title" maxlength="80">', 'freiwillig')
+        + '<div class="f"><b style="font-size:14px">Zahlen <small class="muted" style="font-weight:500">bis zu 6, z. B. „38“ und „Felder“ oder „2,4 MW“ und „Strom“</small></b><div class="krows"></div><button type="button" class="pill small" data-nadd style="justify-self:start">＋ Zahl</button></div>');
+      var nbox = body.querySelector('.krows');
+      var drawNums = function () {
+        nbox.innerHTML = items.map(function (it, i) {
+          return '<input type="text" data-i="' + i + '" data-c="v" maxlength="20" placeholder="38" value="' + esc(it.v) + '" aria-label="Zahl"><input type="text" data-i="' + i + '" data-c="l" maxlength="40" placeholder="Felder" value="' + esc(it.l) + '" aria-label="Bezeichnung"><button type="button" class="pill small" data-ndel="' + i + '" aria-label="Zahl löschen">🗑</button>';
+        }).join('');
+      };
+      nbox.addEventListener('input', function (e) { var i = e.target.getAttribute('data-i'); if (i !== null) items[Number(i)][e.target.getAttribute('data-c')] = e.target.value; });
+      body.addEventListener('click', function (e) {
+        if (e.target.closest('[data-nadd]') && items.length < 6) { items.push({ v: '', l: '' }); drawNums(); }
+        var d = e.target.closest('[data-ndel]'); if (d) { items.splice(Number(d.getAttribute('data-ndel')), 1); drawNums(); }
+      });
+      if (!items.length) items.push({ v: '', l: '' }, { v: '', l: '' }, { v: '', l: '' });
+      drawNums();
+      body.querySelector('[name=title]').value = t.title || '';
+      ok = function () { t.title = body.querySelector('[name=title]').value.trim(); t.items = items.filter(function (it) { return it.v.trim() || it.l.trim(); }).map(function (it) { return { v: it.v.trim(), l: it.l.trim() }; }); };
+    } else if (t.type === 'pano') {
+      var pp = picker(false, [t.f]);
+      body = html('<p class="muted" style="margin:0">Ein breites Rundumbild, z. B. ein Panorama-Screenshot. Besucher drehen es mit Maus oder Finger.</p>');
+      body.appendChild(pp.el);
+      var pf = html(field('Unterschrift', '<input type="text" name="cap" maxlength="160">', 'freiwillig') + '<label class="check"><input type="checkbox" name="spin"> dreht sich langsam von selbst</label>');
+      while (pf.firstChild) body.appendChild(pf.firstChild);
+      body.querySelector('[name=cap]').value = t.cap || '';
+      body.querySelector('[name=spin]').checked = t.spin !== false;
+      ok = function () { t.f = pp.get()[0] || null; t.cap = body.querySelector('[name=cap]').value; t.spin = body.querySelector('[name=spin]').checked; };
+    } else if (t.type === 'time') {
+      var known = {};
+      (t.steps || []).forEach(function (x) { known[x.f] = { when: x.when, text: x.text }; });
+      var rowsBox = document.createElement('div'); rowsBox.className = 'ksteps';
+      var cur = (t.steps || []).map(function (x) { return x.f; });
+      var drawSteps = function () {
+        rowsBox.innerHTML = cur.map(function (f, i) {
+          var k = known[f] || { when: '', text: '' };
+          return '<div class="kst"><img src="/media/' + esc(f) + '" alt=""><span class="n">' + (i + 1) + '</span><input type="text" data-f="' + esc(f) + '" data-c="when" maxlength="40" placeholder="z. B. Jahr 2, Frühling" value="' + esc(k.when) + '" aria-label="Zeitpunkt"><input type="text" data-f="' + esc(f) + '" data-c="text" maxlength="300" placeholder="Was ist da passiert? (freiwillig)" value="' + esc(k.text) + '" aria-label="Text"></div>';
+        }).join('') || '<p class="muted" style="margin:0">Wähle oben die Bilder in der zeitlichen Reihenfolge.</p>';
+      };
+      var tp = picker(true, cur, function (sel) { cur = sel.slice(); drawSteps(); });
+      rowsBox.addEventListener('input', function (e) { var f = e.target.getAttribute('data-f'); if (!f) return; known[f] = known[f] || { when: '', text: '' }; known[f][e.target.getAttribute('data-c')] = e.target.value; });
+      body = html(field('Überschrift', '<input type="text" name="title" maxlength="80" placeholder="Baufortschritt">', 'freiwillig') + '<p class="muted" style="margin:0">Bilder in der Reihenfolge antippen, vom ältesten zum neuesten.</p>');
+      body.appendChild(tp.el); body.appendChild(rowsBox);
+      drawSteps();
+      body.querySelector('[name=title]').value = t.title || '';
+      ok = function () {
+        t.title = body.querySelector('[name=title]').value.trim();
+        t.steps = tp.get().map(function (f) { var k = known[f] || {}; return { f: f, when: (k.when || '').trim(), text: (k.text || '').trim() }; });
+      };
+    } else if (t.type === 'facts') {
       var rows = clone(t.rows || []);
       body = html(field('Überschrift', '<input type="text" name="title" maxlength="60" placeholder="Steckbrief">', 'freiwillig')
-        + '<label class="check"><input type="checkbox" name="base"> Eckdaten des Spielstands mit anzeigen (Spiel, Karte und was unter „Eckdaten und Dateien“ steht)</label>'
+        + '<label class="check"><input type="checkbox" name="base"> Eckdaten mit anzeigen (Spiel oder Thema, Ort und was unter „Eckdaten und Dateien“ steht)</label>'
         + '<div class="f"><b style="font-size:14px">Eigene Zeilen</b><div class="krows"></div><button type="button" class="pill small" data-radd style="justify-self:start">＋ Zeile</button></div>');
       var box = body.querySelector('.krows');
       var drawRows = function () {
@@ -380,12 +431,12 @@
     } else {
       var what = { dl: 'Die Dateien', mods: 'Die Mods' }[t.type];
       body = html('<p style="margin:0">' + what + ' trägst du unter <b>⚙ Eckdaten und Dateien</b> ein. Diese Kachel zeigt sie an.'
-        + (t.type === 'dl' ? ' Gehört die Kachel zu einem Bauwerk, zeigt sie nur dessen Dateien (beim Hochladen „Gehört zu“ wählen).' : '')
+        + (t.type === 'dl' ? ' Gehört die Kachel zu einer Gruppe (' + G + '), zeigt sie nur deren Dateien (beim Hochladen „Gehört zu“ wählen).' : '')
         + '</p><p class="muted" style="margin:0">Speichere zuerst mit „Fertig“, sonst gehen die Änderungen hier verloren.</p>');
       dialog(T.icon + ' ' + T.label, body, function () {}, true);
       return;
     }
-    dialog(T.icon + ' ' + T.label, body, function () { snap(); ok(); render([t.id]); mark(); }, t.type === 'video');
+    dialog(T.icon + ' ' + T.label, body, function () { snap(); ok(); render([t.id]); mark(); }, t.type === 'video' || t.type === 'num');
   };
 
   // Karte: Bild wählen, Punkte setzen und verschieben, je Punkt ein Ziel (Bauwerk oder Kachel)
@@ -408,12 +459,16 @@
       var b = to && to.charAt(0) === 'b' ? bld(to) : to ? (tile(to) && tile(to).bw && bld(tile(to).bw)) : null;
       return b ? D.colors[b.color] : '#5b6a85';
     };
+    var numOf = function (to) {
+      var b = to && to.charAt(0) === 'b' ? bld(to) : to ? (tile(to) && tile(to).bw && bld(tile(to).bw)) : null;
+      return b ? state.buildings.indexOf(b) + 1 : '•';
+    };
     var draw = function () {
       if (!f) { wrap.innerHTML = '<p class="muted">Wähle oben ein Kartenbild, z. B. die Karte aus dem Spiel oder ein Bild von oben.</p>'; return; }
       wrap.innerHTML = '<div class="box"><img src="/media/' + esc(f) + '" alt="Karte">' + pts.map(function (p, i) {
-        return '<span class="mp' + (i === cur ? ' on' : '') + '" data-i="' + i + '" style="left:' + p.x + '%;top:' + p.y + '%;--bwc:' + colorOf(p.to) + '"><i><span>' + (i + 1) + '</span></i>' + (p.label ? '<em>' + esc(p.label) + '</em>' : '') + '</span>';
+        return '<span class="mp' + (i === cur ? ' on' : '') + '" data-i="' + i + '" style="left:' + p.x + '%;top:' + p.y + '%;--bwc:' + colorOf(p.to) + '"><i><span>' + numOf(p.to) + '</span></i>' + (p.label ? '<em>' + esc(p.label) + '</em>' : '') + '</span>';
       }).join('') + '</div><div><p class="muted" style="margin:0 0 8px;font-size:13px">Klick in die Karte setzt einen Punkt. Punkte lassen sich mit der Maus verschieben.</p><div class="kpts">' + pts.map(function (p, i) {
-        return '<div class="kpt' + (i === cur ? ' on' : '') + '" data-i="' + i + '" style="--bwc:' + colorOf(p.to) + '"><div class="r"><i>' + (i + 1) + '</i><input type="text" data-f="label" maxlength="60" placeholder="Name (leer = Name des Bauwerks)" value="' + esc(p.label) + '"><button type="button" class="pill small" data-del aria-label="Punkt löschen">🗑</button></div>'
+        return '<div class="kpt' + (i === cur ? ' on' : '') + '" data-i="' + i + '" style="--bwc:' + colorOf(p.to) + '"><div class="r"><i>' + numOf(p.to) + '</i><input type="text" data-f="label" maxlength="60" placeholder="Name (leer = Name der Gruppe)" value="' + esc(p.label) + '"><button type="button" class="pill small" data-del aria-label="Punkt löschen">🗑</button></div>'
           + '<div class="r">Springt zu <select data-f="to">' + targets() + '</select></div></div>';
       }).join('') + (pts.length ? '' : '<p class="muted">Noch keine Punkte.</p>') + '</div></div>';
       wrap.querySelectorAll('.kpt select').forEach(function (s, i) { s.value = pts[i].to || ''; });
@@ -453,24 +508,81 @@
     dialog('🗺️ Karte und Punkte', body, function () { snap(); t.f = f; t.points = pts; render([t.id]); mark(); });
   };
 
+  // Bild mit Hinweisen: Bild wählen, Punkte setzen und verschieben, je Punkt Überschrift und Text
+  var hotDialog = function (t) {
+    var pts = clone(t.pts || []), f = t.f, cur = -1;
+    var body = document.createElement('div');
+    var pk = picker(false, [f], function (sel) { f = sel[0] || null; draw(); });
+    var det = html('<details><summary><b>Bild</b> wählen oder hochladen</summary></details>').firstChild;
+    det.appendChild(pk.el);
+    if (!f) det.open = true;
+    var wrap = document.createElement('div'); wrap.className = 'kmap';
+    var capF = html(field('Unterschrift', '<input type="text" name="cap" maxlength="160">', 'freiwillig'));
+    capF.querySelector('[name=cap]').value = t.cap || '';
+    body.appendChild(det); body.appendChild(wrap); body.appendChild(capF);
+    var draw = function () {
+      if (!f) { wrap.innerHTML = '<p class="muted">Wähle oben ein Bild.</p>'; return; }
+      wrap.innerHTML = '<div class="box"><img src="/media/' + esc(f) + '" alt="">' + pts.map(function (p, i) {
+        return '<span class="mp hp2' + (i === cur ? ' on' : '') + '" data-i="' + i + '" style="left:' + p.x + '%;top:' + p.y + '%"><i><span>' + (i + 1) + '</span></i></span>';
+      }).join('') + '</div><div><p class="muted" style="margin:0 0 8px;font-size:13px">Klick ins Bild setzt einen Punkt. Punkte lassen sich mit der Maus verschieben.</p><div class="kpts">' + pts.map(function (p, i) {
+        return '<div class="kpt' + (i === cur ? ' on' : '') + '" data-i="' + i + '"><div class="r"><i>' + (i + 1) + '</i><input type="text" data-f="title" maxlength="60" placeholder="Überschrift, z. B. Biogasanlage" value="' + esc(p.title) + '"><button type="button" class="pill small" data-del aria-label="Punkt löschen">🗑</button></div>'
+          + '<textarea data-f="text" rows="2" maxlength="400" placeholder="Erklärung (freiwillig)">' + esc(p.text) + '</textarea></div>';
+      }).join('') + (pts.length ? '' : '<p class="muted">Noch keine Punkte.</p>') + '</div></div>';
+    };
+    wrap.addEventListener('input', function (e) {
+      var row = e.target.closest('.kpt'); if (!row) return;
+      pts[Number(row.getAttribute('data-i'))][e.target.getAttribute('data-f')] = e.target.value;
+    });
+    wrap.addEventListener('click', function (e) {
+      var del = e.target.closest('[data-del]');
+      if (del) { pts.splice(Number(del.closest('.kpt').getAttribute('data-i')), 1); cur = -1; draw(); }
+    });
+    wrap.addEventListener('pointerdown', function (e) {
+      var box = e.target.closest('.box'); if (!box) return;
+      e.preventDefault();
+      var img = box.querySelector('img'), mp = e.target.closest('.mp');
+      var pos = function (ev) { var r = img.getBoundingClientRect(); return { x: Math.round(clamp((ev.clientX - r.left) / r.width * 100, 0, 100) * 10) / 10, y: Math.round(clamp((ev.clientY - r.top) / r.height * 100, 0, 100) * 10) / 10 }; };
+      if (!mp) {
+        if (pts.length >= 30) return;
+        var p = pos(e); pts.push({ x: p.x, y: p.y, title: '', text: '' }); cur = pts.length - 1; draw();
+        var inp = wrap.querySelector('.kpt.on input'); if (inp) setTimeout(function () { inp.focus(); }, 0);
+        return;
+      }
+      var i = Number(mp.getAttribute('data-i'));
+      cur = i;
+      var move = function (ev) { var q = pos(ev); pts[i].x = q.x; pts[i].y = q.y; mp.style.left = q.x + '%'; mp.style.top = q.y + '%'; };
+      var up = function () { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); draw(); };
+      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+    });
+    draw();
+    dialog('📌 Bild mit Hinweisen', body, function () { snap(); t.f = f; t.pts = pts; t.cap = capF.querySelector('[name=cap]').value; render([t.id]); mark(); });
+  };
+
   // ---------- Bauwerke ----------
   var renderBws = function () {
     if (!bwBox) return;
     bwBox.innerHTML = state.buildings.map(function (b, i) {
       var n = state.tiles.filter(function (t) { return t.bw === b.id; }).length;
       var head = state.tiles.some(function (t) { return t.bw === b.id && t.type === 'head'; });
-      return '<div class="r" style="--bwc:' + D.colors[b.color] + '"><i>' + (i + 1) + '</i><span class="nm" title="' + esc(b.name) + '">' + esc(b.name) + '</span><small>' + n + ' K.</small>'
+      return '<div class="r" style="--bwc:' + D.colors[b.color] + '"><span class="ord"><button type="button" data-bwm="' + b.id + '" data-d="-1" title="Nach oben (Nummer kleiner)" aria-label="Nach oben"' + (i ? '' : ' disabled') + '>▲</button><button type="button" data-bwm="' + b.id + '" data-d="1" title="Nach unten (Nummer größer)" aria-label="Nach unten"' + (i < state.buildings.length - 1 ? '' : ' disabled') + '>▼</button></span><i>' + (i + 1) + '</i><span class="nm" title="' + esc(b.name) + '">' + esc(b.name) + '</span><small>' + n + ' K.</small>'
         + (head ? '' : '<button type="button" data-bwh="' + b.id + '" title="Überschrift-Kachel dazu">＋🏗️</button>')
-        + '<button type="button" data-bwe="' + b.id + '" title="Umbenennen, Farbe" aria-label="Bauwerk ändern">✎</button><button type="button" data-bwd="' + b.id + '" title="Bauwerk löschen" aria-label="Bauwerk löschen">🗑</button></div>';
-    }).join('') || '<p class="muted small-note" style="margin:0">Noch keine Bauwerke.</p>';
+        + '<button type="button" data-bwe="' + b.id + '" title="Umbenennen, Farbe" aria-label="' + G + ' ändern">✎</button><button type="button" data-bwd="' + b.id + '" title="' + G + ' löschen" aria-label="' + G + ' löschen">🗑</button></div>';
+    }).join('') || '<p class="muted small-note" style="margin:0">Noch keine ' + GS + '.</p>';
   };
   if (bwBox) bwBox.addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b || !on) return;
     if (b.hasAttribute('data-bwe')) editBuilding(b.getAttribute('data-bwe'));
+    if (b.hasAttribute('data-bwm')) {
+      var from = state.buildings.indexOf(bld(b.getAttribute('data-bwm'))), to = from + Number(b.getAttribute('data-d'));
+      if (from < 0 || to < 0 || to >= state.buildings.length) return;
+      snap();
+      state.buildings.splice(to, 0, state.buildings.splice(from, 1)[0]);
+      render(); mark();
+    }
     if (b.hasAttribute('data-bwh')) { snap(); var t = newTile('head', { bw: b.getAttribute('data-bwh') }); settleIn(state.tiles, null); applyAll(); render([t.id]); mark(); }
     if (b.hasAttribute('data-bwd')) {
       var id = b.getAttribute('data-bwd'), x = bld(id);
-      if (!window.confirm('Bauwerk „' + x.name + '“ löschen? Seine Kacheln bleiben (ohne Bauwerk), nur die Überschrift fällt weg.')) return;
+      if (!window.confirm(G + ' „' + x.name + '“ löschen? Seine Kacheln bleiben (ohne Gruppe), nur die Überschrift fällt weg.')) return;
       snap();
       state.buildings = state.buildings.filter(function (y) { return y.id !== id; });
       state.tiles = state.tiles.filter(function (t) { return !(t.type === 'head' && t.bw === id); });
@@ -487,12 +599,12 @@
     var body = html(field('Name', '<input type="text" name="name" maxlength="80" required placeholder="z. B. Kuhstall „Zur Weide“">')
       + field('Kurztext', '<input type="text" name="text" maxlength="160" placeholder="z. B. Laufstall für 120 Kühe">', 'steht unter dem Namen')
       + '<div class="f"><b style="font-size:14px">Farbe</b><div class="kcolors">' + keys.map(function (k) { return '<label style="--c:' + D.colors[k] + '" title="' + k + '"><input type="radio" name="color" value="' + k + '"' + (k === color ? ' checked' : '') + '></label>'; }).join('') + '</div></div>'
-      + '<label class="check"><input type="checkbox" name="frame"> farbiger Rahmen um alle Kacheln des Bauwerks</label>'
-      + (b ? '' : '<p class="muted" style="margin:0">Unten auf dem Raster kommt eine Überschrift-Kachel dazu. Danach wählst du oben an anderen Kacheln dieses Bauwerk aus.</p>'));
+      + '<label class="check"><input type="checkbox" name="frame"> farbiger Rahmen um alle Kacheln dieser Gruppe</label>'
+      + (b ? '' : '<p class="muted" style="margin:0">Unten auf dem Raster kommt eine Überschrift-Kachel dazu. Danach wählst du oben an anderen Kacheln diese Gruppe aus.</p>'));
     body.querySelector('[name=name]').value = b ? b.name : '';
     body.querySelector('[name=text]').value = b ? b.text : '';
     body.querySelector('[name=frame]').checked = !b || b.frame !== false;
-    dialog(b ? '🏗️ Bauwerk ändern' : '🏗️ Neues Bauwerk', body, function () {
+    dialog(b ? '🏗️ ' + G + ' ändern' : '🏗️ ' + G + ' dazu', body, function () {
       var name = body.querySelector('[name=name]').value.trim();
       if (!name) return false;
       snap();

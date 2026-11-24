@@ -4,14 +4,15 @@
    const fmt = s => new Date(s * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
    const size = n => { if (n < 1024) return n + ' B'; const u = ['KB', 'MB', 'GB', 'TB']; let i = -1; do { n /= 1024; i++; } while (n >= 1024 && i < 3); return n.toFixed(n < 10 ? 1 : 0).replace('.', ',') + ' ' + u[i]; };
    const vno = v => String(v).replace(/^v/i, '');
-   const ext = u => /^https?:/i.test(u); %>
+   const ext = u => /^https?:/i.test(u);
+   const KK = typeof K !== 'undefined' && K ? K : { group: 'Bauwerk', dl: 'Spielstand' }; %>
 <div class="kt k-<%= t.type %><%= b ? ' has-bw' : '' %><%= r.empty ? ' empty' : '' %>" id="k-<%= t.id %>" data-id="<%= t.id %>"<% if (b) { %> data-bw="<%= b.id %>"<% } %> style="grid-column:<%= t.x %> / span <%= t.w %>;grid-row:<%= t.y %> / span <%= t.h %>;--ar:<%= r.ar %><%= b ? ';--bwc:' + b.hex : '' %>">
   <% if (b && anchors.get(b.id) === t.id) { %><span class="anc" id="bw-<%= b.id %>"></span><% } %>
   <% if (edit) { %>
   <div class="ktool">
     <button type="button" class="mv" data-k="move" title="Ziehen zum Verschieben" aria-label="Verschieben">⠿</button>
     <span class="kty"><%= T.icon %> <%= T.label %></span>
-    <select data-k="bw" aria-label="Gehört zu Bauwerk" class="bwsel"><option value="">○ kein Bauwerk</option><% buildings.forEach((x, i) => { %><option value="<%= x.id %>"<%= t.bw === x.id ? ' selected' : '' %>>● <%= i + 1 %> <%= x.name %></option><% }) %></select>
+    <select data-k="bw" aria-label="Gehört zu <%= KK.group %>" class="bwsel"><option value="">○ ohne <%= KK.group %></option><% buildings.forEach((x, i) => { %><option value="<%= x.id %>"<%= t.bw === x.id ? ' selected' : '' %>>● <%= i + 1 %> <%= x.name %></option><% }) %></select>
     <button type="button" data-k="cfg" title="Inhalt ändern" aria-label="Inhalt ändern">⚙</button>
     <button type="button" data-k="del" title="Kachel entfernen" aria-label="Kachel entfernen">🗑</button>
   </div>
@@ -19,7 +20,7 @@
   <% } %>
   <% if (b && t.type !== 'head') { %><span class="bwtag"><%= b.no %> · <%= b.name %></span><% } %>
   <% if (r.empty && edit) { %>
-  <div class="kph"><span class="emo"><%= T.icon %></span><b><%= T.label %></b><small><%= t.type === 'dl' ? (t.bw ? 'Noch keine Datei für dieses Bauwerk. Hochladen unter „Eckdaten und Dateien“.' : 'Noch keine Datei. Hochladen unter „Eckdaten und Dateien“.') : t.type === 'facts' ? '⚙ anklicken und eigene Zeilen eintragen, wahlweise mit den Eckdaten des Spielstands.' : t.type === 'mods' ? 'Noch leer. Ausfüllen unter „Eckdaten und Dateien“.' : '⚙ anklicken und füllen. Besucher sehen leere Kacheln nicht.' %></small></div>
+  <div class="kph"><span class="emo"><%= T.icon %></span><b><%= T.label %></b><small><%= t.type === 'dl' ? (t.bw ? 'Noch keine Datei für diese Gruppe. Hochladen unter „Eckdaten und Dateien“.' : 'Noch keine Datei. Hochladen unter „Eckdaten und Dateien“.') : t.type === 'facts' ? '⚙ anklicken und eigene Zeilen eintragen, wahlweise mit den Eckdaten.' : t.type === 'mods' ? 'Noch leer. Ausfüllen unter „Eckdaten und Dateien“.' : '⚙ anklicken und füllen. Besucher sehen leere Kacheln nicht.' %></small></div>
   <% } else if (t.type === 'text') { %>
   <div class="bd"><% if (t.title) { %><h3><%= t.title %></h3><% } %><div class="prose"><%- r.html %></div></div>
   <% } else if (t.type === 'img') { %>
@@ -41,7 +42,7 @@
   <% } else if (t.type === 'dl') { %>
   <div class="bd dlbox2">
     <h3>⬇ <%= b ? 'Download: ' + b.name : 'Download' %></h3>
-    <a class="pill pri big" href="/dioramen/dl/<%= r.latest.id %>">⬇ <%= r.latest.version ? (b ? 'Version ' : 'Spielstand ') + vno(r.latest.version) : 'Herunterladen' %> <small>(<%= size(r.latest.size) %>)</small></a>
+    <a class="pill pri big" href="/dioramen/dl/<%= r.latest.id %>">⬇ <%= r.latest.version ? (b ? 'Version ' : KK.dl + ' ') + vno(r.latest.version) : 'Herunterladen' %> <small>(<%= size(r.latest.size) %>)</small></a>
     <div class="sm"><span class="fn"><%= r.latest.original_name %></span><span><%= r.downloads %>× geladen</span></div>
     <% if (r.files.length > 1 || r.changes[0]) { %>
     <div class="vers-mini">
@@ -60,6 +61,22 @@
     <% for (const [k, v] of r.facts) { %><dt><%= k %></dt><dd><%= v %></dd><% } %>
     <% for (const [k, v] of t.rows) { %><dt><%= k %></dt><dd><%= v %></dd><% } %>
   </dl></div>
+  <% } else if (t.type === 'num') { %>
+  <div class="bd knum"><% if (t.title) { %><h3><%= t.title %></h3><% } %><div class="nums n<%= t.items.length %>"><% for (const it of t.items) { %><div><b data-count="<%= it.v %>"><%= it.v %></b><span><%= it.l %></span></div><% } %></div></div>
+  <% } else if (t.type === 'hot') { %>
+  <div class="khot"><div class="hin"><img src="/media/<%= r.f %>" alt="<%= t.cap %>" loading="lazy">
+    <% t.pts.forEach((p, i) => { %><button type="button" class="hp" style="left:<%= p.x %>%;top:<%= p.y %>%" aria-expanded="false" aria-label="<%= p.title || 'Hinweis ' + (i + 1) %>"><span><%= i + 1 %></span></button><div class="hbub" role="note" hidden style="--x:<%= p.x %>;--y:<%= p.y %>"><% if (p.title) { %><b><%= p.title %></b><% } %><% if (p.text) { %><p><%= p.text %></p><% } %></div><% }) %>
+  </div></div>
+  <span class="klbl">📌 <%= t.cap || (t.pts.length ? 'Punkte antippen' : 'Bild') %></span>
+  <% } else if (t.type === 'time') { %>
+  <div class="ktime" data-n="<%= r.steps.length %>">
+    <div class="tview"><% r.steps.forEach((x, i) => { %><figure class="tstep<%= i === r.steps.length - 1 ? ' on' : '' %>"><img src="/media/<%= x.f %>" alt="<%= x.when %>" loading="lazy"><% if (x.when || x.text) { %><figcaption><% if (x.when) { %><b><%= x.when %></b><% } %><%= x.text %></figcaption><% } %></figure><% }) %>
+      <% if (t.title) { %><span class="ttl">📅 <%= t.title %></span><% } %></div>
+    <div class="tline" role="tablist" aria-label="<%= t.title || 'Zeitleiste' %>"><% r.steps.forEach((x, i) => { %><button type="button" role="tab" aria-selected="<%= i === r.steps.length - 1 %>" data-i="<%= i %>"><i></i><span><%= x.when || i + 1 %></span></button><% }) %></div>
+  </div>
+  <% } else if (t.type === 'pano') { %>
+  <div class="kpano<%= t.spin ? ' spin' : '' %>" style="--pano:url('/media/<%= r.f %>')" tabindex="0" aria-label="360°-Panorama<%= t.cap ? ': ' + t.cap : '' %>, mit Maus, Finger oder Pfeiltasten drehen"><span class="pv" aria-hidden="true">🌐 360° · ziehen zum Umsehen</span></div>
+  <% if (t.cap) { %><span class="kcap"><%= t.cap %></span><% } %>
   <% } else if (t.type === 'mods') { %>
   <div class="bd"><h3>🧩 Benötigte Mods</h3><ul class="mods">
     <% for (const m of r.mods) { %><li><span class="sp"><%= m.name %></span><% if (m.ver) { %><small><%= m.ver %></small><% } %><% if (m.url) { %><a class="pill small" href="<%= m.url %>"<%= ext(m.url) ? ' target="_blank" rel="noopener noreferrer nofollow"' : '' %>><%= ext(m.url) ? 'Öffnen ↗' : 'Hier' %></a><% } %></li><% } %>

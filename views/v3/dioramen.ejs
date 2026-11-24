@@ -1,13 +1,13 @@
 <%- include('_head') %>
 <%# Dancors Dioramen (src/dioramen.js): Spielstände als Bildkarten mit ihren Bauwerken, oben einer groß. Der Admin ordnet im
     Bearbeiten-Modus (public/v3-edit.js, public/dioramen.js): ziehen, anpinnen, ausblenden, Titel und Text direkt. %>
-<% const link = extra => { const p = new URLSearchParams(); const all = { spiel, sort: sort === layout.sort ? '' : sort, q, ...extra }; for (const [k, v] of Object.entries(all)) if (v) p.set(k, v); const s = p.toString(); return '/dioramen' + (s ? '?' + s : ''); };
+<% const link = extra => { const p = new URLSearchParams(); const all = { spiel, art, sort: sort === layout.sort ? '' : sort, q, ...extra }; for (const [k, v] of Object.entries(all)) if (v) p.set(k, v); const s = p.toString(); return '/dioramen' + (s ? '?' + s : ''); };
    const vno = v => String(v).replace(/^v/i, '');
    const card = (r, wide) => { %>
   <article class="dc<%= wide ? ' wide' : '' %><%= r.pinned ? ' pinned' : '' %>"<% if (canArrange) { %> data-ed-item data-key="<%= r.key %>" data-ed-val="<%= JSON.stringify({ pin: r.pinned }) %>"<%= r.hidden ? ' data-hidden' : '' %><% } %>>
     <a class="im" href="<%= r.url %>" tabindex="-1" aria-hidden="true">
       <% if (r.cover) { %><img src="<%= r.cover %>" alt="" loading="lazy"><% } else { %><span class="ph emo"><%= r.kindIcon %></span><% } %>
-      <span class="typ">💾 Spielstand</span>
+      <span class="typ"><%= r.kindIcon %> <%= r.kindLabel %></span>
       <% if (r.tileCount) { %><span class="cnt">🧱 <%= r.tileCount %> <%= r.tileCount === 1 ? 'Kachel' : 'Kacheln' %></span><% } %>
       <% if (canArrange) { %><span class="grip" data-ed-handle data-ed-only title="Ziehen">⠿</span><% } %>
     </a>
@@ -20,12 +20,12 @@
       <% if (r.game || r.world) { %><span class="gm"><%= [r.game, r.world].filter(Boolean).join(' · ') %></span><% } %>
       <h3><a href="<%= r.url %>"<%= canArrange ? ' data-ed-text=title' : '' %>><%= r.title %></a></h3>
       <% if (r.summary || canArrange) { %><p<%= canArrange ? ' data-ed-text=summary data-ed-multiline' : '' %>><%= r.summary %></p><% } %>
-      <% if (r.buildings.length) { %><div class="bwchips" aria-label="Bauwerke"><% for (const b of r.buildings.slice(0, 8)) { %><a href="<%= b.url %>" style="--bwc:<%= b.color %>"><i><%= b.no %></i><%= b.name %></a><% } %><% if (r.buildings.length > 8) { %><span>+<%= r.buildings.length - 8 %></span><% } %></div><% } %>
+      <% if (r.buildings.length) { %><div class="bwchips" aria-label="<%= r.groupLabel %>"><% for (const b of r.buildings.slice(0, 8)) { %><a href="<%= b.url %>" style="--bwc:<%= b.color %>"><i><%= b.no %></i><%= b.name %></a><% } %><% if (r.buildings.length > 8) { %><span>+<%= r.buildings.length - 8 %></span><% } %></div><% } %>
       <div class="mt">
         <% if (r.version) { %><span class="tag">Version <%= vno(r.version) %></span><% } %>
         <% if (r.dl) { %><span class="tag">⬇ <%= r.downloads %></span><% } %>
         <% if (r.vis !== 'public') { %><span class="tag">🔒 <%= ({ members: 'Mitglieder', friends: 'Freunde', groups: 'Gruppen', private: 'privat' })[r.vis] %></span><% } %>
-        <% if (wide && r.dl) { %><a class="pill pri dl-go" href="<%= r.dl %>">⬇ Spielstand laden <small>(<%= r.sizeText %>)</small></a><% } %>
+        <% if (wide && r.dl) { %><a class="pill pri dl-go" href="<%= r.dl %>">⬇ <%= r.dlLabel %> laden <small>(<%= r.sizeText %>)</small></a><% } %>
       </div>
     </div>
     <% if (canArrange) { %>
@@ -34,7 +34,7 @@
       <button type="button" class="pill small" data-ed-up title="Nach vorne">←</button>
       <button type="button" class="pill small" data-ed-down title="Nach hinten">→</button>
       <button type="button" class="pill small" data-ed-hide><span class="h-on">🙈 Ausblenden</span><span class="h-off">👁️ Zeigen</span></button>
-      <% if (r.edit) { %><a class="pill small" href="<%= r.url %>" data-go>✎ Spielstand</a><% } %>
+      <% if (r.edit) { %><a class="pill small" href="<%= r.url %>" data-go>✎ <%= r.kindLabel %></a><% } %>
     </div>
     <% } %>
   </article>
@@ -44,14 +44,14 @@
   <div class="dl-head di-head">
     <h1 class="page-h" data-ed-text="title"><%= layout.title %></h1>
     <% if (isAdmin) { %><% if (canArrange) { %><button type="button" class="pill small" data-ed-start data-ed-off><span class="emo">✏️</span> Seite bearbeiten</button><% } else { %><a class="pill small" href="/dioramen?bearbeiten" data-ed-off><span class="emo">✏️</span> Seite bearbeiten</a><% } %><% } %>
-    <% if (canWrite) { %><a class="pill small pri new-entry" href="/dioramen/neu" data-ed-off>＋ Neuer Spielstand</a><% } %>
+    <% if (canWrite) { %><a class="pill small pri new-entry" href="/dioramen/neu" data-ed-off>＋ Neues Diorama</a><% } %>
   </div>
   <p class="page-sub" data-ed-text="text" data-ed-multiline><%= layout.text %></p>
 
   <% if (canArrange) { %>
   <div class="card di-opts" data-ed-only>
     <b>Oben groß zeigen:</b>
-    <label class="check"><input type="radio" name="ed-hero" value="pin"<%= layout.hero === 'pin' ? ' checked' : '' %>> den ersten angepinnten Spielstand</label>
+    <label class="check"><input type="radio" name="ed-hero" value="pin"<%= layout.hero === 'pin' ? ' checked' : '' %>> den ersten angepinnten Eintrag</label>
     <label class="check"><input type="radio" name="ed-hero" value="neu"<%= layout.hero === 'neu' ? ' checked' : '' %>> den neuesten</label>
     <label class="check"><input type="radio" name="ed-hero" value="aus"<%= layout.hero === 'aus' ? ' checked' : '' %>> keinen</label>
     <b>Reihenfolge für Besucher:</b>
@@ -61,9 +61,15 @@
   <% } %>
 
   <form class="di-bar" action="/dioramen" role="search" data-ed-off>
+    <% if (kinds.length > 1) { %>
+    <span class="chips" aria-label="Art">
+      <a class="chip<%= !art ? ' on' : '' %>" href="<%= link({ art: '' }) %>">Alles</a>
+      <% for (const k of kinds) { %><a class="chip<%= art === k.key ? ' on' : '' %>" href="<%= link({ art: k.key }) %>"><%= k.icon %> <%= k.name %> <small><%= k.n %></small></a><% } %>
+    </span>
+    <% } %>
     <% if (games.length > 1) { %>
     <span class="chips" aria-label="Spiel">
-      <a class="chip<%= !spiel ? ' on' : '' %>" href="<%= link({ spiel: '' }) %>">Alle Spiele</a>
+      <a class="chip<%= !spiel ? ' on' : '' %>" href="<%= link({ spiel: '' }) %>"><%= kinds.length > 1 ? 'Alle Themen' : 'Alle Spiele' %></a>
       <% for (const g of games) { %><a class="chip<%= spiel === g.name ? ' on' : '' %>" href="<%= link({ spiel: g.name }) %>"><%= g.name %> <small><%= g.n %></small></a><% } %>
     </span>
     <% } %>
@@ -72,8 +78,8 @@
     <select data-go aria-label="Sortieren">
       <% for (const [k, label] of Object.entries(sorts)) { %><option value="<%= link({ sort: k === layout.sort ? '' : k }) %>"<%= sort === k ? ' selected' : '' %>><%= label %></option><% } %>
     </select>
-    <input type="search" name="q" value="<%= q %>" placeholder="Suchen, auch nach Bauwerken …" aria-label="In Dioramen suchen">
-    <% if (spiel) { %><input type="hidden" name="spiel" value="<%= spiel %>"><% } %>
+    <input type="search" name="q" value="<%= q %>" placeholder="Suchen, auch in den Inhalten …" aria-label="In Dioramas suchen">
+    <% if (spiel) { %><input type="hidden" name="spiel" value="<%= spiel %>"><% } %><% if (art) { %><input type="hidden" name="art" value="<%= art %>"><% } %>
     <% } %>
   </form>
 
@@ -83,7 +89,7 @@
     <% for (const r of cards) card(r, canArrange && hero === r); %>
   </div>
   <% } else { %>
-  <div class="list"><div class="empty-state"><span class="e emo">🏡</span><%= filtered ? 'Nichts gefunden.' : 'Hier steht noch nichts.' %><% if (canWrite && !filtered) { %> <a href="/dioramen/neu">Lege den ersten Spielstand an.</a><% } %></div></div>
+  <div class="list"><div class="empty-state"><span class="e emo">🏡</span><%= filtered ? 'Nichts gefunden.' : 'Hier steht noch nichts.' %><% if (canWrite && !filtered) { %> <a href="/dioramen/neu">Lege das erste Diorama an.</a><% } %></div></div>
   <% } %>
 </div>
 <% if (canArrange) { %><script src="<%= asset('v3-edit.js') %>" defer></script><% } %>

@@ -93,6 +93,8 @@ const TYPES = {
 const COLS = 12, MAX_H = 40, MAX_Y = 2000, MAX_TILES = 200, MAX_BUILDINGS = 40, MAX_POINTS = 60;
 
 const str = (v, n) => String(v ?? '').trim().replace(/\s+/g, ' ').slice(0, n);
+// Spielname zum Vergleichen: Groß/klein, unsichtbare Zeichen und Leerzeichen egal („Farming Simulator 25“ = „farming  simulator 25“)
+const gameKey = v => String(v ?? '').normalize('NFKC').replace(/[\u200B-\u200D\u2060\uFEFF]/g, '').trim().replace(/\s+/g, ' ').toLowerCase();
 const json = (s, def) => { try { const v = JSON.parse(s); return v && typeof v === 'object' ? v : def; } catch { return def; } };
 const asArray = v => (v === undefined || v === null ? [] : Array.isArray(v) ? v : [v]);
 const mediaName = s => (typeof s === 'string' && /^[\w.-]{1,80}$/.test(s) ? s : null);
@@ -275,9 +277,9 @@ function view(user, o = {}) {
   for (const r of all) r.hidden = hidden.has(r.key);
   const isAdmin = !!(user && user.isAdmin);
   const games = [];
-  for (const r of all) if (r.game && !r.hidden) { const g = games.find(x => x.name === r.game); if (g) g.n++; else games.push({ name: r.game, n: 1 }); }
+  for (const r of all) if (r.game && !r.hidden) { const k = gameKey(r.game), g = games.find(x => x.key === k); if (g) g.n++; else games.push({ key: k, name: r.game, n: 1 }); }
   games.sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'de'));
-  const spiel = games.some(g => g.name === o.spiel) ? o.spiel : '';
+  const sg = games.find(g => g.key === gameKey(o.spiel)), spiel = sg ? sg.name : '';
   const sort = Object.hasOwn(SORTS, o.sort) ? o.sort : l.sort;
   const q = str(o.q, 100).toLowerCase();
   // Eigene Reihenfolge: angepinnt zuerst, dann noch nicht einsortierte (neue) Spielstände, dann die gezogene Reihenfolge
@@ -289,7 +291,7 @@ function view(user, o = {}) {
   }[sort];
   const filtered = !!(spiel || q);
   const arrange = isAdmin && !filtered && sort === 'eigene';
-  let cards = all.filter(r => (!r.hidden || arrange) && (!spiel || r.game === spiel) && (!q || r.hay.includes(q)));
+  let cards = all.filter(r => (!r.hidden || arrange) && (!spiel || gameKey(r.game) === sg.key) && (!q || r.hay.includes(q)));
   cards.sort(cmp);
   // Oben groß: der erste angepinnte oder der neueste Spielstand, nur in der ungefilterten Ansicht
   let hero = null;
@@ -461,7 +463,7 @@ function modsFrom(b) {
 }
 function fields(b) {
   return {
-    title: str(b.title, 120), game: str(b.game, 80), world: str(b.world, 80), summary: str(b.summary, 240),
+    title: str(b.title, 120), game: sameGame(str(b.game, 80)), world: str(b.world, 80), summary: str(b.summary, 240),
     howto_md: String(b.howto_md || '').slice(0, 20000), facts: JSON.stringify(factsFrom(b)), mods: JSON.stringify(modsFrom(b)), in_downloads: b.in_downloads ? 1 : 0,
   };
 }
@@ -561,6 +563,24 @@ function remove(d) {
   db.prepare('DELETE FROM dioramen WHERE id = ?').run(d.id);
 }
 function removeQuietly(p) { try { fs.rmSync(p, { force: true }); } catch { /* egal */ } }
+// Schon bekannte Schreibweise übernehmen, damit ein Spiel nur einmal in der Auswahl steht
+function sameGame(g) {
+  const k = gameKey(g);
+  if (!k) return '';
+  return knownGames().find(x => gameKey(x) === k) || g.normalize('NFKC').replace(/[\u200B-\u200D\u2060\uFEFF]/g, '').trim();
+}
+// Beim Start: verschiedene Schreibweisen eines Spiels auf die häufigste vereinheitlichen (bei Gleichstand die älteste)
+function unifyGames() {
+  const rows = db.prepare("SELECT game, COUNT(*) AS n FROM dioramen WHERE game != '' GROUP BY game ORDER BY n DESC, MIN(created_at), MIN(id)").all();
+  const best = new Map();
+  let changed = 0;
+  for (const r of rows) {
+    const k = gameKey(r.game);
+    if (!best.has(k)) { best.set(k, r.game); continue; }
+    changed += Number(db.prepare('UPDATE dioramen SET game = ? WHERE game = ?').run(best.get(k), r.game).changes);
+  }
+  return changed;
+}
 function knownGames() { return db.prepare("SELECT DISTINCT game FROM dioramen WHERE game != '' ORDER BY game COLLATE NOCASE").all().map(r => r.game); }
 
 // ---------- Umzug aus Update 98: Bauwerke wandern in ihren Spielstand, alles wird zu Kacheln ----------
@@ -633,9 +653,10 @@ function migrate() {
   return roots.length;
 }
 migrate();
+unifyGames();
 
 module.exports = {
   KINDS, SORTS, IMAGE_TYPES, NEW_DAYS, COLORS, TYPES, canWrite, canSee, canEdit, bySlug, byId, moved, files, fileById, images, facts, mods, buildings, tiles,
   normTiles, normBuildings, settle, frames, nextId, bottom, row, view, page, resolve, layout, saveLayout, normalize, stats, meta, recent, search, downloadCards,
-  create, update, saveTiles, takeImage, setImages, addImages, addFile, removeFile, remove, knownGames, factsFrom, modsFrom, uniqueSlug, migrate, starterTiles, videoInfo,
+  create, update, saveTiles, takeImage, setImages, addImages, addFile, removeFile, remove, knownGames, gameKey, unifyGames, factsFrom, modsFrom, uniqueSlug, migrate, starterTiles, videoInfo,
 };

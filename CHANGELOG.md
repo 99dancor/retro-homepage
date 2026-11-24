@@ -1,9 +1,10 @@
 # Changelog
 
-## Update 106 · 24.11.2026 – Dioramen: Bauwerke umsortieren
+## Update 106 · 24.11.2026 – Dioramen: Bauwerke umsortieren, ein Eintrag je Spiel
 
 - **Reihenfolge ändern:** Beim Gestalten stehen in der Bauwerk-Liste rechts neben jeder Nummer ▲ und ▼. Damit schiebst du ein Bauwerk nach oben oder unten, und seine Nummer ändert sich mit. Das gilt überall: Überschrift, „Springen zu“, Kachel-Schildchen und Karte.
 - **Kartenpunkte:** Ein Punkt trägt jetzt die Nummer seines Bauwerks statt einer laufenden Nummer. Punkte zu einer Kachel ohne Bauwerk zeigen „•“.
+- **Ein Spiel, ein Eintrag:** Stand ein Spiel in leicht anderer Schreibweise da (groß/klein, doppelte oder unsichtbare Leerzeichen), gab es oben in der Übersicht mehrere Einträge „Farming Simulator 25“. Jetzt zählen sie als ein Spiel. Beim Speichern wird die schon bekannte Schreibweise übernommen, und vorhandene Einträge werden beim Start vereinheitlicht.
 
 ## Update 105 · 23.11.2026 – Server stürzt nicht mehr ab
 

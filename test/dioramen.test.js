@@ -56,6 +56,20 @@ test('Anlegen: Adresse, Startkacheln mit dem ersten Text', () => {
   assert.equal(t[0].md, 'Hallo');
 });
 
+test('Spiele: gleiche Spiele in anderer Schreibweise stehen nur einmal in der Auswahl', () => {
+  const a = dio.create(admin, { title: 'Spiel A', game: 'Hof Sim 25' });
+  const b = dio.create(admin, { title: 'Spiel B', game: '  hof\u200B sim   25 ' });
+  assert.equal(dio.byId(b.id).game, 'Hof Sim 25', 'bekannte Schreibweise übernommen');
+  db.prepare('UPDATE dioramen SET game = ? WHERE id = ?').run('HOF SIM 25', b.id);
+  assert.equal(dio.unifyGames(), 1);
+  assert.equal(dio.byId(b.id).game, 'Hof Sim 25');
+  db.prepare('UPDATE dioramen SET game = ? WHERE id = ?').run('hof sim 25', b.id);
+  const v = dio.view(admin, { spiel: 'HOF SIM 25' });
+  assert.equal(v.games.filter(g => dio.gameKey(g.name) === 'hof sim 25').length, 1);
+  assert.equal(v.games.find(g => dio.gameKey(g.name) === 'hof sim 25').n, 2);
+  assert.deepEqual(v.cards.map(c => c.id).filter(id => id === a.id || id === b.id).sort(), [a.id, b.id].sort());
+});
+
 test('Steckbrief mit eigenen Zeilen und Bauwerk-Rahmen', () => {
   const blds = dio.normBuildings([{ id: 'b1', name: 'Stall' }, { id: 'b2', name: 'Silo', frame: false }]);
   assert.equal(blds[0].frame, true); assert.equal(blds[1].frame, false);

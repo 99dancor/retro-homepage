@@ -11,7 +11,7 @@
 <div class="thumbs">
 <% for (const m of media) { %>
   <figure>
-    <a href="/media/<%= m.stored_name %>" target="_blank"><img src="/media/<%= m.stored_name %>" alt="<%= m.original_name %>" loading="lazy"></a>
+    <% if (m.mime === 'model/gltf-binary') { %><a href="/media/<%= m.stored_name %>" target="_blank" title="3D-Modell (Dioramas)" style="font-size:48px;text-decoration:none">🚀</a><% } else { %><a href="/media/<%= m.stored_name %>" target="_blank"><img src="/media/<%= m.stored_name %>" alt="<%= m.original_name %>" loading="lazy"></a><% } %>
     <figcaption><%= m.original_name %><br><small><%= fmtSize(m.size) %></small><br>
       <input type="text" readonly value="/media/<%= m.stored_name %>" class="w100" data-copy>
       <form method="post" action="/admin/media/<%= m.id %>/delete" data-confirm="Bild löschen? Beiträge, die es benutzen, zeigen es dann nicht mehr an.">

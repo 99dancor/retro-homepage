@@ -101,6 +101,13 @@
       b.setAttribute('data-ready', '');
       if (io && !editing()) io.observe(b);
     });
+    // 3D-Kachel: <model-viewer> erst laden, wenn eine auf der Seite ist (liegt unter /vendor, kein fremder Server)
+    if (!window.__mv && (root || document).querySelector('model-viewer')) {
+      window.__mv = true;
+      var sc = document.createElement('script');
+      sc.type = 'module'; sc.src = '/vendor/model-viewer/model-viewer.min.js';
+      document.head.appendChild(sc);
+    }
     (root || document).querySelectorAll('.kpano').forEach(function (p) {
       if (p.hasAttribute('data-ready')) return;
       p.setAttribute('data-ready', '');

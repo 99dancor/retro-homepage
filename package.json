@@ -11,6 +11,7 @@
   },
   "license": "UNLICENSED",
   "dependencies": {
+    "@google/model-viewer": "^4.4.0",
     "@ruffle-rs/ruffle": "^0.8.0",
     "adm-zip": "^0.6.1",
     "basic-ftp": "^6.2.3",

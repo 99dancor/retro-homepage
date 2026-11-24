@@ -53,7 +53,8 @@ app.use('/static', express.static(PUBLIC_DIR, {
 }));
 // Spieler für mitgebrachte Spiele der Daddelecke: js-dos (DOS) und Ruffle (Flash) aus node_modules, nichts aus dem Netz.
 // Die Spielerseiten laufen unter /apps/<slug>/play und holen sie von hier.
-for (const [url, pkg, sub] of [['/vendor/js-dos', 'js-dos/package.json', 'dist'], ['/vendor/ruffle', '@ruffle-rs/ruffle/package.json', '']]) {
+// Dazu <model-viewer> für die 3D-Kachel der Dioramas (Update 107), ebenfalls ohne fremde Server.
+for (const [url, pkg, sub] of [['/vendor/js-dos', 'js-dos/package.json', 'dist'], ['/vendor/ruffle', '@ruffle-rs/ruffle/package.json', ''], ['/vendor/model-viewer', '@google/model-viewer/package.json', 'dist']]) {
   let dir = null;
   try { dir = path.join(path.dirname(require.resolve(pkg)), sub); } catch { /* Paket fehlt: dann eben ohne */ }
   if (dir) app.use(url, express.static(dir, { maxAge: '7d', index: false }));

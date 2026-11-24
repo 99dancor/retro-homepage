@@ -1176,8 +1176,20 @@ body:has(.dio-bg) .crumbs, body:has(.dio-bg) .jump { background: var(--glass, rg
 .kpano .pv { position: absolute; right: 10px; top: 10px; background: rgba(0, 0, 0, .6); color: #fff; font: 700 12px var(--font); border-radius: 999px; padding: 3px 10px; pointer-events: none; }
 .kt.has-bw .kpano .pv { top: 34px; }
 
+/* 3D-Modell (Update 107): <model-viewer> füllt die Kachel, Hinweis oben rechts wie beim Panorama */
+.k-model { background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--surface) 75%, #9fb3d6), color-mix(in srgb, var(--surface) 55%, #2a3550)); }
+.k3d { position: absolute; inset: 0; width: 100%; height: 100%; --poster-color: transparent; --progress-bar-color: var(--accent); outline-offset: -3px; }
+.k-model .pv { position: absolute; right: 10px; top: 10px; background: rgba(0, 0, 0, .6); color: #fff; font: 700 12px var(--font); border-radius: 999px; padding: 3px 10px; pointer-events: none; z-index: 1; }
+.kt.has-bw.k-model .pv { top: 34px; }
+.k-model .kcap { z-index: 1; }
+.k3dup { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.k3dup .up2 { cursor: pointer; }
+.k3dup input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.k3dlist { display: flex; gap: 6px; flex-wrap: wrap; }
+.k3dlist button.on { outline: 2px solid var(--accent); }
+
 @media (max-width: 760px) {
-  .k-hot, .k-time, .k-pano { aspect-ratio: var(--ar); max-height: 75vh; }
+  .k-hot, .k-time, .k-pano, .k-model { aspect-ratio: var(--ar); max-height: 75vh; }
   .k-time { min-height: 300px; }
   .knum .nums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .kst { grid-template-columns: 54px 1fr; }

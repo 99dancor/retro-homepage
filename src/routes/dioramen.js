@@ -8,6 +8,7 @@
 //   POST /dioramen/<slug>/kacheln                                  Kacheln und Bauwerke speichern (JSON, Gestalten-Modus)
 //   POST /dioramen/<slug>/kacheln/vorschau                         Kacheln als HTML für den Gestalten-Modus (JSON)
 //   POST /dioramen/<slug>/bilder                                   Bilder hochladen (Gestalten-Modus, antwortet JSON)
+//   POST /dioramen/<slug>/modell                                   3D-Modell (.glb) hochladen (Gestalten-Modus, antwortet JSON)
 //   POST /dioramen/<slug>/datei/<id>/loeschen, /dioramen/<slug>/loeschen
 //   GET  /dioramen/dl/<id>                                         Download (zählt mit, prüft die Sichtbarkeit)
 const fs = require('node:fs');
@@ -123,8 +124,12 @@ function entry(req, res, next) {
 const editor = (req, res, next) => (dio.canEdit(req.user, req.dio) ? next() : v3.error(req, res, 403, 'Kein Zugriff', 'Nur wer den Eintrag angelegt hat und der Admin dürfen ihn ändern.'));
 const editorJson = (req, res, next) => (dio.canEdit(req.user, req.dio) ? next() : res.status(403).json({ error: 'Nur wer den Eintrag angelegt hat und der Admin dürfen ihn gestalten.' }));
 
+// Seite mit 3D-Kachel (Update 107): <model-viewer> packt Texturen als Blob aus und übersetzt kleine WebAssembly-Teile.
+// Das darf nur die Seite eines Dioramas, auf dem eine 3D-Kachel liegt oder das man gerade gestalten kann.
+const CSP_3D = "default-src 'self'; img-src 'self' https: data: blob:; connect-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; frame-ancestors 'self'; form-action 'self'";
 router.get('/:slug', entry, (req, res) => {
   const d = req.dio, pg = dio.page(req.user, d);
+  if (pg.editData || pg.tiles.some(r => r.t.type === 'model')) res.set('Content-Security-Policy', CSP_3D);
   res.render('v3/diorama', {
     ...loc(req, res), ...pg, types: dio.typesFor(d), title: d.title, description: d.summary || `${dio.kindOf(d).label}${d.game ? ' · ' + d.game : ''}`,
     ok: OK[req.query.ok] || null,
@@ -165,6 +170,24 @@ router.post('/:slug/bilder', needLogin, entry, editorJson, imgUpload, auth.csrfC
   if (bad) { for (const f of list) up.removeQuietly(f.path); return res.status(400).json({ error: bad }); }
   const added = list.map(f => dio.takeImage(f, req.user.id)).filter(Boolean);
   res.json({ ok: true, added, images: dio.addImages(req.dio, added) });
+});
+
+// 3D-Modell (.glb) für die Kachel „3D-Modell“ hochladen (Gestalten-Modus, antwortet JSON)
+const modelUpload = (req, res, next) => up.fileUpload.single('model')(req, res, err => {
+  if (!err) return next();
+  if (req.file) up.removeQuietly(req.file.path);
+  res.status(413).json({ error: err.code === 'LIMIT_FILE_SIZE' ? `Die Datei ist zu groß (höchstens ${up.MAX_MB} MB).` : 'Hochladen fehlgeschlagen.' });
+});
+router.post('/:slug/modell', needLogin, entry, editorJson, modelUpload, auth.csrfCheck, (req, res) => {
+  const f = req.file, quota = require('../quota');
+  const bad = !f ? 'Keine Datei gewählt.'
+    : f.size > dio.MODEL_MAX_MB * 1024 * 1024 ? `„${f.originalname}“ ist zu groß (höchstens ${dio.MODEL_MAX_MB} MB).`
+      : !dio.isGlb(f) ? `„${f.originalname}“ ist kein 3D-Modell im Format GLB (glTF 2.0, eine einzelne Datei).`
+        : !req.user.isAdmin && !quota.fits(req.user, f.size) ? quota.fullMessage(req.user) : null;
+  if (bad) { if (f) up.removeQuietly(f.path); return res.status(400).json({ error: bad }); }
+  const stored = dio.takeModel(f, req.user.id);
+  if (!stored) return res.status(400).json({ error: 'Hochladen fehlgeschlagen.' });
+  res.json({ ok: true, model: { f: stored, name: f.originalname, size: f.size } });
 });
 
 router.get('/:slug/bearbeiten', needLogin, entry, editor, (req, res) => res.render('v3/diorama-edit', formView(req, res, req.dio)));

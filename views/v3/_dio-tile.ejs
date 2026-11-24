@@ -77,6 +77,10 @@
   <% } else if (t.type === 'pano') { %>
   <div class="kpano<%= t.spin ? ' spin' : '' %>" style="--pano:url('/media/<%= r.f %>')" tabindex="0" aria-label="360°-Panorama<%= t.cap ? ': ' + t.cap : '' %>, mit Maus, Finger oder Pfeiltasten drehen"><span class="pv" aria-hidden="true">🌐 360° · ziehen zum Umsehen</span></div>
   <% if (t.cap) { %><span class="kcap"><%= t.cap %></span><% } %>
+  <% } else if (t.type === 'model') { %>
+  <model-viewer class="k3d" src="/media/<%= r.f %>"<% if (r.poster) { %> poster="/media/<%= r.poster %>"<% } %> alt="3D-Modell<%= t.cap ? ': ' + t.cap : '' %>" camera-controls<%= t.spin ? ' auto-rotate' : '' %> auto-rotate-delay="2000" rotation-per-second="18deg" interaction-prompt="none" touch-action="pan-y" shadow-intensity="0.7" exposure="1.05" loading="lazy" reveal="auto"></model-viewer>
+  <span class="pv" aria-hidden="true">🚀 3D · ziehen zum Drehen</span>
+  <% if (t.cap) { %><span class="kcap"><%= t.cap %></span><% } %>
   <% } else if (t.type === 'mods') { %>
   <div class="bd"><h3>🧩 Benötigte Mods</h3><ul class="mods">
     <% for (const m of r.mods) { %><li><span class="sp"><%= m.name %></span><% if (m.ver) { %><small><%= m.ver %></small><% } %><% if (m.url) { %><a class="pill small" href="<%= m.url %>"<%= ext(m.url) ? ' target="_blank" rel="noopener noreferrer nofollow"' : '' %>><%= ext(m.url) ? 'Öffnen ↗' : 'Hier' %></a><% } %></li><% } %>
